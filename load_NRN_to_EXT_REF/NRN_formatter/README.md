@@ -1,4 +1,4 @@
-# NRN_to_EXTREF
+# NRN_formatter  
 Purpose of this program is to join, format and reproject publicly availiable NRN shapefile priors to loading on NGDP1 EXT_REF schema.
 
 ## Expectations
