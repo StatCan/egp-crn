@@ -1,6 +1,8 @@
 # NRN_to_EXTREF
 Purpose of this program is to join, format and reproject publicly availiable NRN shapefile priors to loading on NGDP1 EXT_REF schema.
 
+## Expectations
+NRN data format haven't changed (ROADSEG.shp, ADDRANGE.dbf, STRPLANAME.dbf are provided, structure remained the same as previous vintages)
 
 ## Making It Go
 
