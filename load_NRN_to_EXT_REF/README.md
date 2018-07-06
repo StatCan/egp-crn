@@ -26,4 +26,5 @@ The scripts looks for a data source configuration file called `NRNconfig.yml` in
 File need to be modified to meet user needs and saved with '.yml' extension.
 
 ### Projection file
-The scripts looks for a .prj file, name specified in configuration file, in the current working directory.
+The scripts needs a .prj file, it's name have to be specified in configuration file and it has to be placed in the current python working directory.
+A .prj for custom NGD PCS_Lambert_Conformal_Conic is provided with the code.
