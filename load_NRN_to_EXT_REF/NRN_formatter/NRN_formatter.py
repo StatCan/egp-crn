@@ -10,6 +10,7 @@ import time
 import arcpy
 import yaml
 
+
 def load_config(path):
     """Load configuration settings from file."""
     sys.stdout.write("Loading configuration from {}\n".format(path))
@@ -72,20 +73,20 @@ def nrn_dbf_processing(pr_uid, src_path, output_name):
              RTENAME1EN, RTENAME2EN, PAVSTATUS, L_HNUMF, L_HNUML, \
              L_STNAME_C, L_PLACENAM, R_HNUMF, R_HNUML, R_STNAME_C, R_PLACENAM"
     kfields_add= "NID, L_HNUMSTR, L_OFFNANID, L_ALTNANID, R_HNUMSTR, R_OFFNANID, R_ALTNANID"
-    kfields_str_L="NID, DIRPREFIX as DIRPREFIX_L, STRTYPRE as STRTYPRE_L, STARTICLE as STARTICLE_L, \
-                   NAMEBODY as NAMEBODY_L, STRTYSUF as STRTYSUF_L, DIRSUFFIX as DIRSUFFIX_L, \
+    kfields_str_L="NID, DIRPREFIX as DIRPRFX_L, STRTYPRE as STRTYPRE_L, STARTICLE as STARTCL_L, \
+                   NAMEBODY as NAMEBODY_L, STRTYSUF as STRTYSUF_L, DIRSUFFIX as DIRSUFFX_L, \
                    MUNIQUAD as MUNIQUAD_L"
-    kfields_str_R ="NID, DIRPREFIX as DIRPREFIX_R, STRTYPRE as STRTYPRE_R, STARTICLE as STARTICLE_R, \
-                   NAMEBODY as NAMEBODY_R, STRTYSUF as STRTYSUF_R, DIRSUFFIX as DIRSUFFIX_R, \
+    kfields_str_R ="NID, DIRPREFIX as DIRPRFX_R, STRTYPRE as STRTYPRE_R, STARTICLE as STARTCL_R, \
+                   NAMEBODY as NAMEBODY_R, STRTYSUF as STRTYSUF_R, DIRSUFFIX as DIRSUFFX_R, \
                    MUNIQUAD as MUNIQUAD_R, PROVINCE"
     kfields_fin="NID, ROADSEGID, ADRANGENID, PROVIDER, \
                  ROADCLASS, RTNUMBER1, RTNUMBER2, RTENAME1FR, RTENAME2FR, \
                  RTENAME1EN, RTENAME2EN, PAVSTATUS, L_HNUMF, L_HNUML, \
                  L_STNAME_C, L_PLACENAM, R_HNUMF, R_HNUML, R_STNAME_C, R_PLACENAM, \
                  L_HNUMSTR, L_OFFNANID, L_ALTNANID, R_HNUMSTR, R_OFFNANID, R_ALTNANID, \
-                 DIRPREFIX_L, STRTYPRE_L, STARTICLE_L, NAMEBODY_L, STRTYSUF_L, DIRSUFFIX_L, \
-                 MUNIQUAD_L, DIRPREFIX_R, STRTYPRE_R, STARTICLE_R, \
-                 NAMEBODY_R, STRTYSUF_R, DIRSUFFIX_R, MUNIQUAD_R, PROVINCE"
+                 DIRPRFX_L, STRTYPRE_L, STARTCL_L, NAMEBODY_L, STRTYSUF_L, DIRSUFFX_L, \
+                 MUNIQUAD_L, DIRPRFX_R, STRTYPRE_R, STARTCL_R, \
+                 NAMEBODY_R, STRTYSUF_R, DIRSUFFX_R, MUNIQUAD_R, PROVINCE"
 
     #Delete existing table in memory
     #FIX, deletion works 1 time out of 2....
@@ -160,7 +161,7 @@ def import_shp_to_fgdb(pr_uid, src_path, wkspc_path, prj_loc, Output_nme):
                 fieldInfo = fieldInfo + field.name + " " + field.name + " VISIBLE;"
             if field.name == "Shape":
                 fieldInfo = fieldInfo + field.name + " " + field.name + " VISIBLE;"
-            if field.name == "NID":
+            if field.name == "ROADSEGID":
                 fieldInfo = fieldInfo + field.name + " " + field.name + " VISIBLE;"
             if field.name == "Shape_Length":
                 fieldInfo = fieldInfo + field.name + " " + field.name + " VISIBLE;"
@@ -200,25 +201,28 @@ def main():
     prj_loc = config['data']['PRJ']
     wkdir= config['data']['work_directory']
     nrn_root = config['data']['prov_data_directory']
-    #generate variables for functions
-    nrn_dbf_loc = nrn_root+".dbf"
-    nrn_shp_loc = nrn_root+".shp"
-    wkspc="NRN_to_EXTREF_PR{}.gdb".format(PRID)
-    wkpath = os.path.join (wkdir, wkspc)
-    shp_name="NRN_shp_PR{}".format(PRID)
-    dbf_name = "attribute_PR{}.dbf".format(PRID)
-    final_name="NRN_PR{}".format(PRID)
-    attribute_dbf = os.path.join(wkdir, dbf_name)
-    #run functions
-    create_directory(wkdir)
-    create_workspace(wkdir, wkspc)
-    nrn_dbf_processing(PRID, nrn_dbf_loc, attribute_dbf)
-    import_shp_to_fgdb(PRID, nrn_shp_loc, wkpath, prj_loc, shp_name)
-    join_geo_to_table(shp_name, attribute_dbf, 'NID', 'NID', final_name)
-    #clean up
-    arcpy.DeleteField_management(final_name, 'NID_1')
-    arcpy.Delete_management(shp_name)
 
+    if PRID in ('10','11','12','13','46','47','48','60','61','62'):
+        #create variables for functions
+        nrn_dbf_loc = nrn_root+".dbf"
+        nrn_shp_loc = nrn_root+".shp"
+        wkspc="NRN_to_EXTREF_PR{}.gdb".format(PRID)
+        wkpath = os.path.join (wkdir, wkspc)
+        shp_name="NRN_shp_PR{}".format(PRID)
+        dbf_name = "attribute_PR{}.dbf".format(PRID)
+        final_name="NRN_PR{}".format(PRID)
+        attribute_dbf = os.path.join(wkdir, dbf_name)
+        #run functions
+        create_directory(wkdir)
+        create_workspace(wkdir, wkspc)
+        nrn_dbf_processing(PRID, nrn_dbf_loc, attribute_dbf)
+        import_shp_to_fgdb(PRID, nrn_shp_loc, wkpath, prj_loc, shp_name)
+        join_geo_to_table(shp_name, attribute_dbf, 'ROADSEGID', 'ROADSEGID', final_name)
+        #clean up
+        arcpy.DeleteField_management(final_name, 'ROADSEGID_1')
+        arcpy.Delete_management(shp_name)
+    else:
+        sys.stdout.write("Treatment for requested province is not implemented or PRID is invalid\n")
 
 if __name__ == '__main__':
 
