@@ -10,6 +10,8 @@ The main entry point for the model is the `NRN_to_extref.py` script.
 
 ### Dependencies
 
+This Project require Spatialite.exe (https://www.gaia-gis.it/fossil/libspatialite/home)
+
 This project relies on some external python modules. These are defined within the 
 `requirements.txt` file, and can be installed with `pip`.
 
