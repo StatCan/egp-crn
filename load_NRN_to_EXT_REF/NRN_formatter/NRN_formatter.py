@@ -53,7 +53,7 @@ def create_workspace (dir_path, db_nme):
         arcpy.env.qualifiedFieldNames = False
 
 
-def nrn_dbf_processing(pr_uid, src_path, output_name):
+def nrn_dbf_processing(pr_uid, spatialite_path, src_path, output_name):
     """import, join and purge fields from NRN dbf"""
     # Make a list of all DBFs provided NRN.
     nrn_dbf_files = glob.glob(src_path)
@@ -117,7 +117,7 @@ def nrn_dbf_processing(pr_uid, src_path, output_name):
     #dumb into new dbf
     commands += ".dumpdbf NRN_attribute {output} CP1252 \n".format(output=output_name)
 
-    proc = subprocess.Popen('C:\sqlite\spatialite.exe --echo', stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(spatialite_path, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     proc.stdin.write(commands)
     proc.stdin.close()
 
@@ -201,26 +201,33 @@ def main():
     prj_loc = config['data']['PRJ']
     wkdir= config['data']['work_directory']
     nrn_root = config['data']['prov_data_directory']
+    spatialite_path = config['data']['spatialite_path']
+
+    #create common variables for functions
+    wkspc="NRN_to_EXTREF_PR{}.gdb".format(PRID)
+    wkpath = os.path.join (wkdir, wkspc)
+    shp_name="NRN_shp_PR{}".format(PRID)
+    dbf_name = "attribute_PR{}.dbf".format(PRID)
+    final_name="NRN_PR{}".format(PRID)
+    attribute_dbf = os.path.join(wkdir, dbf_name)
+
+    #run common functions
+    create_directory(wkdir)
+    create_workspace(wkdir, wkspc)
 
     if PRID in ('10','11','12','13','46','47','48','60','61','62'):
-        #create variables for functions
+        #create specific variables for NRN functions
         nrn_dbf_loc = nrn_root+".dbf"
         nrn_shp_loc = nrn_root+".shp"
-        wkspc="NRN_to_EXTREF_PR{}.gdb".format(PRID)
-        wkpath = os.path.join (wkdir, wkspc)
-        shp_name="NRN_shp_PR{}".format(PRID)
-        dbf_name = "attribute_PR{}.dbf".format(PRID)
-        final_name="NRN_PR{}".format(PRID)
-        attribute_dbf = os.path.join(wkdir, dbf_name)
-        #run functions
-        create_directory(wkdir)
-        create_workspace(wkdir, wkspc)
-        nrn_dbf_processing(PRID, nrn_dbf_loc, attribute_dbf)
+        #run NRN functions
+        nrn_dbf_processing(PRID,spatialite_path,nrn_dbf_loc, attribute_dbf)
         import_shp_to_fgdb(PRID, nrn_shp_loc, wkpath, prj_loc, shp_name)
         join_geo_to_table(shp_name, attribute_dbf, 'ROADSEGID', 'ROADSEGID', final_name)
         #clean up
         arcpy.DeleteField_management(final_name, 'ROADSEGID_1')
         arcpy.Delete_management(shp_name)
+    elif PRID=='35':
+        sys.stdout.write("Someday this will do something with ORN\n")
     else:
         sys.stdout.write("Treatment for requested province is not implemented or PRID is invalid\n")
 
