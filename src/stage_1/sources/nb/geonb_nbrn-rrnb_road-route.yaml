@@ -11,8 +11,8 @@ license:
   text: GeoNB Open Data Licence
 language: en
 data:
-  format: shp
-  path: data/raw/nb/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_road-route
+  driver: ESRI Shapefile
+  path: data/raw/nb/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_road-route.shp
   layer: None
 conform:
   addrange:

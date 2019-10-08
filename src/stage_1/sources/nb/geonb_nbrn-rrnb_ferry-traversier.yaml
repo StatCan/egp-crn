@@ -11,8 +11,8 @@ license:
   text: GeoNB Open Data Licence
 language: en
 data:
-  format: shp
-  path: data/raw/nb/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_ferry-traversier
+  driver: ESRI Shapefile
+  path: data/raw/nb/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_ferry-traversier.shp
   layer: None
 conform:
   ferryseg:
