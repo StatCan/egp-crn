@@ -1,160 +1,170 @@
 addrange:
-  nid: 'str:32'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  acqtech: 'int'
-  accuracy: 'int'
-  provider: 'int'
-  credate: 'str:8'
-  revdate: 'str:8'
-  metacover: 'int'
-  l_digdirfg: 'int'
-  l_hnumstr: 'int'
-  l_rfsysind: 'int'
-  l_hnumtypf: 'int'
-  l_hnumf: 'int'
-  l_hnumsuff: 'str:20'
-  l_hnumtypl: 'int'
-  l_hnuml: 'int'
-  l_hnumsufl: 'str:20'
-  l_offnanid: 'str:32'
-  l_altnanid: 'str:32'
-  r_digdirfg: 'int'
-  r_hnumstr: 'int'
-  r_rfsysind: 'int'
-  r_hnumtypf: 'int'
-  r_hnumf: 'int'
-  r_hnumsuff: 'str:20'
-  r_hnumtypl: 'int'
-  r_hnuml: 'int'
-  r_hnumsufl: 'str:20'
-  r_offnanid: 'str:32'
-  r_altnanid: 'str:32'
+  acqtech:    [string, 23]
+  metacover:  [string, 8]
+  credate:    [string, 8]
+  datasetnam: [string, 25]
+  accuracy:   [int, 4]
+  provider:   [string, 24]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  l_altnanid: [string, 32]
+  r_altnanid: [string, 32]
+  l_digdirfg: [string, 18]
+  r_digdirfg: [string, 18]
+  l_hnumf:    [int, 9]
+  r_hnumf:    [int, 9]
+  l_hnumsuff: [string, 10]
+  r_hnumsuff: [string, 10]
+  l_hnumtypf: [string, 16]
+  r_hnumtypf: [string, 16]
+  l_hnumstr:  [string, 9]
+  r_hnumstr:  [string, 9]
+  l_hnuml:    [int, 9]
+  r_hnuml:    [int, 9]
+  l_hnumsufl: [string, 10]
+  r_hnumsufl: [string, 10]
+  l_hnumtypl: [string, 16]
+  r_hnumtypl: [string, 16]
+  nid:        [string, 32]
+  l_offnanid: [string, 32]
+  r_offnanid: [string, 32]
+  l_rfsysind: [string, 18]
+  r_rfsysind: [string, 18]
 altnamlink:
-  nid: 'str:32'
-  strnamenid: 'str:32'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  credate: 'str:8'
-  revdate: 'str:8'
+  credate:    [string, 8]
+  datasetnam: [string, 100]
+  nid:        [string, 32]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  strnamenid: [string, 32]
 blkpassage:
-  nid: 'str:32'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  acqtech: 'int'
-  accuracy: 'int'
-  provider: 'int'
-  credate: 'str:8'
-  revdate: 'str:8'
-  metacover: 'int'
-  blkpassty: 'int'
-  roadnid: 'str:32'
+  acqtech:    [string, 23]
+  metacover:  [string, 8]
+  credate:    [string, 8]
+  datasetnam: [string, 25]
+  accuracy:   [int, 4]
+  provider:   [string, 24]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  blkpassty:  [string, 17]
+  nid:        [string, 32]
+  roadnid:    [string, 32]
 ferryseg:
-  nid: 'str:32'
-  ferrysegid: 'int'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  acqtech: 'int'
-  accuracy: 'int'
-  provider: 'int'
-  credate: 'str:8'
-  revdate: 'str:8'
-  metacover: 'int'
-  roadclass: 'int'
-  rtename1en: 'str:100'
-  rtename2en: 'str:100'
-  rtename3en: 'str:100'
-  rtename4en: 'str:100'
-  rtename1fr: 'str:100'
-  rtename2fr: 'str:100'
-  rtename3fr: 'str:100'
-  rtename4fr: 'str:100'
-  rtnumber1: 'str:10'
-  rtnumber2: 'str:10'
-  rtnumber3: 'str:10'
-  rtnumber4: 'str:10'
-  rtnumber5: 'str:10'
-  closing: 'int'
+  acqtech:    [string, 23]
+  metacover:  [string, 8]
+  credate:    [string, 8]
+  datasetnam: [string, 25]
+  accuracy:   [int, 4]
+  provider:   [string, 24]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  closing:    [string, 7]
+  ferrysegid: [int, 9]
+  roadclass:  [string, 21]
+  nid:        [string, 32]
+  rtename1en: [string, 100]
+  rtename2en: [string, 100]
+  rtename3en: [string, 100]
+  rtename4en: [string, 100]
+  rtename1fr: [string, 100]
+  rtename2fr: [string, 100]
+  rtename3fr: [string, 100]
+  rtename4fr: [string, 100]
+  rtnumber1:  [string, 10]
+  rtnumber2:  [string, 10]
+  rtnumber3:  [string, 10]
+  rtnumber4:  [string, 10]
+  rtnumber5:  [string, 10]
 junction:
-  nid: 'str:32'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  acqtech: 'int'
-  accuracy: 'int'
-  provider: 'int'
-  credate: 'str:8'
-  revdate: 'str:8'
-  metacover: 'int'
-  junctype: 'int'
-  exitnbr: 'str:10'
+  acqtech:    [string, 23]
+  metacover:  [string, 8]
+  credate:    [string, 8]
+  datasetnam: [string, 25]
+  accuracy:   [int, 4]
+  provider:   [string, 24]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  exitnbr:    [string, 10]
+  junctype:   [string, 12]
+  nid:        [string, 32]
 roadseg:
-  nid: 'str:32'
-  roadsegid: 'int'
-  adrangenid: 'str:32'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  acqtech: 'int'
-  accuracy: 'int'
-  provider: 'int'
-  credate: 'str:8'
-  revdate: 'str:8'
-  metacover: 'int'
-  roadclass: 'int'
-  rtename1en: 'str:100'
-  rtename2en: 'str:100'
-  rtename3en: 'str:100'
-  rtename4en: 'str:100'
-  rtename1fr: 'str:100'
-  rtename2fr: 'str:100'
-  rtename3fr: 'str:100'
-  rtename4fr: 'str:100'
-  rtnumber1: 'str:10'
-  rtnumber2: 'str:10'
-  rtnumber3: 'str:10'
-  rtnumber4: 'str:10'
-  rtnumber5: 'str:10'
-  exitnbr: 'str:10'
-  nbrlanes: 'int'
-  pavstatus: 'int'
-  pavsurf: 'int'
-  unpavsurf: 'int'
-  structid: 'str:32'
-  structtype: 'int'
-  strunameen: 'str:100'
-  strunamefr: 'str:100'
-  closing: 'int'
-  speed: 'int'
-  trafficdir: 'int'
-  roadjuris: 'str:100'
+  acqtech:    [string, 23]
+  metacover:  [string, 8]
+  credate:    [string, 8]
+  datasetnam: [string, 25]
+  accuracy:   [int, 4]
+  provider:   [string, 24]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  l_adddirfg: [string, 18]
+  r_adddirfg: [string, 18]
+  adrangenid: [string, 32]
+  closing:    [string, 7]
+  exitnbr:    [string, 10]
+  l_hnumf:    [string, 30]
+  r_hnumf:    [string, 30]
+  roadclass:  [string, 21]
+  l_hnuml:    [string, 30]
+  r_hnuml:    [string, 30]
+  nid:        [string, 32]
+  nbrlanes:   [int, 4]
+  l_placenam: [string, 100]
+  r_placenam: [string, 100]
+  l_stname_c: [string, 100]
+  r_stname_c: [string, 100]
+  pavsurf:    [string, 8]
+  pavstatus:  [string, 7]
+  roadjuris:  [string, 100]
+  roadsegid:  [int, 9]
+  rtename1en: [string, 100]
+  rtename2en: [string, 100]
+  rtename3en: [string, 100]
+  rtename4en: [string, 100]
+  rtename1fr: [string, 100]
+  rtename2fr: [string, 100]
+  rtename3fr: [string, 100]
+  rtename4fr: [string, 100]
+  rtnumber1:  [string, 10]
+  rtnumber2:  [string, 10]
+  rtnumber3:  [string, 10]
+  rtnumber4:  [string, 10]
+  rtnumber5:  [string, 10]
+  speed:      [int, 4]
+  strunameen: [string, 100]
+  strunamefr: [string, 100]
+  structid:   [string, 32]
+  structtype: [string, 15]
+  trafficdir: [string, 18]
+  unpavsurf:  [string, 7]
 strplaname:
-  nid: 'str:32'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  acqtech: 'int'
-  accuracy: 'int'
-  provider: 'int'
-  credate: 'str:8'
-  revdate: 'str:8'
-  metacover: 'int'
-  dirprefix: 'int'
-  strtypre: 'str:30'
-  starticle: 'str:20'
-  namebody: 'str:50'
-  strtysuf: 'str:30'
-  dirsuffix: 'int'
-  muniquad: 'int'
-  placename: 'str:100'
-  province: 'int'
-  placetype: 'str:100'
+  acqtech:    [string, 23]
+  metacover:  [string, 8]
+  credate:    [string, 8]
+  datasetnam: [string, 25]
+  accuracy:   [int, 4]
+  provider:   [string, 24]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  dirprefix:  [string, 10]
+  dirsuffix:  [string, 10]
+  muniquad:   [string, 10]
+  nid:        [string, 32]
+  placename:  [string, 100]
+  placetype:  [string, 100]
+  province:   [string, 25]
+  starticle:  [string, 20]
+  namebody:   [string, 50]
+  strtypre:   [string, 30]
+  strtysuf:   [string, 30]
 tollpoint:
-  nid: 'str:32'
-  datasetnam: 'int'
-  specvers: 'str:100'
-  acqtech: 'int'
-  accuracy: 'int'
-  provider: 'int'
-  credate: 'str:8'
-  revdate: 'str:8'
-  metacover: 'int'
-  tollpttype: 'int'
-  roadnid: 'str:32'
+  acqtech:    [string, 23]
+  metacover:  [string, 8]
+  credate:    [string, 8]
+  datasetnam: [string, 25]
+  accuracy:   [int, 4]
+  provider:   [string, 24]
+  revdate:    [string, 8]
+  specvers:   [string, 10]
+  nid:        [string, 32]
+  roadnid:    [string, 32]
+  tollpttype: [string, 22]
