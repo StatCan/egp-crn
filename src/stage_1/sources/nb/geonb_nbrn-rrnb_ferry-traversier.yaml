@@ -16,17 +16,18 @@ data:
   layer: None
 conform:
   ferryseg:
-    nid: NID
-    ferrysegid: FERSEGID
-    datasetnam: "New Brunswick"
-    specvers:
     acqtech:
+    metacover:
+    credate:
+    datasetnam: "New Brunswick"
     accuracy:
     provider:
-    credate:
     revdate:
-    metacover:
+    specvers:
+    closing: CLOSING
+    ferrysegid: FERSEGID
     roadclass: ROADCLASS
+    nid: NID
     rtename1en: RTENAME1EN
     rtename2en: RTENAME2EN
     rtename3en:
@@ -40,4 +41,3 @@ conform:
     rtnumber3:
     rtnumber4:
     rtnumber5:
-    closing: CLOSING
