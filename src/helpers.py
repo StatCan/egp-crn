@@ -11,7 +11,7 @@ logger = logging.getLogger()
 def create_temp_directory(stage_id, dir="../../data/interim"):
     """Creates a temporary directory for the given stage execution."""
 
-    logger.info("Started: create_temp_directory")
+    logger.info("Creating temp directory.")
 
     # Configure temp dir path.
     params = {"suffix": "_{}".format(datetime.today().strftime("%Y%m%d-%H%M%S")),
@@ -21,9 +21,6 @@ def create_temp_directory(stage_id, dir="../../data/interim"):
     try:
         temp_dir = tempfile.mkdtemp(**params)
     except FileExistsError:
-        msg = "Directory already exists in {}.".format(params["dir"])
-        logger.error(msg)
-        sys.stdout.write("ERROR: {}".format(msg))
+        logger.error("Directory already exists in {}.".format(params["dir"]))
 
-    logger.info("Finished: create_temp_directory")
     return temp_dir

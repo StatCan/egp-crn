@@ -11,9 +11,9 @@ license:
   text: GeoNB Open Data Licence
 language: en
 data:
-  driver: ESRI Shapefile
-  path: data/raw/nb/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_road-route.shp
+  filename: geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_road-route.shp
   layer: None
+  driver: ESRI Shapefile
 conform:
   addrange:
     acqtech:
@@ -106,106 +106,114 @@ conform:
     revdate:
     specvers:
     dirprefix:
-      - regex-sub:
+      regex-sub:
         field: STREETNAME
         pattern:
           from: "[-]"
           to: " "
-      - regex-findall:
+      regex-findall:
         field:
-        pattern: |-
-          "([\s\W]+|^)                                                                                                   # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
-          (Central|Centre|East|Est|Nordest|Nord est|Nordouest|Nord ouest|Nord|Northeast|North east|Northwest|North west| # Group 2: in list of values.
-          North|Ouest|Sudest|Sud est|Sudouest|Sud ouest|Sud|Southeast|South east|Southwest|South west|South|West)
-          ([\s\W]+)"                                                                                                     # Group 3: succeeded by space(s) and/or non-word char(s).
+        pattern:
+          # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
+          # Group 2: in list of values.
+          # Group 3: succeeded by space(s) and/or non-word char(s).
+          ([\s\W]+|^)(Central|Centre|East|Est|Nordest|Nord est|Nordouest|Nord ouest|Nord|Northeast|North east|Northwest|
+          North west|North|Ouest|Sudest|Sud est|Sudouest|Sud ouest|Sud|Southeast|South east|Southwest|South west|South|
+          West)([\s\W]+)
         match_index: 0
         group_index: 1
     dirsuffix:
-      - regex-sub:
+      regex-sub:
         field: STREETNAME
         pattern:
           from: "[-]"
           to: " "
-      - regex-findall:
+      regex-findall:
         field:
-        pattern: |-
-          "([\s\W]+)                                                                                                     # Group 1: preceded by space(s) and/or non-word char(s).
-          (Central|Centre|East|Est|Nordest|Nord est|Nordouest|Nord ouest|Nord|Northeast|North east|Northwest|North west| # Group 2: in list of values.
-          North|Ouest|Sudest|Sud est|Sudouest|Sud ouest|Sud|Southeast|South east|Southwest|South west|South|West)
-          ([\s\W]+|$)"                                                                                                   # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
+        pattern:
+          # Group 1: preceded by space(s) and/or non-word char(s).
+          # Group 2: in list of values.
+          # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
+          ([\s\W]+)(Central|Centre|East|Est|Nordest|Nord est|Nordouest|Nord ouest|Nord|Northeast|North east|Northwest|
+          North west|North|Ouest|Sudest|Sud est|Sudouest|Sud ouest|Sud|Southeast|South east|Southwest|South west|South|
+          West)([\s\W]+|$)
         match_index: -1
         group_index: 1
     muniquad:
     nid:
     placename:
-      - separate-by-field:
+      separate-by-field:
         fields: [L_PLACENAM, R_PLACENAM]
     placetype:
     province: "New Brunswick"
     starticle:
-      - regex-sub:
+      regex-sub:
         field: STREETNAME
         pattern:
           from: "[-]"
           to: " "
-      - regex-findall:
+      regex-findall:
         field:
-        pattern: |-
-          "([\s\W]+|^)                                                                                                   # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
-          (à l'|a l'|d'|de l'|l')|                                                                                       # Group 2: in list of values.
-          ([\s\W]+|^)                                                                                                    # Group 3: preceded by (space(s) and/or non-word char(s)) or line start.
-          (à la|a la|à|aux|au|by the|chez|des|de la|de|du|la|les|le|of the|the)                                          # Group 4: in list of values.
-          ([\s\W]+|$)"                                                                                                   # Group 5: succeeded by (space(s) and/or non-word char(s)) or line end.
+        pattern:
+          # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
+          # Group 2: in list of values.
+          # Group 3: preceded by (space(s) and/or non-word char(s)) or line start.
+          # Group 4: in list of values.
+          # Group 5: succeeded by (space(s) and/or non-word char(s)) or line end.
+          ([\s\W]+|^)(à l'|a l'|d'|de l'|l')|([\s\W]+|^)(à la|a la|à|aux|au|by the|chez|des|de la|de|du|la|les|le|
+          of the|the)([\s\W]+|$)
         match_index: -1
         group_index: [1, 3]
     namebody:
-      - strip-attributes:
+      strip-attributes:
         attributes: [dirprefix, strtypre, starticle, strtysuf, dirsuffix]
     strtypre:
-      - regex-sub:
+      regex-sub:
         field: STREETNAME
         pattern:
           from: "[-]"
           to: " "
-      - regex-findall:
+      regex-findall:
         field:
-        pattern: |-
-          "([\s\W]+|^)
-          (Abbey|Access|Acres|Aire|Allée|Allee|Alley|Autoroute|Avenue|Barrage|Bay|Beach|Bend|Bloc|Block|Boulevard|Bourg| # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
-          Brook|By pass|Byway|Campus|Cape|Carre|Carrefour|Centre|Cercle|Chase|Chemin|Circle|Circuit|Close|Common|        # Group 2: in list of values.
-          Concession|Corners|Côte|Cote|Cour|Court|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|Cul de sac|Dale|
-          Dell|Desserte|Diversion|Downs|Drive|Droit de passage|Échangeur|Echangeur|End|Esplanade|Estates|Expressway|
-          Extension|Farm|Field|Forest|Front|Gardens|Gate|Glade|Glen|Green|Grounds|Grove|Harbour|Haven|Heath|Heights|
-          Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Lane|Laneway|Limits|Line|Link|Lookout|
-          Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mount|Mountain|Orchard|Parade|Parc|Park|Parkway|Passage|
-          Path|Pathway|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|Rang|Range|Reach|Ridge|
-          Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|Sideroad|Square|Street|
-          Stroll|Subdivision|Terrace|Terrasse|Thicket|Towers|Townline|Trace|Trail|Trunk|Turnabout|Vale|Via|View|Village|
-          Vista|Voie|Walk|Way|Wharf|Wood|Woods|Wynd)
-          ([\s\W]+)"                                                                                                     # Group 3: succeeded by space(s) and/or non-word char(s).
+        pattern:
+          # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
+          # Group 2: in list of values.
+          # Group 3: succeeded by space(s) and/or non-word char(s).
+          ([\s\W]+|^)(Abbey|Access|Acres|Aire|Allée|Allee|Alley|Autoroute|Avenue|Barrage|Bay|Beach|Bend|Bloc|Block|
+          Boulevard|Bourg|Brook|By pass|Byway|Campus|Cape|Carre|Carrefour|Centre|Cercle|Chase|Chemin|Circle|Circuit|
+          Close|Common|Concession|Corners|Côte|Cote|Cour|Court|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|
+          Cul de sac|Dale|Dell|Desserte|Diversion|Downs|Drive|Droit de passage|Échangeur|Echangeur|End|Esplanade|
+          Estates|Expressway|Extension|Farm|Field|Forest|Front|Gardens|Gate|Glade|Glen|Green|Grounds|Grove|Harbour|
+          Haven|Heath|Heights|Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Lane|Laneway|
+          Limits|Line|Link|Lookout|Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mount|Mountain|Orchard|Parade|
+          Parc|Park|Parkway|Passage|Path|Pathway|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|Rang|
+          Range|Reach|Ridge|Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|
+          Sideroad|Square|Street|Stroll|Subdivision|Terrace|Terrasse|Thicket|Towers|Townline|Trace|Trail|Trunk|
+          Turnabout|Vale|Via|View|Village|Vista|Voie|Walk|Way|Wharf|Wood|Woods|Wynd)([\s\W]+)
         match_index: 0
         group_index: 1
     strtysuf:
-      - regex-sub:
+      regex-sub:
         field: STREETNAME
         pattern:
           from: "[-]"
           to: " "
-      - regex-findall:
+      regex-findall:
         field:
-        pattern: |-
-          "([\s\W]+)                                                                                                     # Group 1: preceded by space(s) and/or non-word char(s).
-          (Abbey|Access|Acres|Aire|Allée|Allee|Alley|Autoroute|Avenue|Barrage|Bay|Beach|Bend|Bloc|Block|Boulevard|Bourg| # Group 2: in list of values.
-          Brook|By pass|Byway|Campus|Cape|Carre|Carrefour|Centre|Cercle|Chase|Chemin|Circle|Circuit|Close|Common|
-          Concession|Corners|Côte|Cote|Cour|Court|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|Cul de sac|Dale|
-          Dell|Desserte|Diversion|Downs|Drive|Droit de passage|Échangeur|Echangeur|End|Esplanade|Estates|Expressway|
-          Extension|Farm|Field|Forest|Front|Gardens|Gate|Glade|Glen|Green|Grounds|Grove|Harbour|Haven|Heath|Heights|
-          Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Lane|Laneway|Limits|Line|Link|Lookout|
-          Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mount|Mountain|Orchard|Parade|Parc|Park|Parkway|Passage|
-          Path|Pathway|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|Rang|Range|Reach|Ridge|
-          Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|Sideroad|Square|Street|
-          Stroll|Subdivision|Terrace|Terrasse|Thicket|Towers|Townline|Trace|Trail|Trunk|Turnabout|Vale|Via|View|Village|
-          Vista|Voie|Walk|Way|Wharf|Wood|Woods|Wynd)
-          ([\s\W]+|$)"                                                                                                   # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
+        pattern:
+          # Group 1: preceded by space(s) and/or non-word char(s).
+          # Group 2: in list of values.
+          # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
+          ([\s\W]+)(Abbey|Access|Acres|Aire|Allée|Allee|Alley|Autoroute|Avenue|Barrage|Bay|Beach|Bend|Bloc|Block|
+          Boulevard|Bourg|Brook|By pass|Byway|Campus|Cape|Carre|Carrefour|Centre|Cercle|Chase|Chemin|Circle|Circuit|
+          Close|Common|Concession|Corners|Côte|Cote|Cour|Court|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|
+          Cul de sac|Dale|Dell|Desserte|Diversion|Downs|Drive|Droit de passage|Échangeur|Echangeur|End|Esplanade|
+          Estates|Expressway|Extension|Farm|Field|Forest|Front|Gardens|Gate|Glade|Glen|Green|Grounds|Grove|Harbour|
+          Haven|Heath|Heights|Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Lane|Laneway|
+          Limits|Line|Link|Lookout|Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mount|Mountain|Orchard|Parade|
+          Parc|Park|Parkway|Passage|Path|Pathway|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|Rang|
+          Range|Reach|Ridge|Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|
+          Sideroad|Square|Street|Stroll|Subdivision|Terrace|Terrasse|Thicket|Towers|Townline|Trace|Trail|Trunk|
+          Turnabout|Vale|Via|View|Village|Vista|Voie|Walk|Way|Wharf|Wood|Woods|Wynd)([\s\W]+|$)
         match_index: -1
         group_index: 1
