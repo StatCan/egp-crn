@@ -37,6 +37,40 @@ class Stage:
         # Create temp dir.
         self.temp_dir = helpers.create_temp_directory(self.stage)
 
+    def apply_field_mapping(self):
+        """Maps the source geodataframes to the target geodataframes via user-specific field mapping functions."""
+
+        logger.info("Applying field mappings.")
+
+        # Retrieve source attributes and geodataframe.
+        for source_name, source_attributes in self.source_attributes.items():
+            source_gdf = self.source_gdframes[source_name]
+
+            # Retrieve target attributes and geodataframe.
+            for target_name in source_attributes["conform"]:
+                logger.info("Applying field mapping from {} to {}".format(source_name, target_name))
+                target_gdf = self.target_gdframes[target_name]
+
+                # Retrieve table field mapping attributes.
+                map_attributes = source_attributes["conform"][target_name]
+
+                # Field mappings.
+                for target_field, source_field in map_attributes.items():
+
+                    if isinstance(source_field, str):
+
+                        if source_field in source_gdf.columns:
+                            # Apply field mapping type: 1:1.
+                            logger.info("Applying field mapping type: 1:1.")
+                            sys.stdout.write("{}\n".format(source_field))
+                            # ...
+
+                        else:
+                            # Apply field mapping type: raw value.
+                            logger.info("Applying field mapping type: raw value")
+                            sys.stdout.write("{}\n".format(source_field))
+                            # ...
+
     def gen_source_geodataframes(self):
         """Loads input data into a GeoPandas dataframe."""
 
@@ -47,35 +81,42 @@ class Stage:
             # Configure filename attribute absolute path.
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
 
-            # Convert None layer attribute to python NoneType.
-            if source_yaml["data"]["layer"].upper() == "NONE":
-                source_yaml["data"]["layer"] = None
-
             # Load source into geodataframe.
-            self.source_gdframes[source] = gpd.read_file(**source_yaml["data"])
+            gdf = gpd.read_file(**source_yaml["data"])
+
+            # Force lowercase field names.
+            gdf.columns = map(str.lower, gdf.columns)
+            self.source_gdframes[source] = gdf
             logger.info("Successfully loaded geodataframe for {}, layer={}".format(
                 os.path.basename(source_yaml["data"]["filename"]), source_yaml["data"]["layer"]))
 
             # Add uuid field.
             logger.info("Adding temporary uuid field to geodataframe.")
-            self.source_gdframes[source]["UUID"] = [uuid.uuid4().hex for _ in range(len(self.source_gdframes[source]))]
+            self.source_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in range(len(self.source_gdframes[source]))]
 
     def gen_target_geodataframes(self):
         """Creates empty geodataframes for all applicable output tables based on the input data field mappings."""
 
-        logger.info("Compiling applicable target table names.")
-        target_tables = list()
-
-        for source, source_yaml in self.source_attributes.items():
-            for table in source_yaml["conform"]:
-                target_tables.append(table)
-
         logger.info("Creating target geodataframes for applicable tables.")
         self.target_gdframes = dict()
 
-        for table in target_tables:
-            self.target_gdframes[table] = gpd.GeoDataFrame({field: pd.Series(dtype=self.target_attributes[table][field])
-                                                            for field in self.target_attributes[table]})
+        # Retrieve target table name from source attributes.
+        for source, source_yaml in self.source_attributes.items():
+            for table in source_yaml["conform"]:
+
+                logger.info("Creating target geodataframe: {}".format(table))
+
+                # Generate target geodataframe from source uuid and geometry fields.
+                gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
+                                       geometry=self.source_gdframes[source].geometry)
+
+                # Add target field schema.
+                gdf = gdf.assign(**{field: pd.Series(dtype=self.target_attributes[table][field]) for field in
+                                    self.target_attributes[table]})
+
+                # Store result.
+                self.target_gdframes[table] = gdf
+                logger.info("Successfully created target geodataframe: {}".format(table))
 
     def load_source_attributes(self):
         """Loads the yaml files in the sources' directory into a dictionary."""
@@ -131,13 +172,7 @@ class Stage:
         self.load_target_attributes()
         self.gen_source_geodataframes()
         self.gen_target_geodataframes()
-
-        for source in self.source_gdframes:
-            sys.stdout.write("\nSOURCE:\n")
-            sys.stdout.write(str(self.source_gdframes[source]))
-        for target in self.target_gdframes:
-            sys.stdout.write("\nTARGET:\n")
-            sys.stdout.write(str(self.target_gdframes[target]))
+        self.apply_field_mapping()
 
 
 @click.command()
