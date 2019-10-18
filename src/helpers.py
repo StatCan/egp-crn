@@ -14,8 +14,7 @@ def create_temp_directory(stage_id, dir="../../data/interim"):
     logger.info("Creating temp directory.")
 
     # Configure temp dir path.
-    params = {"suffix": "_{}".format(datetime.today().strftime("%Y%m%d-%H%M%S")),
-              "prefix": "STAGE{}_".format(stage_id),
+    params = {"prefix": "STAGE{}_{}_".format(stage_id, datetime.today().strftime("%Y%m%d-%H%M%S")),
               "dir": os.path.abspath(dir)}
 
     try:
