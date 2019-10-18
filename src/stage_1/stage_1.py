@@ -40,7 +40,7 @@ class Stage:
     def apply_field_mapping(self):
         """Maps the source geodataframes to the target geodataframes via user-specific field mapping functions."""
 
-        logger.info("Applying field mappings.")
+        logger.info("Applying field mapping.")
 
         # Retrieve source attributes and geodataframe.
         for source_name, source_attributes in self.source_attributes.items():
@@ -48,28 +48,42 @@ class Stage:
 
             # Retrieve target attributes and geodataframe.
             for target_name in source_attributes["conform"]:
-                logger.info("Applying field mapping from {} to {}".format(source_name, target_name))
+                logger.info("Applying field mapping from {} to {}.".format(source_name, target_name))
                 target_gdf = self.target_gdframes[target_name]
 
                 # Retrieve table field mapping attributes.
                 map_attributes = source_attributes["conform"][target_name]
 
-                # Field mappings.
+                # Field mapping.
                 for target_field, source_field in map_attributes.items():
 
+                    # No mapping.
+                    if source_field is None:
+                        logger.info("Target field \"{}\": No mapping provided.".format(target_field))
+
+                    # Non-function mapping.
                     if isinstance(source_field, str):
 
+                        # Field mapping type: 1:1.
                         if source_field in source_gdf.columns:
-                            # Apply field mapping type: 1:1.
-                            logger.info("Applying field mapping type: 1:1.")
-                            sys.stdout.write("{}\n".format(source_field))
-                            # ...
+                            logger.info("Target field \"{}\": Applying 1:1 field mapping.".format(target_field))
 
+                            target_gdf[target_field] = target_gdf["uuid"].map(
+                                source_gdf.set_index("uuid")[source_field])
+
+                        # Field mapping type: raw value.
                         else:
-                            # Apply field mapping type: raw value.
-                            logger.info("Applying field mapping type: raw value")
-                            sys.stdout.write("{}\n".format(source_field))
-                            # ...
+                            logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
+                            target_gdf[target_field] = source_field
+
+                    # Function mapping.
+                    else:
+
+                        logger.info("Target field \"{}\": Applying function mapping.".format(target_field))
+                        target_gdf[target_field] = "FUNCTION"
+
+                # Store updated target geodataframe.
+                self.target_gdframes[target_name] = target_gdf
 
     def gen_source_geodataframes(self):
         """Loads input data into a GeoPandas dataframe."""
@@ -86,16 +100,17 @@ class Stage:
 
             # Force lowercase field names.
             gdf.columns = map(str.lower, gdf.columns)
-            self.source_gdframes[source] = gdf
-            logger.info("Successfully loaded geodataframe for {}, layer={}".format(
-                os.path.basename(source_yaml["data"]["filename"]), source_yaml["data"]["layer"]))
 
             # Add uuid field.
-            logger.info("Adding temporary uuid field to geodataframe.")
-            self.source_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in range(len(self.source_gdframes[source]))]
+            gdf["uuid"] = [uuid.uuid4().hex for _ in range(len(gdf))]
+
+            # Store result.
+            self.source_gdframes[source] = gdf
+            logger.info("Successfully loaded geodataframe for {}, layer={}.".format(
+                os.path.basename(source_yaml["data"]["filename"]), source_yaml["data"]["layer"]))
 
     def gen_target_geodataframes(self):
-        """Creates empty geodataframes for all applicable output tables based on the input data field mappings."""
+        """Creates empty geodataframes for all applicable output tables based on the input data field mapping."""
 
         logger.info("Creating target geodataframes for applicable tables.")
         self.target_gdframes = dict()
@@ -104,7 +119,7 @@ class Stage:
         for source, source_yaml in self.source_attributes.items():
             for table in source_yaml["conform"]:
 
-                logger.info("Creating target geodataframe: {}".format(table))
+                logger.info("Creating target geodataframe: {}.".format(table))
 
                 # Generate target geodataframe from source uuid and geometry fields.
                 gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
@@ -116,7 +131,7 @@ class Stage:
 
                 # Store result.
                 self.target_gdframes[table] = gdf
-                logger.info("Successfully created target geodataframe: {}".format(table))
+                logger.info("Successfully created target geodataframe: {}.".format(table))
 
     def load_source_attributes(self):
         """Loads the yaml files in the sources' directory into a dictionary."""
@@ -151,7 +166,7 @@ class Stage:
             try:
                 target_attributes_yaml = yaml.safe_load(target_attributes_file)
             except yaml.YAMLError:
-                logger.error("Unable to load yaml file: {}".format(target_attributes_path))
+                logger.error("Unable to load yaml file: {}.".format(target_attributes_path))
 
         logger.info("Compiling attributes for target tables.")
         # Store yaml contents for all contained table names.
@@ -163,7 +178,7 @@ class Stage:
                 try:
                     self.target_attributes[table][field] = str(vals[0])
                 except ValueError:
-                    logger.error("Invalid schema definition for table: {}, field: {}".format(table, field))
+                    logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
 
     def execute(self):
         """Executes an NRN stage."""
@@ -173,6 +188,9 @@ class Stage:
         self.gen_source_geodataframes()
         self.gen_target_geodataframes()
         self.apply_field_mapping()
+        for target, gdframe in self.target_gdframes.items():
+            sys.stdout.write("TARGET: {}\n{}".format(target, gdframe))
+            sys.stdout.flush()
 
 
 @click.command()
