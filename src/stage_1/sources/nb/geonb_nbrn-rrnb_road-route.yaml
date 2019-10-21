@@ -111,7 +111,7 @@ conform:
         pattern:
           from: "[-]"
           to: " "
-      regex-findall:
+      regex-find:
         field:
         pattern:
           # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
@@ -128,7 +128,7 @@ conform:
         pattern:
           from: "[-]"
           to: " "
-      regex-findall:
+      regex-find:
         field:
         pattern:
           # Group 1: preceded by space(s) and/or non-word char(s).
@@ -142,7 +142,7 @@ conform:
     muniquad:
     nid:
     placename:
-      separate-by-field:
+      split-record:
         fields: [l_placenam, r_placenam]
     placetype:
     province: "New Brunswick"
@@ -152,7 +152,7 @@ conform:
         pattern:
           from: "[-]"
           to: " "
-      regex-findall:
+      regex-find:
         field:
         pattern:
           # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
@@ -166,6 +166,7 @@ conform:
         group_index: [1, 3]
     namebody:
       strip-attributes:
+        field: streetname
         attributes: [dirprefix, strtypre, starticle, strtysuf, dirsuffix]
     strtypre:
       regex-sub:
@@ -173,7 +174,7 @@ conform:
         pattern:
           from: "[-]"
           to: " "
-      regex-findall:
+      regex-find:
         field:
         pattern:
           # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
@@ -198,7 +199,7 @@ conform:
         pattern:
           from: "[-]"
           to: " "
-      regex-findall:
+      regex-find:
         field:
         pattern:
           # Group 1: preceded by space(s) and/or non-word char(s).

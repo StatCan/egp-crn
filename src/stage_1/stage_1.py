@@ -62,7 +62,7 @@ class Stage:
                         logger.info("Target field \"{}\": No mapping provided.".format(target_field))
 
                     # Non-function mapping.
-                    if isinstance(source_field, str):
+                    elif isinstance(source_field, str):
 
                         # Field mapping type: 1:1.
                         if source_field in source_gdf.columns:
@@ -80,7 +80,7 @@ class Stage:
                     else:
 
                         logger.info("Target field \"{}\": Applying function mapping.".format(target_field))
-                        target_gdf[target_field] = "FUNCTION"
+                        #...
 
                 # Store updated target geodataframe.
                 self.target_gdframes[target_name] = target_gdf
@@ -188,9 +188,6 @@ class Stage:
         self.gen_source_geodataframes()
         self.gen_target_geodataframes()
         self.apply_field_mapping()
-        for target, gdframe in self.target_gdframes.items():
-            sys.stdout.write("TARGET: {}\n{}".format(target, gdframe))
-            sys.stdout.flush()
 
 
 @click.command()
@@ -212,4 +209,4 @@ if __name__ == "__main__":
         main()
 
     except KeyboardInterrupt:
-        sys.stdout.write("KeyboardInterrupt exception: exiting program.")
+        logger.error("KeyboardInterrupt exception: exiting program.")
