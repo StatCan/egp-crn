@@ -9,6 +9,7 @@ import uuid
 import yaml
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
+import field_mapping_functions
 import helpers
 
 
@@ -46,16 +47,18 @@ class Stage:
         for source_name, source_attributes in self.source_attributes.items():
             source_gdf = self.source_gdframes[source_name]
 
-            # Retrieve target attributes and geodataframe.
+            # Retrieve target attributes.
             for target_name in source_attributes["conform"]:
                 logger.info("Applying field mapping from {} to {}.".format(source_name, target_name))
-                target_gdf = self.target_gdframes[target_name]
 
                 # Retrieve table field mapping attributes.
                 map_attributes = source_attributes["conform"][target_name]
 
                 # Field mapping.
                 for target_field, source_field in map_attributes.items():
+
+                    # Retrieve target geodataframe.
+                    target_gdf = self.target_gdframes[target_name]
 
                     # No mapping.
                     if source_field is None:
@@ -76,14 +79,37 @@ class Stage:
                             logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
                             target_gdf[target_field] = source_field
 
-                    # Function mapping.
+                    # Advanced function mapping - split_record.
+                    elif "split_record" in source_field["functions"].keys():
+                        logger.info("Target field \"{}\": Applying advanced function mapping - "
+                                    "\"split_record\".".format(target_field))
+
+                        logger.info("\nCONTENT COMING: split_record.\n")
+
+                    # Advanced function mapping - strip_attributes.
+                    elif "strip_attributes" in source_field["functions"].keys():
+                        logger.info("Target field \"{}\": Applying advanced function mapping - "
+                                    "\"strip_attributes\".".format(target_field))
+
+                        logger.info("\nCONTENT COMING: split_record.\n")
+
+                    # Basic function mapping.
                     else:
+                        logger.info("Target field \"{}\": Applying basic function mapping.".format(target_field))
 
-                        logger.info("Target field \"{}\": Applying function mapping.".format(target_field))
-                        #...
+                        # Create mapped dataframe from source and target geodataframes, keeping only the source field.
+                        merged_df = target_gdf["uuid"].map(source_gdf.set_index("uuid")[source_field["field"]])
 
-                # Store updated target geodataframe.
-                self.target_gdframes[target_name] = target_gdf
+                        # Iterate field mapping functions, storing interim results in merged dataframe.
+                        for func, params in source_field["functions"].items():
+                            merged_df = merged_df.apply(
+                                lambda val: eval("{}(val='{}', **{})".format(func, val, params)))
+
+                        # Update target geodataframe.
+                        target_gdf[target_field] = merged_df
+
+                    # Store updated target geodataframe.
+                    self.target_gdframes[target_name] = target_gdf
 
     def gen_source_geodataframes(self):
         """Loads input data into a GeoPandas dataframe."""
