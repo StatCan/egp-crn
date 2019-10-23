@@ -142,7 +142,9 @@ conform:
     placename:
       functions:
         split_record:
-          fields: [l_placenam, r_placenam]
+          fields:
+            - l_placenam
+            - r_placenam
     placetype:
     province: "New Brunswick"
     starticle:
@@ -161,12 +163,27 @@ conform:
             ([\s\W]+|^)(à l'|a l'|d'|de l'|l')|([\s\W]+|^)(à la|a la|à|aux|au|by the|chez|des|de la|de|du|la|les|le|
             of the|the)([\s\W]+|$)
           match_index: -1
-          group_index: [1, 3]
+          group_index:
+            - 1
+            - 3
     namebody:
       field: streetname
       functions:
-        strip_attributes:
-          attributes: [dirprefix, strtypre, starticle, strtysuf, dirsuffix]
+        strip_attribute:
+          attribute: dirprefix
+          instance_index: 0
+        strip_attribute:
+          attribute: strtypre
+          instance_index: 0
+        strip_attribute:
+          attribute: starticle
+          instance_index: 0
+        strip_attribute:
+          attribute: strtysuf
+          instance_index: -1
+        strip_attribute:
+          attribute: dirsuffix
+          instance_index: -1
     strtypre:
       field: streetname
       functions:
@@ -180,15 +197,15 @@ conform:
             # Group 3: succeeded by space(s) and/or non-word char(s).
             ([\s\W]+|^)(Abbey|Access|Acres|Aire|Allée|Allee|Alley|Autoroute|Avenue|Barrage|Bay|Beach|Bend|Bloc|Block|
             Boulevard|Bourg|Brook|By pass|Byway|Campus|Cape|Carre|Carrefour|Centre|Cercle|Chase|Chemin|Circle|Circuit|
-            Close|Common|Concession|Corners|Côte|Cote|Cour|Court|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|
+            Close|Common|Concession|Corners|Côte|Cote|Court|Cour|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|
             Cul de sac|Dale|Dell|Desserte|Diversion|Downs|Drive|Droit de passage|Échangeur|Echangeur|End|Esplanade|
             Estates|Expressway|Extension|Farm|Field|Forest|Front|Gardens|Gate|Glade|Glen|Green|Grounds|Grove|Harbour|
-            Haven|Heath|Heights|Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Lane|Laneway|
-            Limits|Line|Link|Lookout|Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mount|Mountain|Orchard|Parade|
-            Parc|Park|Parkway|Passage|Path|Pathway|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|
-            Rang|Range|Reach|Ridge|Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|
+            Haven|Heath|Heights|Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Laneway|Lane|
+            Limits|Line|Link|Lookout|Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mountain|Mount|Orchard|Parade|
+            Parc|Parkway|Park|Passage|Pathway|Path|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|
+            Range|Rang|Reach|Ridge|Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|
             Sideroad|Square|Street|Stroll|Subdivision|Terrace|Terrasse|Thicket|Towers|Townline|Trace|Trail|Trunk|
-            Turnabout|Vale|Via|View|Village|Vista|Voie|Walk|Way|Wharf|Wood|Woods|Wynd)([\s\W]+)
+            Turnabout|Vale|Via|View|Village|Vista|Voie|Walk|Way|Wharf|Woods|Wood|Wynd)([\s\W]+)
           match_index: 0
           group_index: 1
     strtysuf:
@@ -204,14 +221,14 @@ conform:
             # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
             ([\s\W]+)(Abbey|Access|Acres|Aire|Allée|Allee|Alley|Autoroute|Avenue|Barrage|Bay|Beach|Bend|Bloc|Block|
             Boulevard|Bourg|Brook|By pass|Byway|Campus|Cape|Carre|Carrefour|Centre|Cercle|Chase|Chemin|Circle|Circuit|
-            Close|Common|Concession|Corners|Côte|Cote|Cour|Court|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|
+            Close|Common|Concession|Corners|Côte|Cote|Court|Cour|Cove|Crescent|Croft|Croissant|Crossing|Crossroads|
             Cul de sac|Dale|Dell|Desserte|Diversion|Downs|Drive|Droit de passage|Échangeur|Echangeur|End|Esplanade|
             Estates|Expressway|Extension|Farm|Field|Forest|Front|Gardens|Gate|Glade|Glen|Green|Grounds|Grove|Harbour|
-            Haven|Heath|Heights|Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Lane|Laneway|
-            Limits|Line|Link|Lookout|Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mount|Mountain|Orchard|Parade|
-            Parc|Park|Parkway|Passage|Path|Pathway|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|
-            Rang|Range|Reach|Ridge|Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|
+            Haven|Heath|Heights|Highlands|Highway|Hill|Hollow|Île|Ile|Impasse|Island|Key|Knoll|Landing|Laneway|Lane|
+            Limits|Line|Link|Lookout|Loop|Mall|Manor|Maze|Meadow|Mews|Montée|Montee|Moor|Mountain|Mount|Orchard|Parade|
+            Parc|Parkway|Park|Passage|Pathway|Path|Peak|Pines|Place|Plateau|Plaza|Point|Port|Private|Promenade|Quay|
+            Range|Rang|Reach|Ridge|Right of Way|Rise|Road|Rond Point|Route|Row|Rue|Ruelle|Ruisseau|Run|Section|Sentier|
             Sideroad|Square|Street|Stroll|Subdivision|Terrace|Terrasse|Thicket|Towers|Townline|Trace|Trail|Trunk|
-            Turnabout|Vale|Via|View|Village|Vista|Voie|Walk|Way|Wharf|Wood|Woods|Wynd)([\s\W]+|$)
+            Turnabout|Vale|Via|View|Village|Vista|Voie|Walk|Way|Wharf|Woods|Wood|Wynd)([\s\W]+|$)
           match_index: -1
           group_index: 1

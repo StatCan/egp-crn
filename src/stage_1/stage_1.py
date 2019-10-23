@@ -9,7 +9,7 @@ import uuid
 import yaml
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
-import field_mapping_functions
+import field_map_functions
 import helpers
 
 
@@ -86,24 +86,24 @@ class Stage:
 
                         logger.info("\nCONTENT COMING: split_record.\n")
 
-                    # Advanced function mapping - strip_attributes.
-                    elif "strip_attributes" in source_field["functions"].keys():
-                        logger.info("Target field \"{}\": Applying advanced function mapping - "
-                                    "\"strip_attributes\".".format(target_field))
-
-                        logger.info("\nCONTENT COMING: split_record.\n")
-
-                    # Basic function mapping.
+                    # Chained function mapping.
                     else:
-                        logger.info("Target field \"{}\": Applying basic function mapping.".format(target_field))
+                        logger.info("Target field \"{}\": Applying chained function mapping.".format(target_field))
 
                         # Create mapped dataframe from source and target geodataframes, keeping only the source field.
                         merged_df = target_gdf["uuid"].map(source_gdf.set_index("uuid")[source_field["field"]])
 
                         # Iterate field mapping functions, storing interim results in merged dataframe.
                         for func, params in source_field["functions"].items():
-                            merged_df = merged_df.apply(
-                                lambda val: eval("{}(val='{}', **{})".format(func, val, params)))
+
+                            # Function: strip_attribute.
+                            if func == "strip_attribute":
+                                # . . . .
+
+                            else:
+                                merged_df = merged_df.apply(lambda val:
+                                                            eval("field_map_functions.{}(val='{}', **{})".format(
+                                                                func, val.replace("'", "\\'"), params)))
 
                         # Update target geodataframe.
                         target_gdf[target_field] = merged_df
@@ -176,6 +176,7 @@ class Stage:
                     source_attributes_yaml = yaml.safe_load(source_attributes_file)
                 except yaml.YAMLError:
                     logger.error("Unable to load yaml file: {}.".format(f))
+                    sys.exit(1)
 
             # Store yaml contents.
             self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = source_attributes_yaml
@@ -193,6 +194,7 @@ class Stage:
                 target_attributes_yaml = yaml.safe_load(target_attributes_file)
             except yaml.YAMLError:
                 logger.error("Unable to load yaml file: {}.".format(target_attributes_path))
+                sys.exit(1)
 
         logger.info("Compiling attributes for target tables.")
         # Store yaml contents for all contained table names.
@@ -205,6 +207,7 @@ class Stage:
                     self.target_attributes[table][field] = str(vals[0])
                 except ValueError:
                     logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                    sys.exit(1)
 
     def execute(self):
         """Executes an NRN stage."""
@@ -236,3 +239,4 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         logger.error("KeyboardInterrupt exception: exiting program.")
+        sys.exit(1)

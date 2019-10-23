@@ -21,5 +21,6 @@ def create_temp_directory(stage_id, dir="../../data/interim"):
         temp_dir = tempfile.mkdtemp(**params)
     except FileExistsError:
         logger.error("Directory already exists in {}.".format(params["dir"]))
+        sys.exit(1)
 
     return temp_dir
