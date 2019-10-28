@@ -169,21 +169,11 @@ conform:
     namebody:
       field: streetname
       functions:
-        strip_attribute:
-          attribute: dirprefix
-          instance_index: 0
-        strip_attribute:
-          attribute: strtypre
-          instance_index: 0
-        strip_attribute:
-          attribute: starticle
-          instance_index: 0
-        strip_attribute:
-          attribute: strtysuf
-          instance_index: -1
-        strip_attribute:
-          attribute: dirsuffix
-          instance_index: -1
+        copy_attribute_functions:
+          attributes: [dirprefix, strtypre, starticle, strtysuf, dirsuffix]
+          modify_parameters:
+            regex_find:
+              strip_result: True
     strtypre:
       field: streetname
       functions:

@@ -8,11 +8,12 @@ from operator import itemgetter
 logger = logging.getLogger()
 
 
-def regex_find(val, pattern, match_index, group_index, strip_attributes_flag=False):
+def regex_find(val, pattern, match_index, group_index, strip_result=False):
     """
     Extracts a value's nth match (index) from the nth match group (index) based on a regular expression pattern.
     Case ignored by default.
     Parameter 'group_index' can be an int or list of ints, the returned value will be at the first index with a match.
+    Parameter 'strip_result' returns the entire value except for the extracted substring.
     """
 
     # Validate inputs.
@@ -23,21 +24,28 @@ def regex_find(val, pattern, match_index, group_index, strip_attributes_flag=Fal
             validate_dtype("group_index[{}]".format(index), i, int)
     else:
         validate_dtype("group_index", group_index, int)
-    validate_dtype('strip_attributes_flag', strip_attributes_flag, bool)
+    validate_dtype('strip_result', strip_result, bool)
 
     # Apply and return regex value, or pandas' NaN.
     try:
 
         # Single group index.
         if isinstance(group_index, int):
-            result = [[match.groups()[group_index], match.start(), match.end()] for match in re.finditer(pattern, val, flags=re.IGNORECASE)][match_index]
+            matches = re.finditer(pattern, val, flags=re.IGNORECASE)
+            result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
 
         # Multiple group indexes.
         else:
-            result = [[itemgetter(*group_index)(match.groups()), match.start(), match.end()] for match in re.finditer(pattern, val, flags=re.IGNORECASE)][match_index]
+            matches = re.finditer(pattern, val, flags=re.IGNORECASE)
+            result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
             result[0] = [grp for grp in result[0] if grp not in (None, "")][0]
 
-        return result[0] if strip_attributes_flag else result[1:]
+        # Strip result if required.
+        if strip_result:
+            start, end = result[1:]
+            return result[0][:start] + " " + result[0][end:]
+        else:
+            return result[0]
 
     except IndexError:
         return pandas.np.nan
@@ -64,17 +72,6 @@ def split_record(val, fields):
     validate_dtype("fields", fields, list)
     for index, field in enumerate(fields):
         validate_dtype("fields[{}]".format(index), field, str)
-
-    # . . . .
-
-
-def strip_attribute(val, attributes):
-    """Sequentially strips values of one or more fields from the target field."""
-
-    # Validate inputs.
-    validate_dtype("attributes", attributes, list)
-    for index, attribute in enumerate(attributes):
-        validate_dtype("attributes[{}]".format(index), attribute, str)
 
     # . . . .
 

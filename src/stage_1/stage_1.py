@@ -93,23 +93,45 @@ class Stage:
                         # Create mapped dataframe from source and target geodataframes, keeping only the source field.
                         merged_df = target_gdf["uuid"].map(source_gdf.set_index("uuid")[source_field["field"]])
 
-                        # Iterate field mapping functions, storing interim results in merged dataframe.
-                        for func, params in source_field["functions"].items():
-
-                            # Function: strip_attribute.
-                            if func == "strip_attribute":
-                                # . . . .
-
-                            else:
-                                merged_df = merged_df.apply(lambda val:
-                                                            eval("field_map_functions.{}(val='{}', **{})".format(
-                                                                func, val.replace("'", "\\'"), params)))
-
+                        # Apply field mapping functions to mapped dataframe.
                         # Update target geodataframe.
-                        target_gdf[target_field] = merged_df
+                        target_gdf[target_field] = self.apply_functions(map_attributes, merged_df,
+                                                                        source_field["functions"])
 
                     # Store updated target geodataframe.
                     self.target_gdframes[target_name] = target_gdf
+
+    def apply_functions(self, map_attributes, df, func_dict):
+        """Iterates and applies field mapping function(s) to a Pandas dataframe."""
+
+        # Iterate functions.
+        for func, params in func_dict.items():
+
+            # Advanced function mapping - copy_attribute_functions.
+            if func == "copy_attribute_functions":
+                for attribute in params["attributes"]:
+
+                    # Retrieve function name and parameter modifications.
+                    mod_params = params["modify_parameters"] if "modify_parameters" in params else dict()
+                    if isinstance(attribute, dict):
+                        attribute, mod_params = list(attribute.items())[0]
+
+                    # Retrieve attribute field mapping functions.
+                    attribute_func_dict = map_attributes[attribute]["functions"]
+
+                    # Modify function parameters.
+                    for attribute_func, attribute_params in mod_params.items():
+                        for attribute_param, attribute_param_value in attribute_params.items():
+                            attribute_func_dict[attribute_func][attribute_param] = attribute_param_value
+
+                    df = self.apply_functions(map_attributes, df, attribute_func_dict)
+
+            # Apply function to dataframe.
+            df = df.apply(lambda val:
+                          eval("field_map_functions.{}(val='{}', **{})".format(
+                              func, val.replace("'", "\\'"), params)))
+
+        return df
 
     def gen_source_geodataframes(self):
         """Loads input data into a GeoPandas dataframe."""
