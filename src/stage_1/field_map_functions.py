@@ -1,4 +1,6 @@
 import logging
+import numpy
+import pandas as pd
 import re
 import sys
 from copy import deepcopy
@@ -120,15 +122,6 @@ def regex_find(val, pattern, match_index, group_index, strip_result=False):
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
             result[0] = [grp for grp in result[0] if grp not in (None, "", nan)][0]
 
-        #TEST
-        if val.find("GAUTHIER") > -1:
-            print(result, strip_result)
-            if strip_result:
-                print(" ".join(map(str, [val[:result[1]], val[result[2]:]])).strip())
-            else:
-                print(result[0])
-        #TEST
-
         # Strip result if required.
         if strip_result:
             start, end = result[1:]
@@ -158,20 +151,38 @@ def regex_sub(val, pattern_from, pattern_to):
     return re.sub(pattern_from, pattern_to, val, flags=re.IGNORECASE)
 
 
-def split_record(val, fields):
-    """Splits records into multiple records whenever the given fields are not equal."""
+def split_record(vals, fields=None):
+    """
+    If val = Pandas DataFrame: Splits records on the given field.
+    Else: Tests vals equality, returning all if unequal and first value if equal.
+    """
 
-    # Return numpy nan.
-    if val in (None, "", nan):
-        return nan
+    if isinstance(vals, list):
 
-    # Validate inputs.
-    validate_dtypes("fields", fields, list)
-    for index, field in enumerate(fields):
-        validate_dtypes("fields[{}]".format(index), field, str)
+        # Validate dtypes.
+        validate_dtypes("fields", fields, list)
+        for index, field in enumerate(fields):
+            validate_dtypes("fields[{}]".format(index), field, str)
 
-    # FUNCTIONALITY REQUIRED.
-    return val[0]
+        # Return all values if unequal, else return the first.
+        return vals[0] if len(set(vals)) == 1 else vals
+
+    else:
+
+        # Identify records to be split.
+        vals_split = vals.loc[vals[fields].apply(lambda val: isinstance(val, numpy.ndarray))]
+
+        if len(vals_split):
+            # Keep first instance for original records.
+            vals[fields] = vals[fields].apply(lambda val: val[0] if isinstance(val, numpy.ndarray) else val)
+
+            # Keep second instance for split records.
+            vals_split[fields] = vals_split[fields].apply(lambda val: val[1] if isinstance(val, numpy.ndarray) else val)
+
+            # Append split records to dataframe.
+            vals = vals.append(vals_split, ignore_index=False)
+
+        return vals
 
 
 def validate_dtypes(val_name, val, dtypes):

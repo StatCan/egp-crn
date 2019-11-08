@@ -28,18 +28,69 @@ conform:
     r_altnanid:
     l_digdirfg:
     r_digdirfg:
-    l_hnumf: l_hnumf
-    r_hnumf: r_hnumf
+    l_hnumf:
+      fields: l_hnumf
+      functions:
+        regex_sub:
+          pattern_from: "\W+"
+          pattern_to: " "
+        regex_find:
+          pattern:
+            # Matches 0 to unlimited digits from line start.
+            "(^\d+)"
+          match_index: 0
+          group_index: 0
+    r_hnumf:
+      fields: r_hnumf
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
     l_hnumsuff:
+      fields: l_hnumf
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
+          modify_parameters:
+            regex_find:
+              strip_results: True
     r_hnumsuff:
+      fields: r_hnumf
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
+          modify_parameters:
+            regex_find:
+              strip_results: True
     l_hnumtypf:
     r_hnumtypf:
     l_hnumstr: l_hnumstr
     r_hnumstr: r_hnumstr
-    l_hnuml: l_hnuml
-    r_hnuml: r_hnuml
+    l_hnuml:
+      fields: l_hnuml
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
+    r_hnuml:
+      fields: r_hnuml
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
     l_hnumsufl:
+      fields: l_hnuml
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
+          modify_parameters:
+            regex_find:
+              strip_results: True
     r_hnumsufl:
+      fields: r_hnuml
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
+          modify_parameters:
+            regex_find:
+              strip_results: True
     l_hnumtypl:
     r_hnumtypl:
     nid:
@@ -61,11 +112,34 @@ conform:
     adrangenid:
     closing: closing
     exitnbr: exitnbr
-    l_hnumf: l_hnumf
-    r_hnumf: r_hnumf
+    l_hnumf:
+      fields: l_hnumf
+      functions:
+        regex_sub:
+          pattern_from: "\W+"
+          pattern_to: " "
+        regex_find:
+          pattern:
+            # Matches 0 to unlimited digits from line start.
+            "(^\d+)"
+          match_index: 0
+          group_index: 0
+    r_hnumf:
+      fields: r_hnumf
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
     roadclass: roadclass
-    l_hnuml: l_hnuml
-    r_hnuml: r_hnuml
+    l_hnuml:
+      fields: l_hnuml
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
+    r_hnuml:
+      fields: r_hnuml
+      functions:
+        copy_attribute_functions:
+          attributes: [l_hnumf]
     nid:
     nbrlanes: nbrlanes
     l_placenam: l_placenam
@@ -145,9 +219,7 @@ conform:
       fields: [l_placenam, r_placenam]
       functions:
         split_record:
-          fields:
-            - l_placenam
-            - r_placenam
+          fields: [l_placenam, r_placenam]
     placetype:
     province: "New Brunswick"
     starticle:
@@ -167,9 +239,7 @@ conform:
             ([\s\W]+|^)(à l'|a l'|d'|de l'|l')|([\s\W]+|^)(à la|a la|à|aux|au|by the|chez|des|de la|de|du|la|les|le|
             of the|the)([\s\W]+|$)*?
           match_index: -1
-          group_index:
-            - 1
-            - 3
+          group_index: [1, 3]
     namebody:
       fields: streetname
       functions:

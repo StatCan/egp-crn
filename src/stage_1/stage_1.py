@@ -81,10 +81,6 @@ class Stage:
                             # Update target geodataframe with raw value.
                             target_gdf[target_field] = source_field
 
-                    # # Field mapping type: split_record.
-                    # elif "split_record" in source_field["functions"].keys():
-                    #     logger.info("Target field \"{}\": Applying split_record field mapping.".format(target_field))
-
                     # Function mapping.
                     else:
                         logger.info("Target field \"{}\": Identifying function chain.".format(target_field))
@@ -103,10 +99,17 @@ class Stage:
                                                       for field in source_field["fields"]})
                         mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
-                        # Apply field mapping functions to mapped dataframe.
+                        # Apply field mapping functions to mapped series.
+                        field_mapping_results = self.apply_functions(map_attributes, mapped_series,
+                                                                     source_field["functions"])
+
                         # Update target geodataframe.
-                        target_gdf[target_field] = self.apply_functions(map_attributes, mapped_series,
-                                                                        source_field["functions"])
+                        target_gdf[target_field] = field_mapping_results["series"]
+
+                        # Split records if required.
+                        if field_mapping_results["split_records"]:
+                            # Duplicate records that were split.
+                            target_gdf = field_map_functions.split_record(target_gdf, target_field)
 
                     # Store updated target geodataframe.
                     self.target_gdframes[target_name] = target_gdf
@@ -114,8 +117,13 @@ class Stage:
     def apply_functions(self, map_attributes, series, func_dict):
         """Iterates and applies field mapping function(s) to a Pandas series."""
 
+        split_record_flag = False
+
         # Iterate functions.
         for func, params in func_dict.items():
+
+            if func == "split_record":
+                split_record_flag = True
 
             logger.info("Applying field mapping function: {}.".format(func))
 
@@ -131,7 +139,7 @@ class Stage:
                 series = series.apply(lambda row: eval("field_map_functions.{}({}, **{})".format(
                     func, self.format_row(row), params)))
 
-        return series
+        return {"split_record": split_record_flag, "series": series}
 
     def export_gpkg(self):
         """Exports the target (Geo)DataFrames as GeoPackage layers."""
