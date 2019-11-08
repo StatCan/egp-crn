@@ -27,7 +27,7 @@ conform:
     closing: closing
     ferrysegid: fersegid
     roadclass: roadclass
-    nid: nid
+    nid:
     rtename1en: rtename1en
     rtename2en: rtename2en
     rtename3en:

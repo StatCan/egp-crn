@@ -1,11 +1,87 @@
 import logging
-import pandas
 import re
 import sys
-from operator import itemgetter
+from copy import deepcopy
+from numpy import nan
+from operator import attrgetter, itemgetter
 
 
 logger = logging.getLogger()
+
+
+def copy_attribute_functions(field_mapping_attributes, params):
+    """
+    Compiles the field mapping functions for each of the given field mapping attributes (target table columns).
+    Adds / updates any parameters provided for those functions.
+
+    Possible yaml construction of copy_attribute_functions:
+
+    1) copy_attribute_functions:                              2) copy_attribute_functions:
+         attributes: [attribute_1, attribute_2, ...]               attributes:
+         modify_parameters:                                          - attribute_1:
+           function:                                                     function:
+             parameter: Value                                              parameter: Value
+           ...:                                                          ...:
+             ...: ...                                                      ...: ...
+                                                                     - attribute_2
+                                                                     - ...
+    """
+
+    # Validate inputs.
+    validate_dtypes("copy_attribute_functions", params, dict)
+    validate_dtypes("copy_attribute_functions[\"attributes\"]", params["attributes"], list)
+    if "modify_parameters" in params.keys():
+        for index, attribute in enumerate(params["attributes"]):
+            validate_dtypes("copy_attribute_functions[\"attributes\"][{}]".format(index), attribute, str)
+        for func in params["modify_parameters"]:
+            validate_dtypes("copy_attribute_functions[\"modify_parameters\"][\"{}\"]".format(func),
+                            params["modify_parameters"][func], dict)
+    else:
+        for index, attribute in enumerate(params["attributes"]):
+            validate_dtypes("copy_attribute_functions[\"attributes\"][{}]".format(index), attribute, [str, dict])
+            if isinstance(attribute, dict):
+                for func in attribute:
+                    validate_dtypes("copy_attribute_functions[\"attributes\"][\"{}\"]".format(func), attribute[func],
+                                    dict)
+
+    # Iterate attributes to compile function-parameter dictionaries.
+    attribute_func_dicts = list()
+
+    for attribute in params["attributes"]:
+
+        # Retrieve attribute name and parameter modifications.
+        mod_params = params["modify_parameters"] if "modify_parameters" in params else dict()
+        if isinstance(attribute, dict):
+            attribute, mod_params = list(attribute.items())[0]
+
+        # Retrieve attribute field mapping functions.
+        attribute_func_dict = deepcopy(field_mapping_attributes[attribute]["functions"])
+
+        # Apply modified parameters.
+        for attribute_func, attribute_params in mod_params.items():
+            for attribute_param, attribute_param_value in attribute_params.items():
+                attribute_func_dict[attribute_func][attribute_param] = attribute_param_value
+
+        # Store result.
+        attribute_func_dicts.append(attribute_func_dict)
+
+    return attribute_func_dicts
+
+
+def direct(val, **kwargs):
+    """
+    Returns the given value. Intended to provide a function call for direct (1:1) field mapping.
+
+    Possible yaml construction of direct field mapping:
+
+    1) target_field:                                2) target_field: source_field or raw value
+         fields: source_field or raw value
+         functions:
+           direct:
+             parameter: None
+    """
+
+    return nan if val in (None, "", nan) else val
 
 
 def regex_find(val, pattern, match_index, group_index, strip_result=False):
@@ -16,17 +92,21 @@ def regex_find(val, pattern, match_index, group_index, strip_result=False):
     Parameter 'strip_result' returns the entire value except for the extracted substring.
     """
 
+    # Return numpy nan.
+    if val in (None, "", nan):
+        return nan
+
     # Validate inputs.
     validate_regex(pattern)
-    validate_dtype("match_index", match_index, int)
+    validate_dtypes("match_index", match_index, int)
     if isinstance(group_index, list):
         for index, i in enumerate(group_index):
-            validate_dtype("group_index[{}]".format(index), i, int)
+            validate_dtypes("group_index[{}]".format(index), i, int)
     else:
-        validate_dtype("group_index", group_index, int)
-    validate_dtype('strip_result', strip_result, bool)
+        validate_dtypes("group_index", group_index, int)
+    validate_dtypes('strip_result', strip_result, bool)
 
-    # Apply and return regex value, or pandas' NaN.
+    # Apply and return regex value, or numpy nan.
     try:
 
         # Single group index.
@@ -38,17 +118,26 @@ def regex_find(val, pattern, match_index, group_index, strip_result=False):
         else:
             matches = re.finditer(pattern, val, flags=re.IGNORECASE)
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
-            result[0] = [grp for grp in result[0] if grp not in (None, "")][0]
+            result[0] = [grp for grp in result[0] if grp not in (None, "", nan)][0]
+
+        #TEST
+        if val.find("GAUTHIER") > -1:
+            print(result, strip_result)
+            if strip_result:
+                print(" ".join(map(str, [val[:result[1]], val[result[2]:]])).strip())
+            else:
+                print(result[0])
+        #TEST
 
         # Strip result if required.
         if strip_result:
             start, end = result[1:]
-            return result[0][:start] + " " + result[0][end:]
+            return " ".join(map(str, [val[:start], val[end:]])).strip()
         else:
             return result[0]
 
     except IndexError:
-        return pandas.np.nan
+        return val if strip_result else nan
 
 
 def regex_sub(val, pattern_from, pattern_to):
@@ -56,6 +145,10 @@ def regex_sub(val, pattern_from, pattern_to):
     Substitutes one regular expression pattern with another.
     Case ignored by default.
     """
+
+    # Return numpy nan.
+    if val in (None, "", nan):
+        return nan
 
     # Validate inputs.
     validate_regex(pattern_from)
@@ -68,22 +161,30 @@ def regex_sub(val, pattern_from, pattern_to):
 def split_record(val, fields):
     """Splits records into multiple records whenever the given fields are not equal."""
 
+    # Return numpy nan.
+    if val in (None, "", nan):
+        return nan
+
     # Validate inputs.
-    validate_dtype("fields", fields, list)
+    validate_dtypes("fields", fields, list)
     for index, field in enumerate(fields):
-        validate_dtype("fields[{}]".format(index), field, str)
+        validate_dtypes("fields[{}]".format(index), field, str)
 
-    # . . . .
+    # FUNCTIONALITY REQUIRED.
+    return val[0]
 
 
-def validate_dtype(val_name, val, dtype):
-    """Validates a data type."""
+def validate_dtypes(val_name, val, dtypes):
+    """Validates one or more data types."""
 
-    if isinstance(val, dtype):
+    if not isinstance(dtypes, list):
+        dtypes = [dtypes]
+
+    if any([isinstance(val, dtype) for dtype in dtypes]):
         return True
     else:
         logger.error("Validation failed. Invalid data type for \"{}\": \"{}\". Expected {} but received {}.".format(
-            val_name, val, dtype.__name__, type(val).__name__))
+            val_name, val, " or ".join(map(attrgetter("__name__"), dtypes)), type(val).__name__))
         sys.exit(1)
 
 

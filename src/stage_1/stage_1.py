@@ -4,9 +4,12 @@ import geopandas as gpd
 import logging
 import os
 import pandas as pd
+import sqlite3
 import sys
 import uuid
 import yaml
+from numpy import nan
+from shutil import copy
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -38,6 +41,13 @@ class Stage:
         # Create temp dir.
         self.temp_dir = helpers.create_temp_directory(self.stage)
 
+    def apply_domains(self):
+        """Applies the field domains to each column in the target (geo)dataframes."""
+
+        logging.info("Applying field domains.")
+
+        # Retrieve field domains.
+
     def apply_field_mapping(self):
         """Maps the source geodataframes to the target geodataframes via user-specific field mapping functions."""
 
@@ -64,74 +74,131 @@ class Stage:
                     if source_field is None:
                         logger.info("Target field \"{}\": No mapping provided.".format(target_field))
 
-                    # Non-function mapping.
-                    elif isinstance(source_field, str):
-
-                        # Field mapping type: 1:1.
-                        if source_field in source_gdf.columns:
-                            logger.info("Target field \"{}\": Applying 1:1 field mapping.".format(target_field))
-
-                            target_gdf[target_field] = target_gdf["uuid"].map(
-                                source_gdf.set_index("uuid")[source_field])
-
-                        # Field mapping type: raw value.
-                        else:
+                    # Raw value mapping.
+                    elif isinstance(source_field, str) and (source_field not in source_gdf.columns):
                             logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
+
+                            # Update target geodataframe with raw value.
                             target_gdf[target_field] = source_field
 
-                    # Advanced function mapping - split_record.
-                    elif "split_record" in source_field["functions"].keys():
-                        logger.info("Target field \"{}\": Applying advanced function mapping - "
-                                    "\"split_record\".".format(target_field))
+                    # # Field mapping type: split_record.
+                    # elif "split_record" in source_field["functions"].keys():
+                    #     logger.info("Target field \"{}\": Applying split_record field mapping.".format(target_field))
 
-                        logger.info("\nCONTENT COMING: split_record.\n")
-
-                    # Chained function mapping.
+                    # Function mapping.
                     else:
-                        logger.info("Target field \"{}\": Applying chained function mapping.".format(target_field))
+                        logger.info("Target field \"{}\": Identifying function chain.".format(target_field))
 
-                        # Create mapped dataframe from source and target geodataframes, keeping only the source field.
-                        merged_df = target_gdf["uuid"].map(source_gdf.set_index("uuid")[source_field["field"]])
+                        # Reconfigure direct field mapping in case of string input.
+                        if isinstance(source_field, str):
+                                source_field = {"fields": [source_field], "functions": {"direct": {"param": None}}}
+
+                        # Convert field attribute to list.
+                        if isinstance(source_field["fields"], str):
+                            source_field["fields"] = [source_field["fields"]]
+
+                        # Create mapped dataframe from source and target geodataframes, keeping only source fields.
+                        # Convert to series.
+                        mapped_series = pd.DataFrame({field: target_gdf["uuid"].map(source_gdf.set_index("uuid")[field])
+                                                      for field in source_field["fields"]})
+                        mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
                         # Apply field mapping functions to mapped dataframe.
                         # Update target geodataframe.
-                        target_gdf[target_field] = self.apply_functions(map_attributes, merged_df,
+                        target_gdf[target_field] = self.apply_functions(map_attributes, mapped_series,
                                                                         source_field["functions"])
 
                     # Store updated target geodataframe.
                     self.target_gdframes[target_name] = target_gdf
 
-    def apply_functions(self, map_attributes, df, func_dict):
-        """Iterates and applies field mapping function(s) to a Pandas dataframe."""
+    def apply_functions(self, map_attributes, series, func_dict):
+        """Iterates and applies field mapping function(s) to a Pandas series."""
 
         # Iterate functions.
         for func, params in func_dict.items():
 
+            logger.info("Applying field mapping function: {}.".format(func))
+
             # Advanced function mapping - copy_attribute_functions.
             if func == "copy_attribute_functions":
-                for attribute in params["attributes"]:
 
-                    # Retrieve function name and parameter modifications.
-                    mod_params = params["modify_parameters"] if "modify_parameters" in params else dict()
-                    if isinstance(attribute, dict):
-                        attribute, mod_params = list(attribute.items())[0]
+                # Retrieve and iterate attribute functions and parameters.
+                for attribute_func_dict in field_map_functions.copy_attribute_functions(map_attributes, params):
+                    series = self.apply_functions(map_attributes, series, attribute_func_dict)
 
-                    # Retrieve attribute field mapping functions.
-                    attribute_func_dict = map_attributes[attribute]["functions"]
+            else:
+                # Apply function.
+                series = series.apply(lambda row: eval("field_map_functions.{}({}, **{})".format(
+                    func, self.format_row(row), params)))
 
-                    # Modify function parameters.
-                    for attribute_func, attribute_params in mod_params.items():
-                        for attribute_param, attribute_param_value in attribute_params.items():
-                            attribute_func_dict[attribute_func][attribute_param] = attribute_param_value
+        return series
 
-                    df = self.apply_functions(map_attributes, df, attribute_func_dict)
+    def export_gpkg(self):
+        """Exports the target (Geo)DataFrames as GeoPackage layers."""
 
-            # Apply function to dataframe.
-            df = df.apply(lambda val:
-                          eval("field_map_functions.{}(val='{}', **{})".format(
-                              func, val.replace("'", "\\'"), params)))
+        logger.info("Exporting target geodataframes to GeoPackage layers.")
 
-        return df
+        # Configure GeoPackage path.
+        gpkg_path = os.path.join(self.temp_dir, "{}.gpkg".format(self.source))
+
+        # TEST
+        print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
+        for i in range(0, 3):
+            print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
+        print(self.target_gdframes["strplaname"].columns, "\n")
+        for i in range(0, 3):
+            print(self.target_gdframes["strplaname"].values[i], "\n")
+        sys.exit()
+        # TEST
+
+        # Export target geodataframes to GeoPackage layers.
+        try:
+            for name, gdf in self.target_gdframes.items():
+
+                logger.info("Writing to GeoPackage {}, layer={}.".format(gpkg_path, name))
+
+                # Spatial data.
+                if "geometry" in dir(gdf):
+                    # Open GeoPackage.
+                    with fiona.open(gpkg_path, "w", layer=name, driver="GPKG", crs=gdf.crs,
+                                    schema=gpd.io.file.infer_schema(gdf)) as gpkg:
+
+                        # Write to GeoPackage.
+                        gpkg.writerecords(gdf.iterfeatures())
+
+                # Tabular data.
+                else:
+                    # Copy geopackage template.
+                    copy(os.path.abspath("../../data/empty.gpkg"), gpkg_path)
+
+                    # Create sqlite connection.
+                    con = sqlite3.connect(gpkg_path)
+
+                    # Write to GeoPackage.
+                    gdf.to_sql(name, con)
+
+                    # Insert record into gpkg_contents metadata table.
+                    con.cursor().execute("insert into 'gpkg_contents' ('table_name', 'data_type') values "
+                                         "('{}', 'attributes');".format(name))
+
+                    # Commit and close db connection.
+                    con.commit()
+                    con.close()
+
+                logger.info("Successfully exported layer.")
+
+        except (ValueError, fiona.errors.FionaValueError):
+            logger.error("ValueError raised when writing GeoPackage layer.")
+            sys.exit(1)
+
+    @staticmethod
+    def format_row(row):
+        """Formats a Pandas Series prior to inclusion in an eval() expression."""
+
+        if isinstance(row, str):
+            return "'{}'".format(row.replace("'", "\\'"))
+        else:
+            return row
 
     def gen_source_geodataframes(self):
         """Loads input data into a GeoPandas dataframe."""
@@ -144,7 +211,12 @@ class Stage:
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
 
             # Load source into geodataframe.
-            gdf = gpd.read_file(**source_yaml["data"])
+            try:
+                gdf = gpd.read_file(**source_yaml["data"])
+            except fiona.errors.FionaValueError:
+                logger.error("ValueError raised when importing source {}, layer={}".format(
+                    source_yaml["data"]["filename"], source_yaml["data"]["layer"]))
+                sys.exit(1)
 
             # Force lowercase field names.
             gdf.columns = map(str.lower, gdf.columns)
@@ -169,13 +241,22 @@ class Stage:
 
                 logger.info("Creating target geodataframe: {}.".format(table))
 
-                # Generate target geodataframe from source uuid and geometry fields.
-                gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
-                                       geometry=self.source_gdframes[source].geometry)
+                # Spatial.
+                if self.target_attributes[table]["spatial"]:
+
+                    # Generate target geodataframe from source uuid and geometry fields.
+                    gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
+                                           geometry=self.source_gdframes[source].geometry)
+
+                # Tabular.
+                else:
+
+                    # Generate target dataframe from source uuid field.
+                    gdf = pd.DataFrame(self.source_gdframes[source][["uuid"]])
 
                 # Add target field schema.
-                gdf = gdf.assign(**{field: pd.Series(dtype=self.target_attributes[table][field]) for field in
-                                    self.target_attributes[table]})
+                gdf = gdf.assign(**{field: pd.Series(dtype=dtype) for field, dtype in
+                                    self.target_attributes[table]["fields"].items()})
 
                 # Store result.
                 self.target_gdframes[table] = gdf
@@ -221,12 +302,12 @@ class Stage:
         logger.info("Compiling attributes for target tables.")
         # Store yaml contents for all contained table names.
         for table in target_attributes_yaml:
-            self.target_attributes[table] = dict()
+            self.target_attributes[table] = {"spatial": target_attributes_yaml[table]["spatial"], "fields": dict()}
 
-            for field, vals in target_attributes_yaml[table].items():
+            for field, vals in target_attributes_yaml[table]["fields"].items():
                 # Compile field attributes.
                 try:
-                    self.target_attributes[table][field] = str(vals[0])
+                    self.target_attributes[table]["fields"][field] = str(vals[0])
                 except ValueError:
                     logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
                     sys.exit(1)
@@ -239,6 +320,8 @@ class Stage:
         self.gen_source_geodataframes()
         self.gen_target_geodataframes()
         self.apply_field_mapping()
+        self.apply_domains()
+        self.export_gpkg()
 
 
 @click.command()
