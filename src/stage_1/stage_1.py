@@ -62,10 +62,10 @@ class Stage:
                 logger.info("Applying field mapping from {} to {}.".format(source_name, target_name))
 
                 # Retrieve table field mapping attributes.
-                map_attributes = source_attributes["conform"][target_name]
+                maps = source_attributes["conform"][target_name]
 
                 # Field mapping.
-                for target_field, source_field in map_attributes.items():
+                for target_field, source_field in maps.items():
 
                     # Retrieve target geodataframe.
                     target_gdf = self.target_gdframes[target_name]
@@ -85,11 +85,11 @@ class Stage:
                     else:
                         logger.info("Target field \"{}\": Identifying function chain.".format(target_field))
 
-                        # Reconfigure direct field mapping in case of string input.
+                        # Restructure dict for direct field mapping in case of string input.
                         if isinstance(source_field, str):
                                 source_field = {"fields": [source_field], "functions": {"direct": {"param": None}}}
 
-                        # Convert field attribute to list.
+                        # Convert single field attribute to list.
                         if isinstance(source_field["fields"], str):
                             source_field["fields"] = [source_field["fields"]]
 
@@ -100,8 +100,7 @@ class Stage:
                         mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
                         # Apply field mapping functions to mapped series.
-                        field_mapping_results = self.apply_functions(map_attributes, mapped_series,
-                                                                     source_field["functions"])
+                        field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"])
 
                         # Update target geodataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
@@ -114,16 +113,14 @@ class Stage:
                     # Store updated target geodataframe.
                     self.target_gdframes[target_name] = target_gdf
 
-    def apply_functions(self, map_attributes, series, func_dict):
+    def apply_functions(self, maps, series, func_dict, split_record=False):
         """Iterates and applies field mapping function(s) to a Pandas series."""
-
-        split_record_flag = False
 
         # Iterate functions.
         for func, params in func_dict.items():
 
             if func == "split_record":
-                split_record_flag = True
+                split_record = True
 
             logger.info("Applying field mapping function: {}.".format(func))
 
@@ -131,15 +128,15 @@ class Stage:
             if func == "copy_attribute_functions":
 
                 # Retrieve and iterate attribute functions and parameters.
-                for attribute_func_dict in field_map_functions.copy_attribute_functions(map_attributes, params):
-                    series = self.apply_functions(map_attributes, series, attribute_func_dict)
+                for attr_func_dict in field_map_functions.copy_attribute_functions(maps, params):
+                    split_record, series = self.apply_functions(maps, series, attr_func_dict, split_record).values()
 
             else:
                 # Apply function.
                 series = series.apply(lambda row: eval("field_map_functions.{}({}, **{})".format(
                     func, self.format_row(row), params)))
 
-        return {"split_record": split_record_flag, "series": series}
+        return {"split_record": split_record, "series": series}
 
     def export_gpkg(self):
         """Exports the target (Geo)DataFrames as GeoPackage layers."""

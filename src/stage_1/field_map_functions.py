@@ -153,8 +153,16 @@ def regex_sub(val, pattern_from, pattern_to):
 
 def split_record(vals, fields=None):
     """
-    If val = Pandas DataFrame: Splits records on the given field.
-    Else: Tests vals equality, returning all if unequal and first value if equal.
+    If vals = Pandas DataFrame: Splits records on the given field.
+    If vals = list: Tests equality of values in vals, returning first value if equal and all (as ndarray) if unequal.
+
+    This function is executed in two separate parts due to the functionality of stage_1.apply_functions, which operates
+    on a series. Since splitting records in a series would not affect the original DataFrame, the input series is simply
+    returned with a flag indicating a split. This function is then called again within stage_1, once all mapping
+    functions have been applied to the target DataFrame, to execute the row splitting.
+
+    It was decided to keep split_record as a callable field mapping function instead of creating a separate function
+    within stage_1 such that split_record can exist within a chain of other field mapping functions.
     """
 
     if isinstance(vals, list):
