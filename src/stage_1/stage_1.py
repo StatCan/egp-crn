@@ -138,6 +138,63 @@ class Stage:
 
         return {"split_record": split_record, "series": series}
 
+    def compile_domains(self):
+        """Compiles field domains for the target dataframes."""
+
+        logging.info("Compiling field domains.")
+
+        # Compile field domains.
+
+    def compile_source_attributes(self):
+        """Compiles the yaml files in the sources' directory into a dictionary."""
+
+        logger.info("Identifying source attribute files.")
+        files = [os.path.join(self.source_attribute_path, f) for f in os.listdir(self.source_attribute_path) if
+                 f.endswith(".yaml")]
+
+        logger.info("Compiling source attribute yamls.")
+        self.source_attributes = dict()
+
+        for f in files:
+            # Load yaml.
+            with open(f, "r") as source_attributes_file:
+                try:
+                    source_attributes_yaml = yaml.safe_load(source_attributes_file)
+                except yaml.YAMLError:
+                    logger.error("Unable to compile yaml file: {}.".format(f))
+                    sys.exit(1)
+
+            # Store yaml contents.
+            self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = source_attributes_yaml
+
+    def compile_target_attributes(self):
+        """Compiles the target (distribution format) yaml file into a dictionary."""
+
+        logger.info("Compiling target attribute yaml.")
+        self.target_attributes = dict()
+        target_attributes_path = os.path.abspath("../distribution_format.yaml")
+
+        # Load yaml.
+        with open(target_attributes_path, "r") as target_attributes_file:
+            try:
+                target_attributes_yaml = yaml.safe_load(target_attributes_file)
+            except yaml.YAMLError:
+                logger.error("Unable to compile yaml file: {}.".format(target_attributes_path))
+                sys.exit(1)
+
+        logger.info("Compiling attributes for target tables.")
+        # Store yaml contents for all contained table names.
+        for table in target_attributes_yaml:
+            self.target_attributes[table] = {"spatial": target_attributes_yaml[table]["spatial"], "fields": dict()}
+
+            for field, vals in target_attributes_yaml[table]["fields"].items():
+                # Compile field attributes.
+                try:
+                    self.target_attributes[table]["fields"][field] = str(vals[0])
+                except ValueError:
+                    logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                    sys.exit(1)
+
     def export_gpkg(self):
         """Exports the target (Geo)DataFrames as GeoPackage layers."""
 
@@ -267,64 +324,15 @@ class Stage:
                 self.target_gdframes[table] = gdf
                 logger.info("Successfully created target geodataframe: {}.".format(table))
 
-    def load_source_attributes(self):
-        """Loads the yaml files in the sources' directory into a dictionary."""
-
-        logger.info("Identifying source attribute files.")
-        files = [os.path.join(self.source_attribute_path, f) for f in os.listdir(self.source_attribute_path) if
-                 f.endswith(".yaml")]
-
-        logger.info("Loading source attribute yamls.")
-        self.source_attributes = dict()
-
-        for f in files:
-            # Load yaml.
-            with open(f, "r") as source_attributes_file:
-                try:
-                    source_attributes_yaml = yaml.safe_load(source_attributes_file)
-                except yaml.YAMLError:
-                    logger.error("Unable to load yaml file: {}.".format(f))
-                    sys.exit(1)
-
-            # Store yaml contents.
-            self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = source_attributes_yaml
-
-    def load_target_attributes(self):
-        """Loads the target (distribution format) yaml file into a dictionary."""
-
-        logger.info("Loading target attribute yaml.")
-        self.target_attributes = dict()
-        target_attributes_path = os.path.abspath("../distribution_format.yaml")
-
-        # Load yaml.
-        with open(target_attributes_path, "r") as target_attributes_file:
-            try:
-                target_attributes_yaml = yaml.safe_load(target_attributes_file)
-            except yaml.YAMLError:
-                logger.error("Unable to load yaml file: {}.".format(target_attributes_path))
-                sys.exit(1)
-
-        logger.info("Compiling attributes for target tables.")
-        # Store yaml contents for all contained table names.
-        for table in target_attributes_yaml:
-            self.target_attributes[table] = {"spatial": target_attributes_yaml[table]["spatial"], "fields": dict()}
-
-            for field, vals in target_attributes_yaml[table]["fields"].items():
-                # Compile field attributes.
-                try:
-                    self.target_attributes[table]["fields"][field] = str(vals[0])
-                except ValueError:
-                    logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
-                    sys.exit(1)
-
     def execute(self):
         """Executes an NRN stage."""
 
-        self.load_source_attributes()
-        self.load_target_attributes()
+        self.compile_source_attributes()
+        self.compile_target_attributes()
         self.gen_source_geodataframes()
         self.gen_target_geodataframes()
         self.apply_field_mapping()
+        self.compile_domains()
         self.apply_domains()
         self.export_gpkg()
 
