@@ -1,6 +1,5 @@
 import logging
 import numpy
-import pandas as pd
 import re
 import sys
 from copy import deepcopy
