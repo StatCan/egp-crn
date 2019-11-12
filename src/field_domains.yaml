@@ -1,14 +1,41 @@
 metadata:
   acqtech:
-    [Other, GPS, Orthoimage, Orthophoto, Vector Data, Paper Map, Field Completion, Raster Data, Digital Elevation Model,
-    Aerial Photo, Raw Imagery Data, Computed]
-  metacover: [Complete, Partial]
+    Other: Autre,
+    GPS: GPS,
+    Orthoimage: Ortho-image,
+    Orthophoto: Ortho-photo,
+    Vector Data: Données vectorielles,
+    Paper Map: Carte papier,
+    Field Completion: Complètement terrain,
+    Raster Data: Données matricielles,
+    Digital Elevation Model: Modèle numérique d'élévation,
+    Aerial Photo: Photographie aérienne,
+    Raw Imagery Data: Image satellite brute,
+    Computed: Calculé
+  metacover:
+    Complete: Complet
+    Partial: Partiel
   credate:
   datasetnam:
-    [Newfoundland and Labrador, Nova Scotia, Prince Edward Island, New Brunswick, Quebec, Ontario, Manitoba,
-    Saskatchewan, Alberta, British Columbia, Yukon Territory, Northwest Territories, Nunavut]
+    Newfoundland and Labrador: Terre-Neuve et Labrador,
+    Nova Scotia: Nouvelle-Écosse,
+    Prince Edward Island: Île-du-Prince-Édouard,
+    New Brunswick: Nouveau-Brunswick,
+    Quebec: Québec,
+    Ontario: Ontario,
+    Manitoba: Manitoba,
+    Saskatchewan: Saskatchewan,
+    Alberta: Alberta,
+    British Columbia: Colombie-Britannique,
+    Yukon Territory: Territoire du Yukon,
+    Northwest Territories: Territoires du Nord-Ouest,
+    Nunavut: Nunavut
   accuracy:
-  provider: [Federal, Provincial / Territorial, Municipal]
+  provider:
+    Other: Autre,
+    Federal: Fédéral,
+    Provincial / Territorial: Provincial / Territorial,
+    Municipal: Municipal
   revdate:
   specvers:
 addrange:
@@ -22,15 +49,26 @@ addrange:
   specvers: metadata;specvers
   l_altnanid:
   r_altnanid:
-  l_digdirfg: [Same Direction, Opposite Direction, Not Applicable]
+  l_digdirfg:
+    Same Direction: Même sens,
+    Opposite Direction: Sens opposé,
+    Not Applicable: Sans objet
   r_digdirfg: l_digdirfg
   l_hnumf:
   r_hnumf:
   l_hnumsuff:
   r_hnumsuff:
-  l_hnumtypf: [Actual Located, Actual Unlocated, Projected, Interpolated]
+  l_hnumtypf:
+    Actual Located: Localisation réelle,
+    Actual Unlocated: Localisation présumée,
+    Projected: Projeté,
+    Interpolated: Interpolé
   r_hnumtypf: l_hnumtypf
-  l_hnumstr: [Even, Odd, Mixed, Irregular]
+  l_hnumstr:
+    Even: Numéros pairs,
+    Odd: Numéros impairs,
+    Mixed: Numéros mixtes,
+    Irregular: Numéros irréguliers
   r_hnumstr: l_hnumstr
   l_hnuml:
   r_hnuml:
@@ -41,7 +79,12 @@ addrange:
   nid:
   l_offnanid:
   r_offnanid:
-  l_rfsysind: [Civic, Lot and Concession, 911 Measured, 911 Civic, DLS Townships]
+  l_rfsysind:
+    Civic: Civique,
+    Lot and Concession: Lot et concession,
+    911 Measured: Mesuré 911,
+    911 Civic: Civique 911,
+    DLS Townships: DLS
   r_rfsysind: l_rfsysind
 altnamlink:
   credate: metadata;credate
@@ -59,7 +102,9 @@ blkpassage:
   provider: metadata;provider
   revdate: metadata;revdate
   specvers: metadata;specvers
-  blkpassty: [Permanently Fixed, Removable]
+  blkpassty:
+    Permanently Fixed: Permanente,
+    Removable: Amovible
   nid:
   roadnid:
 ferryseg:
@@ -98,7 +143,11 @@ junction:
   revdate: metadata;revdate
   specvers: metadata;specvers
   exitnbr:
-  junctype: [Intersection, Dead End, Ferry, NatProvTer]
+  junctype:
+    Intersection: Intersection,
+    Dead End: Cul-de-sac,
+    Ferry: Transbordement,
+    NatProvTer: NatProvTer
   nid:
 roadseg:
   acqtech: metadata;acqtech
@@ -112,13 +161,26 @@ roadseg:
   l_adddirfg: addrange;l_digdirfg
   r_adddirfg: addrange;l_digdirfg
   adrangenid:
-  closing: [Summer, Winter]
+  closing:
+    Summer: Été,
+    Winter: Hiver
   exitnbr:
   l_hnumf:
   r_hnumf:
   roadclass:
-    [Freeway, Expressway / Highway, Arterial, Collector, Local / Street, Local / Strata, Local / Unknown,
-    Alleyway / Lane, Ramp, Resource / Recreation, Rapid Transit, Service Lane, Winter]
+    Freeway: Autoroute,
+    Expressway / Highway: Route express,
+    Arterial: Artère,
+    Collector: Route collectrice,
+    Local / Street: Local / Rue,
+    Local / Strata: Local / Semi-privé,
+    Local / Unknown: Local / Inconnu,
+    Alleyway / Lane: Ruelle / Voie,
+    Ramp: Bretelle,
+    Resource / Recreation: Route d'accès ressources / Site récréatif,
+    Rapid Transit: Réservée transport commun,
+    Service Lane: Service,
+    Winter: Hiver
   l_hnuml:
   r_hnuml:
   nid:
@@ -127,8 +189,13 @@ roadseg:
   r_placenam:
   l_stname_c:
   r_stname_c:
-  pavsurf: [Rigid, Flexible, Blocks]
-  pavstatus: [Paved, Unpaved]
+  pavsurf:
+    Rigid: Rigide,
+    Flexible: Souple,
+    Blocks: Pavés
+  pavstatus:
+    Paved: Revêtue,
+    Unpaved: Non revêtue
   roadjuris:
   roadsegid:
   rtename1en:
@@ -148,9 +215,21 @@ roadseg:
   strunameen:
   strunamefr:
   structid:
-  structtype: [Bridge, Bridge covered, Bridge moveable, Bridge unknown, Tunnel, Snowshed, Dam]
-  trafficdir: [Both directions, Same direction, Opposite direction]
-  unpavsurf: [Gravel, Dirt]
+  structtype:
+    Bridge: Pont,
+    Bridge covered: Pont couvert,
+    Bridge moveable: Pont mobile,
+    Bridge unknown: Pont inconnu,
+    Tunnel: Tunnel,
+    Snowshed: Paraneige,
+    Dam: Barrage
+  trafficdir:
+    Both directions: Bi-directionel,
+    Same direction: Même direction,
+    Opposite direction: Direction contraire
+  unpavsurf:
+    Gravel: Gravier,
+    Dirt: Terre
 strplaname:
   acqtech: metadata;acqtech
   metacover: metadata;metacover
@@ -211,4 +290,7 @@ tollpoint:
   specvers: metadata;specvers
   nid:
   roadnid:
-  tollpttype: [Physical Toll Booth, Virtual Toll Booth, Hybrid]
+  tollpttype:
+    Physical Toll Booth: Poste de péage,
+    Virtual Toll Booth: Poste de péage virtuel,
+    Hybrid: Hybride
