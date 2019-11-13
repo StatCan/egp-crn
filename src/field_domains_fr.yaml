@@ -1,41 +1,41 @@
 metadata:
   acqtech:
-    Other: Autre,
-    GPS: GPS,
-    Orthoimage: Ortho-image,
-    Orthophoto: Ortho-photo,
-    Vector Data: Données vectorielles,
-    Paper Map: Carte papier,
-    Field Completion: Complètement terrain,
-    Raster Data: Données matricielles,
-    Digital Elevation Model: Modèle numérique d'élévation,
-    Aerial Photo: Photographie aérienne,
-    Raw Imagery Data: Image satellite brute,
-    Computed: Calculé
+    1: Autre
+    2: GPS
+    3: Ortho-image
+    4: Ortho-photo
+    5: Données vectorielles
+    6: Carte papier
+    7: Complètement terrain
+    8: Données matricielles
+    9: Modèle numérique d'élévation
+    10: Photographie aérienne
+    11: Image satellite brute
+    12: Calculé
   metacover:
-    Complete: Complet
-    Partial: Partiel
+    1: Complet
+    2: Partiel
   credate:
   datasetnam:
-    Newfoundland and Labrador: Terre-Neuve et Labrador,
-    Nova Scotia: Nouvelle-Écosse,
-    Prince Edward Island: Île-du-Prince-Édouard,
-    New Brunswick: Nouveau-Brunswick,
-    Quebec: Québec,
-    Ontario: Ontario,
-    Manitoba: Manitoba,
-    Saskatchewan: Saskatchewan,
-    Alberta: Alberta,
-    British Columbia: Colombie-Britannique,
-    Yukon Territory: Territoire du Yukon,
-    Northwest Territories: Territoires du Nord-Ouest,
-    Nunavut: Nunavut
+    1: Terre-Neuve et Labrador
+    2: Nouvelle-Écosse
+    3: Île-du-Prince-Édouard
+    4: Nouveau-Brunswick
+    5: Québec
+    6: Ontario
+    7: Manitoba
+    8: Saskatchewan
+    9: Alberta
+    10: Colombie-Britannique
+    11: Territoire du Yukon
+    12: Territoires du Nord-Ouest
+    13: Nunavut
   accuracy:
   provider:
-    Other: Autre,
-    Federal: Fédéral,
-    Provincial / Territorial: Provincial / Territorial,
-    Municipal: Municipal
+    1: Autre
+    2: Fédéral
+    3: Provincial / Territorial
+    4: Municipal
   revdate:
   specvers:
 addrange:
@@ -50,25 +50,25 @@ addrange:
   l_altnanid:
   r_altnanid:
   l_digdirfg:
-    Same Direction: Même sens,
-    Opposite Direction: Sens opposé,
-    Not Applicable: Sans objet
+    1: Même sens
+    2: Sens opposé
+    3: Sans objet
   r_digdirfg: l_digdirfg
   l_hnumf:
   r_hnumf:
   l_hnumsuff:
   r_hnumsuff:
   l_hnumtypf:
-    Actual Located: Localisation réelle,
-    Actual Unlocated: Localisation présumée,
-    Projected: Projeté,
-    Interpolated: Interpolé
+    1: Localisation réelle
+    2: Localisation présumée
+    3: Projeté
+    4: Interpolé
   r_hnumtypf: l_hnumtypf
   l_hnumstr:
-    Even: Numéros pairs,
-    Odd: Numéros impairs,
-    Mixed: Numéros mixtes,
-    Irregular: Numéros irréguliers
+    1: Numéros pairs
+    2: Numéros impairs
+    3: Numéros mixtes
+    4: Numéros irréguliers
   r_hnumstr: l_hnumstr
   l_hnuml:
   r_hnuml:
@@ -80,11 +80,11 @@ addrange:
   l_offnanid:
   r_offnanid:
   l_rfsysind:
-    Civic: Civique,
-    Lot and Concession: Lot et concession,
-    911 Measured: Mesuré 911,
-    911 Civic: Civique 911,
-    DLS Townships: DLS
+    1: Civique
+    2: Lot et concession
+    3: Mesuré 911
+    4: Civique 911
+    5: DLS
   r_rfsysind: l_rfsysind
 altnamlink:
   credate: metadata;credate
@@ -103,8 +103,8 @@ blkpassage:
   revdate: metadata;revdate
   specvers: metadata;specvers
   blkpassty:
-    Permanently Fixed: Permanente,
-    Removable: Amovible
+    1: Permanente
+    2: Amovible
   nid:
   roadnid:
 ferryseg:
@@ -144,10 +144,10 @@ junction:
   specvers: metadata;specvers
   exitnbr:
   junctype:
-    Intersection: Intersection,
-    Dead End: Cul-de-sac,
-    Ferry: Transbordement,
-    NatProvTer: NatProvTer
+    1: Intersection
+    2: Cul-de-sac
+    3: Transbordement
+    4: NatProvTer
   nid:
 roadseg:
   acqtech: metadata;acqtech
@@ -162,25 +162,25 @@ roadseg:
   r_adddirfg: addrange;l_digdirfg
   adrangenid:
   closing:
-    Summer: Été,
-    Winter: Hiver
+    1: Été
+    2: Hiver
   exitnbr:
   l_hnumf:
   r_hnumf:
   roadclass:
-    Freeway: Autoroute,
-    Expressway / Highway: Route express,
-    Arterial: Artère,
-    Collector: Route collectrice,
-    Local / Street: Local / Rue,
-    Local / Strata: Local / Semi-privé,
-    Local / Unknown: Local / Inconnu,
-    Alleyway / Lane: Ruelle / Voie,
-    Ramp: Bretelle,
-    Resource / Recreation: Route d'accès ressources / Site récréatif,
-    Rapid Transit: Réservée transport commun,
-    Service Lane: Service,
-    Winter: Hiver
+    1: Autoroute
+    2: Route express
+    3: Artère
+    4: Route collectrice
+    5: Local / Rue
+    6: Local / Semi-privé
+    7: Local / Inconnu
+    8: Ruelle / Voie
+    9: Bretelle
+    10: Route d'accès ressources / Site récréatif
+    11: Réservée transport commun
+    12: Service
+    13: Hiver
   l_hnuml:
   r_hnuml:
   nid:
@@ -190,12 +190,12 @@ roadseg:
   l_stname_c:
   r_stname_c:
   pavsurf:
-    Rigid: Rigide,
-    Flexible: Souple,
-    Blocks: Pavés
+    1: Rigide
+    2: Souple
+    3: Pavés
   pavstatus:
-    Paved: Revêtue,
-    Unpaved: Non revêtue
+    1: Revêtue
+    2: Non revêtue
   roadjuris:
   roadsegid:
   rtename1en:
@@ -216,20 +216,20 @@ roadseg:
   strunamefr:
   structid:
   structtype:
-    Bridge: Pont,
-    Bridge covered: Pont couvert,
-    Bridge moveable: Pont mobile,
-    Bridge unknown: Pont inconnu,
-    Tunnel: Tunnel,
-    Snowshed: Paraneige,
-    Dam: Barrage
+    1: Pont
+    2: Pont couvert
+    3: Pont mobile
+    4: Pont inconnu
+    5: Tunnel
+    6: Paraneige
+    7: Barrage
   trafficdir:
-    Both directions: Bi-directionel,
-    Same direction: Même direction,
-    Opposite direction: Direction contraire
+    1: Bi-directionel
+    2: Même direction
+    3: Direction contraire
   unpavsurf:
-    Gravel: Gravier,
-    Dirt: Terre
+    1: Gravier
+    2: Terre
 strplaname:
   acqtech: metadata;acqtech
   metacover: metadata;metacover
@@ -240,10 +240,30 @@ strplaname:
   revdate: metadata;revdate
   specvers: metadata;specvers
   dirprefix:
-    [North, Nord, South, Sud, East, Est, West, Ouest, Northwest, Nord-ouest, Northeast, Nord-est, Southwest, Sud-ouest,
-    Southeast, Sud-est, Central, Centre]
+    1: North
+    2: Nord
+    3: South
+    4: Sud
+    5: East
+    6: Est
+    7: West
+    8: Ouest
+    9: Northwest
+    10: Nord-ouest
+    11: Northeast
+    12: Nord-est
+    13: Southwest
+    14: Sud-ouest
+    15: Southeast
+    16: Sud-est
+    17: Central
+    18: Centre
   dirsuffix: dirprefix
-  muniquad: [South-West, South-East, North-East, North-West]
+  muniquad:
+    1: South-West
+    2: South-East
+    3: North-East
+    4: North-West
   nid:
   placename:
   placetype:
@@ -264,7 +284,8 @@ strplaname:
     United Township (Municipality) / Cantons-unis (Municipalité), Unorganized / Non-organisé, Village / Village,
     Without Designation (Municipality) / Sans désignation (Municipalité)]
   province: metadata;datasetnam
-  starticle: [à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
+  starticle:
+    [à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
   namebody:
   strtypre:
     [Abbey, Access, Acres, Aire, Allée, Alley, Autoroute, Avenue, Barrage, Bay, Beach, Bend, Bloc, Block, Boulevard,
@@ -291,6 +312,6 @@ tollpoint:
   nid:
   roadnid:
   tollpttype:
-    Physical Toll Booth: Poste de péage,
-    Virtual Toll Booth: Poste de péage virtuel,
-    Hybrid: Hybride
+    1: Poste de péage
+    2: Poste de péage virtuel
+    3: Hybride
