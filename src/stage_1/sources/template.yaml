@@ -11,9 +11,9 @@ license:
   text:
 language:
 data:
-  format:
-  path: data/raw/
+  filename:
   layer:
+  driver:
 conform:
   addrange:
     nid:
