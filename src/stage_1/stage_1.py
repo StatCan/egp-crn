@@ -8,6 +8,7 @@ import sqlite3
 import sys
 import uuid
 import yaml
+from ast import literal_eval
 from numpy import nan
 from shutil import copy
 
@@ -132,9 +133,14 @@ class Stage:
                     split_record, series = self.apply_functions(maps, series, attr_func_dict, split_record).values()
 
             else:
+
                 # Apply function.
-                series = series.apply(lambda row: eval("field_map_functions.{}({}, **{})".format(
-                    func, self.format_row(row), params)))
+                expr = "field_map_functions.{}(val=?, **{})".format(func, params)
+                try:
+                    series = series.apply(lambda row: literal_eval(expr.replace("val=?", self.format_row(row), 1)))
+                except (SyntaxError, ValueError):
+                    logger.error("Invalid literal_eval expression: \"{}\".".format(expr))
+                    sys.exit(1)
 
         return {"split_record": split_record, "series": series}
 
@@ -142,6 +148,7 @@ class Stage:
         """Compiles field domains for the target dataframes."""
 
         logging.info("Compiling field domains.")
+        self.domains = dict()
 
         # Compile field domains.
 
@@ -161,7 +168,7 @@ class Stage:
                 try:
                     source_attributes_yaml = yaml.safe_load(source_attributes_file)
                 except yaml.YAMLError:
-                    logger.error("Unable to compile yaml file: {}.".format(f))
+                    logger.error("Unable to load yaml file: {}.".format(f))
                     sys.exit(1)
 
             # Store yaml contents.
@@ -179,7 +186,7 @@ class Stage:
             try:
                 target_attributes_yaml = yaml.safe_load(target_attributes_file)
             except yaml.YAMLError:
-                logger.error("Unable to compile yaml file: {}.".format(target_attributes_path))
+                logger.error("Unable to load yaml file: {}.".format(target_attributes_path))
                 sys.exit(1)
 
         logger.info("Compiling attributes for target tables.")
@@ -255,7 +262,7 @@ class Stage:
 
     @staticmethod
     def format_row(row):
-        """Formats a Pandas Series prior to inclusion in an eval() expression."""
+        """Formats a Pandas Series prior to inclusion in a literal_eval() expression."""
 
         if isinstance(row, str):
             return "'{}'".format(row.replace("'", "\\'"))

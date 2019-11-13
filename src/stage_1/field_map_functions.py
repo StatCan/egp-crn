@@ -10,6 +10,17 @@ from operator import attrgetter, itemgetter
 logger = logging.getLogger()
 
 
+def apply_domain(val, domain):
+    """Applies a domain restriction to the given value based on the provided domain list."""
+
+    # Validate value.
+    for values in domain:
+        if str(val).lower() in map(str.lower, map(str, values)):
+            return values[0]
+
+    return nan
+
+
 def copy_attribute_functions(field_mapping_attributes, params):
     """
     Compiles the field mapping functions for each of the given field mapping attributes (target table columns).
