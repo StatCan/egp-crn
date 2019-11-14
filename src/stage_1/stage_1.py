@@ -1,14 +1,15 @@
+import ast
 import click
 import fiona
 import geopandas as gpd
 import logging
+import numpy as np
 import os
 import pandas as pd
 import sqlite3
 import sys
 import uuid
 import yaml
-from ast import literal_eval
 from numpy import nan
 from shutil import copy
 
@@ -134,12 +135,20 @@ class Stage:
 
             else:
 
-                # Apply function.
-                expr = "field_map_functions.{}(val=?, **{})".format(func, params)
+                # Generate expression.
+                expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
+
                 try:
-                    series = series.apply(lambda row: literal_eval(expr.replace("val=?", self.format_row(row), 1)))
+
+                    # Sanitize expression.
+                    parsed = ast.parse(expr, mode="eval")
+                    fixed = ast.fix_missing_locations(parsed)
+                    compiled = compile(fixed, "<string>", "eval")
+
+                    # Execute vectorized expression.
+                    series = np.vectorize("field_map_functions.{}".format(func))(series, **params)
                 except (SyntaxError, ValueError):
-                    logger.error("Invalid literal_eval expression: \"{}\".".format(expr))
+                    logger.error("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
 
         return {"split_record": split_record, "series": series}
@@ -150,7 +159,61 @@ class Stage:
         logging.info("Compiling field domains.")
         self.domains = dict()
 
-        # Compile field domains.
+        for suffix in ("en", "fr"):
+
+            # Load yaml.
+            logger.info("Loading \"{}\" field domains yaml.".format(suffix))
+
+            path = os.path.abspath("../field_domains_{}.yaml".format(suffix))
+            with open(path, "r") as domains_file:
+                try:
+                    domains_yaml = yaml.safe_load(domains_file)
+                except yaml.YAMLError:
+                    logger.error("Unable to load yaml file: {}.".format(path))
+                    sys.exit(1)
+
+            # Compile domain values.
+            logger.info("Compiling \"{}\" domain values.".format(suffix))
+
+            for table in domains_yaml:
+                # Register table.
+                if table not in self.domains.keys():
+                    self.domains[table] = dict()
+
+                for field, vals in domains_yaml[table].items():
+                    try:
+
+                        # Copy reference domain.
+                        while isinstance(vals, str):
+                            if vals.find(";") > 0:
+                                table_ref, field_ref = vals.split(";")
+                            else:
+                                table_ref, field_ref = table, vals
+                            vals = domains_yaml[table_ref][field_ref]
+
+                        # Compile domain values.
+                        if isinstance(vals, None):
+                            self.domains[table][field] = None
+
+                        elif isinstance(vals, list):
+                            if field in self.domains[table].keys():
+                                self.domains[table][field] = list(map(list, zip(self.domains[table][field], vals)))
+                            else:
+                                self.domains[table][field] = vals
+
+                        elif isinstance(vals, dict):
+                            if field in self.domains[table].keys():
+                                [self.domains[table][field][index].append(val) for index, val in enumerate(vals)]
+                            else:
+                                self.domains[table][field] = list(map(list, vals.items()))
+
+                        else:
+                            logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                            sys.exit(1)
+
+                    except (AttributeError, KeyError, ValueError):
+                        logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                        sys.exit(1)
 
     def compile_source_attributes(self):
         """Compiles the yaml files in the sources' directory into a dictionary."""
@@ -189,8 +252,9 @@ class Stage:
                 logger.error("Unable to load yaml file: {}.".format(target_attributes_path))
                 sys.exit(1)
 
-        logger.info("Compiling attributes for target tables.")
         # Store yaml contents for all contained table names.
+        logger.info("Compiling attributes for target tables.")
+
         for table in target_attributes_yaml:
             self.target_attributes[table] = {"spatial": target_attributes_yaml[table]["spatial"], "fields": dict()}
 
@@ -259,15 +323,6 @@ class Stage:
         except (ValueError, fiona.errors.FionaValueError):
             logger.error("ValueError raised when writing GeoPackage layer.")
             sys.exit(1)
-
-    @staticmethod
-    def format_row(row):
-        """Formats a Pandas Series prior to inclusion in a literal_eval() expression."""
-
-        if isinstance(row, str):
-            return "'{}'".format(row.replace("'", "\\'"))
-        else:
-            return row
 
     def gen_source_geodataframes(self):
         """Loads input data into a GeoPandas dataframe."""
