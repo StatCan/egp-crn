@@ -174,9 +174,13 @@ class Stage:
                     self.domains[table] = dict()
 
                 for field, vals in domains_yaml[table].items():
+                    # Register field.
+                    if field not in self.domains[table].keys():
+                        self.domains[table][field] = dict()
+
                     try:
 
-                        # Copy reference domain.
+                        # Configure reference domain.
                         while isinstance(vals, str):
                             if vals.find(";") > 0:
                                 table_ref, field_ref = vals.split(";")
@@ -188,17 +192,8 @@ class Stage:
                         if isinstance(vals, None):
                             self.domains[table][field] = None
 
-                        elif isinstance(vals, list):
-                            if field in self.domains[table].keys():
-                                self.domains[table][field] = list(map(list, zip(self.domains[table][field], vals)))
-                            else:
-                                self.domains[table][field] = vals
-
-                        elif isinstance(vals, dict):
-                            if field in self.domains[table].keys():
-                                [self.domains[table][field][index].append(val) for index, val in enumerate(vals)]
-                            else:
-                                self.domains[table][field] = list(map(list, vals.items()))
+                        elif isinstance(vals, list) or isinstance(vals, dict):
+                            self.domains[table][field][suffix] = vals
 
                         else:
                             logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))

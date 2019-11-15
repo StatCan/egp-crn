@@ -11,12 +11,30 @@ logger = logging.getLogger()
 
 
 def apply_domain(val, domain):
-    """Applies a domain restriction to the given value based on the provided domain list."""
+    """Applies a domain restriction to the given value based on the provided domain."""
 
-    # Validate value.
-    for values in domain:
-        if str(val).lower() in map(str.lower, map(str, values)):
-            return values[0]
+    val = str(val).lower()
+
+    # Validate against domain list.
+    if isinstance(domain["en"], list):
+        for suffix in ("en", "fr"):
+            for index, value in enumerate(domain[suffix]):
+                if val == str(value).lower():
+                    return domain["en"][index]
+
+    # Validate against domain dictionary.
+    else:
+
+        # Validate against keys.
+        for key in domain["en"].keys():
+            if val == str(key).lower():
+                return domain["en"][key]
+
+        # Validate against values.
+        for suffix in ("en", "fr"):
+            for index, value in enumerate(domain[suffix].values()):
+                if val == str(value).lower():
+                    return list(domain["en"].values())[index]
 
     return nan
 
