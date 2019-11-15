@@ -163,14 +163,7 @@ class Stage:
 
             # Load yaml.
             logger.info("Loading \"{}\" field domains yaml.".format(suffix))
-
-            path = os.path.abspath("../field_domains_{}.yaml".format(suffix))
-            with open(path, "r") as domains_file:
-                try:
-                    domains_yaml = yaml.safe_load(domains_file)
-                except yaml.YAMLError:
-                    logger.error("Unable to load yaml file: {}.".format(path))
-                    sys.exit(1)
+            domains_yaml = self.load_yaml(os.path.abspath("../field_domains_{}.yaml".format(suffix)))
 
             # Compile domain values.
             logger.info("Compiling \"{}\" domain values.".format(suffix))
@@ -226,31 +219,17 @@ class Stage:
         self.source_attributes = dict()
 
         for f in files:
-            # Load yaml.
-            with open(f, "r") as source_attributes_file:
-                try:
-                    source_attributes_yaml = yaml.safe_load(source_attributes_file)
-                except yaml.YAMLError:
-                    logger.error("Unable to load yaml file: {}.".format(f))
-                    sys.exit(1)
-
-            # Store yaml contents.
-            self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = source_attributes_yaml
+            # Load yaml and store contents.
+            self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = self.load_yaml(f)
 
     def compile_target_attributes(self):
         """Compiles the target (distribution format) yaml file into a dictionary."""
 
         logger.info("Compiling target attribute yaml.")
         self.target_attributes = dict()
-        target_attributes_path = os.path.abspath("../distribution_format.yaml")
 
         # Load yaml.
-        with open(target_attributes_path, "r") as target_attributes_file:
-            try:
-                target_attributes_yaml = yaml.safe_load(target_attributes_file)
-            except yaml.YAMLError:
-                logger.error("Unable to load yaml file: {}.".format(target_attributes_path))
-                sys.exit(1)
+        target_attributes_yaml = self.load_yaml(os.path.abspath("../distribution_format.yaml"))
 
         # Store yaml contents for all contained table names.
         logger.info("Compiling attributes for target tables.")
@@ -385,6 +364,18 @@ class Stage:
                 # Store result.
                 self.target_gdframes[table] = gdf
                 logger.info("Successfully created target dataframe: {}.".format(table))
+
+    @staticmethod
+    def load_yaml(path):
+        """Loads and returns a yaml file."""
+
+        with open(path, "r") as f:
+
+            try:
+                return yaml.safe_load(f)
+            except yaml.YAMLError:
+                logger.error("Unable to load yaml file: {}.".format(path))
+                sys.exit(1)
 
     def execute(self):
         """Executes an NRN stage."""
