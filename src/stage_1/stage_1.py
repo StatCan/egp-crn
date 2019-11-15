@@ -102,7 +102,8 @@ class Stage:
                         mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
                         # Apply field mapping functions to mapped series.
-                        field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"])
+                        field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"],
+                                                                     source_field["fields"])
 
                         # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
@@ -115,7 +116,7 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
 
-    def apply_functions(self, maps, series, func_dict, split_record=False):
+    def apply_functions(self, maps, series, func_dict, field, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
@@ -130,10 +131,13 @@ class Stage:
             if func == "copy_attribute_functions":
 
                 # Retrieve and iterate attribute functions and parameters.
-                for attr_func_dict in field_map_functions.copy_attribute_functions(maps, params):
-                    split_record, series = self.apply_functions(maps, series, attr_func_dict, split_record).values()
+                for attr_field, attr_func_dict in field_map_functions.copy_attribute_functions(maps, params).items():
+                    split_record, series = self.apply_functions(maps, series, attr_func_dict, attr_field,
+                                                                split_record).values()
 
             else:
+
+                # TODO: SEND field to field mapping.
 
                 # Generate expression.
                 expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
@@ -377,10 +381,10 @@ class Stage:
 
         self.compile_source_attributes()
         self.compile_target_attributes()
+        self.compile_domains()
         self.gen_source_dataframes()
         self.gen_target_dataframes()
         self.apply_field_mapping()
-        self.compile_domains()
         self.apply_domains()
         self.export_gpkg()
 

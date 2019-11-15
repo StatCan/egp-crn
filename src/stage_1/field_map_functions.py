@@ -75,7 +75,7 @@ def copy_attribute_functions(field_mapping_attributes, params):
                                     dict)
 
     # Iterate attributes to compile function-parameter dictionaries.
-    attribute_func_dicts = list()
+    attribute_func_dicts = dict()
 
     for attribute in params["attributes"]:
 
@@ -93,7 +93,7 @@ def copy_attribute_functions(field_mapping_attributes, params):
                 attribute_func_dict[attribute_func][attribute_param] = attribute_param_value
 
         # Store result.
-        attribute_func_dicts.append(attribute_func_dict)
+        attribute_func_dicts[attribute] = attribute_func_dict
 
     return attribute_func_dicts
 
