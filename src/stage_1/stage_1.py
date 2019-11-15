@@ -44,18 +44,18 @@ class Stage:
         self.temp_dir = helpers.create_temp_directory(self.stage)
 
     def apply_domains(self):
-        """Applies the field domains to each column in the target (geo)dataframes."""
+        """Applies the field domains to each column in the target dataframes."""
 
         logging.info("Applying field domains.")
 
         # Retrieve field domains.
 
     def apply_field_mapping(self):
-        """Maps the source geodataframes to the target geodataframes via user-specific field mapping functions."""
+        """Maps the source dataframes to the target dataframes via user-specific field mapping functions."""
 
         logger.info("Applying field mapping.")
 
-        # Retrieve source attributes and geodataframe.
+        # Retrieve source attributes and dataframe.
         for source_name, source_attributes in self.source_attributes.items():
             source_gdf = self.source_gdframes[source_name]
 
@@ -69,7 +69,7 @@ class Stage:
                 # Field mapping.
                 for target_field, source_field in maps.items():
 
-                    # Retrieve target geodataframe.
+                    # Retrieve target dataframe.
                     target_gdf = self.target_gdframes[target_name]
 
                     # No mapping.
@@ -80,7 +80,7 @@ class Stage:
                     elif isinstance(source_field, str) and (source_field not in source_gdf.columns):
                             logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
 
-                            # Update target geodataframe with raw value.
+                            # Update target dataframe with raw value.
                             target_gdf[target_field] = source_field
 
                     # Function mapping.
@@ -95,7 +95,7 @@ class Stage:
                         if isinstance(source_field["fields"], str):
                             source_field["fields"] = [source_field["fields"]]
 
-                        # Create mapped dataframe from source and target geodataframes, keeping only source fields.
+                        # Create mapped dataframe from source and target dataframes, keeping only source fields.
                         # Convert to series.
                         mapped_series = pd.DataFrame({field: target_gdf["uuid"].map(source_gdf.set_index("uuid")[field])
                                                       for field in source_field["fields"]})
@@ -104,7 +104,7 @@ class Stage:
                         # Apply field mapping functions to mapped series.
                         field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"])
 
-                        # Update target geodataframe.
+                        # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
 
                         # Split records if required.
@@ -112,11 +112,11 @@ class Stage:
                             # Duplicate records that were split.
                             target_gdf = field_map_functions.split_record(target_gdf, target_field)
 
-                    # Store updated target geodataframe.
+                    # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
 
     def apply_functions(self, maps, series, func_dict, split_record=False):
-        """Iterates and applies field mapping function(s) to a Pandas series."""
+        """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
         for func, params in func_dict.items():
@@ -262,29 +262,29 @@ class Stage:
                 # Compile field attributes.
                 try:
                     self.target_attributes[table]["fields"][field] = str(vals[0])
-                except ValueError:
+                except (AttributeError, KeyError, ValueError):
                     logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
                     sys.exit(1)
 
     def export_gpkg(self):
-        """Exports the target (Geo)DataFrames as GeoPackage layers."""
+        """Exports the target dataframes as GeoPackage layers."""
 
-        logger.info("Exporting target geodataframes to GeoPackage layers.")
+        logger.info("Exporting target dataframes to GeoPackage layers.")
 
         # Configure GeoPackage path.
         gpkg_path = os.path.join(self.temp_dir, "{}.gpkg".format(self.source))
 
         # TEST
-        print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
-        for i in range(0, 3):
-            print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
-        print(self.target_gdframes["strplaname"].columns, "\n")
-        for i in range(0, 3):
-            print(self.target_gdframes["strplaname"].values[i], "\n")
-        sys.exit()
+        # print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
+        # for i in range(0, 3):
+        #     print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
+        # print(self.target_gdframes["strplaname"].columns, "\n")
+        # for i in range(0, 3):
+        #     print(self.target_gdframes["strplaname"].values[i], "\n")
+        # sys.exit()
         # TEST
 
-        # Export target geodataframes to GeoPackage layers.
+        # Export target dataframes to GeoPackage layers.
         try:
             for name, gdf in self.target_gdframes.items():
 
@@ -324,17 +324,17 @@ class Stage:
             logger.error("ValueError raised when writing GeoPackage layer.")
             sys.exit(1)
 
-    def gen_source_geodataframes(self):
-        """Loads input data into a GeoPandas dataframe."""
+    def gen_source_dataframes(self):
+        """Loads input data into a geopandas dataframe."""
 
-        logger.info("Loading input data as geodataframes.")
+        logger.info("Loading input data as dataframes.")
         self.source_gdframes = dict()
 
         for source, source_yaml in self.source_attributes.items():
             # Configure filename attribute absolute path.
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
 
-            # Load source into geodataframe.
+            # Load source into dataframe.
             try:
                 gdf = gpd.read_file(**source_yaml["data"])
             except fiona.errors.FionaValueError:
@@ -350,25 +350,25 @@ class Stage:
 
             # Store result.
             self.source_gdframes[source] = gdf
-            logger.info("Successfully loaded geodataframe for {}, layer={}.".format(
+            logger.info("Successfully loaded dataframe for {}, layer={}.".format(
                 os.path.basename(source_yaml["data"]["filename"]), source_yaml["data"]["layer"]))
 
-    def gen_target_geodataframes(self):
-        """Creates empty geodataframes for all applicable output tables based on the input data field mapping."""
+    def gen_target_dataframes(self):
+        """Creates empty dataframes for all applicable output tables based on the input data field mapping."""
 
-        logger.info("Creating target geodataframes for applicable tables.")
+        logger.info("Creating target dataframes for applicable tables.")
         self.target_gdframes = dict()
 
         # Retrieve target table name from source attributes.
         for source, source_yaml in self.source_attributes.items():
             for table in source_yaml["conform"]:
 
-                logger.info("Creating target geodataframe: {}.".format(table))
+                logger.info("Creating target dataframe: {}.".format(table))
 
                 # Spatial.
                 if self.target_attributes[table]["spatial"]:
 
-                    # Generate target geodataframe from source uuid and geometry fields.
+                    # Generate target dataframe from source uuid and geometry fields.
                     gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
                                            geometry=self.source_gdframes[source].geometry)
 
@@ -384,15 +384,15 @@ class Stage:
 
                 # Store result.
                 self.target_gdframes[table] = gdf
-                logger.info("Successfully created target geodataframe: {}.".format(table))
+                logger.info("Successfully created target dataframe: {}.".format(table))
 
     def execute(self):
         """Executes an NRN stage."""
 
         self.compile_source_attributes()
         self.compile_target_attributes()
-        self.gen_source_geodataframes()
-        self.gen_target_geodataframes()
+        self.gen_source_dataframes()
+        self.gen_target_dataframes()
         self.apply_field_mapping()
         self.compile_domains()
         self.apply_domains()
