@@ -1,22 +1,46 @@
 import geopandas as gpd
-import psycopg2
 import time
+from sqlalchemy.engine.url import URL
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
+# start time for script timer
 start = time.time()
 
-con = psycopg2.connect(database="nrn", user="postgres", password="password", host="localhost")
+# postgres connection parameters
+HOST = 'localhost'
+DB = 'nrn'
+USER = 'postgres'
+PORT = 5432
+PWD = 'password'
 
-sql = "WITH nbjunc AS (SELECT ST_Intersection(a.geom, b.geom) geom, " \
+# postgres database url
+db_url = URL(drivername='postgresql+psycopg2', host=HOST, database=DB, username=USER, port=PORT, password=PWD)
+
+# engine to connect to postgres
+engine = create_engine(db_url)
+
+# create database session
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# SQL query to create junctions (JUNCTYPE=Intersection)
+sql = "WITH nb_junc AS (SELECT ST_Intersection(a.geom, b.geom) geom, " \
                   "Count(DISTINCT a.primaryindex) " \
            "FROM   nb AS a, " \
                   "nb AS b " \
            "WHERE  ST_Touches(a.geom, b.geom) " \
                   "AND a.primaryindex != b.primaryindex " \
            "GROUP  BY ST_Intersection(a.geom, b.geom))" \
-      "SELECT * FROM nbjunc WHERE count > 2;"
+      "SELECT * FROM nb_junc WHERE count > 2;"
 
-junc = gpd.GeoDataFrame.from_postgis(sql, con)
+# create junctions geodataframe
+junc = gpd.GeoDataFrame.from_postgis(sql, engine)
 
+# close database connection
+session.close()
+
+# output execution time
 end = time.time()
 hours, rem = divmod(end-start, 3600)
 minutes, seconds = divmod(rem, 60)
