@@ -1,5 +1,5 @@
 import logging
-import numpy
+import numpy as np
 import re
 import sys
 from copy import deepcopy
@@ -11,7 +11,7 @@ logger = logging.getLogger()
 
 
 def apply_domain(val, domain):
-    """Applies a domain restriction to the given value based on the provided domain."""
+    """Applies a domain restriction to the given value based on the provided domain dictionary or list."""
 
     val = str(val).lower()
 
@@ -109,7 +109,7 @@ def direct(val, **kwargs):
     return nan if val in (None, "", nan) else val
 
 
-def regex_find(val, pattern, match_index, group_index, domain, strip_result=False):
+def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False):
     """
     Extracts a value's nth match (index) from the nth match group (index) based on a regular expression pattern.
     Case ignored by default.
@@ -123,13 +123,12 @@ def regex_find(val, pattern, match_index, group_index, domain, strip_result=Fals
 
     # Validate inputs.
     pattern = validate_regex(pattern, domain)
-    validate_dtypes("match_index", match_index, int)
-    if isinstance(group_index, list):
-        for index, i in enumerate(group_index):
-            validate_dtypes("group_index[{}]".format(index), i, int)
-    else:
-        validate_dtypes("group_index", group_index, int)
-    validate_dtypes('strip_result', strip_result, bool)
+    validate_dtypes("match_index", match_index, [int, np.int_])
+    if not isinstance(group_index, list):
+        group_index = [group_index]
+    for index, i in enumerate(group_index):
+        validate_dtypes("group_index[{}]".format(index), i, [int, np.int_])
+    validate_dtypes('strip_result', strip_result, [bool, np.bool_])
 
     # Apply and return regex value, or numpy nan.
     try:
@@ -152,11 +151,11 @@ def regex_find(val, pattern, match_index, group_index, domain, strip_result=Fals
         else:
             return result[0]
 
-    except IndexError:
+    except (IndexError, ValueError):
         return val if strip_result else nan
 
 
-def regex_sub(val, pattern_from, pattern_to, domain):
+def regex_sub(val, pattern_from, pattern_to, domain=None):
     """
     Substitutes one regular expression pattern with another.
     Case ignored by default.
@@ -201,14 +200,14 @@ def split_record(vals, fields=None):
     else:
 
         # Identify records to be split.
-        vals_split = vals.loc[vals[fields].apply(lambda val: isinstance(val, numpy.ndarray))]
+        vals_split = vals.loc[vals[fields].apply(lambda val: isinstance(val, np.ndarray))]
 
         if len(vals_split):
             # Keep first instance for original records.
-            vals[fields] = vals[fields].apply(lambda val: val[0] if isinstance(val, numpy.ndarray) else val)
+            vals[fields] = vals[fields].apply(lambda val: val[0] if isinstance(val, np.ndarray) else val)
 
             # Keep second instance for split records.
-            vals_split[fields] = vals_split[fields].apply(lambda val: val[1] if isinstance(val, numpy.ndarray) else val)
+            vals_split[fields] = vals_split[fields].apply(lambda val: val[1] if isinstance(val, np.ndarray) else val)
 
             # Append split records to dataframe.
             vals = vals.append(vals_split, ignore_index=False)
@@ -242,7 +241,7 @@ def validate_regex(pattern, domain=None):
         re.compile(pattern)
 
         # Load domain values.
-        if pattern.find("domain") >= 0 and not isinstance(domain, None):
+        if pattern.find("domain") >= 0 and domain is not None:
             pattern = pattern.replace("domain", "|".join(map(str, domain)))
 
         return pattern

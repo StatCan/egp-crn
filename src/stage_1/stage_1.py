@@ -11,7 +11,6 @@ import sys
 import uuid
 import yaml
 from inspect import getmembers, isfunction
-from itertools import chain
 from numpy import nan
 from shutil import copy
 
@@ -52,7 +51,7 @@ class Stage:
 
         for table in self.domains:
             for field, domains in self.domains[table].items():
-                if not isinstance(domains, None):
+                if domains is not None:
 
                     # Apply domains via apply_functions.
                     self.target_gdframes[table][field] = self.apply_functions(
@@ -117,13 +116,13 @@ class Stage:
                         # Apply field mapping functions to mapped series.
                         field_mapping_results = self.apply_functions(
                             maps, mapped_series, source_field["functions"],
-                            domain=self.domains[target_name][source_field["fields"]]["values"])
+                            domain=self.domains[target_name][target_field]["values"])
 
                         # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
 
                         # Split records if required.
-                        if field_mapping_results["split_records"]:
+                        if field_mapping_results["split_record"]:
                             # Duplicate records that were split.
                             target_gdf = field_map_functions.split_record(target_gdf, target_field)
 
@@ -152,21 +151,20 @@ class Stage:
             else:
 
                 # For regex functions, add field name to parameters.
-                if func in self.domains_funcs and not isinstance(domain, None):
+                if func in self.domains_funcs and domain is not None:
                     params["domain"] = domain
 
                 # Generate expression.
                 expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
 
                 try:
-
                     # Sanitize expression.
                     parsed = ast.parse(expr, mode="eval")
                     fixed = ast.fix_missing_locations(parsed)
                     compiled = compile(fixed, "<string>", "eval")
 
                     # Execute vectorized expression.
-                    series = np.vectorize("field_map_functions.{}".format(func))(series, **params)
+                    series = np.vectorize(eval("field_map_functions.{}".format(func)))(series, **params)
                 except (SyntaxError, ValueError):
                     logger.error("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
@@ -196,7 +194,7 @@ class Stage:
                 for field, vals in domains_yaml[table].items():
                     # Register field.
                     if field not in self.domains[table].keys():
-                        self.domains[table][field] = dict.fromkeys(["values", "all"])
+                        self.domains[table][field] = {"values": list(), "all": None}
 
                     try:
 
@@ -209,13 +207,13 @@ class Stage:
                             vals = domains_yaml[table_ref][field_ref]
 
                         # Compile domain values.
-                        if isinstance(vals, None):
-                            self.domains[table][field] = None
+                        if vals is None:
+                            self.domains[table][field]["values"] = self.domains[table][field]["all"] = None
                             continue
 
                         elif isinstance(vals, dict):
                             self.domains[table][field]["values"].extend(vals.values())
-                            if isinstance(self.domains[table][field]["all"], None):
+                            if self.domains[table][field]["all"] is None:
                                 self.domains[table][field]["all"] = vals
                             else:
                                 self.domains[table][field]["all"] = \
@@ -223,7 +221,7 @@ class Stage:
 
                         elif isinstance(vals, list):
                             self.domains[table][field]["values"].extend(vals)
-                            if isinstance(self.domains[table][field]["all"], None):
+                            if self.domains[table][field]["all"] is None:
                                 self.domains[table][field]["all"] = vals
                             else:
                                 self.domains[table][field]["all"] = list(zip(self.domains[table][field]["all"], vals))
@@ -290,13 +288,13 @@ class Stage:
         gpkg_path = os.path.join(self.temp_dir, "{}.gpkg".format(self.source))
 
         # TEST
-        # print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
-        # for i in range(0, 3):
-        #     print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
-        # print(self.target_gdframes["strplaname"].columns, "\n")
-        # for i in range(0, 3):
-        #     print(self.target_gdframes["strplaname"].values[i], "\n")
-        # sys.exit()
+        print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
+        for i in range(0, 3):
+            print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
+        print(self.target_gdframes["strplaname"].columns, "\n")
+        for i in range(0, 3):
+            print(self.target_gdframes["strplaname"].values[i], "\n")
+        sys.exit()
         # TEST
 
         # Export target dataframes to GeoPackage layers.
@@ -405,7 +403,7 @@ class Stage:
     def load_yaml(path):
         """Loads and returns a yaml file."""
 
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf8") as f:
 
             try:
                 return yaml.safe_load(f)
