@@ -10,6 +10,7 @@ import sqlite3
 import sys
 import uuid
 import yaml
+from inspect import getmembers, isfunction
 from itertools import chain
 from numpy import nan
 from shutil import copy
@@ -49,7 +50,18 @@ class Stage:
 
         logging.info("Applying field domains.")
 
-        # Retrieve field domains.
+        for table in self.domains:
+            for field, domains in self.domains[table].items():
+                if not isinstance(domains, None):
+
+                    # Apply domains via apply_functions.
+                    self.target_gdframes[table][field] = self.apply_functions(
+                        maps=None,
+                        series=self.target_gdframes[table][field],
+                        func_dict={"apply_domain": {"domain": domains["all"]}},
+                        domain=domains["all"]
+                    )
+
 
     def apply_field_mapping(self):
         """Maps the source dataframes to the target dataframes via user-specific field mapping functions."""
@@ -105,7 +117,7 @@ class Stage:
                         # Apply field mapping functions to mapped series.
                         field_mapping_results = self.apply_functions(
                             maps, mapped_series, source_field["functions"],
-                            domain=self.domains[target_name][source_field["fields"]])
+                            domain=self.domains[target_name][source_field["fields"]]["values"])
 
                         # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
@@ -140,8 +152,8 @@ class Stage:
             else:
 
                 # For regex functions, add field name to parameters.
-                if func.find("regex") >= 0 and not isinstance(domain, None):
-                    params["domain"] = list(chain(domain["en"]["values"].values(), domain["fr"]["values"].values()))
+                if func in self.domains_funcs and not isinstance(domain, None):
+                    params["domain"] = domain
 
                 # Generate expression.
                 expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
@@ -184,7 +196,7 @@ class Stage:
                 for field, vals in domains_yaml[table].items():
                     # Register field.
                     if field not in self.domains[table].keys():
-                        self.domains[table][field] = dict()
+                        self.domains[table][field] = dict.fromkeys(["values", "all"])
 
                     try:
 
@@ -199,14 +211,22 @@ class Stage:
                         # Compile domain values.
                         if isinstance(vals, None):
                             self.domains[table][field] = None
+                            continue
 
                         elif isinstance(vals, dict):
-                            self.domains[table][field][suffix]["values"] = vals.values()
-                            self.domains[table][field][suffix]["all"] = list(chain(*vals.items()))
+                            self.domains[table][field]["values"].extend(vals.values())
+                            if isinstance(self.domains[table][field]["all"], None):
+                                self.domains[table][field]["all"] = vals
+                            else:
+                                self.domains[table][field]["all"] = \
+                                    {k: [v, vals[k]] for k, v in self.domains[table][field]["all"].items()}
 
                         elif isinstance(vals, list):
-                            self.domains[table][field][suffix]["values"] = vals
-                            self.domains[table][field][suffix]["all"] = vals
+                            self.domains[table][field]["values"].extend(vals)
+                            if isinstance(self.domains[table][field]["all"], None):
+                                self.domains[table][field]["all"] = vals
+                            else:
+                                self.domains[table][field]["all"] = list(zip(self.domains[table][field]["all"], vals))
 
                         else:
                             logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
@@ -215,6 +235,14 @@ class Stage:
                     except (AttributeError, KeyError, ValueError):
                         logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
                         sys.exit(1)
+
+        logging.info("Identifying field domain functions.")
+        self.domains_funcs = list()
+
+        # Identify functions from field_map_functions.
+        for func in [f for f in getmembers(field_map_functions) if isfunction(f[1])]:
+            if "domain" in func[1].__code__.co_varnames:
+                self.domains_funcs.append(func[0])
 
     def compile_source_attributes(self):
         """Compiles the yaml files in the sources' directory into a dictionary."""

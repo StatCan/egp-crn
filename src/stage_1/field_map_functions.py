@@ -15,26 +15,21 @@ def apply_domain(val, domain):
 
     val = str(val).lower()
 
-    # Validate against domain list.
-    if isinstance(domain["en"], list):
-        for suffix in ("en", "fr"):
-            for index, value in enumerate(domain[suffix]):
-                if val == str(value).lower():
-                    return domain["en"][index]
-
     # Validate against domain dictionary.
-    else:
+    if isinstance(domain, dict):
 
         # Validate against keys.
-        for key in domain["en"].keys():
+        for key in domain:
             if val == str(key).lower():
-                return domain["en"][key]
+                return domain[key][0]
 
-        # Validate against values.
-        for suffix in ("en", "fr"):
-            for index, value in enumerate(domain[suffix].values()):
-                if val == str(value).lower():
-                    return list(domain["en"].values())[index]
+        # Validate values as list.
+        domain = domain.values()
+
+    # Validate against domain list.
+    for values in domain:
+        if val in map(str.lower, map(str, values)):
+            return values[0]
 
     return nan
 
