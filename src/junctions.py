@@ -1,44 +1,19 @@
-import geopandas as gpd
+import networkx as nx
 import time
-from sqlalchemy.engine.url import URL
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 # start time for script timer
 start = time.time()
 
-# postgres connection parameters
-HOST = 'localhost'
-DB = 'nrn'
-USER = 'postgres'
-PORT = 5432
-PWD = 'password'
+g = nx.read_shp("C:/Users/jacoken/PycharmProjects/NRN/data/ott_roads/Road_Centrelines.shp")
 
-# postgres database url
-db_url = URL(drivername='postgresql+psycopg2', host=HOST, database=DB, username=USER, port=PORT, password=PWD)
+print("Total number of graph nodes: " + str(nx.number_of_nodes(g)))
+print("Total number of graph edges: " + str(nx.number_of_edges(g)))
 
-# engine to connect to postgres
-engine = create_engine(db_url)
-
-# create database session
-Session = sessionmaker(bind=engine)
-session = Session()
-
-# SQL query to create junctions (JUNCTYPE=Intersection)
-sql = "WITH nb_junc AS (SELECT ST_Intersection(a.geom, b.geom) geom, " \
-                  "Count(DISTINCT a.primaryindex) " \
-           "FROM   nb AS a, " \
-                  "nb AS b " \
-           "WHERE  ST_Touches(a.geom, b.geom) " \
-                  "AND a.primaryindex != b.primaryindex " \
-           "GROUP  BY ST_Intersection(a.geom, b.geom))" \
-      "SELECT * FROM nb_junc WHERE count > 2;"
-
-# create junctions geodataframe
-junc = gpd.GeoDataFrame.from_postgis(sql, engine)
-
-# close database connection
-session.close()
+result = []
+for i in g.nodes():
+    if g.degree(i) == 1 or g.degree(i) >= 3:
+        print(g.degree(i))
+        result.append(g.degree(i))
 
 # output execution time
 end = time.time()
