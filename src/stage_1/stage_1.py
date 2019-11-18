@@ -10,6 +10,7 @@ import sqlite3
 import sys
 import uuid
 import yaml
+from itertools import chain
 from numpy import nan
 from shutil import copy
 
@@ -102,8 +103,9 @@ class Stage:
                         mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
                         # Apply field mapping functions to mapped series.
-                        field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"],
-                                                                     source_field["fields"])
+                        field_mapping_results = self.apply_functions(
+                            maps, mapped_series, source_field["functions"],
+                            domain=self.domains[target_name][source_field["fields"]])
 
                         # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
@@ -116,7 +118,7 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
 
-    def apply_functions(self, maps, series, func_dict, field, split_record=False):
+    def apply_functions(self, maps, series, func_dict, domain, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
@@ -131,13 +133,15 @@ class Stage:
             if func == "copy_attribute_functions":
 
                 # Retrieve and iterate attribute functions and parameters.
-                for attr_field, attr_func_dict in field_map_functions.copy_attribute_functions(maps, params).items():
-                    split_record, series = self.apply_functions(maps, series, attr_func_dict, attr_field,
+                for attr_func_dict in field_map_functions.copy_attribute_functions(maps, params):
+                    split_record, series = self.apply_functions(maps, series, attr_func_dict, domain,
                                                                 split_record).values()
 
             else:
 
-                # TODO: SEND field to field mapping.
+                # For regex functions, add field name to parameters.
+                if func.find("regex") >= 0 and not isinstance(domain, None):
+                    params["domain"] = list(chain(domain["en"]["values"].values(), domain["fr"]["values"].values()))
 
                 # Generate expression.
                 expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
@@ -196,8 +200,13 @@ class Stage:
                         if isinstance(vals, None):
                             self.domains[table][field] = None
 
-                        elif isinstance(vals, list) or isinstance(vals, dict):
-                            self.domains[table][field][suffix] = vals
+                        elif isinstance(vals, dict):
+                            self.domains[table][field][suffix]["values"] = vals.values()
+                            self.domains[table][field][suffix]["all"] = list(chain(*vals.items()))
+
+                        elif isinstance(vals, list):
+                            self.domains[table][field][suffix]["values"] = vals
+                            self.domains[table][field][suffix]["all"] = vals
 
                         else:
                             logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))

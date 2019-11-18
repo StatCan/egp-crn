@@ -75,7 +75,7 @@ def copy_attribute_functions(field_mapping_attributes, params):
                                     dict)
 
     # Iterate attributes to compile function-parameter dictionaries.
-    attribute_func_dicts = dict()
+    attribute_func_dicts = list()
 
     for attribute in params["attributes"]:
 
@@ -93,7 +93,7 @@ def copy_attribute_functions(field_mapping_attributes, params):
                 attribute_func_dict[attribute_func][attribute_param] = attribute_param_value
 
         # Store result.
-        attribute_func_dicts[attribute] = attribute_func_dict
+        attribute_func_dicts.append(attribute_func_dict)
 
     return attribute_func_dicts
 
@@ -114,7 +114,7 @@ def direct(val, **kwargs):
     return nan if val in (None, "", nan) else val
 
 
-def regex_find(val, pattern, match_index, group_index, strip_result=False):
+def regex_find(val, pattern, match_index, group_index, domain, strip_result=False):
     """
     Extracts a value's nth match (index) from the nth match group (index) based on a regular expression pattern.
     Case ignored by default.
@@ -127,7 +127,7 @@ def regex_find(val, pattern, match_index, group_index, strip_result=False):
         return nan
 
     # Validate inputs.
-    validate_regex(pattern)
+    pattern = validate_regex(pattern, domain)
     validate_dtypes("match_index", match_index, int)
     if isinstance(group_index, list):
         for index, i in enumerate(group_index):
@@ -161,7 +161,7 @@ def regex_find(val, pattern, match_index, group_index, strip_result=False):
         return val if strip_result else nan
 
 
-def regex_sub(val, pattern_from, pattern_to):
+def regex_sub(val, pattern_from, pattern_to, domain):
     """
     Substitutes one regular expression pattern with another.
     Case ignored by default.
@@ -172,8 +172,8 @@ def regex_sub(val, pattern_from, pattern_to):
         return nan
 
     # Validate inputs.
-    validate_regex(pattern_from)
-    validate_regex(pattern_to)
+    pattern_from = validate_regex(pattern_from, domain)
+    pattern_to = validate_regex(pattern_to, domain)
 
     # Apply and return regex value.
     return re.sub(pattern_from, pattern_to, val, flags=re.IGNORECASE)
@@ -235,12 +235,23 @@ def validate_dtypes(val_name, val, dtypes):
         sys.exit(1)
 
 
-def validate_regex(pattern):
-    """Validates a regular expression."""
+def validate_regex(pattern, domain=None):
+    """
+    Validates a regular expression.
+    Replaces keyword 'domain' with the domain values of the given field, if provided.
+    """
 
     try:
+
+        # Compile regular expression.
         re.compile(pattern)
-        return True
+
+        # Load domain values.
+        if pattern.find("domain") >= 0 and not isinstance(domain, None):
+            pattern = pattern.replace("domain", "|".join(map(str, domain)))
+
+        return pattern
+
     except re.error:
         logger.error("Validation failed. Invalid regular expression: \"{}\".".format(pattern))
         sys.exit(1)
