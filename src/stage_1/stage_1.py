@@ -3,7 +3,6 @@ import click
 import fiona
 import geopandas as gpd
 import logging
-import numpy as np
 import os
 import pandas as pd
 import sqlite3
@@ -48,18 +47,25 @@ class Stage:
         """Applies the field domains to each column in the target dataframes."""
 
         logging.info("Applying field domains.")
+        table = field = None
 
-        for table in self.domains:
-            for field, domains in self.domains[table].items():
-                if domains is not None:
+        try:
 
-                    # Apply domains via apply_functions.
-                    self.target_gdframes[table][field] = self.apply_functions(
-                        maps=None,
-                        series=self.target_gdframes[table][field],
-                        func_dict={"apply_domain": {"domain": domains["all"]}},
-                        domain=domains["all"]
-                    )
+            for table in self.target_gdframes:
+                for field, domains in self.domains[table].items():
+                    if domains is not None:
+
+                        # Apply domains via apply_functions.
+                        self.target_gdframes[table][field] = self.apply_functions(
+                            maps=None,
+                            series=self.target_gdframes[table][field],
+                            func_dict={"apply_domain": {"domain": domains["all"]}},
+                            domain=domains["all"]
+                        )
+
+        except (AttributeError, KeyError, ValueError):
+            logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
+            sys.exit(1)
 
 
     def apply_field_mapping(self):
@@ -164,9 +170,9 @@ class Stage:
                     compiled = compile(fixed, "<string>", "eval")
 
                     # Execute vectorized expression.
-                    series = np.vectorize(eval("field_map_functions.{}".format(func)))(series, **params)
+                    series = series.map(lambda val: eval("field_map_functions.{}".format(func))(val, **params))
                 except (SyntaxError, ValueError):
-                    logger.error("Invalid expression: \"{}\".".format(expr))
+                    logger.exception("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
 
         return {"split_record": split_record, "series": series}
@@ -227,11 +233,11 @@ class Stage:
                                 self.domains[table][field]["all"] = list(zip(self.domains[table][field]["all"], vals))
 
                         else:
-                            logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                            logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
                             sys.exit(1)
 
                     except (AttributeError, KeyError, ValueError):
-                        logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                        logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
                         sys.exit(1)
 
         logging.info("Identifying field domain functions.")
@@ -276,7 +282,7 @@ class Stage:
                 try:
                     self.target_attributes[table]["fields"][field] = str(vals[0])
                 except (AttributeError, KeyError, ValueError):
-                    logger.error("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                    logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
                     sys.exit(1)
 
     def export_gpkg(self):
@@ -334,7 +340,7 @@ class Stage:
                 logger.info("Successfully exported layer.")
 
         except (ValueError, fiona.errors.FionaValueError):
-            logger.error("ValueError raised when writing GeoPackage layer.")
+            logger.exception("ValueError raised when writing GeoPackage layer.")
             sys.exit(1)
 
     def gen_source_dataframes(self):
@@ -351,7 +357,7 @@ class Stage:
             try:
                 gdf = gpd.read_file(**source_yaml["data"])
             except fiona.errors.FionaValueError:
-                logger.error("ValueError raised when importing source {}, layer={}".format(
+                logger.exception("ValueError raised when importing source {}, layer={}".format(
                     source_yaml["data"]["filename"], source_yaml["data"]["layer"]))
                 sys.exit(1)
 
@@ -408,7 +414,7 @@ class Stage:
             try:
                 return yaml.safe_load(f)
             except yaml.YAMLError:
-                logger.error("Unable to load yaml file: {}.".format(path))
+                logger.exception("Unable to load yaml file: {}.".format(path))
                 sys.exit(1)
 
     def execute(self):
@@ -443,5 +449,5 @@ if __name__ == "__main__":
         main()
 
     except KeyboardInterrupt:
-        logger.error("KeyboardInterrupt exception: exiting program.")
+        logger.exception("KeyboardInterrupt: exiting program.")
         sys.exit(1)

@@ -215,7 +215,7 @@ conform:
       fields: [l_placenam, r_placenam]
       functions:
         split_record:
-          fields: [l_placenam, r_placenam]
+          field: None
     placetype:
     province: "New Brunswick"
     starticle:

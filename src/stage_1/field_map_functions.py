@@ -173,41 +173,38 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
     return re.sub(pattern_from, pattern_to, val, flags=re.IGNORECASE)
 
 
-def split_record(vals, fields=None):
+def split_record(vals, field=None):
     """
     If vals = pandas dataframe: Splits records on the given field.
-    If vals = list: Tests equality of values in vals, returning first value if equal and all (as ndarray) if unequal.
+    If vals = numpy ndarray: Returns value.
 
     This function is executed in two separate parts due to the functionality of stage_1.apply_functions, which operates
     on a series. Since splitting records in a series would not affect the original dataframe, the input series is simply
-    returned with a flag indicating a split. This function is then called again within stage_1, once all mapping
-    functions have been applied to the target dataframe, to execute the row splitting.
+    returned. This function is then called again within stage_1, once all mapping functions have been applied to the
+    target dataframe, to execute the row splitting.
 
     It was decided to keep split_record as a callable field mapping function instead of creating a separate function
     within stage_1 such that split_record can exist within a chain of other field mapping functions.
     """
 
-    if isinstance(vals, list):
+    # Return values.
+    if isinstance(vals, np.ndarray):
 
-        # Validate dtypes.
-        validate_dtypes("fields", fields, list)
-        for index, field in enumerate(fields):
-            validate_dtypes("fields[{}]".format(index), field, str)
+        return vals
 
-        # Return all values if unequal, else return the first.
-        return vals[0] if len(set(vals)) == 1 else vals
-
+    # Split records.
     else:
 
         # Identify records to be split.
-        vals_split = vals.loc[vals[fields].apply(lambda val: isinstance(val, np.ndarray))]
+        vals_split = vals.loc[vals[field].map(lambda val: val[0] != val[1])].copy(deep=True)
 
         if len(vals_split):
+
             # Keep first instance for original records.
-            vals[fields] = vals[fields].apply(lambda val: val[0] if isinstance(val, np.ndarray) else val)
+            vals[field] = vals[field].map(lambda val: val[0])
 
             # Keep second instance for split records.
-            vals_split[fields] = vals_split[fields].apply(lambda val: val[1] if isinstance(val, np.ndarray) else val)
+            vals_split[field] = vals_split[field].map(lambda val: val[1])
 
             # Append split records to dataframe.
             vals = vals.append(vals_split, ignore_index=False)
@@ -224,7 +221,7 @@ def validate_dtypes(val_name, val, dtypes):
     if any([isinstance(val, dtype) for dtype in dtypes]):
         return True
     else:
-        logger.error("Validation failed. Invalid data type for \"{}\": \"{}\". Expected {} but received {}.".format(
+        logger.exception("Validation failed. Invalid data type for \"{}\": \"{}\". Expected {} but received {}.".format(
             val_name, val, " or ".join(map(attrgetter("__name__"), dtypes)), type(val).__name__))
         sys.exit(1)
 
@@ -247,5 +244,5 @@ def validate_regex(pattern, domain=None):
         return pattern
 
     except re.error:
-        logger.error("Validation failed. Invalid regular expression: \"{}\".".format(pattern))
+        logger.exception("Validation failed. Invalid regular expression: \"{}\".".format(pattern))
         sys.exit(1)
