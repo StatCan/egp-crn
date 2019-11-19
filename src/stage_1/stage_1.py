@@ -52,8 +52,19 @@ class Stage:
         try:
 
             for table in self.target_gdframes:
+                logger.info("Applying field domains to {}.".format(table))
+
                 for field, domains in self.domains[table].items():
-                    if domains is not None:
+
+                    if domains is None:
+                        logger.info("Target field \"{}\": No domain provided.".format(field))
+
+                    else:
+                        # TEST
+                        print(domains)
+                        print(type(domains))
+                        # TEST
+                        logger.info("Target field \"{}\": Applying domain.".format(field))
 
                         # Apply domains via apply_functions.
                         self.target_gdframes[table][field] = self.apply_functions(
@@ -61,7 +72,7 @@ class Stage:
                             series=self.target_gdframes[table][field],
                             func_dict={"apply_domain": {"domain": domains["all"]}},
                             domain=domains["all"]
-                        )
+                        )["series"]
 
         except (AttributeError, KeyError, ValueError):
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
