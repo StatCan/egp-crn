@@ -1,5 +1,6 @@
 # Data files
 /data/raw/
+!/data/raw/.gitkeep
 
 # Environment files
 /venv/
