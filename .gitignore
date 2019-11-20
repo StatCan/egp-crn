@@ -3,3 +3,6 @@
 
 # Data files
 /data/
+
+# env
+/venv/
