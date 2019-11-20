@@ -5,13 +5,10 @@ import geopandas as gpd
 import logging
 import os
 import pandas as pd
-import sqlite3
 import sys
 import uuid
-import yaml
 from inspect import getmembers, isfunction
 from numpy import nan
-from shutil import copy
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -40,8 +37,11 @@ class Stage:
         # Configure source attribute path.
         self.source_attribute_path = os.path.abspath("sources/{}".format(self.source))
 
-        # Create temp dir.
-        self.temp_dir = helpers.create_temp_directory(self.stage)
+        # Validate output namespace.
+        self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
+        if os.path.exists(self.output_path):
+            logger.error("Output namespace already occupied: \"{}\".".format(self.output_path))
+            sys.exit(1)
 
     def apply_domains(self):
         """Applies the field domains to each column in the target dataframes."""
@@ -56,23 +56,16 @@ class Stage:
 
                 for field, domains in self.domains[table].items():
 
-                    if domains is None:
+                    if domains["all"] is None:
                         logger.info("Target field \"{}\": No domain provided.".format(field))
 
                     else:
-                        # TEST
-                        print(domains)
-                        print(type(domains))
-                        # TEST
                         logger.info("Target field \"{}\": Applying domain.".format(field))
 
                         # Apply domains via apply_functions.
-                        self.target_gdframes[table][field] = self.apply_functions(
-                            maps=None,
-                            series=self.target_gdframes[table][field],
-                            func_dict={"apply_domain": {"domain": domains["all"]}},
-                            domain=domains["all"]
-                        )["series"]
+                        series = self.target_gdframes[table][field]
+                        self.target_gdframes[table][field] = series.map(
+                            lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"]))
 
         except (AttributeError, KeyError, ValueError):
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
@@ -198,7 +191,7 @@ class Stage:
 
             # Load yaml.
             logger.info("Loading \"{}\" field domains yaml.".format(suffix))
-            domains_yaml = self.load_yaml(os.path.abspath("../field_domains_{}.yaml".format(suffix)))
+            domains_yaml = helpers.load_yaml(os.path.abspath("../field_domains_{}.yaml".format(suffix)))
 
             # Compile domain values.
             logger.info("Compiling \"{}\" domain values.".format(suffix))
@@ -271,7 +264,7 @@ class Stage:
 
         for f in files:
             # Load yaml and store contents.
-            self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = self.load_yaml(f)
+            self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = helpers.load_yaml(f)
 
     def compile_target_attributes(self):
         """Compiles the target (distribution format) yaml file into a dictionary."""
@@ -280,7 +273,7 @@ class Stage:
         self.target_attributes = dict()
 
         # Load yaml.
-        target_attributes_yaml = self.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        target_attributes_yaml = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
 
         # Store yaml contents for all contained table names.
         logger.info("Compiling attributes for target tables.")
@@ -301,58 +294,25 @@ class Stage:
 
         logger.info("Exporting target dataframes to GeoPackage layers.")
 
-        # Configure GeoPackage path.
-        gpkg_path = os.path.join(self.temp_dir, "{}.gpkg".format(self.source))
-
         # TEST
         print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
-        for i in range(0, 3):
+        for i in [0, 1, 2, 66053]:
             print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
+        print("SHAPE: {}; LEN: {}".format(
+            self.source_gdframes["geonb_nbrn-rrnb_road-route"].shape[0],
+            len(self.source_gdframes["geonb_nbrn-rrnb_road-route"].index)))
+
         print(self.target_gdframes["strplaname"].columns, "\n")
-        for i in range(0, 3):
+        for i in [0, 1, 2, 66053]:
             print(self.target_gdframes["strplaname"].values[i], "\n")
+        print("SHAPE: {}; LEN: {}".format(
+            self.target_gdframes["strplaname"].shape[0],
+            len(self.target_gdframes["strplaname"].index)))
         sys.exit()
         # TEST
 
         # Export target dataframes to GeoPackage layers.
-        try:
-            for name, gdf in self.target_gdframes.items():
-
-                logger.info("Writing to GeoPackage {}, layer={}.".format(gpkg_path, name))
-
-                # Spatial data.
-                if "geometry" in dir(gdf):
-                    # Open GeoPackage.
-                    with fiona.open(gpkg_path, "w", layer=name, driver="GPKG", crs=gdf.crs,
-                                    schema=gpd.io.file.infer_schema(gdf)) as gpkg:
-
-                        # Write to GeoPackage.
-                        gpkg.writerecords(gdf.iterfeatures())
-
-                # Tabular data.
-                else:
-                    # Copy geopackage template.
-                    copy(os.path.abspath("../../data/empty.gpkg"), gpkg_path)
-
-                    # Create sqlite connection.
-                    con = sqlite3.connect(gpkg_path)
-
-                    # Write to GeoPackage.
-                    gdf.to_sql(name, con)
-
-                    # Insert record into gpkg_contents metadata table.
-                    con.cursor().execute("insert into 'gpkg_contents' ('table_name', 'data_type') values "
-                                         "('{}', 'attributes');".format(name))
-
-                    # Commit and close db connection.
-                    con.commit()
-                    con.close()
-
-                logger.info("Successfully exported layer.")
-
-        except (ValueError, fiona.errors.FionaValueError):
-            logger.exception("ValueError raised when writing GeoPackage layer.")
-            sys.exit(1)
+        helpers.export_gpkg(self.target_gdframes, self.output_path)
 
     def gen_source_dataframes(self):
         """Loads input data into a geopandas dataframe."""
@@ -415,18 +375,6 @@ class Stage:
                 # Store result.
                 self.target_gdframes[table] = gdf
                 logger.info("Successfully created target dataframe: {}.".format(table))
-
-    @staticmethod
-    def load_yaml(path):
-        """Loads and returns a yaml file."""
-
-        with open(path, "r", encoding="utf8") as f:
-
-            try:
-                return yaml.safe_load(f)
-            except yaml.YAMLError:
-                logger.exception("Unable to load yaml file: {}.".format(path))
-                sys.exit(1)
 
     def execute(self):
         """Executes an NRN stage."""
