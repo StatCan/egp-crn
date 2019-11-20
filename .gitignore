@@ -2,7 +2,7 @@
 .idea
 
 # Data files
-/data/
+/data/raw
 
 # env
 /venv/
