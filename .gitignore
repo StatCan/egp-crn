@@ -1,8 +1,6 @@
-# Pycharm files
-.idea
-
 # Data files
-/data/raw
+/data/raw/
 
-# env
+# Environment files
 /venv/
+*.idea
