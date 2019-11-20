@@ -121,6 +121,9 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
     if val in (None, "", nan):
         return nan
 
+    if str(val).lower() in ("route 515 highway", "chemin gauthier"):
+        print("ONE")
+
     # Validate inputs.
     pattern = validate_regex(pattern, domain)
     validate_dtypes("match_index", match_index, [int, np.int_])
@@ -129,6 +132,11 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
     for index, i in enumerate(group_index):
         validate_dtypes("group_index[{}]".format(index), i, [int, np.int_])
     validate_dtypes('strip_result', strip_result, [bool, np.bool_])
+
+    if str(val).lower() in ("route 515 highway", "chemin gauthier"):
+        print("TWO")
+        print(type(domain), domain)
+        sys.exit(1)
 
     # Apply and return regex value, or numpy nan.
     try:
