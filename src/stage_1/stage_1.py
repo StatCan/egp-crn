@@ -158,8 +158,8 @@ class Stage:
             else:
 
                 # Add domain to function parameters.
-                if func in self.domains_funcs and table_domains[field]["all"] is not None:
-                    params["domain"] = table_domains[field]["all"]
+                if func in self.domains_funcs and table_domains[field]["values"] is not None:
+                    params["domain"] = table_domains[field]["values"]
 
                 # Generate expression.
                 expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
