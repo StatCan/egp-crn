@@ -3,7 +3,6 @@ import numpy as np
 import re
 import sys
 from copy import deepcopy
-from numpy import nan
 from operator import attrgetter, itemgetter
 
 
@@ -31,7 +30,7 @@ def apply_domain(val, domain):
         if val in map(str.lower, map(str, values)):
             return values[0]
 
-    return nan
+    return np.nan
 
 
 def copy_attribute_functions(field_mapping_attributes, params):
@@ -70,7 +69,7 @@ def copy_attribute_functions(field_mapping_attributes, params):
                                     dict)
 
     # Iterate attributes to compile function-parameter dictionaries.
-    attribute_func_dicts = list()
+    attribute_func_dicts = dict()
 
     for attribute in params["attributes"]:
 
@@ -88,7 +87,7 @@ def copy_attribute_functions(field_mapping_attributes, params):
                 attribute_func_dict[attribute_func][attribute_param] = attribute_param_value
 
         # Store result.
-        attribute_func_dicts.append(attribute_func_dict)
+        attribute_func_dicts[attribute] = attribute_func_dict
 
     return attribute_func_dicts
 
@@ -106,7 +105,7 @@ def direct(val, **kwargs):
              parameter: None
     """
 
-    return nan if val in (None, "", nan) else val
+    return np.nan if val in (None, "", np.nan) else val
 
 
 def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False):
@@ -118,58 +117,35 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
     """
 
     # Return numpy nan.
-    if val in (None, "", nan):
-        return nan
-
-    if str(val).lower() in ("route 515 highway", "chemin gauthier"):
-        print("ONE")
+    if val in (None, "", np.nan):
+        return np.nan
 
     # Validate inputs.
     pattern = validate_regex(pattern, domain)
     validate_dtypes("match_index", match_index, [int, np.int_])
-    if not isinstance(group_index, list):
-        group_index = [group_index]
-    for index, i in enumerate(group_index):
-        validate_dtypes("group_index[{}]".format(index), i, [int, np.int_])
+    validate_dtypes("group_index", group_index, [int, np.int_, list])
+    if isinstance(group_index, list):
+        for index, i in enumerate(group_index):
+            validate_dtypes("group_index[{}]".format(index), i, [int, np.int_])
     validate_dtypes('strip_result', strip_result, [bool, np.bool_])
-
-    if str(val).lower() in ("route 515 highway", "chemin gauthier"):
-        print("TWO")
-        print("DOMAIN:", type(domain), domain)
-        print("PATTERN:", type(pattern), pattern)
-        print("GROUP_INDEX:", type(group_index), group_index)
-        print("MATCH_INDEX:", type(match_index), match_index)
 
     # Apply and return regex value, or numpy nan.
     try:
 
         # Single group index.
-        if isinstance(group_index, int):
+        if isinstance(group_index, int) or isinstance(group_index, np.int_):
             matches = re.finditer(pattern, val, flags=re.IGNORECASE)
             result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
-
-            if str(val).lower() in ("route 515 highway", "chemin gauthier"):
-                print("THREE")
-                print("MATCHES:", matches)
-                print("RESULT:", result)
 
         # Multiple group indexes.
         else:
             matches = re.finditer(pattern, val, flags=re.IGNORECASE)
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
-            result[0] = [grp for grp in result[0] if grp not in (None, "", nan)][0]
+            result[0] = [grp for grp in result[0] if grp not in (None, "", np.nan)][0]
 
-            if str(val).lower() in ("route 515 highway", "chemin gauthier"):
-                print("FOUR")
-                print("MATCHES:", [i for i in matches])
-                print("RESULT:", result)
+        if str(val).lower() == "route 515 highway" and strip_result:
+            print("PASS", result, pattern)
 
-        if str(val).lower() in ("route 515 highway", "chemin gauthier"):
-            print("FIVE")
-            print("STRIP_RESULT:", strip_result)
-            sys.exit(1)
-
-        # Strip result if required.
         if strip_result:
             start, end = result[1:]
             return " ".join(map(str, [val[:start], val[end:]])).strip()
@@ -177,7 +153,9 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
             return result[0]
 
     except (IndexError, ValueError):
-        return val if strip_result else nan
+        if str(val).lower() == "route 515 highway" and strip_result:
+            print("ERROR", val, pattern)
+        return val if strip_result else np.nan
 
 
 def regex_sub(val, pattern_from, pattern_to, domain=None):
@@ -187,8 +165,8 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
     """
 
     # Return numpy nan.
-    if val in (None, "", nan):
-        return nan
+    if val in (None, "", np.nan):
+        return np.nan
 
     # Validate inputs.
     pattern_from = validate_regex(pattern_from, domain)

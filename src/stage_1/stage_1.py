@@ -8,7 +8,6 @@ import pandas as pd
 import sys
 import uuid
 from inspect import getmembers, isfunction
-from numpy import nan
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -71,7 +70,6 @@ class Stage:
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
             sys.exit(1)
 
-
     def apply_field_mapping(self):
         """Maps the source dataframes to the target dataframes via user-specific field mapping functions."""
 
@@ -125,8 +123,7 @@ class Stage:
 
                         # Apply field mapping functions to mapped series.
                         field_mapping_results = self.apply_functions(
-                            maps, mapped_series, source_field["functions"],
-                            domain=self.domains[target_name][target_field]["values"])
+                            maps, mapped_series, source_field["functions"], self.domains[target_name], target_field)
 
                         # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
@@ -139,7 +136,7 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
 
-    def apply_functions(self, maps, series, func_dict, domain, split_record=False):
+    def apply_functions(self, maps, series, func_dict, table_domains, field, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
@@ -154,15 +151,15 @@ class Stage:
             if func == "copy_attribute_functions":
 
                 # Retrieve and iterate attribute functions and parameters.
-                for attr_func_dict in field_map_functions.copy_attribute_functions(maps, params):
-                    split_record, series = self.apply_functions(maps, series, attr_func_dict, domain,
+                for attr_field, attr_func_dict in field_map_functions.copy_attribute_functions(maps, params).items():
+                    split_record, series = self.apply_functions(maps, series, attr_func_dict, table_domains, attr_field,
                                                                 split_record).values()
 
             else:
 
-                # For regex functions, add field name to parameters.
-                if func in self.domains_funcs and domain is not None:
-                    params["domain"] = domain
+                # Add domain to function parameters.
+                if func in self.domains_funcs and table_domains[field]["all"] is not None:
+                    params["domain"] = table_domains[field]["all"]
 
                 # Generate expression.
                 expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
