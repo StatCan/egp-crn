@@ -1,5 +1,7 @@
 # Data files
-/data/raw/*
+/data/*
+!/data/interim/.gitkeep
+!/data/processed/.gitkeep
 !/data/raw/.gitkeep
 
 # Environment files
