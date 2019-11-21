@@ -135,8 +135,10 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
 
     if str(val).lower() in ("route 515 highway", "chemin gauthier"):
         print("TWO")
-        print(type(domain), domain)
-        sys.exit(1)
+        print("DOMAIN:", type(domain), domain)
+        print("PATTERN:", type(pattern), pattern)
+        print("GROUP_INDEX:", type(group_index), group_index)
+        print("MATCH_INDEX:", type(match_index), match_index)
 
     # Apply and return regex value, or numpy nan.
     try:
@@ -146,11 +148,26 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
             matches = re.finditer(pattern, val, flags=re.IGNORECASE)
             result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
 
+            if str(val).lower() in ("route 515 highway", "chemin gauthier"):
+                print("THREE")
+                print("MATCHES:", matches)
+                print("RESULT:", result)
+
         # Multiple group indexes.
         else:
             matches = re.finditer(pattern, val, flags=re.IGNORECASE)
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
             result[0] = [grp for grp in result[0] if grp not in (None, "", nan)][0]
+
+            if str(val).lower() in ("route 515 highway", "chemin gauthier"):
+                print("FOUR")
+                print("MATCHES:", [i for i in matches])
+                print("RESULT:", result)
+
+        if str(val).lower() in ("route 515 highway", "chemin gauthier"):
+            print("FIVE")
+            print("STRIP_RESULT:", strip_result)
+            sys.exit(1)
 
         # Strip result if required.
         if strip_result:
