@@ -32,12 +32,12 @@ conform:
       fields: l_hnumf
       functions:
         regex_sub:
-          pattern_from: \W+
+          pattern_from: "\\W+"
           pattern_to: " "
         regex_find:
           pattern:
             # Matches 0 to unlimited digits from line start.
-            (^\d+)
+            "(^\\d+)"
           match_index: 0
           group_index: 0
     r_hnumf:
@@ -116,12 +116,12 @@ conform:
       fields: l_hnumf
       functions:
         regex_sub:
-          pattern_from: \W+
+          pattern_from: "\\W+"
           pattern_to: " "
         regex_find:
           pattern:
             # Matches 0 to unlimited digits from line start.
-            (^\d+)
+            "(^\\d+)"
           match_index: 0
           group_index: 0
     r_hnumf:
@@ -182,16 +182,17 @@ conform:
     dirprefix:
       fields: streetname
       functions:
-        regex_sub:
-          pattern_from: "[-]"
-          pattern_to: " "
+        copy_attribute_functions:
+          attributes: [dirsuffix]
+          modify_parameters:
+            regex_find:
+              strip_result: True
         regex_find:
           pattern:
             # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
             # Group 2: in list of values.
             # Group 3: succeeded by space(s) and/or non-word char(s).
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+|^)(domain)([\\s\\W]+)*?
+            "([\\s\\W]+|^)(domain)([\\s\\W]+)"
           match_index: 0
           group_index: 1
     dirsuffix:
@@ -205,8 +206,8 @@ conform:
             # Group 1: preceded by space(s) and/or non-word char(s).
             # Group 2: in list of values.
             # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+)(domain)([\\s\\W]+|$)*?
+            # 0 to unlimited matches.
+            "([\\s\\W]+)(domain)([\\s\\W]+|$)*?"
           match_index: -1
           group_index: 1
     muniquad:
@@ -232,8 +233,7 @@ conform:
             # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
             # Group 2: in list of values.
             # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+|^)(domain)([\\s\\W]+|$)*?
+            "([\\s\\W]+|^)(domain)([\\s\\W]+|$)"
           match_index: -1
           group_index: 1
     namebody:
@@ -247,16 +247,17 @@ conform:
     strtypre:
       fields: streetname
       functions:
-        regex_sub:
-          pattern_from: "[-]"
-          pattern_to: " "
+        copy_attribute_functions:
+          attributes: [strtysuf]
+          modify_parameters:
+            regex_find:
+              strip_result: True
         regex_find:
           pattern:
             # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
             # Group 2: in list of values.
             # Group 3: succeeded by space(s) and/or non-word char(s).
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+|^)(domain)([\\s\\W]+)*?
+            "([\\s\\W]+|^)(domain)([\\s\\W]+)"
           match_index: 0
           group_index: 1
     strtysuf:
@@ -270,7 +271,7 @@ conform:
             # Group 1: preceded by space(s) and/or non-word char(s).
             # Group 2: in list of values.
             # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+)(domain)([\\s\\W]+|$)*?
+            # 0 to unlimited matches.
+            "([\\s\\W]+)(domain)([\\s\\W]+|$)*?"
           match_index: -1
           group_index: 1

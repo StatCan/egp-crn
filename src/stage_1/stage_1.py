@@ -159,7 +159,8 @@ class Stage:
 
                 # Add domain to function parameters.
                 if func in self.domains_funcs and table_domains[field]["values"] is not None:
-                    params["domain"] = table_domains[field]["values"]
+                    # Reverse sort to ensure substring values will not be selected in place of longer values.
+                    params["domain"] = sorted(table_domains[field]["values"], reverse=True)
 
                 # Generate expression.
                 expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
@@ -291,23 +292,6 @@ class Stage:
 
         logger.info("Exporting target dataframes to GeoPackage layers.")
 
-        # TEST
-        print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
-        for i in [0, 1, 2, 66053]:
-            print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
-        print("SHAPE: {}; LEN: {}".format(
-            self.source_gdframes["geonb_nbrn-rrnb_road-route"].shape[0],
-            len(self.source_gdframes["geonb_nbrn-rrnb_road-route"].index)))
-
-        print(self.target_gdframes["strplaname"].columns, "\n")
-        for i in [0, 1, 2, 66053]:
-            print(self.target_gdframes["strplaname"].values[i], "\n")
-        print("SHAPE: {}; LEN: {}".format(
-            self.target_gdframes["strplaname"].shape[0],
-            len(self.target_gdframes["strplaname"].index)))
-        sys.exit()
-        # TEST
-
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.target_gdframes, self.output_path)
 
@@ -392,18 +376,15 @@ class Stage:
 def main(source):
     """Executes an NRN stage."""
 
-    logger.info("Started.")
-
-    stage = Stage(source)
-    stage.execute()
-
-    logger.info("Finished.")
-
-if __name__ == "__main__":
     try:
 
-        main()
+        with helpers.Timer():
+            stage = Stage(source)
+            stage.execute()
 
     except KeyboardInterrupt:
-        logger.exception("KeyboardInterrupt: exiting program.")
+        logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
+
+if __name__ == "__main__":
+    main()

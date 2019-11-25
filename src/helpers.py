@@ -1,33 +1,51 @@
-import copy
+import datetime
 import fiona
 import geopandas as gpd
 import logging
 import os
+import shutil
 import sqlite3
 import sys
+import time
 import yaml
 
 
 logger = logging.getLogger()
 
 
-def export_gpkg(dataframes, gpkg_path):
+class Timer:
+    """Tracks stage runtime."""
+
+    def __init__(self):
+        self.start_time = None
+
+    def __enter__(self):
+        logger.info("Started.")
+        self.start_time = time.time()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        total_seconds = time.time() - self.start_time
+        delta = datetime.timedelta(seconds=total_seconds)
+        logger.info("Finished. Time elapsed: {}.".format(delta))
+
+
+def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../data/empty.gpkg")):
     """Receives a dictionary of pandas dataframes and exports them as geopackage layers."""
 
     # Create gpkg from template if it doesn't already exist.
-    if not os.path.exists(gpkg_path):
-        copy(os.path.abspath("../data/empty.gpkg"), gpkg_path)
+    if not os.path.exists(output_path):
+        shutil.copyfile(empty_gpkg_path, output_path)
 
     # Export target dataframes to GeoPackage layers.
     try:
         for name, gdf in dataframes.items():
 
-            logger.info("Writing to GeoPackage {}, layer={}.".format(gpkg_path, name))
+            logger.info("Writing to GeoPackage {}, layer={}.".format(output_path, name))
 
             # Spatial data.
             if "geometry" in dir(gdf):
                 # Open GeoPackage.
-                with fiona.open(gpkg_path, "w", layer=name, driver="GPKG", crs=gdf.crs,
+                with fiona.open(output_path, "w", layer=name, driver="GPKG", crs=gdf.crs,
                                 schema=gpd.io.file.infer_schema(gdf)) as gpkg:
 
                     # Write to GeoPackage.
@@ -36,7 +54,7 @@ def export_gpkg(dataframes, gpkg_path):
             # Tabular data.
             else:
                 # Create sqlite connection.
-                con = sqlite3.connect(gpkg_path)
+                con = sqlite3.connect(output_path)
 
                 # Write to GeoPackage.
                 gdf.to_sql(name, con)

@@ -143,22 +143,13 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
             result[0] = [grp for grp in result[0] if grp not in (None, "", np.nan)][0]
 
-        # TEST
-        if str(val).lower() == "route 515 highway" and strip_result:
-            print("PASS", result, pattern)
-        # TEST
-
         if strip_result:
             start, end = result[1:]
-            return " ".join(map(str, [val[:start], val[end:]])).strip()
+            return " ".join(map(str.strip, map(str, [val[:start], val[end:]]))).strip()
         else:
-            return result[0]
+            return result[0].strip()
 
     except (IndexError, ValueError):
-        # TEST
-        if str(val).lower() == "route 515 highway" and strip_result:
-            print("ERROR", val, pattern)
-        # TEST
         return val if strip_result else np.nan
 
 
