@@ -16,13 +16,18 @@ db = 'nrn'
 user = 'postgres'
 port = 5432
 pwd = 'password'
+
 # postgres database url
 db_url = URL(drivername='postgresql+psycopg2', host=host, database=db, username=user, port=port, password=pwd)
 # engine to connect to postgres
 engine = create_engine(db_url)
 
+
 def main(gpkg_in, layer_name, gpkg_out):
 
+    print(gpkg_in)
+    print(layer_name)
+    print(gpkg_out)
     gpkg_in = (sys.argv[1])
     layer_name = (sys.argv[2])
     gpkg_out = (sys.argv[3])
@@ -67,13 +72,12 @@ def main(gpkg_in, layer_name, gpkg_out):
     dead_ends_gpd.to_file(gpkg_out, layer='deadends', driver='GPKG')
     inter.to_file(gpkg_out, layer='intersections', driver='GPKG')
 
+
 if __name__ == "__main__":
 
-    # example run : $ python stage_2.py [INPUT GPKG] [OUTPUT GPKG]
-
     if len(sys.argv) != 4:
-
-        print("ERROR: You must supply 7 arguments. Example: python stage_2.py [INPUT GPKG] [LAYER NAME] [OUTPUT GPKG]")
+        print("ERROR: You must supply 3 arguments. "
+              "Example: python stage_2.py [INPUT GPKG] [LAYER NAME] [OUTPUT GPKG]")
         sys.exit(1)
 
     main(sys.argv[1], sys.argv[2], sys.argv[3])
