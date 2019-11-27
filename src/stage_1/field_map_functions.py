@@ -40,7 +40,7 @@ def copy_attribute_functions(field_mapping_attributes, params):
 
     Possible yaml construction of copy_attribute_functions:
 
-    1) copy_attribute_functions:                              2) copy_attribute_functions:
+    1) - function: copy_attribute_functions:                  2) - function: copy_attribute_functions:
          attributes: [attribute_1, attribute_2, ...]               attributes:
          modify_parameters:                                          - attribute_1:
            function:                                                     function:
@@ -68,8 +68,8 @@ def copy_attribute_functions(field_mapping_attributes, params):
                     validate_dtypes("copy_attribute_functions[\"attributes\"][\"{}\"]".format(func), attribute[func],
                                     dict)
 
-    # Iterate attributes to compile function-parameter dictionaries.
-    attribute_func_dicts = dict()
+    # Iterate attributes to compile function-parameter dictionary lists.
+    attribute_func_lists = dict()
 
     for attribute in params["attributes"]:
 
@@ -79,17 +79,19 @@ def copy_attribute_functions(field_mapping_attributes, params):
             attribute, mod_params = list(attribute.items())[0]
 
         # Retrieve attribute field mapping functions.
-        attribute_func_dict = deepcopy(field_mapping_attributes[attribute]["functions"])
+        attribute_func_list = deepcopy(field_mapping_attributes[attribute]["functions"])
 
         # Apply modified parameters.
         for attribute_func, attribute_params in mod_params.items():
             for attribute_param, attribute_param_value in attribute_params.items():
-                attribute_func_dict[attribute_func][attribute_param] = attribute_param_value
+                for index, attribute_dict in enumerate(attribute_func_list):
+                    if attribute_dict["function"] == attribute_func:
+                        attribute_func_list[index][attribute_param] = attribute_param_value
 
         # Store result.
-        attribute_func_dicts[attribute] = attribute_func_dict
+        attribute_func_lists[attribute] = attribute_func_list
 
-    return attribute_func_dicts
+    return attribute_func_lists
 
 
 def direct(val, **kwargs):
@@ -108,12 +110,14 @@ def direct(val, **kwargs):
     return np.nan if val in (None, "", np.nan) else val
 
 
-def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False):
+def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):
     """
     Extracts a value's nth match (index) from the nth match group (index) based on a regular expression pattern.
     Case ignored by default.
     Parameter 'group_index' can be an int or list of ints, the returned value will be at the first index with a match.
     Parameter 'strip_result' returns the entire value except for the extracted substring.
+    Parameter 'sub_inplace' takes the same parameters as regex_sub. This allows regex to match against a modified string
+    yet maintain the unmodified string throughout the rest of the function.
     """
 
     # Return numpy nan.
@@ -134,17 +138,20 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
 
         # Single group index.
         if isinstance(group_index, int) or isinstance(group_index, np.int_):
-            matches = re.finditer(pattern, val, flags=re.IGNORECASE)
+            matches = re.finditer(pattern, regex_sub(**sub_inplace) if sub_inplace else val, flags=re.IGNORECASE)
             result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
 
         # Multiple group indexes.
         else:
-            matches = re.finditer(pattern, val, flags=re.IGNORECASE)
+            matches = re.finditer(pattern, regex_sub(**sub_inplace) if sub_inplace else val, flags=re.IGNORECASE)
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
             result[0] = [grp for grp in result[0] if grp not in (None, "", np.nan)][0]
 
         if strip_result:
             start, end = result[1:]
+            if start > 0:
+                if val[start-1] == val[end]:
+                    start -= 1
             return " ".join(map(str.strip, map(str, [val[:start], val[end:]]))).strip()
         else:
             return result[0].strip()

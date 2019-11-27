@@ -109,7 +109,8 @@ class Stage:
 
                         # Restructure dict for direct field mapping in case of string input.
                         if isinstance(source_field, str):
-                                source_field = {"fields": [source_field], "functions": {"direct": {"param": None}}}
+                                source_field = {"fields": [source_field], "functions": [{"function": "direct",
+                                                                                         "param": None}]}
 
                         # Convert single field attribute to list.
                         if isinstance(source_field["fields"], str):
@@ -136,43 +137,44 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
 
-    def apply_functions(self, maps, series, func_dict, table_domains, field, split_record=False):
+    def apply_functions(self, maps, series, func_list, table_domains, field, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
-        for func, params in func_dict.items():
+        for func in func_list:
+            func_name = func["function"]
+            params = {k: v for k, v in func.items() if k != "function"}
 
-            if func == "split_record":
+            if func_name == "split_record":
                 split_record = True
 
-            logger.info("Applying field mapping function: {}.".format(func))
+            logger.info("Applying field mapping function: {}.".format(func_name))
 
             # Advanced function mapping - copy_attribute_functions.
-            if func == "copy_attribute_functions":
+            if func_name == "copy_attribute_functions":
 
                 # Retrieve and iterate attribute functions and parameters.
-                for attr_field, attr_func_dict in field_map_functions.copy_attribute_functions(maps, params).items():
-                    split_record, series = self.apply_functions(maps, series, attr_func_dict, table_domains, attr_field,
+                for attr_field, attr_func_list in field_map_functions.copy_attribute_functions(maps, params).items():
+                    split_record, series = self.apply_functions(maps, series, attr_func_list, table_domains, attr_field,
                                                                 split_record).values()
 
             else:
 
                 # Add domain to function parameters.
-                if func in self.domains_funcs and table_domains[field]["values"] is not None:
-                    # Reverse sort to ensure substring values will not be selected in place of longer values.
-                    params["domain"] = sorted(table_domains[field]["values"], reverse=True)
+                if func_name in self.domains_funcs and table_domains[field]["values"] is not None:
+                    params["domain"] = table_domains[field]["values"]
 
                 # Generate expression.
-                expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
+                expr = "field_map_functions.{}(\"val\", **{})".format(func_name, params)
 
                 try:
                     # Sanitize expression.
                     parsed = ast.parse(expr, mode="eval")
                     fixed = ast.fix_missing_locations(parsed)
-                    compiled = compile(fixed, "<string>", "eval")
+                    compile(fixed, "<string>", "eval")
 
                     # Execute vectorized expression.
-                    series = series.map(lambda val: eval("field_map_functions.{}".format(func))(val, **params))
+                    series = series.map(lambda val: eval("field_map_functions.{}".format(func_name))(val, **params))
                 except (SyntaxError, ValueError):
                     logger.exception("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
@@ -208,31 +210,28 @@ class Stage:
 
                         # Configure reference domain.
                         while isinstance(vals, str):
-                            if vals.find(";") > 0:
-                                table_ref, field_ref = vals.split(";")
-                            else:
-                                table_ref, field_ref = table, vals
+                            table_ref, field_ref = vals.split(";") if vals.find(";") > 0 else [table, vals]
                             vals = domains_yaml[table_ref][field_ref]
 
-                        # Compile domain values.
+                        # Compile all domain values including keys.
                         if vals is None:
                             self.domains[table][field]["values"] = self.domains[table][field]["all"] = None
-                            continue
 
-                        elif isinstance(vals, dict):
-                            self.domains[table][field]["values"].extend(vals.values())
-                            if self.domains[table][field]["all"] is None:
-                                self.domains[table][field]["all"] = vals
-                            else:
-                                self.domains[table][field]["all"] = \
-                                    {k: [v, vals[k]] for k, v in self.domains[table][field]["all"].items()}
+                        elif isinstance(vals, dict) or isinstance(vals, list):
+                            v_all, v_values = self.domains[table][field]["all"], self.domains[table][field]["values"]
 
-                        elif isinstance(vals, list):
-                            self.domains[table][field]["values"].extend(vals)
-                            if self.domains[table][field]["all"] is None:
+                            # Compile all domain values, including keys.
+                            if v_all is None:
                                 self.domains[table][field]["all"] = vals
+                            elif isinstance(v_all, dict):
+                                self.domains[table][field]["all"] = {k: [v, vals[k]] for k, v in v_all.items()}
                             else:
-                                self.domains[table][field]["all"] = list(zip(self.domains[table][field]["all"], vals))
+                                self.domains[table][field]["all"] = list(zip(v_all, vals))
+
+                            # Compile all domain values, excluding keys.
+                            # Additionally: 1) Remove duplicates. 2) Reverse sort to avoid false substring matching.
+                            v_values.extend(vals.values() if isinstance(vals, dict) else vals)
+                            self.domains[table][field]["values"] = sorted(list(set(v_values)), reverse=True)
 
                         else:
                             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
