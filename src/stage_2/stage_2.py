@@ -1,6 +1,8 @@
 import os, sys
 import networkx as nx
 import geopandas as gpd
+import pandas as pd
+import uuid
 from datetime import datetime
 from sqlalchemy import *
 from sqlalchemy.engine.url import URL
@@ -23,17 +25,17 @@ db_url = URL(drivername='postgresql+psycopg2', host=host, database=db, username=
 engine = create_engine(db_url)
 
 
-def main(gpkg_in, layer_name, gpkg_out):
+def main():
 
-    print(gpkg_in)
-    print(layer_name)
-    print(gpkg_out)
-    gpkg_in = (sys.argv[1])
-    layer_name = (sys.argv[2])
-    gpkg_out = (sys.argv[3])
+#     print(gpkg_in)
+#     print(layer_name)
+#     print(gpkg_out)
+#     gpkg_in = (sys.argv[1])
+#     layer_name = (sys.argv[2])
+#     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file(gpkg_in, layer=layer_name)
+    gpkg_in = gpd.read_file("data/interim/ott_roads_test.gpkg")
     # convert the stage 1 geopackage to a shapefile for networkx usage
     gpkg_in.to_file("data/interim/netx1.shp", driver='ESRI Shapefile')
     # read shapefile
@@ -47,7 +49,7 @@ def main(gpkg_in, layer_name, gpkg_out):
     # create empty graph for dead ends
     g_dead_ends = nx.Graph()
     # filter for dead ends
-    dead_ends_filter = [node for node, degree in graph.degree() if degree == 0 or degree == 1]
+    dead_ends_filter = [node for node, degree in graph.degree() if degree == 1]
     # add filter to empty graph
     g_dead_ends.add_nodes_from(dead_ends_filter)
 
@@ -67,20 +69,47 @@ def main(gpkg_in, layer_name, gpkg_out):
     inter = gpd.GeoDataFrame.from_postgis(sql, engine)
 
     nx.write_shp(g_dead_ends, "data/interim/dead_end.shp")
-    dead_ends_gpd = gpd.read_file("data/interim/dead_end.shp")
 
-    dead_ends_gpd.to_file(gpkg_out, layer='deadends', driver='GPKG')
-    inter.to_file(gpkg_out, layer='intersections', driver='GPKG')
+    inter.to_file("data/interim/intersections.gpkg", driver='GPKG')
+
+    dead_ends_gpd = gpd.read_file("data/interim/dead_end.shp")
+    dead_ends_gpd["junctype"] = 'Dead End'
+
+    intersections_gpd = gpd.read_file("data/interim/intersections.gpkg")
+    intersections_gpd["junctype"] = 'Intersection'
+
+    junctions = gpd.GeoDataFrame(pd.concat([dead_ends_gpd, intersections_gpd], sort=False))
+    junctions = junctions[['junctype', 'geometry']]
+
+    junctions["nid"] = [uuid.uuid4() for i in range(len(junctions))]
+    junctions["nid"] = junctions["nid"].astype(str)
+    junctions["nid"] = junctions["nid"].replace('-', '', regex=True)
+
+    junctions["datasetnam"] = "New Brunswick"
+    junctions["specvers"] = "2.0"
+    junctions["accuracy"] = 10
+    junctions["acqtech"] = "Computed"
+    junctions["provider"] = "Provincial/Territorial"
+    junctions["credate"] = "20191127"
+    junctions["revdate"] = "20191127"
+    junctions["metacover"] = "Complete"
+    junctions["exitnbr"] = ""
+    junctions["junctype"] = junctions["junctype"]
+
+    junctions.to_file("data/interim/ott.gpkg", driver='GPKG')
+
+    # dead_ends_gpd.to_file(gpkg_out, layer='deadends', driver='GPKG')
+    # intersections_gpd.to_file(gpkg_out, layer='intersections', driver='GPKG')
 
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 4:
-        print("ERROR: You must supply 3 arguments. "
-              "Example: python stage_2.py [INPUT GPKG] [LAYER NAME] [OUTPUT GPKG]")
-        sys.exit(1)
+    # if len(sys.argv) != 1:
+    #     print("ERROR: You must supply 3 arguments. "
+    #           "Example: python stage_2.py [INPUT GPKG] [LAYER NAME] [OUTPUT GPKG]")
+    #     sys.exit(1)
 
-    main(sys.argv[1], sys.argv[2], sys.argv[3])
+    main()
 
 # output execution time
 print("Total execution time: ", datetime.now() - startTime)
