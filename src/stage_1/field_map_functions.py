@@ -117,7 +117,9 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
     Parameter 'group_index' can be an int or list of ints, the returned value will be at the first index with a match.
     Parameter 'strip_result' returns the entire value except for the extracted substring.
     Parameter 'sub_inplace' takes the same parameters as regex_sub. This allows regex to match against a modified string
-    yet maintain the unmodified string throughout the rest of the function.
+    yet preserve the unmodified string. For example, to match 'de la' from the string 'Chemin-de-la-Grande-Rivière',
+    sub_inplace can call regex_sub to replace '-' with ' ', then substitute the match's indexes from the original string
+    to preserve hyphens in the remainder of the string.
     """
 
     # Return numpy nan.
@@ -138,23 +140,27 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
 
         # Single group index.
         if isinstance(group_index, int) or isinstance(group_index, np.int_):
-            matches = re.finditer(pattern, regex_sub(**sub_inplace) if sub_inplace else val, flags=re.IGNORECASE)
+            matches = re.finditer(pattern, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
             result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
 
         # Multiple group indexes.
         else:
-            matches = re.finditer(pattern, regex_sub(**sub_inplace) if sub_inplace else val, flags=re.IGNORECASE)
+            matches = re.finditer(pattern, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
             result[0] = [grp for grp in result[0] if grp not in (None, "", np.nan)][0]
 
         if strip_result:
             start, end = result[1:]
-            if start > 0:
-                if val[start-1] == val[end]:
+            # Reset start index to avoid stacking spaces and hyphens.
+            if start > 0 and end < len(val):
+                while val[start-1] == val[end] and val[end] in (" ", "-"):
                     start -= 1
-            return " ".join(map(str.strip, map(str, [val[:start], val[end:]]))).strip()
+            result = "".join(map(str, [val[:start], val[end:]]))
         else:
-            return result[0].strip()
+            result = result[0]
+
+        # Strip leading and trailing whitespaces and hyphens.
+        return result.strip(" -")
 
     except (IndexError, ValueError):
         return val if strip_result else np.nan
@@ -175,7 +181,7 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
     pattern_to = validate_regex(pattern_to, domain)
 
     # Apply and return regex value.
-    return re.sub(pattern_from, pattern_to, val, flags=re.IGNORECASE)
+    return re.sub(pattern_from, pattern_to, val, flags=re.I)
 
 
 def split_record(vals, field=None):

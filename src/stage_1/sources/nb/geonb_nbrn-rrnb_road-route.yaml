@@ -31,9 +31,6 @@ conform:
     l_hnumf:
       fields: l_hnumf
       functions:
-        - function: regex_sub
-          pattern_from: "\\W+"
-          pattern_to: " "
         - function: regex_find
           pattern: "(^\\d+)"
           match_index: 0
@@ -113,9 +110,6 @@ conform:
     l_hnumf:
       fields: l_hnumf
       functions:
-        - function: regex_sub
-          pattern_from: "\\W+"
-          pattern_to: " "
         - function: regex_find
           pattern: "(^\\d+)"
           match_index: 0
@@ -178,11 +172,6 @@ conform:
     dirprefix:
       fields: streetname
       functions:
-        - function: copy_attribute_functions
-          attributes: [dirsuffix]
-          modify_parameters:
-            regex_find:
-              strip_result: True
         - function: regex_find
           pattern: "\\b(domain)\\b(?!$)"
           match_index: 0
@@ -190,13 +179,18 @@ conform:
     dirsuffix:
       fields: streetname
       functions:
-        - function: regex_sub
-          pattern_from: "[-]"
-          pattern_to: " "
+        - function: copy_attribute_functions
+          attributes: [dirprefix]
+          modify_parameters:
+            regex_find:
+              strip_result: True
         - function: regex_find
           pattern: "(?<!^)\\b(domain)\\b"
           match_index: -1
           group_index: 0
+          sub_inplace:
+            pattern_from: "[-]"
+            pattern_to: " "
     muniquad:
     nid:
     placename:
@@ -209,29 +203,24 @@ conform:
     starticle:
       fields: streetname
       functions:
-        - function: regex_sub
-          pattern_from: "[-]"
-          pattern_to: " "
         - function: regex_find
           pattern: "\\b(domain)\\b"
           match_index: 0
           group_index: 0
+          sub_inplace:
+            pattern_from: "[-]"
+            pattern_to: " "
     namebody:
       fields: streetname
       functions:
         - function: copy_attribute_functions
-          attributes: [starticle, dirprefix, strtypre, strtysuf, dirsuffix]
+          attributes: [starticle, strtypre, dirprefix]
           modify_parameters:
             regex_find:
               strip_result: True
     strtypre:
       fields: streetname
       functions:
-        - function: copy_attribute_functions
-          attributes: [strtysuf]
-          modify_parameters:
-            regex_find:
-              strip_result: True
         - function: regex_find
           pattern: "\\b(domain)\\b(?!$)"
           match_index: 0
@@ -239,10 +228,15 @@ conform:
     strtysuf:
       fields: streetname
       functions:
-        - function: regex_sub
-          pattern_from: "[-]"
-          pattern_to: " "
+        - function: copy_attribute_functions
+          attributes: [strtypre]
+          modify_parameters:
+            regex_find:
+              strip_result: True
         - function: regex_find
           pattern: "(?<!^)\\b(domain)\\b"
           match_index: -1
           group_index: 0
+          sub_inplace:
+            pattern_from: "[-]"
+            pattern_to: " "
