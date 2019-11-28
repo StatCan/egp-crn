@@ -329,7 +329,7 @@ class Stage:
         logger.info("Creating target dataframes for applicable tables.")
         self.target_gdframes = dict()
 
-        # Retrieve target table name from source attributes.
+        # Retrieve target table names from source attributes.
         for source, source_yaml in self.source_attributes.items():
             for table in source_yaml["conform"]:
 
@@ -355,6 +355,19 @@ class Stage:
                 # Store result.
                 self.target_gdframes[table] = gdf
                 logger.info("Successfully created target dataframe: {}.".format(table))
+
+        logger.info("Creating empty target dataframes for remaining tables.")
+
+        # Retrieve remaining target table names from target attributes.
+        for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
+
+            # Generate target dataframe from target field schema.
+            schema = {fld: pd.Series(dtype=dtype) for fld, dtype in self.target_attributes[table]["fields"].items()}
+            gdf = eval("{}DataFrame(schema)".format("gpd.Geo" if self.target_attributes[table]["spatial"] else "pd."))
+
+            # Store result.
+            self.target_gdframes[table] = gdf
+            logger.info("Successfully created target dataframe: {}.".format(table))
 
     def execute(self):
         """Executes an NRN stage."""
