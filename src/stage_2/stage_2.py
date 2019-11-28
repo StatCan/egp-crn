@@ -36,7 +36,7 @@ def main():
 #     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file("data/interim/NRN_NB_9_0_GPKG_en.gpkg", layer="NRN_NB_9_0_ROADSEG")
+    gpkg_in = gpd.read_file("data/interim/roadseg.gpkg")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     gpkg_in.to_file("data/interim/netx1.shp", driver='ESRI Shapefile')
@@ -103,6 +103,35 @@ def main():
     junctions["junctype"] = junctions["junctype"]
 
     junctions.to_file("data/interim/nb.gpkg", driver='GPKG')
+
+    # read the incoming geopackage from stage 1
+    ferry = gpd.read_file("data/interim/ferryseg.gpkg")
+
+    # convert the stage 1 geopackage to a shapefile for networkx usage
+    ferry.to_file("data/interim/netx2.shp", driver='ESRI Shapefile')
+
+    # read shapefile
+    ferry_g = nx.read_shp("data/interim/netx2.shp")
+
+    # create empty graph for dead ends
+    ferry_graph = nx.Graph()
+
+    # filter for dead ends
+    ferry_filter = [node for node, degree in ferry_g.degree() if degree > 0]
+
+    # add filter to empty graph
+    ferry_graph.add_nodes_from(ferry_filter)
+
+    nx.write_shp(ferry_graph, "data/interim/ferry.shp")
+
+    ferry_gpd = gpd.read_file("data/interim/ferry.shp")
+
+    subset = junctions.geometry.map(lambda x: x.equals(ferry_gpd.geometry.any()))
+
+    # subset.to_file("data/interim/subset.gpkg", driver="GPKG")
+
+    print(subset)
+
 
 if __name__ == "__main__":
 
