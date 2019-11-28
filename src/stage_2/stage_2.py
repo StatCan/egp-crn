@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy import *
 from sqlalchemy.engine.url import URL
 from geopandas_postgis import PostGIS
+
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 # start script timer
@@ -35,11 +36,14 @@ def main():
 #     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file("data/interim/ott_roads_test.gpkg")
+    gpkg_in = gpd.read_file("data/interim/NRN_NB_9_0_GPKG_en.gpkg", layer="NRN_NB_9_0_ROADSEG")
+
     # convert the stage 1 geopackage to a shapefile for networkx usage
     gpkg_in.to_file("data/interim/netx1.shp", driver='ESRI Shapefile')
+
     # read shapefile
     graph = nx.read_shp("data/interim/netx1.shp")
+
     # create geodataframe for graph
     graph_gpd = gpd.read_file("data/interim/netx1.shp")
 
@@ -48,8 +52,10 @@ def main():
 
     # create empty graph for dead ends
     g_dead_ends = nx.Graph()
+
     # filter for dead ends
     dead_ends_filter = [node for node, degree in graph.degree() if degree == 1]
+
     # add filter to empty graph
     g_dead_ends.add_nodes_from(dead_ends_filter)
 
@@ -96,11 +102,7 @@ def main():
     junctions["exitnbr"] = ""
     junctions["junctype"] = junctions["junctype"]
 
-    junctions.to_file("data/interim/ott.gpkg", driver='GPKG')
-
-    # dead_ends_gpd.to_file(gpkg_out, layer='deadends', driver='GPKG')
-    # intersections_gpd.to_file(gpkg_out, layer='intersections', driver='GPKG')
-
+    junctions.to_file("data/interim/nb.gpkg", driver='GPKG')
 
 if __name__ == "__main__":
 
