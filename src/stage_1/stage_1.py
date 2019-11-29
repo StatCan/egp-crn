@@ -2,12 +2,14 @@ import ast
 import click
 import fiona
 import geopandas as gpd
+import json
 import logging
 import os
 import pandas as pd
 import sys
 import uuid
 from inspect import getmembers, isfunction
+from osgeo import ogr, osr
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -303,6 +305,20 @@ class Stage:
         for source, source_yaml in self.source_attributes.items():
             # Configure filename attribute absolute path.
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
+
+            # TEST
+            inSpatialRef = osr.SpatialReference()
+            inSpatialRef.ImportFromEPSG(source_yaml["data"]["crs"])
+            outSpatialRef = osr.SpatialReference()
+            outSpatialRef.ImportFromEPSG(4617)
+            coordTrans = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
+
+            records = fiona.open(mode="r", **source_yaml["data"])
+            for record in records:
+                geom = ogr.CreateGeometryFromJson(json.dumps(record["geometry"]))
+                geom.Transform(coordTrans)
+                geom.ExportToJson()
+            # TEST
 
             # Load source into dataframe.
             try:
