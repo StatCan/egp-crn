@@ -39,7 +39,7 @@ def main():
 #     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file("data/interim/NRN_NB_9_0_GPKG_en.gpkg", layer="NRN_NB_9_0_ROADSEG")
+    gpkg_in = gpd.read_file("data/interim/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_road-route.shp")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     gpkg_in.to_file("data/interim/netx1.shp", driver='ESRI Shapefile')
@@ -108,7 +108,7 @@ def main():
     junctions.to_file("data/interim/nb.gpkg", driver='GPKG')
 
     # read the incoming geopackage from stage 1
-    ferry = gpd.read_file("data/interim/NRN_NB_9_0_GPKG_en.gpkg", layer="NRN_NB_9_0_FERRYSEG")
+    ferry = gpd.read_file("data/interim/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_ferry-traversier.shp")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     ferry.to_file("data/interim/netx2.shp", driver='ESRI Shapefile')
