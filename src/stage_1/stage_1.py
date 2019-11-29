@@ -361,13 +361,7 @@ class Stage:
         # Retrieve remaining target table names from target attributes.
         for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
 
-            # Generate target dataframe from target field schema.
-            schema = {fld: pd.Series(dtype=dtype) for fld, dtype in self.target_attributes[table]["fields"].items()}
-            gdf = eval("{}DataFrame(schema)".format("gpd.Geo" if self.target_attributes[table]["spatial"] else "pd."))
-
-            # Store result.
-            self.target_gdframes[table] = gdf
-            logger.info("Successfully created target dataframe: {}.".format(table))
+            logger.warning("Source data provides no field mappings for table: {}.".format(table))
 
     def execute(self):
         """Executes an NRN stage."""
