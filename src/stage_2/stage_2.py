@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import networkx as nx
 import geopandas as gpd
 import pandas as pd
@@ -6,6 +7,8 @@ import uuid
 from datetime import datetime
 from sqlalchemy import *
 from sqlalchemy.engine.url import URL
+from shapely.geometry.multipoint import MultiPoint
+from shapely.geometry.point import Point
 from geopandas_postgis import PostGIS
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -36,7 +39,7 @@ def main():
 #     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file("data/interim/roadseg.gpkg")
+    gpkg_in = gpd.read_file("data/interim/NRN_NB_9_0_GPKG_en.gpkg", layer="NRN_NB_9_0_ROADSEG")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     gpkg_in.to_file("data/interim/netx1.shp", driver='ESRI Shapefile')
@@ -48,7 +51,7 @@ def main():
     graph_gpd = gpd.read_file("data/interim/netx1.shp")
 
     # import graph into postgis
-    graph_gpd.postgis.to_postgis(engine, 'stage_2', 'LineString', if_exists='replace')
+    graph_gpd.postgis.to_postgis(con=engine, table_name='stage_2', geometry='LineString', if_exists='replace')
 
     # create empty graph for dead ends
     g_dead_ends = nx.Graph()
@@ -105,7 +108,7 @@ def main():
     junctions.to_file("data/interim/nb.gpkg", driver='GPKG')
 
     # read the incoming geopackage from stage 1
-    ferry = gpd.read_file("data/interim/ferryseg.gpkg")
+    ferry = gpd.read_file("data/interim/NRN_NB_9_0_GPKG_en.gpkg", layer="NRN_NB_9_0_FERRYSEG")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     ferry.to_file("data/interim/netx2.shp", driver='ESRI Shapefile')
@@ -124,14 +127,47 @@ def main():
 
     nx.write_shp(ferry_graph, "data/interim/ferry.shp")
 
-    ferry_gpd = gpd.read_file("data/interim/ferry.shp")
+    ferry_junc = gpd.read_file("data/interim/ferry.shp")
+    merged_junc = gpd.read_file("data/interim/nb.gpkg")
 
-    subset = junctions.geometry.map(lambda x: x.equals(ferry_gpd.geometry.any()))
+    ferry_junc.crs = {'init': 'epsg:4617'}
+    merged_junc.crs = {'init': 'epsg:4617'}
 
-    # subset.to_file("data/interim/subset.gpkg", driver="GPKG")
+    # https://gis.stackexchange.com/questions/311320/casting-geometry-to-multi-using-geopandas
+    merged_junc["geometry"] = [MultiPoint([feature]) if type(feature) == Point else feature for feature in merged_junc["geometry"]]
+    ferry_junc["geometry"] = [MultiPoint([feature]) if type(feature) == Point else feature for feature in ferry_junc["geometry"]]
 
-    print(subset)
+    # import graph into postgis
+    merged_junc.postgis.to_postgis(con=engine, table_name='stage_2_junc', geometry='MULTIPOINT', if_exists='replace')
+    ferry_junc.postgis.to_postgis(con=engine, table_name='stage_2_ferry_junc', geometry='MULTIPOINT', if_exists='replace')
 
+    sql_junc = """
+    DROP TABLE nb_junc_merge;
+    CREATE TABLE nb_junc_merge AS (
+      SELECT
+        a.geom,
+        a.nid,
+        a.datasetnam,
+        a.specvers,
+        a.accuracy,
+        a.acqtech,
+        a.provider,
+        a.credate,
+        a.revdate,
+        a.metacover,
+        a.exitnbr,
+        a.junctype,
+        b.index
+      FROM
+        stage_2_junc a
+        LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom));
+    UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE index IS NOT NULL;
+    SELECT * FROM nb_junc_merge;
+    """
+
+    merged_junctions = gpd.GeoDataFrame.from_postgis(sql_junc, engine)
+
+    merged_junctions.to_file("data/interim/merged_junc.gpkg", driver='GPKG')
 
 if __name__ == "__main__":
 
