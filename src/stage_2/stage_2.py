@@ -157,11 +157,14 @@ def main():
         a.metacover,
         a.exitnbr,
         a.junctype,
-        b.index
+        b.index AS b_index,
+        c.id AS c_index
       FROM
         stage_2_junc a
-        LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom));
-    UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE index IS NOT NULL;
+        LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom) 
+        LEFT JOIN stage_2_ns_junc c ON ST_Equals(a.geom, c.geom));
+    UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
+    UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL;
     SELECT * FROM nb_junc_merge;
     """
 
