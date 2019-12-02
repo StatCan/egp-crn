@@ -307,11 +307,11 @@ class Stage:
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
 
             # TEST
-            inSpatialRef = osr.SpatialReference()
-            inSpatialRef.ImportFromEPSG(source_yaml["data"]["crs"])
-            outSpatialRef = osr.SpatialReference()
-            outSpatialRef.ImportFromEPSG(4617)
-            coordTrans = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
+            sr_from = osr.SpatialReference()
+            sr_from.ImportFromEPSG(source_yaml["data"]["crs"])
+            sr_to = osr.SpatialReference()
+            sr_to.ImportFromEPSG(4617)
+            sr_transformer = osr.CoordinateTransformation(sr_from, sr_to)
 
             records = fiona.open(mode="r", **source_yaml["data"])
             for record in records:
@@ -323,7 +323,7 @@ class Stage:
             # Load source into dataframe.
             try:
                 gdf = gpd.read_file(**source_yaml["data"])
-            except fiona.errors.FionaValueError:
+            except (fiona.errors.DriverError, fiona.errors.FionaValueError):
                 logger.exception("ValueError raised when importing source {}, layer={}".format(
                     source_yaml["data"]["filename"], source_yaml["data"]["layer"]))
                 sys.exit(1)
