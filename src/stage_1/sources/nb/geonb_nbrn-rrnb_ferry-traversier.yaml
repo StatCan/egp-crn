@@ -14,7 +14,8 @@ data:
   filename: geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_ferry-traversier.shp
   layer:
   driver: ESRI Shapefile
-  crs: 2953
+  crs: "EPSG:2953"
+  spatial: True
 conform:
   ferryseg:
     acqtech:

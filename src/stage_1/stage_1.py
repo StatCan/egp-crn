@@ -2,14 +2,14 @@ import ast
 import click
 import fiona
 import geopandas as gpd
-import json
 import logging
 import os
 import pandas as pd
+import subprocess
 import sys
 import uuid
 from inspect import getmembers, isfunction
-from osgeo import ogr, osr
+from osgeo import ogr
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -100,10 +100,10 @@ class Stage:
 
                     # Raw value mapping.
                     elif isinstance(source_field, str) and (source_field not in source_gdf.columns):
-                            logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
+                        logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
 
-                            # Update target dataframe with raw value.
-                            target_gdf[target_field] = source_field
+                        # Update target dataframe with raw value.
+                        target_gdf[target_field] = source_field
 
                     # Function mapping.
                     else:
@@ -111,8 +111,8 @@ class Stage:
 
                         # Restructure dict for direct field mapping in case of string input.
                         if isinstance(source_field, str):
-                                source_field = {"fields": [source_field], "functions": [{"function": "direct",
-                                                                                         "param": None}]}
+                            source_field = {"fields": [source_field],
+                                            "functions": [{"function": "direct", "param": None}]}
 
                         # Convert single field attribute to list.
                         if isinstance(source_field["fields"], str):
@@ -303,30 +303,47 @@ class Stage:
         self.source_gdframes = dict()
 
         for source, source_yaml in self.source_attributes.items():
-            # Configure filename attribute absolute path.
+
+            logger.info("Loading data source {}, layer={}.".format(source_yaml["data"]["filename"],
+                                                                   source_yaml["data"]["layer"]))
+
+            # Configure filename absolute path.
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
 
-            # TEST
-            sr_from = osr.SpatialReference()
-            sr_from.ImportFromEPSG(source_yaml["data"]["crs"])
-            sr_to = osr.SpatialReference()
-            sr_to.ImportFromEPSG(4617)
-            sr_transformer = osr.CoordinateTransformation(sr_from, sr_to)
+            # Spatial.
+            if source_yaml["data"]["spatial"]:
+                dest = os.path.abspath("../../data/interim/{}_temp.shp".format(self.source))
+                kwargs = {"filename": dest}
 
-            records = fiona.open(mode="r", **source_yaml["data"])
-            for record in records:
-                geom = ogr.CreateGeometryFromJson(json.dumps(record["geometry"]))
-                geom.Transform(coordTrans)
-                geom.ExportToJson()
-            # TEST
+                # Transform data source crs.
+                logger.info("Transforming data source to EPSG:4617.")
+                try:
+                    args = "ogr2ogr -overwrite -t_srs EPSG:4617 {} {}".format(dest, source_yaml["data"]["filename"])
+                    args += " " + source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else ""
+                    subprocess.run(args, shell=True, check=True)
+                except subprocess.CalledProcessError as e:
+                    logger.error("Unable to transform data source to EPSG:4617.")
+                    logger.error("ogr2ogr error: {}".format(e))
+                    sys.exit(1)
+
+            # Tabular.
+            else:
+                kwargs = source_yaml["data"]
 
             # Load source into dataframe.
+            logger.info("Loading data source as (Geo)DataFrame.")
             try:
-                gdf = gpd.read_file(**source_yaml["data"])
-            except (fiona.errors.DriverError, fiona.errors.FionaValueError):
-                logger.exception("ValueError raised when importing source {}, layer={}".format(
-                    source_yaml["data"]["filename"], source_yaml["data"]["layer"]))
+                gdf = gpd.read_file(**kwargs)
+            except fiona.errors.FionaValueError:
+                logger.exception("ValueError raised when importing source {}.".format(dest))
                 sys.exit(1)
+
+            # Remove temp data source.
+            if source_yaml["data"]["spatial"]:
+                if os.path.exists(dest):
+                    driver = ogr.GetDriverByName("ESRI Shapefile")
+                    driver.DeleteDataSource(dest)
+                    del driver
 
             # Force lowercase field names.
             gdf.columns = map(str.lower, gdf.columns)
@@ -336,8 +353,7 @@ class Stage:
 
             # Store result.
             self.source_gdframes[source] = gdf
-            logger.info("Successfully loaded dataframe for {}, layer={}.".format(
-                os.path.basename(source_yaml["data"]["filename"]), source_yaml["data"]["layer"]))
+            logger.info("Successfully loaded dataframe.")
 
     def gen_target_dataframes(self):
         """Creates empty dataframes for all applicable output tables based on the input data field mapping."""
@@ -393,8 +409,7 @@ class Stage:
 
 
 @click.command()
-@click.argument("source", type=click.Choice(["ab", "bc", "mb", "nb", "nl", "ns", "nt", "nu", "on", "pe", "qc", "sk",
-                                             "yt", "parks_canada"], case_sensitive=False))
+@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
 def main(source):
     """Executes an NRN stage."""
 
