@@ -39,7 +39,7 @@ def main():
 #     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file("data/interim/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_road-route.shp")
+    gpkg_in = gpd.read_file("data/interim/Testing_Data/NB.gpkg", layer="ROADSEG")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     gpkg_in.to_file("data/interim/netx1.shp", driver='ESRI Shapefile')
@@ -98,7 +98,7 @@ def main():
     junctions["specvers"] = "2.0"
     junctions["accuracy"] = 10
     junctions["acqtech"] = "Computed"
-    junctions["provider"] = "Provincial/Territorial"
+    junctions["provider"] = "Provincial / Territorial"
     junctions["credate"] = "20191127"
     junctions["revdate"] = "20191127"
     junctions["metacover"] = "Complete"
@@ -108,7 +108,7 @@ def main():
     junctions.to_file("data/interim/nb.gpkg", driver='GPKG')
 
     # read the incoming geopackage from stage 1
-    ferry = gpd.read_file("data/interim/geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_ferry-traversier.shp")
+    ferry = gpd.read_file("data/interim/Testing_Data/NB.gpkg", layer="FERRYSEG")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     ferry.to_file("data/interim/netx2.shp", driver='ESRI Shapefile')
@@ -162,7 +162,7 @@ def main():
       FROM
         stage_2_junc a
         LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom) 
-        LEFT JOIN stage_2_ns_junc c ON ST_Equals(a.geom, c.geom));
+        LEFT JOIN neigh c ON ST_Intersects(a.geom, c.geom));
     UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
     UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL;
     SELECT * FROM nb_junc_merge;
