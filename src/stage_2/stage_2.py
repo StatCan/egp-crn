@@ -164,10 +164,11 @@ def main():
         stage_2_junc a
         LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom) 
         LEFT JOIN neigh c ON ST_Intersects(a.geom, c.geom)
-        LEFT JOIN can d ON ST_Intersects(a.geom, d.geom));
+        LEFT JOIN nb_adm d ON ST_Within(a.geom, d.geom));
     UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
     UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL;
     UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE d_index IS NULL;
+    ALTER TABLE nb_junc_merge DROP COLUMN b_index, DROP COLUMN c_index, DROP COLUMN d_index;
     SELECT * FROM nb_junc_merge;
     """
 
