@@ -39,16 +39,16 @@ def main():
 #     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file("data/interim/Testing_Data/NB.gpkg", layer="ROADSEG")
+    gpkg_in = gpd.read_file("data/raw/Testing_Data/NB.gpkg", layer="ROADSEG")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
-    gpkg_in.to_file("data/interim/netx1.shp", driver='ESRI Shapefile')
+    gpkg_in.to_file("data/raw/netx1.shp", driver='ESRI Shapefile')
 
     # read shapefile
-    graph = nx.read_shp("data/interim/netx1.shp")
+    graph = nx.read_shp("data/raw/netx1.shp")
 
     # create geodataframe for graph
-    graph_gpd = gpd.read_file("data/interim/netx1.shp")
+    graph_gpd = gpd.read_file("data/raw/netx1.shp")
 
     # import graph into postgis
     graph_gpd.postgis.to_postgis(con=engine, table_name='stage_2', geometry='LineString', if_exists='replace')
@@ -77,14 +77,14 @@ def main():
     # create junctions geodataframe
     inter = gpd.GeoDataFrame.from_postgis(sql, engine)
 
-    nx.write_shp(g_dead_ends, "data/interim/dead_end.shp")
+    nx.write_shp(g_dead_ends, "data/raw/dead_end.shp")
 
-    inter.to_file("data/interim/intersections.gpkg", driver='GPKG')
+    inter.to_file("data/raw/intersections.gpkg", driver='GPKG')
 
-    dead_ends_gpd = gpd.read_file("data/interim/dead_end.shp")
+    dead_ends_gpd = gpd.read_file("data/raw/dead_end.shp")
     dead_ends_gpd["junctype"] = 'Dead End'
 
-    intersections_gpd = gpd.read_file("data/interim/intersections.gpkg")
+    intersections_gpd = gpd.read_file("data/raw/intersections.gpkg")
     intersections_gpd["junctype"] = 'Intersection'
 
     junctions = gpd.GeoDataFrame(pd.concat([dead_ends_gpd, intersections_gpd], sort=False))
@@ -105,16 +105,16 @@ def main():
     junctions["exitnbr"] = ""
     junctions["junctype"] = junctions["junctype"]
 
-    junctions.to_file("data/interim/nb.gpkg", driver='GPKG')
+    junctions.to_file("data/raw/nb.gpkg", driver='GPKG')
 
     # read the incoming geopackage from stage 1
-    ferry = gpd.read_file("data/interim/Testing_Data/NB.gpkg", layer="FERRYSEG")
+    ferry = gpd.read_file("data/raw/Testing_Data/NB.gpkg", layer="FERRYSEG")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
-    ferry.to_file("data/interim/netx2.shp", driver='ESRI Shapefile')
+    ferry.to_file("data/raw/netx2.shp", driver='ESRI Shapefile')
 
     # read shapefile
-    ferry_g = nx.read_shp("data/interim/netx2.shp")
+    ferry_g = nx.read_shp("data/raw/netx2.shp")
 
     # create empty graph for dead ends
     ferry_graph = nx.Graph()
@@ -125,10 +125,10 @@ def main():
     # add filter to empty graph
     ferry_graph.add_nodes_from(ferry_filter)
 
-    nx.write_shp(ferry_graph, "data/interim/ferry.shp")
+    nx.write_shp(ferry_graph, "data/raw/ferry.shp")
 
-    ferry_junc = gpd.read_file("data/interim/ferry.shp")
-    merged_junc = gpd.read_file("data/interim/nb.gpkg")
+    ferry_junc = gpd.read_file("data/raw/ferry.shp")
+    merged_junc = gpd.read_file("data/raw/nb.gpkg")
 
     ferry_junc.crs = {'init': 'epsg:4617'}
     merged_junc.crs = {'init': 'epsg:4617'}
@@ -158,19 +158,22 @@ def main():
         a.exitnbr,
         a.junctype,
         b.index AS b_index,
-        c.id AS c_index
+        c.id AS c_index,
+        d.id AS d_index
       FROM
         stage_2_junc a
         LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom) 
-        LEFT JOIN neigh c ON ST_Intersects(a.geom, c.geom));
+        LEFT JOIN neigh c ON ST_Intersects(a.geom, c.geom)
+        LEFT JOIN can d ON ST_Intersects(a.geom, d.geom));
     UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
     UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL;
+    UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE d_index IS NULL;
     SELECT * FROM nb_junc_merge;
     """
 
     merged_junctions = gpd.GeoDataFrame.from_postgis(sql_junc, engine)
 
-    merged_junctions.to_file("data/interim/merged_junc.gpkg", driver='GPKG')
+    merged_junctions.to_file("data/raw/merged_junc.gpkg", driver='GPKG')
 
 if __name__ == "__main__":
 
