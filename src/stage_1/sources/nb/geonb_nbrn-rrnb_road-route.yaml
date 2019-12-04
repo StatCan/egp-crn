@@ -14,6 +14,8 @@ data:
   filename: geonb_nbrn-rrnb_shp/geonb_nbrn-rrnb_road-route.shp
   layer:
   driver: ESRI Shapefile
+  crs: "EPSG:2953"
+  spatial: True
 conform:
   addrange:
     acqtech:
@@ -31,24 +33,19 @@ conform:
     l_hnumf:
       fields: l_hnumf
       functions:
-        regex_sub:
-          pattern_from: \W+
-          pattern_to: " "
-        regex_find:
-          pattern:
-            # Matches 0 to unlimited digits from line start.
-            (^\d+)
+        - function: regex_find
+          pattern: "(^\\d+)"
           match_index: 0
           group_index: 0
     r_hnumf:
       fields: r_hnumf
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
     l_hnumsuff:
       fields: l_hnumf
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
           modify_parameters:
             regex_find:
@@ -56,7 +53,7 @@ conform:
     r_hnumsuff:
       fields: r_hnumf
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
           modify_parameters:
             regex_find:
@@ -68,17 +65,17 @@ conform:
     l_hnuml:
       fields: l_hnuml
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
     r_hnuml:
       fields: r_hnuml
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
     l_hnumsufl:
       fields: l_hnuml
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
           modify_parameters:
             regex_find:
@@ -86,7 +83,7 @@ conform:
     r_hnumsufl:
       fields: r_hnuml
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
           modify_parameters:
             regex_find:
@@ -115,30 +112,25 @@ conform:
     l_hnumf:
       fields: l_hnumf
       functions:
-        regex_sub:
-          pattern_from: \W+
-          pattern_to: " "
-        regex_find:
-          pattern:
-            # Matches 0 to unlimited digits from line start.
-            (^\d+)
+        - function: regex_find
+          pattern: "(^\\d+)"
           match_index: 0
           group_index: 0
     r_hnumf:
       fields: r_hnumf
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
     roadclass: roadclass
     l_hnuml:
       fields: l_hnuml
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
     r_hnuml:
       fields: r_hnuml
       functions:
-        copy_attribute_functions:
+        - function: copy_attribute_functions
           attributes: [l_hnumf]
     nid:
     nbrlanes: nbrlanes
@@ -182,95 +174,71 @@ conform:
     dirprefix:
       fields: streetname
       functions:
-        regex_sub:
-          pattern_from: "[-]"
-          pattern_to: " "
-        regex_find:
-          pattern:
-            # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
-            # Group 2: in list of values.
-            # Group 3: succeeded by space(s) and/or non-word char(s).
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+|^)(domain)([\\s\\W]+)*?
+        - function: regex_find
+          pattern: "\\b(domain)\\b(?!$)"
           match_index: 0
-          group_index: 1
+          group_index: 0
     dirsuffix:
       fields: streetname
       functions:
-        regex_sub:
-          pattern_from: "[-]"
-          pattern_to: " "
-        regex_find:
-          pattern:
-            # Group 1: preceded by space(s) and/or non-word char(s).
-            # Group 2: in list of values.
-            # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+)(domain)([\\s\\W]+|$)*?
+        - function: copy_attribute_functions
+          attributes: [dirprefix]
+          modify_parameters:
+            regex_find:
+              strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain)\\b"
           match_index: -1
-          group_index: 1
+          group_index: 0
+          sub_inplace:
+            pattern_from: "[-]"
+            pattern_to: " "
     muniquad:
     nid:
     placename:
       fields: [l_placenam, r_placenam]
       functions:
-        split_record:
+        - function: split_record
           field: None
     placetype:
     province: "New Brunswick"
     starticle:
       fields: streetname
       functions:
-        regex_sub:
-          pattern_from: "[-]"
-          pattern_to: " "
-        regex_sub:
-          pattern_from: "l'"
-          pattern_to: "l' "
-        regex_find:
-          pattern:
-            # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
-            # Group 2: in list of values.
-            # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+|^)(domain)([\\s\\W]+|$)*?
-          match_index: -1
-          group_index: 1
+        - function: regex_find
+          pattern: "\\b(domain)\\b"
+          match_index: 0
+          group_index: 0
+          sub_inplace:
+            pattern_from: "[-]"
+            pattern_to: " "
     namebody:
       fields: streetname
       functions:
-        copy_attribute_functions:
-          attributes: [dirprefix, strtypre, starticle, strtysuf, dirsuffix]
+        - function: copy_attribute_functions
+          attributes: [starticle, dirsuffix, strtysuf]
           modify_parameters:
             regex_find:
               strip_result: True
     strtypre:
       fields: streetname
       functions:
-        regex_sub:
-          pattern_from: "[-]"
-          pattern_to: " "
-        regex_find:
-          pattern:
-            # Group 1: preceded by (space(s) and/or non-word char(s)) or line start.
-            # Group 2: in list of values.
-            # Group 3: succeeded by space(s) and/or non-word char(s).
-            # Matches 0 to unlimited times.
-            ([\\s\\W]+|^)(domain)([\\s\\W]+)*?
+        - function: regex_find
+          pattern: "\\b(domain)\\b(?!$)"
           match_index: 0
-          group_index: 1
+          group_index: 0
     strtysuf:
       fields: streetname
       functions:
-        regex_sub:
-          pattern_from: "[-]"
-          pattern_to: " "
-        regex_find:
-          pattern:
-            # Group 1: preceded by space(s) and/or non-word char(s).
-            # Group 2: in list of values.
-            # Group 3: succeeded by (space(s) and/or non-word char(s)) or line end.
-            # Matches 0 to unlimited times.
-            ([\s\W]+)(domain)([\s\W]+|$)*?
+        - function: copy_attribute_functions
+          attributes: [strtypre]
+          modify_parameters:
+            regex_find:
+              strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain)\\b"
           match_index: -1
-          group_index: 1
+          group_index: 0
+          sub_inplace:
+            pattern_from: "[-]"
+            pattern_to: " "
