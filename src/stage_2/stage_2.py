@@ -168,8 +168,7 @@ def main():
         LEFT JOIN neigh c ON ST_Intersects(a.geom, c.geom)
         LEFT JOIN nb_adm d ON ST_Within(a.geom, d.geom));
     UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
-    UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL;
-    UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE d_index IS NULL;
+    UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL AND d_index IS NULL;
     UPDATE nb_junc_merge a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
     ALTER TABLE nb_junc_merge DROP COLUMN b_index, DROP COLUMN c_index, DROP COLUMN d_index;
     SELECT * FROM nb_junc_merge;
