@@ -39,7 +39,7 @@ def main():
 #     gpkg_out = (sys.argv[3])
 
     # read the incoming geopackage from stage 1
-    gpkg_in = gpd.read_file("data/raw/Testing_Data/NB.gpkg", layer="ROADSEG")
+    gpkg_in = gpd.read_file("data/interim/nb.gpkg", layer="roadseg")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     gpkg_in.to_file("data/raw/netx1.shp", driver='ESRI Shapefile')
@@ -49,6 +49,8 @@ def main():
 
     # create geodataframe for graph
     graph_gpd = gpd.read_file("data/raw/netx1.shp")
+
+    graph_gpd.crs = {'init': 'epsg:4617'}
 
     # import graph into postgis
     graph_gpd.postgis.to_postgis(con=engine, table_name='stage_2', geometry='LineString', if_exists='replace')
@@ -108,7 +110,7 @@ def main():
     junctions.to_file("data/raw/nb.gpkg", driver='GPKG')
 
     # read the incoming geopackage from stage 1
-    ferry = gpd.read_file("data/raw/Testing_Data/NB.gpkg", layer="FERRYSEG")
+    ferry = gpd.read_file("data/interim/nb.gpkg", layer="ferryseg")
 
     # convert the stage 1 geopackage to a shapefile for networkx usage
     ferry.to_file("data/raw/netx2.shp", driver='ESRI Shapefile')
@@ -168,6 +170,7 @@ def main():
     UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
     UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL;
     UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE d_index IS NULL;
+    UPDATE nb_junc_merge a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
     ALTER TABLE nb_junc_merge DROP COLUMN b_index, DROP COLUMN c_index, DROP COLUMN d_index;
     SELECT * FROM nb_junc_merge;
     """
