@@ -9,8 +9,23 @@ from operator import attrgetter, itemgetter
 logger = logging.getLogger()
 
 
-def apply_domain(val, domain):
-    """Applies a domain restriction to the given value based on the provided domain dictionary or list."""
+def apply_domain(val, domain, default):
+    """
+    Applies a domain restriction to the given value based on the provided domain dictionary or list.
+    Returns the default parameter for missing or invalid values.
+
+    None domains should only represent free flow (unrestricted) fields, thus returning the default parameter only if the
+    value is of a valid none type.
+    """
+
+    # Validate against no domain.
+    if domain is None:
+
+        # Preserve value, unless none type.
+        if val in (None, "", np.nan):
+            return default
+        else:
+            return val
 
     val = str(val).lower()
 
@@ -30,7 +45,7 @@ def apply_domain(val, domain):
         if val in map(str.lower, map(str, values)):
             return values[0]
 
-    return np.nan
+    return default
 
 
 def copy_attribute_functions(field_mapping_attributes, params):

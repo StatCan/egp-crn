@@ -41,7 +41,7 @@ class Stage:
         # Validate output namespace.
         self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
         if os.path.exists(self.output_path):
-            logger.error("Output namespace already occupied: \"{}\".".format(self.output_path))
+            logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
 
     def apply_domains(self):
@@ -49,6 +49,7 @@ class Stage:
 
         logging.info("Applying field domains.")
         table = field = None
+        target_attributes_yaml = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
 
         try:
 
@@ -57,16 +58,28 @@ class Stage:
 
                 for field, domains in self.domains[table].items():
 
-                    if domains["all"] is None:
-                        logger.info("Target field \"{}\": No domain provided.".format(field))
+                    logger.info("Target field \"{}\": Applying domain.".format(field))
 
-                    else:
-                        logger.info("Target field \"{}\": Applying domain.".format(field))
+                    # Configure default value.
+                    key = "label" if target_attributes_yaml[table]["fields"][field][0] == "str" else "code"
+                    dft = self.domains["default"][key][0]
 
-                        # Apply domains via apply_functions.
-                        series = self.target_gdframes[table][field]
-                        self.target_gdframes[table][field] = series.map(
-                            lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"]))
+                    # Apply domains via apply_functions.
+                    series_orig = self.target_gdframes[table][field]
+                    series_new = series_orig.map(
+                        lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"], default=dft))
+
+                    # Compile and log modified values.
+                    series_merged = pd.concat([series_orig, series_new], axis=1, ignore_index=True)
+                    series_merged.drop_duplicates(keep="first", inplace=True)
+                    series_merged = series_merged[series_merged[0] != series_merged[1]]
+                    series_merged.sort_values(by=[0], inplace=True)
+
+                    for record in series_merged.values:
+                        logger.warning("Modified all instances of \"{}\" to \"{}\".".format(*record))
+
+                    # Store results to target dataframe.
+                    self.target_gdframes[table][field] = series_new
 
         except (AttributeError, KeyError, ValueError):
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
@@ -198,12 +211,21 @@ class Stage:
             # Compile domain values.
             logger.info("Compiling \"{}\" domain values.".format(suffix))
 
-            for table in domains_yaml:
+            # Compile default values.
+            key = "default"
+            if key not in self.domains.keys():
+                self.domains[key] = {k: [v] for k, v in domains_yaml[key].items()}
+            else:
+                for k, v in domains_yaml[key].items():
+                    self.domains[key][k].append(v)
+
+            # Compile table values.
+            for table in domains_yaml["tables"]:
                 # Register table.
                 if table not in self.domains.keys():
                     self.domains[table] = dict()
 
-                for field, vals in domains_yaml[table].items():
+                for field, vals in domains_yaml["tables"][table].items():
                     # Register field.
                     if field not in self.domains[table].keys():
                         self.domains[table][field] = {"values": list(), "all": None}
@@ -213,7 +235,7 @@ class Stage:
                         # Configure reference domain.
                         while isinstance(vals, str):
                             table_ref, field_ref = vals.split(";") if vals.find(";") > 0 else [table, vals]
-                            vals = domains_yaml[table_ref][field_ref]
+                            vals = domains_yaml["tables"][table_ref][field_ref]
 
                         # Compile all domain values including keys.
                         if vals is None:
@@ -322,8 +344,8 @@ class Stage:
                     args += " " + source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else ""
                     subprocess.run(args, shell=True, check=True)
                 except subprocess.CalledProcessError as e:
-                    logger.error("Unable to transform data source to EPSG:4617.")
-                    logger.error("ogr2ogr error: {}".format(e))
+                    logger.exception("Unable to transform data source to EPSG:4617.")
+                    logger.exception("ogr2ogr error: {}".format(e))
                     sys.exit(1)
 
             # Tabular.

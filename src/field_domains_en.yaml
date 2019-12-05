@@ -1,317 +1,343 @@
-metadata:
-  acqtech:
-    1: Other
-    2: GPS
-    3: Orthoimage
-    4: Orthophoto
-    5: Vector Data
-    6: Paper Map
-    7: Field Completion
-    8: Raster Data
-    9: Digital Elevation Model
-    10: Aerial Photo
-    11: Raw Imagery Data
-    12: Computed
-  metacover:
-    1: Complete
-    2: Partial
-  credate:
-  datasetnam:
-    1: Newfoundland and Labrador
-    2: Nova Scotia
-    3: Prince Edward Island
-    4: New Brunswick
-    5: Quebec
-    6: Ontario
-    7: Manitoba
-    8: Saskatchewan
-    9: Alberta
-    10: British Columbia
-    11: Yukon Territory
-    12: Northwest Territories
-    13: Nunavut
-  accuracy:
-  provider:
-    1: Other
-    2: Federal
-    3: Provincial / Territorial
-    4: Municipal
-  revdate:
-  specvers:
-addrange:
-  acqtech: metadata;acqtech
-  metacover: metadata;metacover
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  accuracy: metadata;accuracy
-  provider: metadata;provider
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  l_altnanid:
-  r_altnanid:
-  l_digdirfg:
-    1: Same Direction
-    2: Opposite Direction
-    3: Not Applicable
-  r_digdirfg: l_digdirfg
-  l_hnumf:
-  r_hnumf:
-  l_hnumsuff:
-  r_hnumsuff:
-  l_hnumtypf:
-    1: Actual Located
-    2: Actual Unlocated
-    3: Projected
-    4: Interpolated
-  r_hnumtypf: l_hnumtypf
-  l_hnumstr:
-    1: Even
-    2: Odd
-    3: Mixed
-    4: Irregular
-  r_hnumstr: l_hnumstr
-  l_hnuml:
-  r_hnuml:
-  l_hnumsufl:
-  r_hnumsufl:
-  l_hnumtypl: l_hnumtypf
-  r_hnumtypl: l_hnumtypf
-  nid:
-  l_offnanid:
-  r_offnanid:
-  l_rfsysind:
-    1: Civic
-    2: Lot and Concession
-    3: 911 Measured
-    4: 911 Civic
-    5: DLS Townships
-  r_rfsysind: l_rfsysind
-altnamlink:
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  nid:
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  strnamenid:
-blkpassage:
-  acqtech: metadata;acqtech
-  metacover: metadata;metacover
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  accuracy: metadata;accuracy
-  provider: metadata;provider
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  blkpassty:
-    1: Permanently Fixed
-    2: Removable
-  nid:
-  roadnid:
-ferryseg:
-  acqtech: metadata;acqtech
-  metacover: metadata;metacover
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  accuracy: metadata;accuracy
-  provider: metadata;provider
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  closing: roadseg;closing
-  ferrysegid:
-  roadclass: roadseg;roadclass
-  nid:
-  rtename1en:
-  rtename2en:
-  rtename3en:
-  rtename4en:
-  rtename1fr:
-  rtename2fr:
-  rtename3fr:
-  rtename4fr:
-  rtnumber1:
-  rtnumber2:
-  rtnumber3:
-  rtnumber4:
-  rtnumber5:
-junction:
-  acqtech: metadata;acqtech
-  metacover: metadata;metacover
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  accuracy: metadata;accuracy
-  provider: metadata;provider
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  exitnbr:
-  junctype:
-    1: Intersection
-    2: Dead End
-    3: Ferry
-    4: NatProvTer
-  nid:
-roadseg:
-  acqtech: metadata;acqtech
-  metacover: metadata;metacover
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  accuracy: metadata;accuracy
-  provider: metadata;provider
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  l_adddirfg: addrange;l_digdirfg
-  r_adddirfg: addrange;l_digdirfg
-  adrangenid:
-  closing:
-    1: Summer
-    2: Winter
-  exitnbr:
-  l_hnumf:
-  r_hnumf:
-  roadclass:
-    1: Freeway
-    2: Expressway / Highway
-    3: Arterial
-    4: Collector
-    5: Local / Street
-    6: Local / Strata
-    7: Local / Unknown
-    8: Alleyway / Lane
-    9: Ramp
-    10: Resource / Recreation
-    11: Rapid Transit
-    12: Service Lane
-    13: Winter
-  l_hnuml:
-  r_hnuml:
-  nid:
-  nbrlanes:
-  l_placenam:
-  r_placenam:
-  l_stname_c:
-  r_stname_c:
-  pavsurf:
-    1: Rigid
-    2: Flexible
-    3: Blocks
-  pavstatus:
-    1: Paved
-    2: Unpaved
-  roadjuris:
-  roadsegid:
-  rtename1en:
-  rtename2en:
-  rtename3en:
-  rtename4en:
-  rtename1fr:
-  rtename2fr:
-  rtename3fr:
-  rtename4fr:
-  rtnumber1:
-  rtnumber2:
-  rtnumber3:
-  rtnumber4:
-  rtnumber5:
-  speed:
-  strunameen:
-  strunamefr:
-  structid:
-  structtype:
-    1: Bridge
-    2: Bridge covered
-    3: Bridge moveable
-    4: Bridge unknown
-    5: Tunnel
-    6: Snowshed
-    7: Dam
-  trafficdir:
-    1: Both directions
-    2: Same direction
-    3: Opposite direction
-  unpavsurf:
-    1: Gravel
-    2: Dirt
-strplaname:
-  acqtech: metadata;acqtech
-  metacover: metadata;metacover
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  accuracy: metadata;accuracy
-  provider: metadata;provider
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  dirprefix:
-    1: North
-    2: Nord
-    3: South
-    4: Sud
-    5: East
-    6: Est
-    7: West
-    8: Ouest
-    9: Northwest
-    10: Nord-ouest
-    11: Northeast
-    12: Nord-est
-    13: Southwest
-    14: Sud-ouest
-    15: Southeast
-    16: Sud-est
-    17: Central
-    18: Centre
-  dirsuffix: dirprefix
-  muniquad:
-    1: South-West
-    2: South-East
-    3: North-East
-    4: North-West
-  nid:
-  placename:
-  placetype:
-    [Borough / Borough, Chartered Community, City / Cité, City / Ville, Community / Communauté,
-    County (Municipality) / Comté (Municipalité), Cree Village / Village Cri, Crown Colony / Colonie de la couronne,
-    District (Municipality) / District (Municipalité), Hamlet / Hameau, Improvement District,
-    Indian Government District, Indian Reserve / Réserve indienne, Indian Settlement / Établissement indien,
-    Island Municipality, Local Government District, Lot / Lot, Municipal District / District municipal,
-    Municipality / Municipalité, Naskapi Village / Village Naskapi, Nisga'a land / Terre Nisga'a,
-    Nisga'a Village / Village Nisga'a, Northern Hamlet / Hameau nordique, Northern Town / Ville nordique,
-    Northern Village / Village nordique, Parish (Municipality) / Paroisse (Municipalité), Parish / Paroisse,
-    Region / Région, Regional District Electoral Area, Regional Municipality / Municipalité régionale,
-    Resort Village / Centre de villégiature, Rural Community, Rural Municipality / Municipalité rurale,
-    Settlement / Établissement, Special Area, Specialized Municipality / Municipalité spécialisée,
-    Subdivision of County Municipality, Subdivision of Regional District, Subdivision of Unorganized,
-    Summer Village / Village estival, Terre inuite, Terres réservées, Teslin land / Terre Teslin, Town / Ville,
-    Township (Municipality) / Canton (Municipalité), Township / Canton,
-    United Township (Municipality) / Cantons-unis (Municipalité), Unorganized / Non-organisé, Village / Village,
-    Without Designation (Municipality) / Sans désignation (Municipalité)]
-  province: metadata;datasetnam
-  starticle:
-    [à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
-  namebody:
-  strtypre:
-    [Abbey, Access, Acres, Aire, Allée, Alley, Autoroute, Avenue, Barrage, Bay, Beach, Bend, Bloc, Block, Boulevard,
-    Bourg, Brook, By-pass, Byway, Campus, Cape, Carre, Carrefour, Centre, Cercle, Chase, Chemin, Circle, Circuit, Close,
-    Common, Concession, Corners, Côte, Cour, Court, Cove, Crescent, Croft, Croissant, Crossing, Crossroads, Cul-de-sac,
-    Dale, Dell, Desserte, Diversion, Downs, Drive, Droit de passage, Échangeur, End, Esplanade, Estates, Expressway,
-    Extension, Farm, Field, Forest, Front, Gardens, Gate, Glade, Glen, Green, Grounds, Grove, Harbour, Haven, Heath,
-    Heights, Highlands, Highway, Hill, Hollow, Île, Impasse, Island, Key, Knoll, Landing, Lane, Laneway, Limits, Line,
-    Link, Lookout, Loop, Mall, Manor, Maze, Meadow, Mews, Montée, Moor, Mount, Mountain, Orchard, Parade, Parc, Park,
-    Parkway, Passage, Path, Pathway, Peak, Pines, Place, Plateau, Plaza, Point, Port, Private, Promenade, Quay, Rang,
-    Range, Reach, Ridge, Right of Way, Rise, Road, Rond Point, Route, Row, Rue, Ruelle, Ruisseau, Run, Section, Sentier,
-    Sideroad, Square, Street, Stroll, Subdivision, Terrace, Terrasse, Thicket, Towers, Townline, Trace, Trail, Trunk,
-    Turnabout, Vale, Via, View, Village, Vista, Voie, Walk, Way, Wharf, Wood, Woods, Wynd]
-  strtysuf: strtypre
-tollpoint:
-  acqtech: metadata;acqtech
-  metacover: metadata;metacover
-  credate: metadata;credate
-  datasetnam: metadata;datasetnam
-  accuracy: metadata;accuracy
-  provider: metadata;provider
-  revdate: metadata;revdate
-  specvers: metadata;specvers
-  nid:
-  roadnid:
-  tollpttype:
-    1: Physical Toll Booth
-    2: Virtual Toll Booth
-    3: Hybrid
+default:
+  code: -1
+  label: Unknown
+tables:
+  metadata:
+    acqtech:
+      -1: Unknown
+      0: None
+      1: Other
+      2: GPS
+      3: Orthoimage
+      4: Orthophoto
+      5: Vector Data
+      6: Paper Map
+      7: Field Completion
+      8: Raster Data
+      9: Digital Elevation Model
+      10: Aerial Photo
+      11: Raw Imagery Data
+      12: Computed
+    metacover:
+      -1: Unknown
+      1: Complete
+      2: Partial
+    credate:
+    datasetnam:
+      1: Newfoundland and Labrador
+      2: Nova Scotia
+      3: Prince Edward Island
+      4: New Brunswick
+      5: Quebec
+      6: Ontario
+      7: Manitoba
+      8: Saskatchewan
+      9: Alberta
+      10: British Columbia
+      11: Yukon Territory
+      12: Northwest Territories
+      13: Nunavut
+    accuracy:
+    provider:
+      1: Other
+      2: Federal
+      3: Provincial / Territorial
+      4: Municipal
+    revdate:
+    specvers:
+  addrange:
+    acqtech: metadata;acqtech
+    metacover: metadata;metacover
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    accuracy: metadata;accuracy
+    provider: metadata;provider
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg:
+      1: Same Direction
+      2: Opposite Direction
+      3: Not Applicable
+    r_digdirfg: l_digdirfg
+    l_hnumf:
+    r_hnumf:
+    l_hnumsuff:
+    r_hnumsuff:
+    l_hnumtypf:
+      -1: Unknown
+      0: None
+      1: Actual Located
+      2: Actual Unlocated
+      3: Projected
+      4: Interpolated
+    r_hnumtypf: l_hnumtypf
+    l_hnumstr:
+      -1: Unknown
+      0: None
+      1: Even
+      2: Odd
+      3: Mixed
+      4: Irregular
+    r_hnumstr: l_hnumstr
+    l_hnuml:
+    r_hnuml:
+    l_hnumsufl:
+    r_hnumsufl:
+    l_hnumtypl: l_hnumtypf
+    r_hnumtypl: l_hnumtypf
+    nid:
+    l_offnanid:
+    r_offnanid:
+    l_rfsysind:
+      -1: Unknown
+      0: None
+      1: Civic
+      2: Lot and Concession
+      3: 911 Measured
+      4: 911 Civic
+      5: DLS Townships
+    r_rfsysind: l_rfsysind
+  altnamlink:
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    nid:
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    strnamenid:
+  blkpassage:
+    acqtech: metadata;acqtech
+    metacover: metadata;metacover
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    accuracy: metadata;accuracy
+    provider: metadata;provider
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    blkpassty:
+      -1: Unknown
+      1: Permanently Fixed
+      2: Removable
+    nid:
+    roadnid:
+  ferryseg:
+    acqtech: metadata;acqtech
+    metacover: metadata;metacover
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    accuracy: metadata;accuracy
+    provider: metadata;provider
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    closing: roadseg;closing
+    ferrysegid:
+    roadclass: roadseg;roadclass
+    nid:
+    rtename1en:
+    rtename2en:
+    rtename3en:
+    rtename4en:
+    rtename1fr:
+    rtename2fr:
+    rtename3fr:
+    rtename4fr:
+    rtnumber1:
+    rtnumber2:
+    rtnumber3:
+    rtnumber4:
+    rtnumber5:
+  junction:
+    acqtech: metadata;acqtech
+    metacover: metadata;metacover
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    accuracy: metadata;accuracy
+    provider: metadata;provider
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    exitnbr:
+    junctype:
+      1: Intersection
+      2: Dead End
+      3: Ferry
+      4: NatProvTer
+    nid:
+  roadseg:
+    acqtech: metadata;acqtech
+    metacover: metadata;metacover
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    accuracy: metadata;accuracy
+    provider: metadata;provider
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    l_adddirfg: addrange;l_digdirfg
+    r_adddirfg: addrange;l_digdirfg
+    adrangenid:
+    closing:
+      -1: Unknown
+      0: None
+      1: Summer
+      2: Winter
+    exitnbr:
+    l_hnumf:
+    r_hnumf:
+    roadclass:
+      1: Freeway
+      2: Expressway / Highway
+      3: Arterial
+      4: Collector
+      5: Local / Street
+      6: Local / Strata
+      7: Local / Unknown
+      8: Alleyway / Lane
+      9: Ramp
+      10: Resource / Recreation
+      11: Rapid Transit
+      12: Service Lane
+      13: Winter
+    l_hnuml:
+    r_hnuml:
+    nid:
+    nbrlanes:
+    l_placenam:
+    r_placenam:
+    l_stname_c:
+    r_stname_c:
+    pavsurf:
+      -1: Unknown
+      0: None
+      1: Rigid
+      2: Flexible
+      3: Blocks
+    pavstatus:
+      1: Paved
+      2: Unpaved
+    roadjuris:
+    roadsegid:
+    rtename1en:
+    rtename2en:
+    rtename3en:
+    rtename4en:
+    rtename1fr:
+    rtename2fr:
+    rtename3fr:
+    rtename4fr:
+    rtnumber1:
+    rtnumber2:
+    rtnumber3:
+    rtnumber4:
+    rtnumber5:
+    speed:
+    strunameen:
+    strunamefr:
+    structid:
+    structtype:
+      0: None
+      1: Bridge
+      2: Bridge covered
+      3: Bridge moveable
+      4: Bridge unknown
+      5: Tunnel
+      6: Snowshed
+      7: Dam
+    trafficdir:
+      -1: Unknown
+      1: Both directions
+      2: Same direction
+      3: Opposite direction
+    unpavsurf:
+      -1: Unknown
+      0: None
+      1: Gravel
+      2: Dirt
+  strplaname:
+    acqtech: metadata;acqtech
+    metacover: metadata;metacover
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    accuracy: metadata;accuracy
+    provider: metadata;provider
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    dirprefix:
+      0: None
+      1: North
+      2: Nord
+      3: South
+      4: Sud
+      5: East
+      6: Est
+      7: West
+      8: Ouest
+      9: Northwest
+      10: Nord-ouest
+      11: Northeast
+      12: Nord-est
+      13: Southwest
+      14: Sud-ouest
+      15: Southeast
+      16: Sud-est
+      17: Central
+      18: Centre
+    dirsuffix: dirprefix
+    muniquad:
+      0: None
+      1: South-West
+      2: South-East
+      3: North-East
+      4: North-West
+    nid:
+    placename:
+    placetype:
+      [None, Borough / Borough, Chartered Community, City / Cité, City / Ville, Community / Communauté,
+      County (Municipality) / Comté (Municipalité), Cree Village / Village Cri, Crown Colony / Colonie de la couronne,
+      District (Municipality) / District (Municipalité), Hamlet / Hameau, Improvement District,
+      Indian Government District, Indian Reserve / Réserve indienne, Indian Settlement / Établissement indien,
+      Island Municipality, Local Government District, Lot / Lot, Municipal District / District municipal,
+      Municipality / Municipalité, Naskapi Village / Village Naskapi, Nisga'a land / Terre Nisga'a,
+      Nisga'a Village / Village Nisga'a, Northern Hamlet / Hameau nordique, Northern Town / Ville nordique,
+      Northern Village / Village nordique, Parish (Municipality) / Paroisse (Municipalité), Parish / Paroisse,
+      Region / Région, Regional District Electoral Area, Regional Municipality / Municipalité régionale,
+      Resort Village / Centre de villégiature, Rural Community, Rural Municipality / Municipalité rurale,
+      Settlement / Établissement, Special Area, Specialized Municipality / Municipalité spécialisée,
+      Subdivision of County Municipality, Subdivision of Regional District, Subdivision of Unorganized,
+      Summer Village / Village estival, Terre inuite, Terres réservées, Teslin land / Terre Teslin, Town / Ville,
+      Township (Municipality) / Canton (Municipalité), Township / Canton,
+      United Township (Municipality) / Cantons-unis (Municipalité), Unorganized / Non-organisé, Village / Village,
+      Without Designation (Municipality) / Sans désignation (Municipalité)]
+    province: metadata;datasetnam
+    starticle:
+      [None, à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
+    namebody:
+    strtypre:
+      [None, Abbey, Access, Acres, Aire, Allée, Alley, Autoroute, Avenue, Barrage, Bay, Beach, Bend, Bloc, Block,
+      Boulevard, Bourg, Brook, By-pass, Byway, Campus, Cape, Carre, Carrefour, Centre, Cercle, Chase, Chemin, Circle,
+      Circuit, Close, Common, Concession, Corners, Côte, Cour, Court, Cove, Crescent, Croft, Croissant, Crossing,
+      Crossroads, Cul-de-sac, Dale, Dell, Desserte, Diversion, Downs, Drive, Droit de passage, Échangeur, End,
+      Esplanade, Estates, Expressway, Extension, Farm, Field, Forest, Front, Gardens, Gate, Glade, Glen, Green, Grounds,
+      Grove, Harbour, Haven, Heath, Heights, Highlands, Highway, Hill, Hollow, Île, Impasse, Island, Key, Knoll,
+      Landing, Lane, Laneway, Limits, Line, Link, Lookout, Loop, Mall, Manor, Maze, Meadow, Mews, Montée, Moor, Mount,
+      Mountain, Orchard, Parade, Parc, Park, Parkway, Passage, Path, Pathway, Peak, Pines, Place, Plateau, Plaza, Point,
+      Port, Private, Promenade, Quay, Rang, Range, Reach, Ridge, Right of Way, Rise, Road, Rond Point, Route, Row, Rue,
+      Ruelle, Ruisseau, Run, Section, Sentier, Sideroad, Square, Street, Stroll, Subdivision, Terrace, Terrasse,
+      Thicket, Towers, Townline, Trace, Trail, Trunk, Turnabout, Vale, Via, View, Village, Vista, Voie, Walk, Way,
+      Wharf, Wood, Woods, Wynd]
+    strtysuf: strtypre
+  tollpoint:
+    acqtech: metadata;acqtech
+    metacover: metadata;metacover
+    credate: metadata;credate
+    datasetnam: metadata;datasetnam
+    accuracy: metadata;accuracy
+    provider: metadata;provider
+    revdate: metadata;revdate
+    specvers: metadata;specvers
+    nid:
+    roadnid:
+    tollpttype:
+      -1: Unknown
+      1: Physical Toll Booth
+      2: Virtual Toll Booth
+      3: Hybrid
