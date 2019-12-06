@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import pandas as pd
 import re
 import sys
 from copy import deepcopy
@@ -22,7 +23,7 @@ def apply_domain(val, domain, default):
     if domain is None:
 
         # Preserve value, unless none type.
-        if val in (None, "", np.nan):
+        if val == "" or pd.isna(val):
             return default
         else:
             return val
@@ -122,7 +123,7 @@ def direct(val, **kwargs):
              parameter: None
     """
 
-    return np.nan if val in (None, "", np.nan) else val
+    return np.nan if val == "" or pd.isna(val) else val
 
 
 def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):
@@ -138,7 +139,7 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
     """
 
     # Return numpy nan.
-    if val in (None, "", np.nan):
+    if val == "" or pd.isna(val):
         return np.nan
 
     # Validate inputs.
@@ -162,7 +163,7 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
         else:
             matches = re.finditer(pattern, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
-            result[0] = [grp for grp in result[0] if grp not in (None, "", np.nan)][0]
+            result[0] = [grp for grp in result[0] if grp != "" and not pd.isna(grp)][0]
 
         if strip_result:
             start, end = result[1:]
@@ -188,7 +189,7 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
     """
 
     # Return numpy nan.
-    if val in (None, "", np.nan):
+    if val == "" or pd.isna(val):
         return np.nan
 
     # Validate inputs.

@@ -61,22 +61,33 @@ class Stage:
                     logger.info("Target field \"{}\": Applying domain.".format(field))
 
                     # Configure default value.
-                    key = "label" if target_attributes_yaml[table]["fields"][field][0] == "str" else "code"
+                    dtype = target_attributes_yaml[table]["fields"][field][0]
+                    key = "label" if dtype in ("bytes", "str", "unicode") else "code"
                     dft = self.domains["default"][key][0]
 
-                    # Apply domains via apply_functions.
+                    # Apply domains to series via apply_functions.
                     series_orig = self.target_gdframes[table][field]
                     series_new = series_orig.map(
                         lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"], default=dft))
 
-                    # Compile and log modified values.
-                    series_merged = pd.concat([series_orig, series_new], axis=1, ignore_index=True)
-                    series_merged.drop_duplicates(keep="first", inplace=True)
-                    series_merged = series_merged[series_merged[0] != series_merged[1]]
-                    series_merged.sort_values(by=[0], inplace=True)
+                    # Force adjust data type.
+                    series_new = series_new.astype(dtype)
 
-                    for record in series_merged.values:
-                        logger.warning("Modified all instances of \"{}\" to \"{}\".".format(*record))
+                    # Compile and quantify modified values.
+                    series_mod = series_orig != series_new
+                    if series_mod.any():
+                        df = pd.concat([series_orig, series_new], axis=1, ignore_index=True)[series_mod]
+                        df.columns = ["orig", "new"]
+                        df.fillna(-99, inplace=True)
+                        df_grouped = df.groupby(["orig", "new"]).size().reset_index()
+                        df_grouped.replace(-99, pd.np.nan, inplace=True)
+                        df_grouped.sort_values(by=["orig", "new"], inplace=True)
+                        df_grouped = df_grouped[[0, "orig", "new"]]
+                        df_grouped = df_grouped.astype(object)
+
+                        # Log record modifications.
+                        for record in df_grouped.values:
+                            logger.warning("Modified {} instance(s) of \"{}\" to \"{}\".".format(*record))
 
                     # Store results to target dataframe.
                     self.target_gdframes[table][field] = series_new
@@ -362,6 +373,7 @@ class Stage:
 
             # Remove temp data source.
             if source_yaml["data"]["spatial"]:
+                logger.info("Deleting temporary data source output.")
                 if os.path.exists(dest):
                     driver = ogr.GetDriverByName("ESRI Shapefile")
                     driver.DeleteDataSource(dest)
