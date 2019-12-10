@@ -121,7 +121,15 @@ conform:
       functions:
         - function: copy_attribute_functions
           attributes: [l_hnumf]
-    roadclass: roadclass
+    roadclass:
+      fields: roadclass
+      functions:
+        - function: regex_sub
+          pattern_from: "NBDOT|NBDNR|DOT"
+          pattern_to: ""
+        - function: regex_sub
+          pattern_from: "/"
+          pattern_to: " / "
     l_hnuml:
       fields: l_hnuml
       functions:
