@@ -114,6 +114,9 @@ def load_gpkg(gpkg_path):
                     else:
                         df = pd.read_sql_query("select * from {}".format(table_name), con)
 
+                    # Set index field: uuid.
+                    df.set_index("uuid", inplace=True)
+
                     # Store result.
                     dframes[table_name] = df
                     logger.info("Successfully loaded layer into dataframe.")
