@@ -100,7 +100,7 @@ def main():
     junctions["exitnbr"] = ""
     junctions["junctype"] = junctions["junctype"]
 
-    junctions.to_file("data/raw/nb.gpkg", driver='GPKG')
+    junctions.to_file("data/raw/junctions.gpkg", driver='GPKG')
 
     # read the incoming geopackage from stage 1
     ferry = gpd.read_file("data/interim/nb.gpkg", layer="ferryseg")
@@ -123,7 +123,7 @@ def main():
     nx.write_shp(ferry_graph, "data/raw/ferry.shp")
 
     ferry_junc = gpd.read_file("data/raw/ferry.shp")
-    merged_junc = gpd.read_file("data/raw/nb.gpkg")
+    merged_junc = gpd.read_file("data/raw/junctions.gpkg")
 
     ferry_junc.crs = {'init': 'epsg:4617'}
     merged_junc.crs = {'init': 'epsg:4617'}
@@ -132,51 +132,62 @@ def main():
     merged_junc["geometry"] = [MultiPoint([feature]) if type(feature) == Point else feature for feature in merged_junc["geometry"]]
     ferry_junc["geometry"] = [MultiPoint([feature]) if type(feature) == Point else feature for feature in ferry_junc["geometry"]]
 
+    ferry_junc["ferry"] = "True"
+
     # import graph into postgis
     merged_junc.postgis.to_postgis(con=engine, table_name='stage_2_junc', geometry='MULTIPOINT', if_exists='replace')
     ferry_junc.postgis.to_postgis(con=engine, table_name='stage_2_ferry_junc', geometry='MULTIPOINT', if_exists='replace')
 
     sql_junc = """
-    DROP TABLE nb_junc_merge;
-    CREATE TABLE nb_junc_merge AS (
+    DROP TABLE IF EXISTS nb_junc_ferry;
+    CREATE TABLE nb_junc_ferry AS (
       SELECT
         a.geom,
-        a.nid,
-        a.datasetnam,
-        a.specvers,
-        a.accuracy,
-        a.acqtech,
-        a.provider,
-        a.credate,
-        a.revdate,
-        a.metacover,
-        a.exitnbr,
-        a.junctype,
-        b.index AS b_index,
-        c.id AS c_index,
-        d.id AS d_index
+        a.index,
+        b.pruid
       FROM
-        stage_2_junc a
-        LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom) 
-        LEFT JOIN neigh c ON ST_Intersects(a.geom, c.geom)
-        LEFT JOIN nb_adm d ON ST_Within(a.geom, d.geom));
-    UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
-    UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL AND d_index IS NULL;
-    UPDATE nb_junc_merge a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
-    ALTER TABLE nb_junc_merge DROP COLUMN b_index, DROP COLUMN c_index, DROP COLUMN d_index;
-    SELECT * FROM nb_junc_merge;
+        stage_2_ferry_junc a
+        LEFT JOIN nb_adm b ON ST_Within(a.geom, b.geom) WHERE pruid IS NULL);
+
+    DROP TABLE IF EXISTS nb_junc_merge;
+        CREATE TABLE nb_junc_merge AS (
+          SELECT
+            a.geom,
+            a.nid,
+            a.datasetnam,
+            a.specvers,
+            a.accuracy,
+            a.acqtech,
+            a.provider,
+            a.credate,
+            a.revdate,
+            a.metacover,
+            a.exitnbr,
+            a.junctype,
+            b.index AS b_index,
+            c.id AS c_index,
+            d.id AS d_index
+          FROM
+            stage_2_junc a
+            LEFT JOIN stage_2_ferry_junc b ON ST_Equals(a.geom, b.geom) 
+            LEFT JOIN neigh c ON ST_Intersects(a.geom, c.geom)
+            LEFT JOIN nb_adm d ON ST_Within(a.geom, d.geom));
+        
+            INSERT INTO nb_junc_merge (SELECT geom, pruid FROM nb_junc_ferry);
+            UPDATE nb_junc_merge SET junctype = 'Ferry' WHERE b_index IS NOT NULL;
+            UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE c_index IS NOT NULL AND d_index IS NULL AND nid = '';
+            UPDATE nb_junc_merge a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
+            UPDATE nb_junc_merge SET junctype = 'NatProvTer' WHERE accuracy is null;
+            ALTER TABLE nb_junc_merge DROP COLUMN b_index, DROP COLUMN c_index, DROP COLUMN d_index;
+            SELECT * FROM nb_junc_merge
     """
 
     merged_junctions = gpd.GeoDataFrame.from_postgis(sql_junc, engine)
 
     merged_junctions.to_file("data/interim/nb.gpkg", layer="junctions")
 
-if __name__ == "__main__":
 
-    # if len(sys.argv) != 1:
-    #     print("ERROR: You must supply 3 arguments. "
-    #           "Example: python stage_2.py [INPUT GPKG] [LAYER NAME] [OUTPUT GPKG]")
-    #     sys.exit(1)
+if __name__ == "__main__":
 
     main()
 
