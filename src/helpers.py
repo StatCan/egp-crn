@@ -39,18 +39,21 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
 
     # Export target dataframes to GeoPackage layers.
     try:
-        for name, gdf in dataframes.items():
+        for table_name, df in dataframes.items():
 
-            logger.info("Writing to GeoPackage {}, layer={}.".format(output_path, name))
+            logger.info("Writing to GeoPackage {}, layer={}.".format(output_path, table_name))
+
+            # Reset index to preserve attribute as column.
+            df.reset_index(inplace=True)
 
             # Spatial data.
-            if "geometry" in dir(gdf):
+            if "geometry" in dir(df):
                 # Open GeoPackage.
-                with fiona.open(output_path, "w", layer=name, driver="GPKG", crs=gdf.crs,
-                                schema=gpd.io.file.infer_schema(gdf)) as gpkg:
+                with fiona.open(output_path, "w", layer=table_name, driver="GPKG", crs=df.crs,
+                                schema=gpd.io.file.infer_schema(df)) as gpkg:
 
                     # Write to GeoPackage.
-                    gpkg.writerecords(gdf.iterfeatures())
+                    gpkg.writerecords(df.iterfeatures())
 
             # Tabular data.
             else:
@@ -58,11 +61,11 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
                 con = sqlite3.connect(output_path)
 
                 # Write to GeoPackage.
-                gdf.to_sql(name, con)
+                df.to_sql(table_name, con)
 
                 # Insert record into gpkg_contents metadata table.
                 con.cursor().execute("insert into 'gpkg_contents' ('table_name', 'data_type') values "
-                                     "('{}', 'attributes');".format(name))
+                                     "('{}', 'attributes');".format(table_name))
 
                 # Commit and close db connection.
                 con.commit()
