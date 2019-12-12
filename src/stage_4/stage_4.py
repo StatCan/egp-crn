@@ -7,6 +7,7 @@ import pandas as pd
 import sys
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
+import attr_rect_functions
 import helpers
 
 
@@ -39,10 +40,33 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
+    def universal_attr_validation(self):
+        """Applies a set of universal attribute validations (all fields and / or all tables)."""
+
+        # Iterate data frames.
+        for name, df in self.dframes.items():
+
+            try:
+
+                # Validation: strip whitespace.
+                # Compile valid fields, apply function.
+                df_valid = df.select_dtypes(include="object").drop("geometry", axis=1)
+                df[df_valid.columns] = df_valid.applymap(attr_rect_functions.strip_whitespace)[df_valid.columns]
+
+                # Validation: dates.
+                # Compile valid fields, apply function.
+                df_valid = df[["credate", "revdate"]]
+                df[df_valid.columns] = df_valid.applymap(attr_rect_functions.validate_dates)[df_valid.columns]
+
+            except (SyntaxError, ValueError):
+                logger.exception("Unable to apply validation.")
+                sys.exit(1)
+
     def execute(self):
         """Executes an NRN stage."""
 
         self.load_gpkg()
+        self.universal_attr_validation()
 
 
 @click.command()
