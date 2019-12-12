@@ -31,13 +31,6 @@ engine = create_engine(db_url)
 
 def main():
 
-#     print(gpkg_in)
-#     print(layer_name)
-#     print(gpkg_out)
-#     gpkg_in = (sys.argv[1])
-#     layer_name = (sys.argv[2])
-#     gpkg_out = (sys.argv[3])
-
     # read the incoming geopackage from stage 1
     gpkg_in = gpd.read_file("data/interim/nb.gpkg", layer="roadseg")
 
@@ -176,7 +169,7 @@ def main():
 
     merged_junctions = gpd.GeoDataFrame.from_postgis(sql_junc, engine)
 
-    merged_junctions.to_file("data/raw/merged_junc.gpkg", driver='GPKG')
+    merged_junctions.to_file("data/interim/nb.gpkg", layer="junctions")
 
 if __name__ == "__main__":
 
