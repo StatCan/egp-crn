@@ -1,0 +1,12 @@
+intersections:
+  filter:
+    WITH inter AS
+        (SELECT ST_Intersection(a.geom, b.geom) geom,
+                Count(DISTINCT a.index)
+         FROM stage_2 AS a,
+              stage_2 AS b
+         WHERE ST_Touches(a.geom, b.geom)
+           AND a.index != b.index GROUP  BY ST_Intersection(a.geom, b.geom))
+      SELECT *
+      FROM inter
+      WHERE COUNT > 2;

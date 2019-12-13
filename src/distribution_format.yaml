@@ -83,20 +83,6 @@ ferryseg:
     rtnumber3:  [str, 10]
     rtnumber4:  [str, 10]
     rtnumber5:  [str, 10]
-junction:
-  spatial: True
-  fields:
-    acqtech:    [str, 23]
-    metacover:  [str, 8]
-    credate:    [str, 8]
-    datasetnam: [str, 25]
-    accuracy:   [int, 4]
-    provider:   [str, 24]
-    revdate:    [str, 8]
-    specvers:   [str, 10]
-    exitnbr:    [str, 10]
-    junctype:   [str, 12]
-    nid:        [str, 32]
 roadseg:
   spatial: True
   fields:
