@@ -61,7 +61,7 @@ class Stage:
     def gen_dead_end(self):
         """Generates dead end junction types."""
 
-        logging.info("Converting roadseg dataframe to shapefile for NetworkX usage.")
+        logging.info("Converting roadseg dataframe to shapefile for NetworkX.")
         self.df = gpd.GeoDataFrame(self.dframes["roadseg"], geometry='geometry')
         self.df.to_file("../../data/raw/netx.shp", driver="ESRI Shapefile")
         self.df.crs = {'init': 'epsg:4617'}
@@ -87,8 +87,7 @@ class Stage:
         logging.info("Importing roadseg geodataframe into PostGIS.")
         self.df.postgis.to_postgis(con=engine, table_name="stage_2", geometry="LineString", if_exists="replace")
 
-        with open("../sql.yaml") as file:
-            sql = yload(file)
+        sql = load_yaml("../sql.yaml")
 
         inter_filter = sql["intersections"]["filter"]
 
