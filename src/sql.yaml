@@ -7,6 +7,8 @@ intersections:
               stage_2 AS b
          WHERE ST_Touches(a.geom, b.geom)
            AND a.index != b.index GROUP  BY ST_Intersection(a.geom, b.geom))
-      SELECT *
+      SELECT
+      geom AS geometry,
+      count
       FROM inter
       WHERE COUNT > 2;
