@@ -13,18 +13,18 @@ def strip_whitespace(val):
     return val.strip()
 
 
-def validate_dates(credate, revdate):
+def validate_dates(credate, revdate, default):
     """Applies a set of validations to CREDATE and REVDATE fields."""
 
     try:
 
-        credate, revdate = map(str, [credate, revdate])
+        credate, revdate, default = map(str, [credate, revdate, default])
 
         # Get current date.
         today = datetime.today().strftime("%Y%m%d")
 
         # Apply validations.
-        for date in (credate, revdate):
+        for date in [d for d in (credate, revdate) if d != default]:
 
             # Validation: length must be 4, 6, or 8.
             if len(date) not in (4, 6, 8):
@@ -57,9 +57,10 @@ def validate_dates(credate, revdate):
                                      "Date cannot be in the future.".format(date, today))
 
         # Validation: ensure CREDATE <= REVDATE.
-        if not int(credate) <= int(revdate):
-            raise ValueError("Invalid date combination for CREDATE = \"{}\", REVDATE = \"{}\". "
-                             "CREDATE must precede or equal REVDATE.".format(credate, revdate))
+        if credate != default and revdate != default:
+            if not int(credate) <= int(revdate):
+                raise ValueError("Invalid date combination for CREDATE = \"{}\", REVDATE = \"{}\". "
+                                 "CREDATE must precede or equal REVDATE.".format(credate, revdate))
 
         return credate, revdate
 

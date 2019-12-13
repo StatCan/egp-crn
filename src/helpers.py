@@ -30,6 +30,58 @@ class Timer:
         logger.info("Finished. Time elapsed: {}.".format(delta))
 
 
+def compile_default_values():
+    """Compiles the default value for each field in each table."""
+
+    dft_vals = load_yaml(os.path.abspath("../field_domains_en.yaml"))["default"]
+    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    defaults = dict()
+
+    try:
+
+        # Iterate tables.
+        for name in dist_format:
+            defaults[name] = dict()
+
+            # Iterate fields.
+            for field, dtype in dist_format[name]["fields"].items():
+
+                # Configure default value.
+                key = "label" if dtype[0] in ("bytes", "str", "unicode") else "code"
+                defaults[name][field] = dft_vals[key]
+
+    except (AttributeError, KeyError, ValueError):
+        logger.exception("Invalid schema definition for either \"{}\" or \"{}\".".format(dft_vals, dist_format))
+        sys.exit(1)
+
+    return defaults
+
+
+def compile_dtypes(length=False):
+    """Compiles the dtype for each field in each table. Optionally returns a list to include the field length."""
+
+    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    dtypes = dict()
+
+    try:
+
+        # Iterate tables.
+        for name in dist_format:
+            dtypes[name] = dict()
+
+            # Iterate fields.
+            for field, dtype in dist_format[name]["fields"].items():
+
+                # Compile dtype and field length.
+                dtypes[name][field] = dtype if length else dtype[0]
+
+    except (AttributeError, KeyError, ValueError):
+        logger.exception("Invalid schema definition for \"{}\".".format(dist_format))
+        sys.exit(1)
+
+    return dtypes
+
+
 def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../data/empty.gpkg")):
     """Receives a dictionary of pandas dataframes and exports them as geopackage layers."""
 

@@ -16,6 +16,10 @@ import field_map_functions
 import helpers
 
 
+# Suppress pandas chained assignment warning.
+pd.options.mode.chained_assignment = None
+
+
 # Set logger.
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -49,7 +53,8 @@ class Stage:
 
         logging.info("Applying field domains.")
         table = field = None
-        target_attributes_yaml = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        defaults = helpers.compile_default_values()
+        dtypes = helpers.compile_dtypes()
 
         try:
 
@@ -60,18 +65,14 @@ class Stage:
 
                     logger.info("Target field \"{}\": Applying domain.".format(field))
 
-                    # Configure default value.
-                    dtype = target_attributes_yaml[table]["fields"][field][0]
-                    key = "label" if dtype in ("bytes", "str", "unicode") else "code"
-                    dft = self.domains["default"][key][0]
-
                     # Apply domains to series via apply_functions.
                     series_orig = self.target_gdframes[table][field]
                     series_new = series_orig.map(
-                        lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"], default=dft))
+                        lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"],
+                                                                             default=defaults[table][field]))
 
                     # Force adjust data type.
-                    series_new = series_new.astype(dtype)
+                    series_new = series_new.astype(dtypes[table][field])
 
                     # Compile and quantify modified values.
                     series_mod = series_orig != series_new
@@ -222,14 +223,6 @@ class Stage:
             # Compile domain values.
             logger.info("Compiling \"{}\" domain values.".format(suffix))
 
-            # Compile default values.
-            key = "default"
-            if key not in self.domains.keys():
-                self.domains[key] = {k: [v] for k, v in domains_yaml[key].items()}
-            else:
-                for k, v in domains_yaml[key].items():
-                    self.domains[key][k].append(v)
-
             # Compile table values.
             for table in domains_yaml["tables"]:
                 # Register table.
@@ -302,24 +295,22 @@ class Stage:
         """Compiles the target (distribution format) yaml file into a dictionary."""
 
         logger.info("Compiling target attribute yaml.")
-        self.target_attributes = dict()
+        table = field = None
 
         # Load yaml.
-        target_attributes_yaml = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        self.target_attributes = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
 
-        # Store yaml contents for all contained table names.
-        logger.info("Compiling attributes for target tables.")
+        # Remove field length from dtype attribute.
+        logger.info("Configuring target attributes.")
+        try:
 
-        for table in target_attributes_yaml:
-            self.target_attributes[table] = {"spatial": target_attributes_yaml[table]["spatial"], "fields": dict()}
+            for table in self.target_attributes:
+                for field, vals in self.target_attributes[table]["fields"].items():
+                    self.target_attributes[table]["fields"][field] = vals[0]
 
-            for field, vals in target_attributes_yaml[table]["fields"].items():
-                # Compile field attributes.
-                try:
-                    self.target_attributes[table]["fields"][field] = str(vals[0])
-                except (AttributeError, KeyError, ValueError):
-                    logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
-                    sys.exit(1)
+        except (AttributeError, KeyError, ValueError):
+            logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
+            sys.exit(1)
 
     def export_gpkg(self):
         """Exports the target dataframes as GeoPackage layers."""
