@@ -48,6 +48,61 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
+    def unique_attr_validation(self):
+        """Applies a set of attribute validations unique to one or more fields and / or tables."""
+
+        logger.info("Applying validation: unique attribute validations.")
+
+        try:
+
+            # Verify tables.
+            for table in ("ferryseg", "roadseg"):
+                if table not in self.dframes:
+                    raise KeyError("Missing required layer: \"{}\".".format(table))
+
+            # Validation: nbrlanes.
+            logger.info("Applying validation: nbrlanes.")
+
+            # Compile valid fields, apply function.
+            self.dframes["roadseg"]["nbrlanes"] = self.dframes["roadseg"]["nbrlanes"].map(
+                lambda val: attr_rect_functions.validate_nbrlanes(val, default=self.defaults["roadseg"]["nbrlanes"]))
+
+            # Validation: speed.
+            logger.info("Applying validation: speed.")
+
+            # Compile valid fields, apply function.
+            self.dframes["roadseg"]["speed"] = self.dframes["roadseg"]["speed"].map(
+                lambda val: attr_rect_functions.validate_speed(val, default=self.defaults["roadseg"]["speed"]))
+
+            # Validation: pavement.
+            logger.info("Applying validation: pavement.")
+
+            # Compile valid fields, apply function.
+            cols = ["pavstatus", "pavsurf", "unpavsurf"]
+            args = [self.dframes["roadseg"][col].values for col in cols]
+            self.dframes["roadseg"][cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_pavement)(*args))
+
+            # Validation: roadclass-rtnumber1.
+            logger.info("Applying validation: roadclass-rtnumber1.")
+
+            # Compile valid fields, apply function.
+            cols = ["roadclass", "rtnumber1"]
+            for table in ("ferryseg", "roadseg"):
+                df = self.dframes[table]
+                args = [df[col].values for col in cols] + [self.defaults[table][cols[1]]]
+                df[cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_roadclass_rtnumber1)(*args))
+
+                # Store results.
+                self.dframes[table] = df
+
+        except (KeyError, ValueError):
+            logger.exception("Unable to apply validation.")
+            sys.exit(1)
+        except SyntaxError as e:
+            logger.exception("Unable to apply validation.")
+            logger.exception(e)
+            sys.exit(1)
+
     def universal_attr_validation(self):
         """Applies a set of universal attribute validations (all fields and / or all tables)."""
 
@@ -80,8 +135,12 @@ class Stage:
                 # Store results.
                 self.dframes[name] = df
 
-            except (SyntaxError, ValueError):
+            except ValueError:
                 logger.exception("Unable to apply validation.")
+                sys.exit(1)
+            except SyntaxError as e:
+                logger.exception("Unable to apply validation.")
+                logger.exception(e)
                 sys.exit(1)
 
     def execute(self):
@@ -89,6 +148,7 @@ class Stage:
 
         self.load_gpkg()
         self.universal_attr_validation()
+        self.unique_attr_validation()
 
 
 @click.command()
