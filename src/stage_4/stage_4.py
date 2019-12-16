@@ -51,7 +51,7 @@ class Stage:
     def universal_attr_validation(self):
         """Applies a set of universal attribute validations (all fields and / or all tables)."""
 
-        logger.info("Applying universal attribute validations.")
+        logger.info("Applying validation: universal attribute validations.")
 
         # Iterate data frames.
         for name, df in self.dframes.items():
