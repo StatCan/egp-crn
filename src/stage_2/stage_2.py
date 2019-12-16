@@ -1,19 +1,21 @@
-import os
-import sys
-import networkx as nx
+import helpers
 import geopandas as gpd
+import logging
+import networkx as nx
+import os
 import pandas as pd
+import sys
 import uuid
+
 from datetime import datetime
+from geopandas_postgis import PostGIS
 from sqlalchemy import *
 from sqlalchemy.engine.url import URL
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.point import Point
-from geopandas_postgis import PostGIS
+from psycopg2 import connect, extensions, sql
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
-import helpers
-import logging
 
 # Set logger.
 logger = logging.getLogger()
@@ -26,18 +28,6 @@ logger.addHandler(handler)
 # start script timer
 startTime = datetime.now()
 
-# postgres connection parameters
-host = 'localhost'
-db = 'nrn'
-user = 'postgres'
-port = 5432
-pwd = 'password'
-
-# postgres database url
-db_url = URL(drivername='postgresql+psycopg2', host=host, database=db, username=user, port=port, password=pwd)
-# engine to connect to postgres
-engine = create_engine(db_url)
-
 
 class Stage:
 
@@ -48,6 +38,81 @@ class Stage:
         if not os.path.exists(self.data_path):
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
+
+    def create_db(self):
+        """Creates the PostGIS database needed for Stage 2."""
+
+        # database name which will be used for stage 2
+        nrn_db = "nrn_test"
+
+        # default postgres connection needed to create the nrn database
+        conn = connect(
+            dbname="postgres",
+            user="postgres",
+            host="localhost",
+            password="password"
+        )
+
+        # postgres database url for geoprocessing
+        nrn_url = URL(
+            drivername='postgresql+psycopg2', host='localhost',
+            database=nrn_db, username='postgres',
+            port='5432', password='password'
+        )
+
+        # engine to connect to nrn database
+        self.engine = create_engine(nrn_url)
+
+        # get the isolation level for autocommit
+        autocommit = extensions.ISOLATION_LEVEL_AUTOCOMMIT
+
+        # set the isolation level for the connection's cursors
+        # will raise ActiveSqlTransaction exception otherwise
+        conn.set_isolation_level(autocommit)
+
+        # connect to default connection
+        cursor = conn.cursor()
+
+        # drop the nrn database if it exists, then create it if not
+        try:
+            logging.info("Dropping PostgreSQL database.")
+            cursor.execute(sql.SQL("DROP DATABASE IF EXISTS {};").format(sql.Identifier(nrn_db)))
+        except Exception:
+            logging.exception("Could not drop database.")
+
+        try:
+            logging.info("Creating PostgreSQL database.")
+            cursor.execute(sql.SQL("CREATE DATABASE {};").format(sql.Identifier(nrn_db)))
+        except Exception:
+            logging.exception("Failed to create PostgreSQL database.")
+
+        logging.info("Closing default PostgreSQL connection.")
+        cursor.close()
+        conn.close()
+
+        # connection parameters for newly created database
+        nrn_conn = connect(
+            dbname=nrn_db,
+            user="postgres",
+            host="localhost",
+            password="password"
+        )
+
+        nrn_conn.set_isolation_level(autocommit)
+
+        # connect to nrn database
+        nrn_cursor = nrn_conn.cursor()
+        try:
+            logging.info("Creating spatially enabled PostgreSQL database.")
+            nrn_cursor.execute(sql.SQL("CREATE EXTENSION IF NOT EXISTS postgis;"))
+        except Exception:
+            logging.exception("Cannot create PostGIS extension.")
+
+        logging.info("Closing NRN PostgreSQL connection.")
+        nrn_cursor.close()
+        nrn_conn.close()
+
+        sys.exit(1)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -89,7 +154,7 @@ class Stage:
         """Generates intersection junction types."""
 
         logging.info("Importing roadseg geodataframe into PostGIS.")
-        self.df_roadseg.postgis.to_postgis(con=engine, table_name="stage_2", geometry="LineString", if_exists="replace")
+        self.df_roadseg.postgis.to_postgis(con=self.engine, table_name="stage_2", geometry="LineString", if_exists="replace")
 
         logging.info("Loading SQL yaml.")
         self.sql = helpers.load_yaml("../sql.yaml")
@@ -97,7 +162,7 @@ class Stage:
         inter_filter = self.sql["intersections"]["query"]
 
         logging.info("Executing SQL injection for junction intersections.")
-        self.inter_gdf = gpd.GeoDataFrame.from_postgis(inter_filter, engine, geom_col="geometry")
+        self.inter_gdf = gpd.GeoDataFrame.from_postgis(inter_filter, self.engine, geom_col="geometry")
         self.inter_gdf["junctype"] = "Intersection"
         self.inter_gdf.crs = {'init': 'epsg:4617'}
         # inter_df = pd.DataFrame(self.inter_gdf)
@@ -150,8 +215,8 @@ class Stage:
         self.ferry_gdf["geometry"] = [MultiPoint([feature]) if type(feature) == Point else feature for feature in self.ferry_gdf["geometry"]]
 
         logging.info("Importing merged junctions into PostGIS.")
-        junctions.postgis.to_postgis(con=engine, table_name='stage_2_junc', geometry='MULTIPOINT', if_exists='replace')
-        self.ferry_gdf.postgis.to_postgis(con=engine, table_name='stage_2_ferry_junc', geometry='MULTIPOINT', if_exists='replace')
+        junctions.postgis.to_postgis(con=self.engine, table_name='stage_2_junc', geometry='MULTIPOINT', if_exists='replace')
+        self.ferry_gdf.postgis.to_postgis(con=self.engine, table_name='stage_2_ferry_junc', geometry='MULTIPOINT', if_exists='replace')
 
     def fix_junctype(self):
         """Generate attributes."""
@@ -159,13 +224,14 @@ class Stage:
         attr_fix = self.sql["attributes"]["query"]
 
         logging.info("Testing for junction equality and altering attributes.")
-        attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, engine)
+        attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine)
 
         print(attr_equality)
 
     def execute(self):
         """Executes an NRN stage."""
 
+        self.create_db()
         self.load_gpkg()
         self.gen_dead_end()
         self.gen_intersections()
@@ -182,7 +248,12 @@ def main():
 
 if __name__ == "__main__":
 
-    main()
+    try:
+        main()
+
+    except KeyboardInterrupt:
+        logger.exception("KeyboardInterrupt: exiting program.")
+        sys.exit(1)
 
 # output execution time
 print("Total execution time: ", datetime.now() - startTime)
