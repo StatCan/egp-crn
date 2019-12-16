@@ -14,31 +14,34 @@ intersections:
       WHERE COUNT > 2;
 attributes:
   query:
+
+    ALTER TABLE stage_2_junc ADD COLUMN id SERIAL PRIMARY KEY;
+
     DELETE FROM stage_2_junc a
     WHERE EXISTS (SELECT *
                     FROM   stage_2_junc AS b
                     WHERE  St_equals(a.geom, b.geom)
-                           AND a.index <> b.index
+                           AND a.id <> b.id
                            AND a.junctype = 'Dead End');
 
     DELETE FROM stage_2_junc a
     WHERE EXISTS (SELECT *
                     FROM   stage_2_junc AS b
                     WHERE  St_equals(a.geom, b.geom)
-                           AND a.index <> b.index
+                           AND a.id <> b.id
                            AND a.junctype = 'Intersection');
 
     DELETE FROM stage_2_junc a
     WHERE EXISTS (SELECT *
                     FROM   stage_2_junc AS b
                     WHERE  St_equals(a.geom, b.geom)
-                           AND a.index <> b.index
+                           AND a.id <> b.id
                            AND a.junctype = 'NatProvTer');
 
     ALTER TABLE stage_2_junc ADD COLUMN exitnbr character varying(10);
 
     UPDATE stage_2_junc a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
 
-    UPDATE stage_2_junc a SET junctype = 'NatProvTer' WHERE a.index IN (SELECT a.index FROM stage_2_junc a, nb_adm b WHERE ST_Disjoint(a.geom, b.geom));
+    UPDATE stage_2_junc a SET junctype = 'NatProvTer' WHERE a.id IN (SELECT a.id FROM stage_2_junc a, nb_adm b WHERE ST_Disjoint(a.geom, b.geom));
 
     SELECT * FROM stage_2_junc;
