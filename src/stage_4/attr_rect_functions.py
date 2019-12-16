@@ -23,38 +23,46 @@ def validate_dates(credate, revdate, default):
         # Get current date.
         today = datetime.today().strftime("%Y%m%d")
 
-        # Apply validations.
-        for date in [d for d in (credate, revdate) if d != default]:
+        # Validation.
+        def validate(date):
 
-            # Validation: length must be 4, 6, or 8.
-            if len(date) not in (4, 6, 8):
-                raise ValueError("Invalid length for CREDATE / REVDATE = \"{}\".".format(date))
+            if date != default:
 
-            # Rectification: default to 01 for missing month and day values.
-            while len(date) in (4, 6):
-                date += "01"
+                # Validation: length must be 4, 6, or 8.
+                if len(date) not in (4, 6, 8):
+                    raise ValueError("Invalid length for CREDATE / REVDATE = \"{}\".".format(date))
 
-            # Validation: valid values for day, month, year (1960+).
-            day, month, year = map(int, [date[:4], date[4:6], date[6:8]])
+                # Rectification: default to 01 for missing month and day values.
+                while len(date) in (4, 6):
+                    date += "01"
 
-            # Year.
-            if not 1960 <= year <= int(today[:4]):
-                raise ValueError("Invalid year for CREDATE / REVDATE at index 0:3 = \"{}\".".format(year))
+                # Validation: valid values for day, month, year (1960+).
+                year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
 
-            # Month.
-            if month not in range(1, 12 + 1):
-                raise ValueError("Invalid month for CREDATE / REVDATE at index 4:5 = \"{}\".".format(month))
+                # Year.
+                if not 1960 <= year <= int(today[:4]):
+                    raise ValueError("Invalid year for CREDATE / REVDATE at index 0:3 = \"{}\".".format(year))
 
-            # Day.
-            if not 1 <= day <= calendar.mdays[month]:
-                if not all([day == 29, month == 2, calendar.isleap(year)]):
-                    raise ValueError("Invalid day for CREDATE / REVDATE at index 6:7 = \"{}\".".format(day))
+                # Month.
+                if month not in range(1, 12 + 1):
+                    raise ValueError("Invalid month for CREDATE / REVDATE at index 4:5 = \"{}\".".format(month))
 
-            # Validation: ensure value <= today.
-            if year == today[:4]:
-                if not all([month <= today[4:6], day <= today[6:8]]):
-                    raise ValueError("Invalid date for CREDATE / REVDATE = \"{}\". "
-                                     "Date cannot be in the future.".format(date, today))
+                # Day.
+                if not 1 <= day <= calendar.mdays[month]:
+                    if not all([day == 29, month == 2, calendar.isleap(year)]):
+                        raise ValueError("Invalid day for CREDATE / REVDATE at index 6:7 = \"{}\".".format(day))
+
+                # Validation: ensure value <= today.
+                if year == today[:4]:
+                    if not all([month <= today[4:6], day <= today[6:8]]):
+                        raise ValueError("Invalid date for CREDATE / REVDATE = \"{}\". "
+                                         "Date cannot be in the future.".format(date, today))
+
+            return date
+
+        # Validation: individual date validations.
+        credate = validate(credate)
+        revdate = validate(revdate)
 
         # Validation: ensure CREDATE <= REVDATE.
         if credate != default and revdate != default:
@@ -64,6 +72,5 @@ def validate_dates(credate, revdate, default):
 
         return credate, revdate
 
-    except ValueError as e:
-        logger.exception("ValueError: {}".format(e))
-        sys.exit(1)
+    except ValueError:
+        raise
