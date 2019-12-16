@@ -87,17 +87,23 @@ def validate_nbrlanes(nbrlanes, default):
 def validate_pavement(pavstatus, pavsurf, unpavsurf):
     """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
 
-    if int(pavstatus) == 1:
-        if int(pavsurf) == 0 or int(unpavsurf) != 0:
-            raise ValueError(
-                "Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\", unpavsurf = \"{}\". When pavstatus is 1,"
-                " pavsurf must not be 0 and unpavsurf must be 0.".format(pavstatus, pavsurf, unpavsurf))
+    # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
+    if pavstatus == "Paved":
+        if pavsurf == "None":
+            raise ValueError("Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\". When pavstatus is "
+                             "\"Paved\", pavsurf must not be \"None\"".format(pavstatus, pavsurf))
+        if unpavsurf != "None":
+            raise ValueError("Invalid combination for pavstatus = \"{}\", unpavsurf = \"{}\". When pavstatus is "
+                             "\"Paved\", unpavsurf must be \"None\"".format(pavstatus, unpavsurf))
 
-    if int(pavstatus) == 2:
-        if int(pavsurf) != 0 or int(unpavsurf) == 0:
-            raise ValueError(
-                "Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\", unpavsurf = \"{}\". When pavstatus is 2,"
-                " pavsurf must be 0 and unpavsurf must not be 0.".format(pavstatus, pavsurf, unpavsurf))
+    # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
+    if pavstatus == "Unpaved":
+        if pavsurf != "None":
+            raise ValueError("Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\". When pavstatus is "
+                             "\"Unpaved\", pavsurf must be \"None\"".format(pavstatus, pavsurf))
+        if unpavsurf == "None":
+            raise ValueError("Invalid combination for pavstatus = \"{}\", unpavsurf = \"{}\". When pavstatus is "
+                             "\"Unpaved\", unpavsurf must not be \"None\"".format(pavstatus, pavsurf))
 
     return pavstatus, pavsurf, unpavsurf
 
@@ -105,14 +111,15 @@ def validate_pavement(pavstatus, pavsurf, unpavsurf):
 def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
     """
     Applies a set of validations to roadclass and rtnumber1 fields.
-    Parameter default should refer to field rtnumber1.
+    Parameter default should refer to rtnumber1.
     """
 
-    # Validation: ensure rtnumber1 is populated when roadclass == 1 or 2.
-    if int(roadclass) in (1, 2):
+    # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
+    if roadclass in ("Freeway", "Expressway / Highway"):
         if str(rtnumber1) == str(default):
-            raise ValueError("Invalid value for rtnumber1 = \"{}\". When roadclass is 1 or 2, rtnumber1 must not be "
-                             "the default field value = \"{}\".".format(rtnumber1, default))
+            raise ValueError(
+                "Invalid value for rtnumber1 = \"{}\". When roadclass is \"Freeway\" or \"Expressway / Highway\", "
+                "rtnumber1 must not be the default field value = \"{}\".".format(rtnumber1, default))
 
     return roadclass, rtnumber1
 

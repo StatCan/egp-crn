@@ -51,7 +51,7 @@ class Stage:
     def unique_attr_validation(self):
         """Applies a set of attribute validations unique to one or more fields and / or tables."""
 
-        logger.info("Applying validation: unique attribute validations.")
+        logger.info("Applying validation set: unique attribute validations.")
 
         try:
 
@@ -61,21 +61,21 @@ class Stage:
                     raise KeyError("Missing required layer: \"{}\".".format(table))
 
             # Validation: nbrlanes.
-            logger.info("Applying validation: nbrlanes.")
+            logger.info("Applying validation: nbrlanes. Target dataframe: roadseg.")
 
             # Compile valid fields, apply function.
             self.dframes["roadseg"]["nbrlanes"] = self.dframes["roadseg"]["nbrlanes"].map(
                 lambda val: attr_rect_functions.validate_nbrlanes(val, default=self.defaults["roadseg"]["nbrlanes"]))
 
             # Validation: speed.
-            logger.info("Applying validation: speed.")
+            logger.info("Applying validation: speed. Target dataframe: roadseg.")
 
             # Compile valid fields, apply function.
             self.dframes["roadseg"]["speed"] = self.dframes["roadseg"]["speed"].map(
                 lambda val: attr_rect_functions.validate_speed(val, default=self.defaults["roadseg"]["speed"]))
 
             # Validation: pavement.
-            logger.info("Applying validation: pavement.")
+            logger.info("Applying validation: pavement. Target dataframe: roadseg.")
 
             # Compile valid fields, apply function.
             cols = ["pavstatus", "pavsurf", "unpavsurf"]
@@ -83,11 +83,11 @@ class Stage:
             self.dframes["roadseg"][cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_pavement)(*args))
 
             # Validation: roadclass-rtnumber1.
-            logger.info("Applying validation: roadclass-rtnumber1.")
-
-            # Compile valid fields, apply function.
             cols = ["roadclass", "rtnumber1"]
             for table in ("ferryseg", "roadseg"):
+                logger.info("Applying validation: roadclass-rtnumber1. Target dataframe: {}.".format(table))
+
+                # Compile valid fields, apply function.
                 df = self.dframes[table]
                 args = [df[col].values for col in cols] + [self.defaults[table][cols[1]]]
                 df[cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_roadclass_rtnumber1)(*args))
@@ -106,17 +106,15 @@ class Stage:
     def universal_attr_validation(self):
         """Applies a set of universal attribute validations (all fields and / or all tables)."""
 
-        logger.info("Applying validation: universal attribute validations.")
+        logger.info("Applying validation set: universal attribute validations.")
 
         # Iterate data frames.
         for name, df in self.dframes.items():
 
-            logger.info("Target dataframe: {}.".format(name))
-
             try:
 
                 # Validation: strip whitespace.
-                logger.info("Applying validation: strip whitespace.")
+                logger.info("Applying validation: strip whitespace. Target dataframe: {}.".format(name))
 
                 # Compile valid fields, apply function.
                 df_valid = df.select_dtypes(include="object")
@@ -125,7 +123,7 @@ class Stage:
                 df[df_valid.columns] = df_valid.applymap(attr_rect_functions.strip_whitespace)
 
                 # Validation: dates.
-                logger.info("Applying validation: dates.")
+                logger.info("Applying validation: dates. Target dataframe: {}.".format(name))
 
                 # Compile valid fields, apply function.
                 cols = ["credate", "revdate"]
