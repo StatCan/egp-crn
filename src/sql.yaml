@@ -1,5 +1,5 @@
 intersections:
-  filter:
+  query:
     WITH inter AS
         (SELECT ST_Intersection(a.geom, b.geom) geom,
                 Count(DISTINCT a.index)
@@ -12,3 +12,33 @@ intersections:
       count
       FROM inter
       WHERE COUNT > 2;
+attributes:
+  query:
+    DELETE FROM stage_2_junc a
+    WHERE EXISTS (SELECT *
+                    FROM   stage_2_junc AS b
+                    WHERE  St_equals(a.geom, b.geom)
+                           AND a.index <> b.index
+                           AND a.junctype = 'Dead End');
+
+    DELETE FROM stage_2_junc a
+    WHERE EXISTS (SELECT *
+                    FROM   stage_2_junc AS b
+                    WHERE  St_equals(a.geom, b.geom)
+                           AND a.index <> b.index
+                           AND a.junctype = 'Intersection');
+
+    DELETE FROM stage_2_junc a
+    WHERE EXISTS (SELECT *
+                    FROM   stage_2_junc AS b
+                    WHERE  St_equals(a.geom, b.geom)
+                           AND a.index <> b.index
+                           AND a.junctype = 'NatProvTer');
+
+    ALTER TABLE stage_2_junc ADD COLUMN exitnbr "char";
+
+    UPDATE stage_2_junc a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
+
+    UPDATE stage_2_junc a SET junctype = 'NatProvTer' WHERE a.index IN (SELECT a.index FROM stage_2_junc a, nb_adm b WHERE ST_Disjoint(a.geom, b.geom));
+
+    SELECT * FROM stage_2_junc;
