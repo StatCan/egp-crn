@@ -14,7 +14,7 @@ def strip_whitespace(val):
 
 
 def validate_dates(credate, revdate, default):
-    """Applies a set of validations to CREDATE and REVDATE fields."""
+    """Applies a set of validations to credate and revdate fields."""
 
     try:
 
@@ -30,7 +30,7 @@ def validate_dates(credate, revdate, default):
 
                 # Validation: length must be 4, 6, or 8.
                 if len(date) not in (4, 6, 8):
-                    raise ValueError("Invalid length for CREDATE / REVDATE = \"{}\".".format(date))
+                    raise ValueError("Invalid length for credate / revdate = \"{}\".".format(date))
 
                 # Rectification: default to 01 for missing month and day values.
                 while len(date) in (4, 6):
@@ -41,21 +41,21 @@ def validate_dates(credate, revdate, default):
 
                 # Year.
                 if not 1960 <= year <= int(today[:4]):
-                    raise ValueError("Invalid year for CREDATE / REVDATE at index 0:3 = \"{}\".".format(year))
+                    raise ValueError("Invalid year for credate / revdate at index 0:3 = \"{}\".".format(year))
 
                 # Month.
                 if month not in range(1, 12 + 1):
-                    raise ValueError("Invalid month for CREDATE / REVDATE at index 4:5 = \"{}\".".format(month))
+                    raise ValueError("Invalid month for credate / revdate at index 4:5 = \"{}\".".format(month))
 
                 # Day.
                 if not 1 <= day <= calendar.mdays[month]:
                     if not all([day == 29, month == 2, calendar.isleap(year)]):
-                        raise ValueError("Invalid day for CREDATE / REVDATE at index 6:7 = \"{}\".".format(day))
+                        raise ValueError("Invalid day for credate / revdate at index 6:7 = \"{}\".".format(day))
 
                 # Validation: ensure value <= today.
                 if year == today[:4]:
                     if not all([month <= today[4:6], day <= today[6:8]]):
-                        raise ValueError("Invalid date for CREDATE / REVDATE = \"{}\". "
+                        raise ValueError("Invalid date for credate / revdate = \"{}\". "
                                          "Date cannot be in the future.".format(date, today))
 
             return date
@@ -64,11 +64,11 @@ def validate_dates(credate, revdate, default):
         credate = validate(credate)
         revdate = validate(revdate)
 
-        # Validation: ensure CREDATE <= REVDATE.
+        # Validation: ensure credate <= revdate.
         if credate != default and revdate != default:
             if not int(credate) <= int(revdate):
-                raise ValueError("Invalid date combination for CREDATE = \"{}\", REVDATE = \"{}\". "
-                                 "CREDATE must precede or equal REVDATE.".format(credate, revdate))
+                raise ValueError("Invalid date combination for credate = \"{}\", revdate = \"{}\". "
+                                 "credate must precede or equal revdate.".format(credate, revdate))
 
         return credate, revdate
 
