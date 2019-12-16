@@ -35,7 +35,7 @@ attributes:
                            AND a.index <> b.index
                            AND a.junctype = 'NatProvTer');
 
-    ALTER TABLE stage_2_junc ADD COLUMN exitnbr "char";
+    ALTER TABLE stage_2_junc ADD COLUMN exitnbr character varying(10);
 
     UPDATE stage_2_junc a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
 
