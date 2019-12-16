@@ -91,19 +91,19 @@ def validate_pavement(pavstatus, pavsurf, unpavsurf):
     if pavstatus == "Paved":
         if pavsurf == "None":
             raise ValueError("Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\". When pavstatus is "
-                             "\"Paved\", pavsurf must not be \"None\"".format(pavstatus, pavsurf))
+                             "\"Paved\", pavsurf must not be \"None\".".format(pavstatus, pavsurf))
         if unpavsurf != "None":
             raise ValueError("Invalid combination for pavstatus = \"{}\", unpavsurf = \"{}\". When pavstatus is "
-                             "\"Paved\", unpavsurf must be \"None\"".format(pavstatus, unpavsurf))
+                             "\"Paved\", unpavsurf must be \"None\".".format(pavstatus, unpavsurf))
 
     # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
     if pavstatus == "Unpaved":
         if pavsurf != "None":
             raise ValueError("Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\". When pavstatus is "
-                             "\"Unpaved\", pavsurf must be \"None\"".format(pavstatus, pavsurf))
+                             "\"Unpaved\", pavsurf must be \"None\".".format(pavstatus, pavsurf))
         if unpavsurf == "None":
             raise ValueError("Invalid combination for pavstatus = \"{}\", unpavsurf = \"{}\". When pavstatus is "
-                             "\"Unpaved\", unpavsurf must not be \"None\"".format(pavstatus, pavsurf))
+                             "\"Unpaved\", unpavsurf must not be \"None\".".format(pavstatus, pavsurf))
 
     return pavstatus, pavsurf, unpavsurf
 
