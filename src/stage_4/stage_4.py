@@ -63,21 +63,21 @@ class Stage:
             # Validation: nbrlanes.
             logger.info("Applying validation: nbrlanes. Target dataframe: roadseg.")
 
-            # Compile valid fields, apply function.
+            # Apply function directly to target field.
             self.dframes["roadseg"]["nbrlanes"] = self.dframes["roadseg"]["nbrlanes"].map(
                 lambda val: attr_rect_functions.validate_nbrlanes(val, default=self.defaults["roadseg"]["nbrlanes"]))
 
             # Validation: speed.
             logger.info("Applying validation: speed. Target dataframe: roadseg.")
 
-            # Compile valid fields, apply function.
+            # Apply function directly to target field.
             self.dframes["roadseg"]["speed"] = self.dframes["roadseg"]["speed"].map(
                 lambda val: attr_rect_functions.validate_speed(val, default=self.defaults["roadseg"]["speed"]))
 
             # Validation: pavement.
             logger.info("Applying validation: pavement. Target dataframe: roadseg.")
 
-            # Compile valid fields, apply function.
+            # Apply function directly to target fields.
             cols = ["pavstatus", "pavsurf", "unpavsurf"]
             args = [self.dframes["roadseg"][col].values for col in cols]
             self.dframes["roadseg"][cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_pavement)(*args))
