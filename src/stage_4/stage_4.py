@@ -95,6 +95,20 @@ class Stage:
                 # Store results.
                 self.dframes[table] = df
 
+            # Validation: route text.
+            for table in ("roadseg", "ferryseg"):
+                logger.info("Applying validation: route text. Target dataframe: {}.".format(table))
+
+                # Apply function, store results.
+                self.dframes[table] = attr_rect_functions.validate_route_text(self.dframes[table], self.defaults[table])
+
+            # Validation: route contiguity.
+            logger.info("Applying validation: route contiguity. Target dataframe: ferryseg and roadseg.")
+
+            # Concatenate dataframes, apply function.
+            df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True))
+            attr_rect_functions.validate_route_contiguity(df, self.defaults["roadseg"])
+
         except (KeyError, ValueError):
             logger.exception("Unable to apply validation.")
             sys.exit(1)

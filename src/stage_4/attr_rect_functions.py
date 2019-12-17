@@ -1,6 +1,13 @@
 import calendar
 import logging
+import networkx as nx
+import numpy as np
+import os
+import sys
 from datetime import datetime
+
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
+import helpers
 
 
 logger = logging.getLogger()
@@ -122,6 +129,54 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
                 "rtnumber1 must not be the default field value = \"{}\".".format(rtnumber1, default))
 
     return roadclass, rtnumber1
+
+
+def validate_route_text(df, default):
+    """
+    Applies a set of validations to route attributes:
+        rtename1en, rtename2en, rtename3en, rtename4en,
+        rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+    Parameter default should be a dictionary with a key for each of the required fields.
+    """
+
+    # Validation: set text-based route fields to title case.
+    cols = ["rtename1en", "rtename2en", "rtename3en", "rtename4en",
+            "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
+    for col in cols:
+        df[col] = df[col].map(lambda route: route if route == default[col] else route.title())
+
+    return df
+
+
+def validate_route_contiguity(df, default):
+    """
+    Applies a set of validations to route attributes (rows represent field groups):
+        rtename1en, rtename2en, rtename3en, rtename4en,
+        rtename1fr, rtename2fr, rtename3fr, rtename4fr,
+        rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
+    Parameter default should be a dictionary with a key for each of the required fields.
+    """
+
+    # Validation: ensure route has contiguous geometry.
+    for field_group in [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
+                        ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"],
+                        ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]]:
+
+        # Compile route names.
+        route_names = [df[col].unique() for col in field_group]
+        # Remove default values.
+        route_names = [names[np.where(names != default[field_group[index]])] for index, names in enumerate(route_names)]
+        # Concatenate arrays.
+        route_names = np.concatenate(route_names, axis=None)
+
+        # Iterate route names.
+        for route_name in route_names:
+
+            # Subset dataframe to those records with route name in at least one field.
+            df_route = df.iloc[list(np.where(df[field_group] == route_name)[0])]["geometry"]
+
+            # Load dataframe as networkx graph.
+            # . . . .
 
 
 def validate_speed(speed, default):
