@@ -1,4 +1,3 @@
-import helpers
 import geopandas as gpd
 import logging
 import networkx as nx
@@ -16,6 +15,7 @@ from shapely.geometry.point import Point
 from psycopg2 import connect, extensions, sql
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
+import helpers
 
 # Set logger.
 logger = logging.getLogger()
@@ -111,8 +111,6 @@ class Stage:
         logging.info("Closing NRN PostgreSQL connection.")
         nrn_cursor.close()
         nrn_conn.close()
-
-        sys.exit(1)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
