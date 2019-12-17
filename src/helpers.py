@@ -2,6 +2,7 @@ import datetime
 import fiona
 import geopandas as gpd
 import logging
+import networkx as nx
 import os
 import pandas as pd
 import shutil
@@ -9,6 +10,7 @@ import sqlite3
 import sys
 import time
 import yaml
+from shapely.geometry.point import Point
 
 
 logger = logging.getLogger()
@@ -199,3 +201,42 @@ def load_yaml(path):
             return yaml.safe_load(f)
         except (ValueError, yaml.YAMLError):
             logger.exception("Unable to load yaml file: {}.".format(path))
+            
+
+# source:
+# https://www.reddit.com/r/gis/comments/b1ui7h/geopandas_how_to_make_a_graph_out_of_a/
+def gdf_to_nx(gdf_network):
+    # generate graph from GeoDataFrame of LineStrings
+    net = nx.Graph()
+    net.graph['crs'] = gdf_network.crs
+    fields = list(gdf_network.columns)
+
+    for index, row in gdf_network.iterrows():
+        first = row.geometry.coords[0]
+        last = row.geometry.coords[-1]
+
+        data = [row[f] for f in fields]
+        attributes = dict(zip(fields, data))
+        net.add_edge(first, last, **attributes)
+
+    return net
+
+
+def nx_to_gdf(net, nodes=True, edges=True):
+    # generate nodes and edges geodataframes from graph
+    if nodes is True:
+        node_xy, node_data = zip(*net.nodes(data=True))
+        gdf_nodes = gpd.GeoDataFrame(list(node_data), geometry=[Point(i, j) for i, j in node_xy])
+        gdf_nodes.crs = net.graph['crs']
+
+    if edges is True:
+        starts, ends, edge_data = zip(*net.edges(data=True))
+        gdf_edges = gpd.GeoDataFrame(list(edge_data))
+        gdf_edges.crs = net.graph['crs']
+
+    if nodes is True and edges is True:
+        return gdf_nodes, gdf_edges
+    elif nodes is True and edges is False:
+        return gdf_nodes
+    else:
+        return gdf_edges
