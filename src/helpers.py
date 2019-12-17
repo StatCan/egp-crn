@@ -2,6 +2,7 @@ import datetime
 import fiona
 import geopandas as gpd
 import logging
+import networkx as nx
 import os
 import pandas as pd
 import shutil
@@ -9,6 +10,7 @@ import sqlite3
 import sys
 import time
 import yaml
+from shapely.geometry.point import Point
 
 
 logger = logging.getLogger()
@@ -28,58 +30,6 @@ class Timer:
         total_seconds = time.time() - self.start_time
         delta = datetime.timedelta(seconds=total_seconds)
         logger.info("Finished. Time elapsed: {}.".format(delta))
-
-
-def compile_default_values():
-    """Compiles the default value for each field in each table."""
-
-    dft_vals = load_yaml(os.path.abspath("../field_domains_en.yaml"))["default"]
-    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
-    defaults = dict()
-
-    try:
-
-        # Iterate tables.
-        for name in dist_format:
-            defaults[name] = dict()
-
-            # Iterate fields.
-            for field, dtype in dist_format[name]["fields"].items():
-
-                # Configure default value.
-                key = "label" if dtype[0] in ("bytes", "str", "unicode") else "code"
-                defaults[name][field] = dft_vals[key]
-
-    except (AttributeError, KeyError, ValueError):
-        logger.exception("Invalid schema definition for either \"{}\" or \"{}\".".format(dft_vals, dist_format))
-        sys.exit(1)
-
-    return defaults
-
-
-def compile_dtypes(length=False):
-    """Compiles the dtype for each field in each table. Optionally returns a list to include the field length."""
-
-    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
-    dtypes = dict()
-
-    try:
-
-        # Iterate tables.
-        for name in dist_format:
-            dtypes[name] = dict()
-
-            # Iterate fields.
-            for field, dtype in dist_format[name]["fields"].items():
-
-                # Compile dtype and field length.
-                dtypes[name][field] = dtype if length else dtype[0]
-
-    except (AttributeError, KeyError, ValueError):
-        logger.exception("Invalid schema definition for \"{}\".".format(dist_format))
-        sys.exit(1)
-
-    return dtypes
 
 
 def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../data/empty.gpkg")):
@@ -199,3 +149,42 @@ def load_yaml(path):
             return yaml.safe_load(f)
         except (ValueError, yaml.YAMLError):
             logger.exception("Unable to load yaml file: {}.".format(path))
+
+
+# source:
+# https://www.reddit.com/r/gis/comments/b1ui7h/geopandas_how_to_make_a_graph_out_of_a/
+def gdf_to_nx(gdf_network):
+    # generate graph from GeoDataFrame of LineStrings
+    net = nx.Graph()
+    net.graph['crs'] = gdf_network.crs
+    fields = list(gdf_network.columns)
+
+    for index, row in gdf_network.iterrows():
+        first = row.geometry.coords[0]
+        last = row.geometry.coords[-1]
+
+        data = [row[f] for f in fields]
+        attributes = dict(zip(fields, data))
+        net.add_edge(first, last, **attributes)
+
+    return net
+
+
+def nx_to_gdf(net, nodes=True, edges=True):
+    # generate nodes and edges geodataframes from graph
+    if nodes is True:
+        node_xy, node_data = zip(*net.nodes(data=True))
+        gdf_nodes = gpd.GeoDataFrame(list(node_data), geometry=[Point(i, j) for i, j in node_xy])
+        gdf_nodes.crs = net.graph['crs']
+
+    if edges is True:
+        starts, ends, edge_data = zip(*net.edges(data=True))
+        gdf_edges = gpd.GeoDataFrame(list(edge_data))
+        gdf_edges.crs = net.graph['crs']
+
+    if nodes is True and edges is True:
+        return gdf_nodes, gdf_edges
+    elif nodes is True and edges is False:
+        return gdf_nodes
+    else:
+        return gdf_edges
