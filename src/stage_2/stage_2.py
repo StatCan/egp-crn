@@ -123,16 +123,18 @@ class Stage:
     def gen_dead_end(self):
         """Generates dead end junctions with NetworkX."""
 
-        logging.info("Converting roadseg dataframe to shapefile for NetworkX.")
+        logging.info("Applying CRS EPSG:4617 to roadseg geodataframe.")
         self.df_roadseg = gpd.GeoDataFrame(self.dframes["roadseg"], geometry='geometry')
-        self.df_roadseg.to_file("../../data/raw/netx.shp", driver="ESRI Shapefile")
         self.df_roadseg.crs = {'init': 'epsg:4617'}
 
-        logging.info("Read generated shapefiles for dead end creation.")
-        graph = nx.read_shp("../../data/raw/netx.shp")
+        logging.info("Convert roadseg geodataframe to NetX graph.")
+        graph = helpers.gdf_to_nx(self.df_roadseg)
 
         logging.info("Create an empty graph for dead ends junctions.")
         dead_ends = nx.Graph()
+
+        logging.info("Applying CRS EPSG:4617 to dead ends graph.")
+        dead_ends.graph['crs'] = self.df_roadseg.crs
 
         logging.info("Filter for dead end junctions.")
         dead_ends_filter = [node for node, degree in graph.degree() if degree == 1]
@@ -140,11 +142,10 @@ class Stage:
         logging.info("Insert filtered dead end junctions into empty graph.")
         dead_ends.add_nodes_from(dead_ends_filter)
 
-        logging.info("Write dead end junctions shapefile.")
-        nx.write_shp(dead_ends, "../../data/raw/dead_end.shp")
+        logging.info("Convert dead end graph to geodataframe.")
+        self.dead_end_gdf = helpers.nx_to_gdf(dead_ends, nodes=True, edges=False)
 
-        logging.info("Create dead end geodataframe.")
-        self.dead_end_gdf = gpd.read_file("../../data/raw/dead_end.shp")
+        logging.info("Apply dead end junctype to junctions.")
         self.dead_end_gdf["junctype"] = "Dead End"
         print(self.dead_end_gdf)
 
@@ -157,32 +158,32 @@ class Stage:
         logging.info("Loading SQL yaml.")
         self.sql = helpers.load_yaml("../sql.yaml")
 
+        logging.info("Executing SQL injection for junction intersections.")
         inter_filter = self.sql["intersections"]["query"]
 
-        logging.info("Executing SQL injection for junction intersections.")
+        logging.info("Creating junction intersection geodataframe.")
         self.inter_gdf = gpd.GeoDataFrame.from_postgis(inter_filter, self.engine, geom_col="geometry")
+
+        logging.info("Apply intersection junctype to junctions.")
         self.inter_gdf["junctype"] = "Intersection"
         self.inter_gdf.crs = {'init': 'epsg:4617'}
-        # inter_df = pd.DataFrame(self.inter_gdf)
         print(self.inter_gdf)
-
-        logging.info("Writing junction intersection GeoPackage.")
-        # inter_gdf.to_file("../../data/raw/intersections.gpkg", driver="GPKG")
-        # helpers.export_gpkg(inter_gpd, "../../data/raw/intersections2.gpkg")
 
     def gen_ferry(self):
         """Generates ferry junctions with NetworkX."""
 
-        logging.info("Converting ferryseg dataframe to shapefile for NetworkX.")
+        logging.info("Applying CRS EPSG:4617 to roadseg geodataframe.")
         self.df_ferryseg = gpd.GeoDataFrame(self.dframes["ferryseg"], geometry='geometry')
-        self.df_ferryseg.to_file("../../data/raw/netx_ferry.shp", driver="ESRI Shapefile")
         self.df_ferryseg.crs = {'init': 'epsg:4617'}
 
-        logging.info("Read generated shapefile for ferry junction creation.")
-        graph_ferry = nx.read_shp("../../data/raw/netx_ferry.shp")
+        logging.info("Convert ferryseg geodataframe to NetX graph.")
+        graph_ferry = helpers.gdf_to_nx(self.df_ferryseg)
 
         logging.info("Create an empty graph for ferry junctions.")
         ferry_junc = nx.Graph()
+
+        logging.info("Applying CRS EPSG:4617 to dead ends graph.")
+        ferry_junc.graph['crs'] = self.df_ferryseg.crs
 
         logging.info("Filter for ferry junctions.")
         ferry_filter = [node for node, degree in graph_ferry.degree() if degree > 0]
@@ -190,13 +191,11 @@ class Stage:
         logging.info("Insert filtered ferry junctions into empty graph.")
         ferry_junc.add_nodes_from(ferry_filter)
 
-        logging.info("Write ferry junctions shapefile.")
-        nx.write_shp(ferry_junc, "../../data/raw/ferry_dead_end.shp")
+        logging.info("Convert dead end graph to geodataframe.")
+        self.ferry_gdf = helpers.nx_to_gdf(ferry_junc, nodes=True, edges=False)
 
-        logging.info("Create ferry geodataframe.")
-        self.ferry_gdf = gpd.read_file("../../data/raw/ferry.shp")
+        logging.info("Apply dead end junctype to junctions.")
         self.ferry_gdf["junctype"] = "Ferry"
-        self.ferry_gdf.crs = {'init': 'epsg:4617'}
         print(self.ferry_gdf)
 
     def combine(self):
@@ -218,6 +217,12 @@ class Stage:
 
     def fix_junctype(self):
         """Generate attributes."""
+
+        logging.info("Reading administrative boundary file.")
+        nb_adm = gpd.read_file("../../data/raw/nb_adm.gpkg", driver="GPKG")
+
+        logging.info("Importing administrative boundary into PostGIS.")
+        nb_adm.postgis.to_postgis(con=self.engine, table_name="nb_adm", geometry="MultiPolygon", if_exists="replace")
 
         attr_fix = self.sql["attributes"]["query"]
 
