@@ -173,10 +173,21 @@ def validate_route_contiguity(df, default):
         for route_name in route_names:
 
             # Subset dataframe to those records with route name in at least one field.
-            df_route = df.iloc[list(np.where(df[field_group] == route_name)[0])]["geometry"]
+            route_df = df.iloc[list(np.where(df[field_group] == route_name)[0])]
 
             # Load dataframe as networkx graph.
-            # . . . .
+            route_graph = helpers.gdf_to_nx(route_df, keep_attributes=False)
+
+            # Validate contiguity (networkx connectivity).
+            if not nx.is_connected(route_graph):
+
+                # Identify deadends (locations of discontiguity), limit to 20.
+                deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
+                deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
+
+                raise ValueError("Invalid route = \"{}\", based on route attributes: {}. Route must be contiguous. "
+                                 "Review contiguity at the following endpoints:\n{}"
+                                 .format(route_name, ", ".join(field_group), deadends))
 
 
 def validate_speed(speed, default):

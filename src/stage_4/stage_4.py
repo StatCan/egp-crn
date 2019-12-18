@@ -106,7 +106,8 @@ class Stage:
             logger.info("Applying validation: route contiguity. Target dataframe: ferryseg and roadseg.")
 
             # Concatenate dataframes, apply function.
-            df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True))
+            df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True,
+                                            sort=False))
             attr_rect_functions.validate_route_contiguity(df, self.defaults["roadseg"])
 
         except (KeyError, ValueError):
