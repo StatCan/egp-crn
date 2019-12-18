@@ -11,7 +11,7 @@ intersections:
       geom AS geometry,
       count
       FROM inter
-      WHERE COUNT > 2;
+      WHERE COUNT >= 3;
 attributes:
   query:
 

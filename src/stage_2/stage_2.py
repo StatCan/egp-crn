@@ -5,7 +5,6 @@ import os
 import pandas as pd
 import sys
 import uuid
-
 from datetime import datetime
 from geopandas_postgis import PostGIS
 from sqlalchemy import *
@@ -43,7 +42,7 @@ class Stage:
         """Creates the PostGIS database needed for Stage 2."""
 
         # database name which will be used for stage 2
-        nrn_db = "nrn_test"
+        nrn_db = "nrn"
 
         # default postgres connection needed to create the nrn database
         conn = connect(
@@ -158,6 +157,8 @@ class Stage:
         logging.info("Loading SQL yaml.")
         self.sql = helpers.load_yaml("../sql.yaml")
 
+        # source:
+        # https://gis.stackexchange.com/questions/20835/identifying-road-intersections-using-postgis
         logging.info("Executing SQL injection for junction intersections.")
         inter_filter = self.sql["intersections"]["query"]
 
