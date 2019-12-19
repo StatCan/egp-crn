@@ -208,6 +208,7 @@ class Stage:
         junctions.crs = {'init': 'epsg:4617'}
         print(junctions)
 
+        # source:
         # https://gis.stackexchange.com/questions/311320/casting-geometry-to-multi-using-geopandas
         junctions["geometry"] = [MultiPoint([feature]) if type(feature) == Point else feature for feature in junctions["geometry"]]
         self.ferry_gdf["geometry"] = [MultiPoint([feature]) if type(feature) == Point else feature for feature in self.ferry_gdf["geometry"]]
@@ -232,6 +233,66 @@ class Stage:
 
         print(attr_equality)
 
+    def compile_target_attributes(self):
+        """Compiles the target (distribution format) yaml file into a dictionary."""
+
+        logger.info("Compiling target attribute yaml.")
+        self.target_attributes = dict()
+
+        # Load yaml.
+        target_attributes_yaml = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+
+        # Store yaml contents for all contained table names.
+        logger.info("Compiling attributes for target tables.")
+
+        for table in target_attributes_yaml:
+            self.target_attributes[table] = {"spatial": target_attributes_yaml[table]["spatial"], "fields": dict()}
+
+            for field, vals in target_attributes_yaml[table]["fields"].items():
+                # Compile field attributes.
+                try:
+                    self.target_attributes[table]["fields"][field] = str(vals[0])
+                except (AttributeError, KeyError, ValueError):
+                    logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
+                    sys.exit(1)
+
+        print(self.target_attributes)
+
+    def gen_target_dataframes(self):
+        """Creates empty dataframes for all applicable output tables based on the input data field mapping."""
+
+        logger.info("Creating target dataframes for applicable tables.")
+        self.target_gdframes = dict()
+
+        # Retrieve target table name from source attributes.
+        for source, source_yaml in self.source_attributes.items():
+            for table in source_yaml["conform"]:
+
+                logger.info("Creating target dataframe: {}.".format(table))
+
+                # Spatial.
+                if self.target_attributes[table]["spatial"]:
+
+                    # Generate target dataframe from source uuid and geometry fields.
+                    gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
+                                           geometry=self.source_gdframes[source].geometry)
+
+                # Tabular.
+                else:
+
+                    # Generate target dataframe from source uuid field.
+                    gdf = pd.DataFrame(self.source_gdframes[source][["uuid"]])
+
+                # Add target field schema.
+                gdf = gdf.assign(**{field: pd.Series(dtype=dtype) for field, dtype in
+                                    self.target_attributes[table]["fields"].items()})
+
+                # Store result.
+                self.target_gdframes[table] = gdf
+                logger.info("Successfully created target dataframe: {}.".format(table))
+
+        print(self.target_gdframes[table])
+
     def execute(self):
         """Executes an NRN stage."""
 
@@ -242,6 +303,7 @@ class Stage:
         self.gen_ferry()
         self.combine()
         self.fix_junctype()
+        self.compile_target_attributes()
 
 
 def main():
