@@ -186,7 +186,8 @@ def validate_route_contiguity(df, default):
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
                 raise ValueError("Invalid route = \"{}\", based on route attributes: {}. Route must be contiguous. "
-                                 "Review contiguity at the following endpoints:\n{}"
+                                 "Review contiguity at the following endpoints:\n{}\nAdditionally, review the route "
+                                 "name attributes of any ramp features connected to this route."
                                  .format(route_name, ", ".join(field_group), deadends))
 
 
