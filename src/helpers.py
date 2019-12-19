@@ -212,6 +212,8 @@ def load_yaml(path):
 # source:
 # https://www.reddit.com/r/gis/comments/b1ui7h/geopandas_how_to_make_a_graph_out_of_a/
 def gdf_to_nx(gdf_network, keep_attributes=True):
+    """Convert a pandas dataframe to a networkx graph"""
+
     # generate graph from GeoDataFrame of LineStrings
     net = nx.Graph()
     net.graph['crs'] = gdf_network.crs
@@ -232,7 +234,11 @@ def gdf_to_nx(gdf_network, keep_attributes=True):
 
 
 def nx_to_gdf(net, nodes=True, edges=True):
+    """Convert a networkx graph to pandas dataframe."""
+
     # generate nodes and edges geodataframes from graph
+    gdf_nodes, gdf_edges = None, None
+
     if nodes is True:
         node_xy, node_data = zip(*net.nodes(data=True))
         gdf_nodes = gpd.GeoDataFrame(list(node_data), geometry=[Point(i, j) for i, j in node_xy])
