@@ -48,20 +48,88 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
+    def unique_attr_validation(self):
+        """Applies a set of attribute validations unique to one or more fields and / or tables."""
+
+        logger.info("Applying validation set: unique attribute validations.")
+
+        try:
+
+            # Verify tables.
+            for table in ("ferryseg", "roadseg"):
+                if table not in self.dframes:
+                    raise KeyError("Missing required layer: \"{}\".".format(table))
+
+            # Validation: nbrlanes.
+            logger.info("Applying validation: nbrlanes. Target dataframe: roadseg.")
+
+            # Apply function directly to target field.
+            self.dframes["roadseg"]["nbrlanes"] = self.dframes["roadseg"]["nbrlanes"].map(
+                lambda val: attr_rect_functions.validate_nbrlanes(val, default=self.defaults["roadseg"]["nbrlanes"]))
+
+            # Validation: speed.
+            logger.info("Applying validation: speed. Target dataframe: roadseg.")
+
+            # Apply function directly to target field.
+            self.dframes["roadseg"]["speed"] = self.dframes["roadseg"]["speed"].map(
+                lambda val: attr_rect_functions.validate_speed(val, default=self.defaults["roadseg"]["speed"]))
+
+            # Validation: pavement.
+            logger.info("Applying validation: pavement. Target dataframe: roadseg.")
+
+            # Apply function directly to target fields.
+            cols = ["pavstatus", "pavsurf", "unpavsurf"]
+            args = [self.dframes["roadseg"][col].values for col in cols]
+            self.dframes["roadseg"][cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_pavement)(*args))
+
+            # Validation: roadclass-rtnumber1.
+            cols = ["roadclass", "rtnumber1"]
+            for table in ("ferryseg", "roadseg"):
+                logger.info("Applying validation: roadclass-rtnumber1. Target dataframe: {}.".format(table))
+
+                # Compile valid fields, apply function.
+                df = self.dframes[table]
+                args = [df[col].values for col in cols] + [self.defaults[table][cols[1]]]
+                df[cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_roadclass_rtnumber1)(*args))
+
+                # Store results.
+                self.dframes[table] = df
+
+            # Validation: route text.
+            for table in ("roadseg", "ferryseg"):
+                logger.info("Applying validation: route text. Target dataframe: {}.".format(table))
+
+                # Apply function, store results.
+                self.dframes[table] = attr_rect_functions.validate_route_text(self.dframes[table], self.defaults[table])
+
+            # Validation: route contiguity.
+            logger.info("Applying validation: route contiguity. Target dataframe: ferryseg and roadseg.")
+
+            # Concatenate dataframes, apply function.
+            df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True,
+                                            sort=False))
+            attr_rect_functions.validate_route_contiguity(df, self.defaults["roadseg"])
+
+        except (KeyError, ValueError):
+            logger.exception("Unable to apply validation.")
+            sys.exit(1)
+        except SyntaxError as e:
+            logger.exception("Unable to apply validation.")
+            logger.exception(e)
+            sys.exit(1)
+
     def universal_attr_validation(self):
         """Applies a set of universal attribute validations (all fields and / or all tables)."""
 
-        logger.info("Applying validation: universal attribute validations.")
+        logger.info("Applying validation set: universal attribute validations.")
 
         # Iterate data frames.
         for name, df in self.dframes.items():
 
-            logger.info("Target dataframe: {}.".format(name))
-
             try:
 
                 # Validation: strip whitespace.
-                logger.info("Applying validation: strip whitespace.")
+                logger.info("Applying validation: strip whitespace. Target dataframe: {}.".format(name))
 
                 # Compile valid fields, apply function.
                 df_valid = df.select_dtypes(include="object")
@@ -70,7 +138,7 @@ class Stage:
                 df[df_valid.columns] = df_valid.applymap(attr_rect_functions.strip_whitespace)
 
                 # Validation: dates.
-                logger.info("Applying validation: dates.")
+                logger.info("Applying validation: dates. Target dataframe: {}.".format(name))
 
                 # Compile valid fields, apply function.
                 cols = ["credate", "revdate"]
@@ -80,8 +148,12 @@ class Stage:
                 # Store results.
                 self.dframes[name] = df
 
-            except (SyntaxError, ValueError):
+            except ValueError:
                 logger.exception("Unable to apply validation.")
+                sys.exit(1)
+            except SyntaxError as e:
+                logger.exception("Unable to apply validation.")
+                logger.exception(e)
                 sys.exit(1)
 
     def execute(self):
@@ -89,6 +161,7 @@ class Stage:
 
         self.load_gpkg()
         self.universal_attr_validation()
+        self.unique_attr_validation()
 
 
 @click.command()
