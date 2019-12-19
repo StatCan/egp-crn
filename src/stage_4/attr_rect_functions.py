@@ -185,10 +185,10 @@ def validate_route_contiguity(df, default):
                 deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
-                raise ValueError("Invalid route = \"{}\", based on route attributes: {}. Route must be contiguous. "
-                                 "Review contiguity at the following endpoints:\n{}\nAdditionally, review the route "
-                                 "name attributes of any ramp features connected to this route."
-                                 .format(route_name, ", ".join(field_group), deadends))
+                raise ValueError("Invalid route = \"{}\", based on route attributes: {}."
+                                 "\nRoute must be contiguous. Review contiguity at the following endpoints:\n{}"
+                                 "\nAdditionally, review the route name attributes of any ramp features connected to "
+                                 "this route.".format(route_name, ", ".join(field_group), deadends))
 
 
 def validate_speed(speed, default):
