@@ -212,6 +212,8 @@ def load_yaml(path):
 def gdf_to_nx(gdf, keep_attributes=True):
     """Converts a pandas dataframe to a networkx graph."""
 
+    logger.info("Loading GeoPandas GeoDataFrame into NetworkX graph.")
+
     # Generate graph from GeoDataFrame of LineStrings, keeping crs property and (optionally) fields.
     g = nx.Graph()
     g.graph['crs'] = gdf.crs
@@ -233,11 +235,15 @@ def gdf_to_nx(gdf, keep_attributes=True):
         # Add edges.
         g.add_edges_from(edges, **attributes)
 
+    logger.info("Successfully loaded GeoPandas GeoDataFrame into NetworkX graph.")
+
     return g
 
 
 def nx_to_gdf(g, nodes=True, edges=True):
     """Converts a networkx graph to pandas dataframe."""
+
+    logger.info("Loading NetworkX graph into GeoPandas GeoDataFrame.")
 
     # Generate GeoDataFrames for both networkx nodes and edges.
     gdf_nodes, gdf_edges = None, None
@@ -253,6 +259,8 @@ def nx_to_gdf(g, nodes=True, edges=True):
         starts, ends, edge_data = zip(*g.edges(data=True))
         gdf_edges = gpd.GeoDataFrame(list(edge_data))
         gdf_edges.crs = g.graph['crs']
+
+    logger.info("Successfully loaded GeoPandas GeoDataFrame into NetworkX graph.")
 
     # Conditionally return nodes and / or edges.
     if all([nodes, edges]):
