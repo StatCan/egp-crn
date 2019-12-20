@@ -80,6 +80,30 @@ def validate_dates(credate, revdate, default):
     return credate, revdate
 
 
+def validate_exitnbr_conflict(df, default):
+    """
+    Applies a set of validations to exitnbr field.
+    Parameter default should refer to exitnbr.
+    """
+
+    # TODO: use nid field to compile road elements, flag elements with > 1 exitnbr (other than default value).
+
+
+def validate_exitnbr_roadclass(exitnbr, roadclass, default):
+    """
+    Applies a set of validations to exitnbr and roadclass fields.
+    Parameter default should refer to exitnbr.
+    """
+
+    # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value.
+    if str(exitnbr) != str(default):
+        if roadclass not in ("Ramp", "Service Lane"):
+            raise ValueError("Invalid value for roadclass = \"{}\". When exitnbr is not the default field value, "
+                             "roadclass must be \"Ramp\" or \"Service Lane\".".format(roadclass))
+
+    return exitnbr, roadclass
+
+
 def validate_nbrlanes(nbrlanes, default):
     """Applies a set of validations to nbrlanes field."""
 
@@ -168,9 +192,13 @@ def validate_route_contiguity(df, default):
         route_names = [names[np.where(names != default[field_group[index]])] for index, names in enumerate(route_names)]
         # Concatenate arrays.
         route_names = np.concatenate(route_names, axis=None)
+        # Sort route names.
+        route_names = sorted(route_names)
 
         # Iterate route names.
         for route_name in route_names:
+
+            logger.info("Validating route: \"{}\".".format(route_name))
 
             # Subset dataframe to those records with route name in at least one field.
             route_df = df.iloc[list(np.where(df[field_group] == route_name)[0])]

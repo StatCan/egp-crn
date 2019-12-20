@@ -110,6 +110,21 @@ class Stage:
                                             sort=False))
             attr_rect_functions.validate_route_contiguity(df, self.defaults["roadseg"])
 
+            # Validation: exitnbr-roadclass.
+            logger.info("Applying validation: exitnbr-roadclass. Target dataframe: roadseg.")
+
+            # Apply function directly to target fields.
+            cols = ["exitnbr", "roadclass"]
+            args = [self.dframes["roadseg"][col].values for col in cols] + [self.defaults["roadseg"][cols[0]]]
+            self.dframes["roadseg"][cols] = np.column_stack(np.vectorize(
+                attr_rect_functions.validate_exitnbr_roadclass)(*args))
+
+            # Validation: exitnbr conflict.
+            logger.info("Applying validation: exitnbr conflict. Target dataframe: roadseg.")
+
+            # Apply function.
+            attr_rect_functions.validate_exitnbr_conflict(self.dframes["roadseg"], self.defaults["roadseg"]["exitnbr"])
+
         except (KeyError, ValueError):
             logger.exception("Unable to apply validation.")
             sys.exit(1)
