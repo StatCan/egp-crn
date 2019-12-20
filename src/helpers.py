@@ -209,49 +209,55 @@ def load_yaml(path):
             logger.exception("Unable to load yaml file: {}.".format(path))
 
 
-# source:
-# https://www.reddit.com/r/gis/comments/b1ui7h/geopandas_how_to_make_a_graph_out_of_a/
-def gdf_to_nx(gdf_network, keep_attributes=True):
-    """Convert a pandas dataframe to a networkx graph"""
+def gdf_to_nx(gdf, keep_attributes=True):
+    """Converts a pandas dataframe to a networkx graph."""
 
-    # generate graph from GeoDataFrame of LineStrings
-    net = nx.Graph()
-    net.graph['crs'] = gdf_network.crs
-    fields = list(gdf_network.columns) if keep_attributes else None
+    # Generate graph from GeoDataFrame of LineStrings, keeping crs property and (optionally) fields.
+    g = nx.Graph()
+    g.graph['crs'] = gdf.crs
+    fields = list(gdf.columns) if keep_attributes else None
 
-    for index, row in gdf_network.iterrows():
-        first = row.geometry.coords[0]
-        last = row.geometry.coords[-1]
+    # Iterate rows.
+    for index, row in gdf.iterrows():
 
+        # Compile geometry as edges.
+        coords = [*row.geometry.coords]
+        edges = [[coords[i], coords[i + 1]] for i in range(len(coords) - 1)]
+
+        # Compile attributes.
+        attributes = dict()
         if keep_attributes:
-            data = [row[f] for f in fields]
+            data = [row[field] for field in fields]
             attributes = dict(zip(fields, data))
-            net.add_edge(first, last, **attributes)
-        else:
-            net.add_edge(first, last)
 
-    return net
+        # Add edges.
+        g.add_edges_from(edges, **attributes)
+
+    return g
 
 
-def nx_to_gdf(net, nodes=True, edges=True):
-    """Convert a networkx graph to pandas dataframe."""
+def nx_to_gdf(g, nodes=True, edges=True):
+    """Converts a networkx graph to pandas dataframe."""
 
-    # generate nodes and edges geodataframes from graph
+    # Generate GeoDataFrames for both networkx nodes and edges.
     gdf_nodes, gdf_edges = None, None
 
-    if nodes is True:
-        node_xy, node_data = zip(*net.nodes(data=True))
+    # Compile node geometry and attributes.
+    if nodes:
+        node_xy, node_data = zip(*g.nodes(data=True))
         gdf_nodes = gpd.GeoDataFrame(list(node_data), geometry=[Point(i, j) for i, j in node_xy])
-        gdf_nodes.crs = net.graph['crs']
+        gdf_nodes.crs = g.graph['crs']
 
-    if edges is True:
-        starts, ends, edge_data = zip(*net.edges(data=True))
+    # Compile edge geometry and attributes.
+    if edges:
+        starts, ends, edge_data = zip(*g.edges(data=True))
         gdf_edges = gpd.GeoDataFrame(list(edge_data))
-        gdf_edges.crs = net.graph['crs']
+        gdf_edges.crs = g.graph['crs']
 
-    if nodes is True and edges is True:
+    # Conditionally return nodes and / or edges.
+    if all([nodes, edges]):
         return gdf_nodes, gdf_edges
-    elif nodes is True and edges is False:
+    elif nodes is True:
         return gdf_nodes
     else:
         return gdf_edges
