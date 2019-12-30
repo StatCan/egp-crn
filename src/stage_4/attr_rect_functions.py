@@ -86,7 +86,17 @@ def validate_exitnbr_conflict(df, default):
     Parameter default should refer to exitnbr.
     """
 
-    # TODO: use nid field to compile road elements, flag elements with > 1 exitnbr (other than default value).
+    # Iterate road elements comprised of multiple road segments (via nid field).
+    for nid in df[df["nid"].duplicated()]["nid"]:
+
+        # Compile exitnbr values.
+        vals = df[(df["nid"] == nid) & (df["exitnbr"] != default)]["exitnbr"].unique()
+
+        # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
+        if len(vals) > 1:
+            raise ValueError("Invalid exitnbr for road element nid = \"{}\". A road element must have <= 1 exitnbr "
+                             "value, excluding the default field value. Values found: {}."
+                             .format(nid, ", ".join(map('"{}"'.format, sorted(vals)))))
 
 
 def validate_exitnbr_roadclass(exitnbr, roadclass, default):
@@ -155,23 +165,6 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
     return roadclass, rtnumber1
 
 
-def validate_route_text(df, default):
-    """
-    Applies a set of validations to route attributes:
-        rtename1en, rtename2en, rtename3en, rtename4en,
-        rtename1fr, rtename2fr, rtename3fr, rtename4fr.
-    Parameter default should be a dictionary with a key for each of the required fields.
-    """
-
-    # Validation: set text-based route fields to title case.
-    cols = ["rtename1en", "rtename2en", "rtename3en", "rtename4en",
-            "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
-    for col in cols:
-        df[col] = df[col].map(lambda route: route if route == default[col] else route.title())
-
-    return df
-
-
 def validate_route_contiguity(df, default):
     """
     Applies a set of validations to route attributes (rows represent field groups):
@@ -217,6 +210,23 @@ def validate_route_contiguity(df, default):
                                  "\nRoute must be contiguous. Review contiguity at the following endpoints:\n{}"
                                  "\nAdditionally, review the route name attributes of any ramp features connected to "
                                  "this route.".format(route_name, ", ".join(field_group), deadends))
+
+
+def validate_route_text(df, default):
+    """
+    Applies a set of validations to route attributes:
+        rtename1en, rtename2en, rtename3en, rtename4en,
+        rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+    Parameter default should be a dictionary with a key for each of the required fields.
+    """
+
+    # Validation: set text-based route fields to title case.
+    cols = ["rtename1en", "rtename2en", "rtename3en", "rtename4en",
+            "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
+    for col in cols:
+        df[col] = df[col].map(lambda route: route if route == default[col] else route.title())
+
+    return df
 
 
 def validate_speed(speed, default):
