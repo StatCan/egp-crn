@@ -125,6 +125,12 @@ class Stage:
             # Apply function.
             attr_rect_functions.validate_exitnbr_conflict(self.dframes["roadseg"], self.defaults["roadseg"]["exitnbr"])
 
+            # Validation: roadclass-structtype.
+            logger.info("Applying validation: roadclass-structtype. Target dataframe: roadseg.")
+
+            # Apply function.
+            attr_rect_functions.validate_roadclass_structtype(self.dframes["roadseg"])
+
         except (KeyError, ValueError):
             logger.exception("Unable to apply validation.")
             sys.exit(1)

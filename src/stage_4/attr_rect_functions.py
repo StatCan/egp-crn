@@ -165,6 +165,18 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
     return roadclass, rtnumber1
 
 
+def validate_roadclass_structtype(df):
+    """
+    Applies a set of validations to roadclass and structtype fields.
+    """
+
+    # Iterate road elements (via nid field).
+    for nid in df["nid"].unique():
+
+        # Detect self-intersection.
+        # ....
+
+
 def validate_route_contiguity(df, default):
     """
     Applies a set of validations to route attributes (rows represent field groups):
