@@ -3,6 +3,7 @@ import logging
 import networkx as nx
 import numpy as np
 import os
+import shapely.ops
 import sys
 from datetime import datetime
 
@@ -87,7 +88,7 @@ def validate_exitnbr_conflict(df, default):
     """
 
     # Iterate road elements comprised of multiple road segments (via nid field).
-    for nid in df[df["nid"].duplicated()]["nid"]:
+    for nid in df[df["nid"].duplicated()]["nid"].unique():
 
         # Compile exitnbr values.
         vals = df[(df["nid"] == nid) & (df["exitnbr"] != default)]["exitnbr"].unique()
@@ -168,11 +169,39 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
 def validate_roadclass_structtype(df):
     """Applies a set of validations to roadclass and structtype fields."""
 
-    # Iterate road elements (via nid field).
-    for nid in df["nid"].unique():
+    flagged_nids = list()
 
-        # Detect self-intersection.
-        # ....
+    # Identify self-intersections formed by road segments.
+
+    # Load dataframe as networkx graph.
+    segments_graph = helpers.gdf_to_nx(df, keep_attributes=True, endpoints_only=True)
+
+    # Identify and compile segment values of networkx selfloops.
+    selfloops = [edge[-1] for edge in segments_graph.selfloop_edges(data=True)]
+
+    # Validation: for self-intersecting road segments, ensure structtype != "None".
+    selfloop_errors = [edge["uuid"] for edge in selfloops if str(edge["structtype"]) == "None"]
+
+    if len(selfloop_errors):
+        raise ValueError("Invalid value for structtype = \"None\". For self-intersecting road segments, structtype "
+                         "must not be \"None\"."
+                         "\nReview the following road segments (listed by uuid):\n{}"
+                         .format("\n".join(selfloop_errors)))
+
+    # Identify self-intersections formed by road elements comprised of multiple road segments.
+    selfloop_elements = list()
+
+    # Iterate road elements comprised of multiple road segments (via nid field).
+    for nid in df[df["nid"].duplicated()]["nid"].unique():
+
+        # Dissolve road segments.
+        linemerge = shapely.ops.linemerge(df[df["nid"] == nid]["geometry"].values)
+
+        # Identify self-intersections.
+        if linemerge.is_ring or not linemerge.is_simple:
+
+            # Store element nid.
+            flagged_nids.append(nid)
 
 
 def validate_route_contiguity(df, default):
@@ -212,7 +241,7 @@ def validate_route_contiguity(df, default):
             # Validate contiguity (networkx connectivity).
             if not nx.is_connected(route_graph):
 
-                # Identify deadends (locations of discontiguity), limit to 20.
+                # Identify deadends (locations of discontiguity).
                 deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
