@@ -209,7 +209,7 @@ def load_yaml(path):
             logger.exception("Unable to load yaml file: {}.".format(path))
 
 
-def gdf_to_nx(gdf, keep_attributes=True):
+def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
     """Converts a pandas dataframe to a networkx graph."""
 
     logger.info("Loading GeoPandas GeoDataFrame into NetworkX graph.")
@@ -224,7 +224,10 @@ def gdf_to_nx(gdf, keep_attributes=True):
 
         # Compile geometry as edges.
         coords = [*row.geometry.coords]
-        edges = [[coords[i], coords[i + 1]] for i in range(len(coords) - 1)]
+        if endpoints_only:
+            edges = [[coords[0], coords[-1]]]
+        else:
+            edges = [[coords[i], coords[i + 1]] for i in range(len(coords) - 1)]
 
         # Compile attributes.
         attributes = dict()

@@ -166,9 +166,7 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
 
 
 def validate_roadclass_structtype(df):
-    """
-    Applies a set of validations to roadclass and structtype fields.
-    """
+    """Applies a set of validations to roadclass and structtype fields."""
 
     # Iterate road elements (via nid field).
     for nid in df["nid"].unique():
