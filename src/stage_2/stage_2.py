@@ -3,10 +3,14 @@ import logging
 import networkx as nx
 import os
 import pandas as pd
+import subprocess
 import sys
 import uuid
+import urllib.request
+import zipfile
 from datetime import datetime
 from geopandas_postgis import PostGIS
+from osgeo import ogr
 from sqlalchemy import *
 from sqlalchemy.engine.url import URL
 from shapely.geometry.multipoint import MultiPoint
@@ -220,11 +224,19 @@ class Stage:
     def fix_junctype(self):
         """Generate attributes."""
 
+        logging.info("Downloading administrative boundary file.")
+        adm_file = "http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip"
+        urllib.request.urlretrieve(adm_file, '../../data/raw/boundary.zip')
+        with zipfile.ZipFile("../../data/raw/boundary.zip", "r") as zip_ref:
+            zip_ref.extractall("../../data/raw/boundary")
+
         logging.info("Reading administrative boundary file.")
-        nb_adm = gpd.read_file("../../data/raw/nb_adm.gpkg", driver="GPKG")
+        subprocess.run("ogr2ogr -f GPKG -where PRUID='13' ../../data/raw/boundary/boundary.gpkg ../../data/raw/boundary/lpr_000a16a_e.shp -t_srs EPSG:4617 -nlt MULTIPOLYGON")
+        bound_adm = gpd.read_file("../../data/raw/boundary/boundary.gpkg", driver="GeoPackage")
+        bound_adm.crs = {'init': 'epsg:4617'}
 
         logging.info("Importing administrative boundary into PostGIS.")
-        nb_adm.postgis.to_postgis(con=self.engine, table_name="nb_adm", geometry="MultiPolygon", if_exists="replace")
+        bound_adm.postgis.to_postgis(con=self.engine, table_name="adm", if_exists="replace", geometry='MultiPolygon')
 
         attr_fix = self.sql["attributes"]["query"]
 
@@ -303,7 +315,6 @@ class Stage:
         self.gen_ferry()
         self.combine()
         self.fix_junctype()
-        self.compile_target_attributes()
 
 
 def main():
