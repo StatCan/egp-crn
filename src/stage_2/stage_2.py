@@ -222,7 +222,7 @@ class Stage:
         self.ferry_gdf.postgis.to_postgis(con=self.engine, table_name='stage_2_ferry_junc', geometry='MULTIPOINT', if_exists='replace')
 
     def fix_junctype(self):
-        """Generate attributes."""
+        """Fix junctype of junctions outside of administrative boundaries."""
 
         logging.info("Downloading administrative boundary file.")
         adm_file = "http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip"
@@ -241,9 +241,14 @@ class Stage:
         attr_fix = self.sql["attributes"]["query"]
 
         logging.info("Testing for junction equality and altering attributes.")
-        attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine)
+        self.attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine)
 
-        print(attr_equality)
+        print(self.attr_equality)
+
+    def gen_junctions(self):
+        """Generate final dataset."""
+
+        self.attr_equality.to_file("../../data/interim/nb.gpkg", layer='junction', driver="GPKG")
 
     def compile_target_attributes(self):
         """Compiles the target (distribution format) yaml file into a dictionary."""
@@ -315,6 +320,7 @@ class Stage:
         self.gen_ferry()
         self.combine()
         self.fix_junctype()
+        self.gen_junctions()
 
 
 def main():
