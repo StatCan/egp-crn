@@ -33,7 +33,7 @@ class Stage:
         self.source = source.lower()
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
+        self.data_path = os.path.abspath("../../data/processed/{}.gpkg".format(self.source))
         if not os.path.exists(self.data_path):
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
@@ -125,8 +125,8 @@ class Stage:
             # Apply function.
             attr_rect_functions.validate_exitnbr_conflict(self.dframes["roadseg"], self.defaults["roadseg"]["exitnbr"])
 
-            # Validation: roadclass-self-intersection.
-            logger.info("Applying validation: roadclass-self-intersection. Target dataframe: roadseg.")
+            # Validation: roadclass self-intersection.
+            logger.info("Applying validation: roadclass self-intersection. Target dataframe: roadseg.")
 
             # Apply function.
             attr_rect_functions.validate_roadclass_self_intersection(self.dframes["roadseg"])
