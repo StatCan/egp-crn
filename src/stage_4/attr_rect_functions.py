@@ -264,12 +264,16 @@ def validate_route_contiguity(df, default):
                         ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"],
                         ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]]:
 
+        logger.info("Validating routes in field group: {}.".format(", ".join(map("\"{}\"".format, field_group))))
+
         # Compile route names.
         route_names = [df[col].unique() for col in field_group]
         # Remove default values.
         route_names = [names[np.where(names != default[field_group[index]])] for index, names in enumerate(route_names)]
         # Concatenate arrays.
         route_names = np.concatenate(route_names, axis=None)
+        # Remove duplicates.
+        route_names = np.unique(route_names)
         # Sort route names.
         route_names = sorted(route_names)
 
