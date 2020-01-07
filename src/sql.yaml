@@ -31,10 +31,10 @@ attributes:
                            AND a.id <> b.id
                            AND a.junctype = 'Intersection');
 
-    ALTER TABLE stage_2_junc ADD COLUMN exitnbr character varying(10);
-
     UPDATE stage_2_junc a SET exitnbr = b.exitnbr FROM stage_2 b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
 
     UPDATE stage_2_junc a SET junctype = 'NatProvTer' WHERE a.id IN (SELECT a.id FROM stage_2_junc a, adm b WHERE ST_Disjoint(a.geom, b.geom));
+
+    ALTER TABLE stage_2_junc DROP COLUMN id;
 
     SELECT * FROM stage_2_junc;
