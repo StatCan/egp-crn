@@ -93,15 +93,28 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
 
     # Export target dataframes to GeoPackage layers.
     try:
+
         for table_name, df in dataframes.items():
 
             logger.info("Writing to GeoPackage {}, layer={}.".format(output_path, table_name))
 
             # Reset index to preserve attribute as column.
-            df.reset_index(inplace=True)
+            df.reset_index(drop=True, inplace=True)
 
             # Spatial data.
             if "geometry" in dir(df):
+
+                # Remove pre-existing layer from GeoPackage.
+                try:
+                    con = sqlite3.connect(output_path)
+                    con.cursor().execute("drop table if exists {};".format(table_name))
+                    con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
+                    con.commit()
+                    con.close()
+                except sqlite3.Error:
+                    logger.exception("SQLite error raised when connecting to database: \"{}\".".format(output_path))
+                    sys.exit(1)
+
                 # Open GeoPackage.
                 with fiona.open(output_path, "w", layer=table_name, driver="GPKG", crs=df.crs,
                                 schema=gpd.io.file.infer_schema(df)) as gpkg:
@@ -115,10 +128,10 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
                 con = sqlite3.connect(output_path)
 
                 # Write to GeoPackage.
-                df.to_sql(table_name, con)
+                df.to_sql(table_name, con, if_exists="replace")
 
                 # Insert record into gpkg_contents metadata table.
-                con.cursor().execute("insert into 'gpkg_contents' ('table_name', 'data_type') values "
+                con.cursor().execute("insert or ignore into gpkg_contents (table_name, data_type) values "
                                      "('{}', 'attributes');".format(table_name))
 
                 # Commit and close db connection.
