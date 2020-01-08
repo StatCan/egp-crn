@@ -33,7 +33,7 @@ class Stage:
         self.source = source.lower()
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath("../../data/processed/{}.gpkg".format(self.source))
+        self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
         if not os.path.exists(self.data_path):
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
