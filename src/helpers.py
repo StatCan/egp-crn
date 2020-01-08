@@ -10,6 +10,7 @@ import sqlite3
 import sys
 import time
 import yaml
+from osgeo import ogr
 from shapely.geometry.point import Point
 
 
@@ -94,29 +95,33 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
     # Export target dataframes to GeoPackage layers.
     try:
 
+        # Create sqlite and ogr GeoPackage connections.
+        con = sqlite3.connect(output_path)
+        con_ogr = ogr.GetDriverByName("GPKG").Open(output_path, update=1)
+
+        # Iterate dataframes.
         for table_name, df in dataframes.items():
 
-            logger.info("Writing to GeoPackage {}, layer={}.".format(output_path, table_name))
+            logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
 
             # Reset index to preserve attribute as column.
             df.reset_index(drop=True, inplace=True)
 
+            # Remove pre-existing layer from GeoPackage.
+            if table_name in [layer.GetName() for layer in con_ogr]:
+
+                logger.info("Layer already exists: \"{}\". Removing layer from GeoPackage.".format(table_name))
+                con_ogr.DeleteLayer(table_name)
+
+                # Remove metadata table.
+                con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
+                con.commit()
+
             # Spatial data.
             if "geometry" in dir(df):
 
-                # Remove pre-existing layer from GeoPackage.
-                try:
-                    con = sqlite3.connect(output_path)
-                    con.cursor().execute("drop table if exists {};".format(table_name))
-                    con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
-                    con.commit()
-                    con.close()
-                except sqlite3.Error:
-                    logger.exception("SQLite error raised when connecting to database: \"{}\".".format(output_path))
-                    sys.exit(1)
-
                 # Open GeoPackage.
-                with fiona.open(output_path, "w", layer=table_name, driver="GPKG", crs=df.crs,
+                with fiona.open(output_path, "w", overwrite=True, layer=table_name, driver="GPKG", crs=df.crs,
                                 schema=gpd.io.file.infer_schema(df)) as gpkg:
 
                     # Write to GeoPackage.
@@ -124,24 +129,24 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
 
             # Tabular data.
             else:
-                # Create sqlite connection.
-                con = sqlite3.connect(output_path)
 
                 # Write to GeoPackage.
                 df.to_sql(table_name, con, if_exists="replace")
 
-                # Insert record into gpkg_contents metadata table.
+                # Add metedata record to gpkg_contents.
                 con.cursor().execute("insert or ignore into gpkg_contents (table_name, data_type) values "
                                      "('{}', 'attributes');".format(table_name))
-
-                # Commit and close db connection.
                 con.commit()
-                con.close()
 
-            logger.info("Successfully exported layer.")
+            logger.info("Successfully exported layer: \"{}\".".format(table_name))
 
-    except (ValueError, fiona.errors.FionaValueError):
-        logger.exception("ValueError raised when writing GeoPackage layer.")
+        # Commit and close db connection.
+        con.commit()
+        con.close()
+        del con_ogr
+
+    except (ValueError, fiona.errors.FionaValueError, sqlite3.Error):
+        logger.exception("ValueError raised when writing to GeoPackage: \"{}\".".format(output_path))
         sys.exit(1)
 
 
@@ -190,7 +195,7 @@ def load_gpkg(gpkg_path):
 
                     # Store result.
                     dframes[table_name] = df
-                    logger.info("Successfully loaded layer into dataframe.")
+                    logger.info("Successfully loaded layer into dataframe: \"{}\".".format(table_name))
 
                 else:
                     logger.warning("GeoPackage layer not found: \"{}\".".format(table_name))
@@ -219,7 +224,7 @@ def load_yaml(path):
         try:
             return yaml.safe_load(f)
         except (ValueError, yaml.YAMLError):
-            logger.exception("Unable to load yaml file: {}.".format(path))
+            logger.exception("Unable to load yaml file: \"{}\".".format(path))
 
 
 def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
