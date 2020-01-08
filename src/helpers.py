@@ -104,9 +104,6 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
 
             logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
 
-            # Reset index to preserve attribute as column.
-            df.reset_index(drop=True, inplace=True)
-
             # Remove pre-existing layer from GeoPackage.
             if table_name in [layer.GetName() for layer in con_ogr]:
 
@@ -116,6 +113,9 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
                 # Remove metadata table.
                 con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
                 con.commit()
+
+            # Set index to data column.
+            df.reset_index(drop=False, inplace=True)
 
             # Spatial data.
             if "geometry" in dir(df):
@@ -131,7 +131,7 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
             else:
 
                 # Write to GeoPackage.
-                df.to_sql(table_name, con, if_exists="replace")
+                df.to_sql(table_name, con, if_exists="replace", index=False)
 
                 # Add metedata record to gpkg_contents.
                 con.cursor().execute("insert or ignore into gpkg_contents (table_name, data_type) values "
@@ -146,7 +146,7 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
         del con_ogr
 
     except (ValueError, fiona.errors.FionaValueError, sqlite3.Error):
-        logger.exception("ValueError raised when writing to GeoPackage: \"{}\".".format(output_path))
+        logger.exception("Error raised when writing to GeoPackage: \"{}\".".format(output_path))
         sys.exit(1)
 
 
