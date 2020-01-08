@@ -41,6 +41,14 @@ class Stage:
         # Compile default field values.
         self.defaults = helpers.compile_default_values()
 
+    def export_gpkg(self):
+        """Exports the dataframes as GeoPackage layers."""
+
+        logger.info("Exporting dataframes to GeoPackage layers.")
+
+        # Export target dataframes to GeoPackage layers.
+        helpers.export_gpkg(self.target_gdframes, self.output_path)
+
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
 
@@ -183,6 +191,7 @@ class Stage:
         self.load_gpkg()
         self.universal_attr_validation()
         self.unique_attr_validation()
+        self.export_gpkg()
 
 
 @click.command()

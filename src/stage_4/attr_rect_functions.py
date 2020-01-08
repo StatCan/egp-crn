@@ -3,7 +3,6 @@ import logging
 import networkx as nx
 import numpy as np
 import os
-import pandas as pd
 import shapely.ops
 import sys
 from datetime import datetime
@@ -90,10 +89,11 @@ def validate_exitnbr_conflict(df, default):
     Parameter default should refer to exitnbr.
     """
 
-    # Iterate road elements comprised of multiple road segments (via nid field).
-    for nid in df[df["nid"].duplicated(keep=False)]["nid"].unique():
+    # Iterate road elements comprised of multiple road segments (via nid field) and where exitnbr is not the default
+    # value.
+    for nid in df[(df["nid"].duplicated(keep=False)) & (df["exitnbr"] != default)]["nid"].unique():
 
-        # Compile exitnbr values.
+        # Compile exitnbr values, excluding the default value.
         vals = df[(df["nid"] == nid) & (df["exitnbr"] != default)]["exitnbr"].unique()
 
         # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
@@ -169,7 +169,7 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
     return roadclass, rtnumber1
 
 
-def validate_roadclass_self_intersection(df, segments):
+def validate_roadclass_self_intersection(df):
     """Applies a set of validations to roadclass and structtype fields."""
 
     # Validation: for self-intersecting road segments, ensure structtype != "None".
@@ -215,7 +215,8 @@ def validate_roadclass_self_intersection(df, segments):
             flag_nids.append(nid)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
-    flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))]["uuid"].values
+    # Note: uuid is stored as the index.
+    flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
 
     # Raise validation.
     if len(flag_uuids):
@@ -239,7 +240,8 @@ def validate_roadclass_structtype(df):
     flag_segments = segments[flag_self_intersect]
 
     # Validation: for self-intersecting road segments, ensure structtype != "None".
-    flag_uuids = flag_segments[flag_segments["structtype"] == "None"]["uuid"].values
+    # Note: uuid is stored as the index.
+    flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
 
     if len(flag_uuids):
         raise ValueError("Invalid value for structtype = \"None\". For self-intersecting road segments, structtype "
