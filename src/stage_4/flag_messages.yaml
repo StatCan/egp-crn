@@ -1,0 +1,31 @@
+validate_dates:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: Invalid length for credate and / or revdate. Length must be 4, 6, or 8.
+    2: |
+      Invalid records identified for error 2 (listed by uuid):\n{0}
+      Error 2 details: Invalid year for credate and / or revdate. Indexes 0:3 must be between 1960 and today, inclusively.
+    3: |
+      Invalid records identified for error 3 (listed by uuid):\n{0}
+      Error 3 details: Invalid month for credate and / or revdate. Indexes 4:5 must be between 01 and 12, inclusively.
+    4: |
+      Invalid records identified for error 4 (listed by uuid):\n{0}
+      Error 4 details: Invalid day for credate and / or revdate. Indexes 6:7 must be a valid zero-padded day of the given month and year.
+    5: |
+      Invalid records identified for error 5 (listed by uuid):\n{0}
+      Error 5 details: Future date specified for credate and / or revdate. Date must be <= today.
+    6: |
+      Invalid records identified for error 6 (listed by uuid):\n{0}
+      Error 6 details: Invalid combination for credate-revdate. credate must be <= revdate.
+  mods:
+    1: ...
+validate_exitnbr_conflict:
+validate_exitnbr_roadclass:
+validate_nbrlanes:
+validate_pavement:
+validate_roadclass_rtnumber1:
+validate_roadclass_self_intersection:
+validate_roadclass_structtype:
+validate_route_contiguity:
+validate_speed:

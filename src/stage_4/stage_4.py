@@ -49,6 +49,17 @@ class Stage:
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.target_gdframes, self.output_path)
 
+    def gen_flag_variables(self):
+        """Generates variables required for storing and logging error and modification flags for records."""
+
+        logger.info("Generating flag variables.")
+
+        # Create flag dataframes for each gpkg dataframe.
+        self.flags = {name: pd.DataFrame({"uuid": df.index.values}) for name, df in self.dframes.items()}
+
+        # Load flag messages yaml.
+        domains_yaml = helpers.load_yaml(os.path.abspath("../flag_messages.yaml"))
+
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
 
@@ -108,7 +119,7 @@ class Stage:
                 logger.info("Applying validation: route text. Target dataframe: {}.".format(table))
 
                 # Apply function, store results.
-                self.dframes[table] = attr_rect_functions.validate_route_text(self.dframes[table], self.defaults[table])
+                self.dframes[table] = attr_rect_functions.title_route_text(self.dframes[table], self.defaults[table])
 
             # Validation: route contiguity.
             logger.info("Applying validation: route contiguity. Target dataframe: ferryseg and roadseg.")
@@ -172,7 +183,9 @@ class Stage:
                 # Compile valid fields, apply function.
                 cols = ["credate", "revdate"]
                 args = [df[col].values for col in cols] + [self.defaults[name][cols[0]]]
-                df[cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_dates)(*args))
+                df[cols], self.flags[name][["validate_dates_errors", "validate_dates_mods"]] = \
+                    np.column_stack(np.vectorize(attr_rect_functions.validate_dates)(*args))
+                # TODO: return mod flag from function.
 
                 # Store results.
                 self.dframes[name] = df
@@ -189,6 +202,7 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
+        self.gen_flag_variables()
         self.universal_attr_validation()
         self.unique_attr_validation()
         self.export_gpkg()

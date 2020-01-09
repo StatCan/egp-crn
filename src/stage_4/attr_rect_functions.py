@@ -3,6 +3,7 @@ import logging
 import networkx as nx
 import numpy as np
 import os
+import pandas as pd
 import shapely.ops
 import sys
 from datetime import datetime
@@ -20,6 +21,32 @@ def strip_whitespace(val):
     """Strips leading and trailing whitespace from the given value."""
 
     return val.strip()
+
+
+def title_route_text(df, default):
+    """
+    Sets to title case all route name attributes:
+        rtename1en, rtename2en, rtename3en, rtename4en,
+        rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+    Parameter default should be a dictionary with a key for each of the required fields.
+    """
+
+    # Set text-based route fields to title case, except default value.
+    cols = ["rtename1en", "rtename2en", "rtename3en", "rtename4en",
+            "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
+
+    for col in cols:
+        orig_series = df[col]
+        df[col] = df[col].map(lambda route: route if route == default[col] else route.title())
+
+        # Log modifications.
+        mod_uuids = pd.Series(orig_series != df[col]).index.values
+
+        if len(mod_uuids):
+            logger.info("Modified the following records (listed by uuid):\n{}"
+                        "\nModification details: set text values to title case.".format("\n".join(mod_uuids)))
+
+    return df
 
 
 def validate_dates(credate, revdate, default):
@@ -40,7 +67,7 @@ def validate_dates(credate, revdate, default):
 
             # Validation: length must be 4, 6, or 8.
             if len(date) not in (4, 6, 8):
-                raise ValueError("Invalid length for credate / revdate = \"{}\".".format(date))
+                return date, 1
 
             # Rectification: default to 01 for missing month and day values.
             while len(date) in (4, 6):
@@ -51,36 +78,36 @@ def validate_dates(credate, revdate, default):
 
             # Year.
             if not 1960 <= year <= int(today[:4]):
-                raise ValueError("Invalid year for credate / revdate at index 0:3 = \"{}\".".format(year))
+                return date, 2
 
             # Month.
             if month not in range(1, 12 + 1):
-                raise ValueError("Invalid month for credate / revdate at index 4:5 = \"{}\".".format(month))
+                return date, 3
 
             # Day.
             if not 1 <= day <= calendar.mdays[month]:
                 if not all([day == 29, month == 2, calendar.isleap(year)]):
-                    raise ValueError("Invalid day for credate / revdate at index 6:7 = \"{}\".".format(day))
+                    return date, 4
 
             # Validation: ensure value <= today.
             if year == today[:4]:
                 if not all([month <= today[4:6], day <= today[6:8]]):
-                    raise ValueError("Invalid date for credate / revdate = \"{}\". "
-                                     "Date cannot be in the future.".format(date, today))
+                    return date, 5
 
-        return date
+        return date, 0
 
     # Validation: individual date validations.
-    credate = validate(credate)
-    revdate = validate(revdate)
+    credate, flag = validate(credate)
+    if flag == 0:
+        revdate, flag = validate(revdate)
 
-    # Validation: ensure credate <= revdate.
-    if credate != default and revdate != default:
-        if not int(credate) <= int(revdate):
-            raise ValueError("Invalid date combination for credate = \"{}\", revdate = \"{}\". "
-                             "credate must precede or equal revdate.".format(credate, revdate))
+    if flag == 0:
+        # Validation: ensure credate <= revdate.
+        if credate != default and revdate != default:
+            if not int(credate) <= int(revdate):
+                flag = 6
 
-    return credate, revdate
+    return (credate, revdate), flag
 
 
 def validate_exitnbr_conflict(df, default):
@@ -301,23 +328,6 @@ def validate_route_contiguity(df, default):
                                  "\nRoute must be contiguous. Review contiguity at the following endpoints:\n{}"
                                  "\nAdditionally, review the route name attributes of any ramp features connected to "
                                  "this route.".format(route_name, ", ".join(field_group), deadends))
-
-
-def validate_route_text(df, default):
-    """
-    Applies a set of validations to route attributes:
-        rtename1en, rtename2en, rtename3en, rtename4en,
-        rtename1fr, rtename2fr, rtename3fr, rtename4fr.
-    Parameter default should be a dictionary with a key for each of the required fields.
-    """
-
-    # Validation: set text-based route fields to title case.
-    cols = ["rtename1en", "rtename2en", "rtename3en", "rtename4en",
-            "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
-    for col in cols:
-        df[col] = df[col].map(lambda route: route if route == default[col] else route.title())
-
-    return df
 
 
 def validate_speed(speed, default):
