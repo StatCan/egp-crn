@@ -281,7 +281,8 @@ class Stage:
         """Generate final dataset."""
 
         self.attr_equality["uuid"] = [uuid.uuid4().hex for _ in range(len(self.attr_equality))]
-
+        self.attr_equality["datasetnam"] = "New Brunswick"
+        self.attr_equality = self.attr_equality.replace("", "Unknown")
         self.attr_equality.to_file("../../data/interim/nb.gpkg", layer='junction', driver="GPKG")
 
     def execute(self):

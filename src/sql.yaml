@@ -2,11 +2,11 @@ intersections:
   query:
     WITH inter AS
         (SELECT ST_Intersection(a.geom, b.geom) geom,
-                Count(DISTINCT a.index)
+                Count(DISTINCT a.uuid)
          FROM stage_2 AS a,
               stage_2 AS b
          WHERE ST_Touches(a.geom, b.geom)
-           AND a.index != b.index GROUP  BY ST_Intersection(a.geom, b.geom))
+           AND a.uuid != b.uuid GROUP  BY ST_Intersection(a.geom, b.geom))
       SELECT
       geom AS geometry,
       count
@@ -37,4 +37,27 @@ attributes:
 
     ALTER TABLE stage_2_junc DROP COLUMN id;
 
-    SELECT * FROM stage_2_junc;
+    SELECT j.geom,
+      j.accuracy,
+      j.acqtech,
+      j.credate,
+      j.datasetnam,
+      j.exitnbr,
+      j.junctype,
+      j.metacover,
+      j.nid,
+      j.provider,
+      j.revdate,
+      j.specvers
+      FROM stage_2_junc AS j INNER JOIN stage_2 AS r ON ST_Intersects(j.geom, r.geom) GROUP BY j.geom,
+      j.accuracy,
+      j.acqtech,
+      j.credate,
+      j.datasetnam,
+      j.exitnbr,
+      j.junctype,
+      j.metacover,
+      j.nid,
+      j.provider,
+      j.revdate,
+      j.specvers HAVING count(*)=1 OR count(*)>2
