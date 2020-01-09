@@ -49,7 +49,7 @@ attributes:
       j.provider,
       j.revdate,
       j.specvers
-      FROM stage_2_junc AS j INNER JOIN stage_2 AS r ON ST_Intersects(j.geom, r.geom) GROUP BY j.geom,
+      FROM stage_2_junc AS j LEFT JOIN stage_2 AS r ON ST_Intersects(j.geom, r.geom) GROUP BY j.geom,
       j.accuracy,
       j.acqtech,
       j.credate,
@@ -60,4 +60,4 @@ attributes:
       j.nid,
       j.provider,
       j.revdate,
-      j.specvers HAVING count(*)=1 OR count(*)>2
+      j.specvers HAVING count(*)<>2;
