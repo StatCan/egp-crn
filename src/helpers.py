@@ -216,6 +216,72 @@ def load_gpkg(gpkg_path):
     return dframes
 
 
+def load_gpkg(gpkg_path):
+    """Returns a dictionary of geopackage layers loaded into pandas or geopandas (geo)dataframes."""
+
+    dframes = dict()
+    distribution_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    missing_flag = False
+
+    if os.path.exists(gpkg_path):
+
+        try:
+
+            # Create sqlite connection.
+            con = sqlite3.connect(gpkg_path)
+
+            # Load gpkg table names.
+            cur = con.cursor()
+            query = "select name from sqlite_master where type='table';"
+            gpkg_tables = list(zip(*cur.execute(query).fetchall()))[0]
+
+        except sqlite3.Error:
+            logger.exception("Unable to connect to GeoPackage: \"{}\".".format(gpkg_path))
+            sys.exit(1)
+
+        # Load GeoPackage layers into pandas or geopandas.
+        for table_name in distribution_format:
+
+            logger.info("Loading layer: \"{}\".".format(table_name))
+
+            try:
+
+                if table_name in gpkg_tables:
+
+                    # Spatial data.
+                    if distribution_format[table_name]["spatial"]:
+                        df = gpd.read_file(gpkg_path, layer=table_name, driver="GPKG")
+
+                    # Tabular data.
+                    else:
+                        df = pd.read_sql_query("select * from {}".format(table_name), con)
+
+                    # Set index field: uuid.
+                    df.set_index("uuid", inplace=True)
+
+                    # Store result.
+                    dframes[table_name] = df
+                    logger.info("Successfully loaded layer into dataframe.")
+
+                else:
+                    logger.warning("GeoPackage layer not found: \"{}\".".format(table_name))
+                    missing_flag = True
+
+            except (fiona.errors.DriverError, pd.io.sql.DatabaseError, sqlite3.Error):
+                logger.exception("Unable to load GeoPackage layer: \"{}\".".format(table_name))
+                sys.exit(1)
+
+    else:
+        logger.exception("GeoPackage does not exist: \"{}\".".format(gpkg_path))
+        sys.exit(1)
+
+    # Provide warning for missing GeoPackage layers.
+    if missing_flag:
+        logger.warning("Missing tables indicated. An exception may be raised later on if the table is required.")
+
+    return dframes
+
+
 def load_yaml(path):
     """Loads and returns a yaml file."""
 

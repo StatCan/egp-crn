@@ -5,14 +5,19 @@ import geopandas as gpd
 import logging
 import os
 import pandas as pd
+import subprocess
 import sys
 import uuid
 from inspect import getmembers, isfunction
-from numpy import nan
+from osgeo import ogr
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
 import helpers
+
+
+# Suppress pandas chained assignment warning.
+pd.options.mode.chained_assignment = None
 
 
 # Set logger.
@@ -40,7 +45,7 @@ class Stage:
         # Validate output namespace.
         self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
         if os.path.exists(self.output_path):
-            logger.error("Output namespace already occupied: \"{}\".".format(self.output_path))
+            logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
 
     def apply_domains(self):
@@ -48,6 +53,8 @@ class Stage:
 
         logging.info("Applying field domains.")
         table = field = None
+        defaults = helpers.compile_default_values()
+        dtypes = helpers.compile_dtypes()
 
         try:
 
@@ -56,21 +63,39 @@ class Stage:
 
                 for field, domains in self.domains[table].items():
 
-                    if domains["all"] is None:
-                        logger.info("Target field \"{}\": No domain provided.".format(field))
+                    logger.info("Target field \"{}\": Applying domain.".format(field))
 
-                    else:
-                        logger.info("Target field \"{}\": Applying domain.".format(field))
+                    # Apply domains to series via apply_functions.
+                    series_orig = self.target_gdframes[table][field]
+                    series_new = series_orig.map(
+                        lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"],
+                                                                             default=defaults[table][field]))
 
-                        # Apply domains via apply_functions.
-                        series = self.target_gdframes[table][field]
-                        self.target_gdframes[table][field] = series.map(
-                            lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"]))
+                    # Force adjust data type.
+                    series_new = series_new.astype(dtypes[table][field])
+
+                    # Compile and quantify modified values.
+                    series_mod = series_orig != series_new
+                    if series_mod.any():
+                        df = pd.concat([series_orig, series_new], axis=1, ignore_index=True)[series_mod]
+                        df.columns = ["orig", "new"]
+                        df.fillna(-99, inplace=True)
+                        df_grouped = df.groupby(["orig", "new"]).size().reset_index()
+                        df_grouped.replace(-99, pd.np.nan, inplace=True)
+                        df_grouped.sort_values(by=["orig", "new"], inplace=True)
+                        df_grouped = df_grouped[[0, "orig", "new"]]
+                        df_grouped = df_grouped.astype(object)
+
+                        # Log record modifications.
+                        for record in df_grouped.values:
+                            logger.warning("Modified {} instance(s) of \"{}\" to \"{}\".".format(*record))
+
+                    # Store results to target dataframe.
+                    self.target_gdframes[table][field] = series_new
 
         except (AttributeError, KeyError, ValueError):
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
             sys.exit(1)
-
 
     def apply_field_mapping(self):
         """Maps the source dataframes to the target dataframes via user-specific field mapping functions."""
@@ -100,10 +125,10 @@ class Stage:
 
                     # Raw value mapping.
                     elif isinstance(source_field, str) and (source_field not in source_gdf.columns):
-                            logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
+                        logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
 
-                            # Update target dataframe with raw value.
-                            target_gdf[target_field] = source_field
+                        # Update target dataframe with raw value.
+                        target_gdf[target_field] = source_field
 
                     # Function mapping.
                     else:
@@ -111,7 +136,8 @@ class Stage:
 
                         # Restructure dict for direct field mapping in case of string input.
                         if isinstance(source_field, str):
-                                source_field = {"fields": [source_field], "functions": {"direct": {"param": None}}}
+                            source_field = {"fields": [source_field],
+                                            "functions": [{"function": "direct", "param": None}]}
 
                         # Convert single field attribute to list.
                         if isinstance(source_field["fields"], str):
@@ -125,8 +151,7 @@ class Stage:
 
                         # Apply field mapping functions to mapped series.
                         field_mapping_results = self.apply_functions(
-                            maps, mapped_series, source_field["functions"],
-                            domain=self.domains[target_name][target_field]["values"])
+                            maps, mapped_series, source_field["functions"], self.domains[target_name], target_field)
 
                         # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"]
@@ -139,42 +164,44 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
 
-    def apply_functions(self, maps, series, func_dict, domain, split_record=False):
+    def apply_functions(self, maps, series, func_list, table_domains, field, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
-        for func, params in func_dict.items():
+        for func in func_list:
+            func_name = func["function"]
+            params = {k: v for k, v in func.items() if k != "function"}
 
-            if func == "split_record":
+            if func_name == "split_record":
                 split_record = True
 
-            logger.info("Applying field mapping function: {}.".format(func))
+            logger.info("Applying field mapping function: {}.".format(func_name))
 
             # Advanced function mapping - copy_attribute_functions.
-            if func == "copy_attribute_functions":
+            if func_name == "copy_attribute_functions":
 
                 # Retrieve and iterate attribute functions and parameters.
-                for attr_func_dict in field_map_functions.copy_attribute_functions(maps, params):
-                    split_record, series = self.apply_functions(maps, series, attr_func_dict, domain,
+                for attr_field, attr_func_list in field_map_functions.copy_attribute_functions(maps, params).items():
+                    split_record, series = self.apply_functions(maps, series, attr_func_list, table_domains, attr_field,
                                                                 split_record).values()
 
             else:
 
-                # For regex functions, add field name to parameters.
-                if func in self.domains_funcs and domain is not None:
-                    params["domain"] = domain
+                # Add domain to function parameters.
+                if func_name in self.domains_funcs and table_domains[field]["values"] is not None:
+                    params["domain"] = table_domains[field]["values"]
 
                 # Generate expression.
-                expr = "field_map_functions.{}(\"val\", **{})".format(func, params)
+                expr = "field_map_functions.{}(\"val\", **{})".format(func_name, params)
 
                 try:
                     # Sanitize expression.
                     parsed = ast.parse(expr, mode="eval")
                     fixed = ast.fix_missing_locations(parsed)
-                    compiled = compile(fixed, "<string>", "eval")
+                    compile(fixed, "<string>", "eval")
 
                     # Execute vectorized expression.
-                    series = series.map(lambda val: eval("field_map_functions.{}".format(func))(val, **params))
+                    series = series.map(lambda val: eval("field_map_functions.{}".format(func_name))(val, **params))
                 except (SyntaxError, ValueError):
                     logger.exception("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
@@ -196,12 +223,13 @@ class Stage:
             # Compile domain values.
             logger.info("Compiling \"{}\" domain values.".format(suffix))
 
-            for table in domains_yaml:
+            # Compile table values.
+            for table in domains_yaml["tables"]:
                 # Register table.
                 if table not in self.domains.keys():
                     self.domains[table] = dict()
 
-                for field, vals in domains_yaml[table].items():
+                for field, vals in domains_yaml["tables"][table].items():
                     # Register field.
                     if field not in self.domains[table].keys():
                         self.domains[table][field] = {"values": list(), "all": None}
@@ -210,31 +238,28 @@ class Stage:
 
                         # Configure reference domain.
                         while isinstance(vals, str):
-                            if vals.find(";") > 0:
-                                table_ref, field_ref = vals.split(";")
-                            else:
-                                table_ref, field_ref = table, vals
-                            vals = domains_yaml[table_ref][field_ref]
+                            table_ref, field_ref = vals.split(";") if vals.find(";") > 0 else [table, vals]
+                            vals = domains_yaml["tables"][table_ref][field_ref]
 
-                        # Compile domain values.
+                        # Compile all domain values including keys.
                         if vals is None:
                             self.domains[table][field]["values"] = self.domains[table][field]["all"] = None
-                            continue
 
-                        elif isinstance(vals, dict):
-                            self.domains[table][field]["values"].extend(vals.values())
-                            if self.domains[table][field]["all"] is None:
-                                self.domains[table][field]["all"] = vals
-                            else:
-                                self.domains[table][field]["all"] = \
-                                    {k: [v, vals[k]] for k, v in self.domains[table][field]["all"].items()}
+                        elif isinstance(vals, dict) or isinstance(vals, list):
+                            v_all, v_values = self.domains[table][field]["all"], self.domains[table][field]["values"]
 
-                        elif isinstance(vals, list):
-                            self.domains[table][field]["values"].extend(vals)
-                            if self.domains[table][field]["all"] is None:
+                            # Compile all domain values, including keys.
+                            if v_all is None:
                                 self.domains[table][field]["all"] = vals
+                            elif isinstance(v_all, dict):
+                                self.domains[table][field]["all"] = {k: [v, vals[k]] for k, v in v_all.items()}
                             else:
-                                self.domains[table][field]["all"] = list(zip(self.domains[table][field]["all"], vals))
+                                self.domains[table][field]["all"] = list(zip(v_all, vals))
+
+                            # Compile all domain values, excluding keys.
+                            # Additionally: 1) Remove duplicates. 2) Reverse sort to avoid false substring matching.
+                            v_values.extend(vals.values() if isinstance(vals, dict) else vals)
+                            self.domains[table][field]["values"] = sorted(list(set(v_values)), reverse=True)
 
                         else:
                             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
@@ -270,46 +295,27 @@ class Stage:
         """Compiles the target (distribution format) yaml file into a dictionary."""
 
         logger.info("Compiling target attribute yaml.")
-        self.target_attributes = dict()
+        table = field = None
 
         # Load yaml.
-        target_attributes_yaml = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        self.target_attributes = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
 
-        # Store yaml contents for all contained table names.
-        logger.info("Compiling attributes for target tables.")
+        # Remove field length from dtype attribute.
+        logger.info("Configuring target attributes.")
+        try:
 
-        for table in target_attributes_yaml:
-            self.target_attributes[table] = {"spatial": target_attributes_yaml[table]["spatial"], "fields": dict()}
+            for table in self.target_attributes:
+                for field, vals in self.target_attributes[table]["fields"].items():
+                    self.target_attributes[table]["fields"][field] = vals[0]
 
-            for field, vals in target_attributes_yaml[table]["fields"].items():
-                # Compile field attributes.
-                try:
-                    self.target_attributes[table]["fields"][field] = str(vals[0])
-                except (AttributeError, KeyError, ValueError):
-                    logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
-                    sys.exit(1)
+        except (AttributeError, KeyError, ValueError):
+            logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
+            sys.exit(1)
 
     def export_gpkg(self):
         """Exports the target dataframes as GeoPackage layers."""
 
         logger.info("Exporting target dataframes to GeoPackage layers.")
-
-        # TEST
-        print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].columns, "\n")
-        for i in [0, 1, 2, 66053]:
-            print(self.source_gdframes["geonb_nbrn-rrnb_road-route"].values[i], "\n")
-        print("SHAPE: {}; LEN: {}".format(
-            self.source_gdframes["geonb_nbrn-rrnb_road-route"].shape[0],
-            len(self.source_gdframes["geonb_nbrn-rrnb_road-route"].index)))
-
-        print(self.target_gdframes["strplaname"].columns, "\n")
-        for i in [0, 1, 2, 66053]:
-            print(self.target_gdframes["strplaname"].values[i], "\n")
-        print("SHAPE: {}; LEN: {}".format(
-            self.target_gdframes["strplaname"].shape[0],
-            len(self.target_gdframes["strplaname"].index)))
-        sys.exit()
-        # TEST
 
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.target_gdframes, self.output_path)
@@ -321,16 +327,48 @@ class Stage:
         self.source_gdframes = dict()
 
         for source, source_yaml in self.source_attributes.items():
-            # Configure filename attribute absolute path.
+
+            logger.info("Loading data source {}, layer={}.".format(source_yaml["data"]["filename"],
+                                                                   source_yaml["data"]["layer"]))
+
+            # Configure filename absolute path.
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
 
+            # Spatial.
+            if source_yaml["data"]["spatial"]:
+                dest = os.path.abspath("../../data/interim/{}_temp.shp".format(self.source))
+                kwargs = {"filename": dest}
+
+                # Transform data source crs.
+                logger.info("Transforming data source to EPSG:4617.")
+                try:
+                    args = "ogr2ogr -overwrite -t_srs EPSG:4617 {} {}".format(dest, source_yaml["data"]["filename"])
+                    args += " " + source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else ""
+                    subprocess.run(args, shell=True, check=True)
+                except subprocess.CalledProcessError as e:
+                    logger.exception("Unable to transform data source to EPSG:4617.")
+                    logger.exception("ogr2ogr error: {}".format(e))
+                    sys.exit(1)
+
+            # Tabular.
+            else:
+                kwargs = source_yaml["data"]
+
             # Load source into dataframe.
+            logger.info("Loading data source as (Geo)DataFrame.")
             try:
-                gdf = gpd.read_file(**source_yaml["data"])
+                gdf = gpd.read_file(**kwargs)
             except fiona.errors.FionaValueError:
-                logger.exception("ValueError raised when importing source {}, layer={}".format(
-                    source_yaml["data"]["filename"], source_yaml["data"]["layer"]))
+                logger.exception("ValueError raised when importing source {}.".format(dest))
                 sys.exit(1)
+
+            # Remove temp data source.
+            if source_yaml["data"]["spatial"]:
+                logger.info("Deleting temporary data source output.")
+                if os.path.exists(dest):
+                    driver = ogr.GetDriverByName("ESRI Shapefile")
+                    driver.DeleteDataSource(dest)
+                    del driver
 
             # Force lowercase field names.
             gdf.columns = map(str.lower, gdf.columns)
@@ -340,8 +378,7 @@ class Stage:
 
             # Store result.
             self.source_gdframes[source] = gdf
-            logger.info("Successfully loaded dataframe for {}, layer={}.".format(
-                os.path.basename(source_yaml["data"]["filename"]), source_yaml["data"]["layer"]))
+            logger.info("Successfully loaded dataframe.")
 
     def gen_target_dataframes(self):
         """Creates empty dataframes for all applicable output tables based on the input data field mapping."""
@@ -349,7 +386,7 @@ class Stage:
         logger.info("Creating target dataframes for applicable tables.")
         self.target_gdframes = dict()
 
-        # Retrieve target table name from source attributes.
+        # Retrieve target table names from source attributes.
         for source, source_yaml in self.source_attributes.items():
             for table in source_yaml["conform"]:
 
@@ -376,6 +413,13 @@ class Stage:
                 self.target_gdframes[table] = gdf
                 logger.info("Successfully created target dataframe: {}.".format(table))
 
+        logger.info("Creating empty target dataframes for remaining tables.")
+
+        # Retrieve remaining target table names from target attributes.
+        for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
+
+            logger.warning("Source data provides no field mappings for table: {}.".format(table))
+
     def execute(self):
         """Executes an NRN stage."""
 
@@ -390,23 +434,19 @@ class Stage:
 
 
 @click.command()
-@click.argument("source", type=click.Choice(["ab", "bc", "mb", "nb", "nl", "ns", "nt", "nu", "on", "pe", "qc", "sk",
-                                             "yt", "parks_canada"], case_sensitive=False))
+@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
 def main(source):
     """Executes an NRN stage."""
 
-    logger.info("Started.")
-
-    stage = Stage(source)
-    stage.execute()
-
-    logger.info("Finished.")
-
-if __name__ == "__main__":
     try:
 
-        main()
+        with helpers.Timer():
+            stage = Stage(source)
+            stage.execute()
 
     except KeyboardInterrupt:
-        logger.exception("KeyboardInterrupt: exiting program.")
+        logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
+
+if __name__ == "__main__":
+    main()
