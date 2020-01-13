@@ -19,7 +19,9 @@ validate_dates:
       Invalid records identified for error 6 (listed by uuid):\n{0}
       Error 6 details: Invalid combination for credate-revdate. credate must be <= revdate.
   mods:
-    1: ...
+    1: |
+      Records modified for credate and / or revdate (listed by uuid):\n{0}
+      Modification details: date suffixed with "01" for missing month and / or day values.
 validate_exitnbr_conflict:
 validate_exitnbr_roadclass:
 validate_nbrlanes:

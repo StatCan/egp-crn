@@ -83,6 +83,7 @@ class Stage:
             logger.info("Applying validation: nbrlanes. Target dataframe: roadseg.")
 
             # Apply function directly to target field.
+            # TODO: implement flagging logic (currently done universal_attr_validation).
             self.dframes["roadseg"]["nbrlanes"] = self.dframes["roadseg"]["nbrlanes"].map(
                 lambda val: attr_rect_functions.validate_nbrlanes(val, default=self.defaults["roadseg"]["nbrlanes"]))
 
@@ -185,7 +186,6 @@ class Stage:
                 args = [df[col].values for col in cols] + [self.defaults[name][cols[0]]]
                 df[cols], self.flags[name][["validate_dates_errors", "validate_dates_mods"]] = \
                     np.column_stack(np.vectorize(attr_rect_functions.validate_dates)(*args))
-                # TODO: return mod flag from function.
 
                 # Store results.
                 self.dframes[name] = df
