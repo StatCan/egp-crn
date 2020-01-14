@@ -119,7 +119,7 @@ def validate_dates(credate, revdate, default):
             if not int(credate) <= int(revdate):
                 error_flag = 6
 
-    return (credate, revdate), (error_flag, mod_flag)
+    return credate, revdate, error_flag, mod_flag
 
 
 def validate_exitnbr_conflict(df, default):
@@ -226,9 +226,11 @@ def validate_roadclass_self_intersection(df):
 
     # Single-segment road elements:
 
-    # Compile nids of road segments with coords in the validation coords list.
-    flag_intersect = np.vectorize(lambda geom: geom.coords[0] in valid_coords)(segments_single["geometry"].values)
-    flag_nids.extend(segments_single[flag_intersect]["nid"].values)
+    if len(segments_single):
+
+        # Compile nids of road segments with coords in the validation coords list.
+        flag_intersect = np.vectorize(lambda geom: geom.coords[0] in valid_coords)(segments_single["geometry"].values)
+        flag_nids.extend(segments_single[flag_intersect]["nid"].values)
 
     # Multi-segment road elements:
 
@@ -236,26 +238,28 @@ def validate_roadclass_self_intersection(df):
     # Filter to nids with invalid roadclass (intended to reduce spatial processing).
     segments_multi = df[(df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid))]
 
-    # Compile nids of road segments with coords in the validation coords list.
-    intersect_func = lambda geom: any(coord in valid_coords for coord in itemgetter(0, -1)(geom.coords))
-    flag_intersect = np.vectorize(intersect_func)(segments_multi["geometry"].values)
+    if len(segments_multi):
 
-    # Iterate flagged elements to identify self-intersections.
-    for nid in segments_multi[flag_intersect]["nid"].unique():
+        # Compile nids of road segments with coords in the validation coords list.
+        intersect_func = lambda geom: any(coord in valid_coords for coord in itemgetter(0, -1)(geom.coords))
+        flag_intersect = np.vectorize(intersect_func)(segments_multi["geometry"].values)
 
-        # Dissolve road segments.
-        element = shapely.ops.linemerge(df[df["nid"] == nid]["geometry"].values)
+        # Iterate flagged elements to identify self-intersections.
+        for nid in segments_multi[flag_intersect]["nid"].unique():
 
-        # Identify self-intersections.
-        if element.is_ring or not element.is_simple:
+            # Dissolve road segments.
+            element = shapely.ops.linemerge(df[df["nid"] == nid]["geometry"].values)
 
-            # Store nid.
-            flag_nids.append(nid)
+            # Identify self-intersections.
+            if element.is_ring or not element.is_simple:
 
-    # Compile uuids of road segments with flagged nid and invalid roadclass.
-    # Note: uuid is stored as the index.
-    flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-    errors[2] = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
+                # Store nid.
+                flag_nids.append(nid)
+
+        # Compile uuids of road segments with flagged nid and invalid roadclass.
+        # Note: uuid is stored as the index.
+        flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+        errors[2] = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
 
     return errors
 
@@ -263,19 +267,24 @@ def validate_roadclass_self_intersection(df):
 def validate_roadclass_structtype(df):
     """Applies a set of validations to roadclass and structtype fields."""
 
+    flag_segments = pd.DataFrame()
+    flag_uuids = pd.Series()
+
     # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
 
     # Compile single-segment road elements (via unique nids).
     segments = df[~df["nid"].duplicated(keep=False)]
 
-    # Identify self-intersections (start coord == end coord).
-    flag_self_intersect = np.vectorize(lambda geom: geom.coords[0] == geom.coords[-1])(segments["geometry"].values)
-    flag_segments = segments[flag_self_intersect]
+    if len(segments):
 
-    # Validation: for self-intersecting road segments, ensure structtype != "None".
-    # Note: uuid is stored as the index.
-    flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
-    flag_uuids = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
+        # Identify self-intersections (start coord == end coord).
+        flag_self_intersect = np.vectorize(lambda geom: geom.coords[0] == geom.coords[-1])(segments["geometry"].values)
+        flag_segments = segments[flag_self_intersect]
+
+        # Validation: for self-intersecting road segments, ensure structtype != "None".
+        # Note: uuid is stored as the index.
+        flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
+        flag_uuids = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
 
     return flag_segments, flag_uuids
 
