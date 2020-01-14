@@ -35,18 +35,19 @@ def title_route_text(df, default):
     cols = ["rtename1en", "rtename2en", "rtename3en", "rtename4en",
             "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
 
+    orig_df = df[cols]
+
     for col in cols:
         orig_series = df[col]
         df[col] = df[col].map(lambda route: route if route == default[col] else route.title())
 
-        # Log modifications.
-        mod_uuids = pd.Series(orig_series != df[col]).index.values
+        # Store modifications flag for column.
+        orig_df[col] = pd.Series(orig_series != df[col])
 
-        if len(mod_uuids):
-            logger.info("Modified the following records (listed by uuid):\n{}"
-                        "\nModification details: set text values to title case.".format("\n".join(mod_uuids)))
+    # Configure final modification flags.
+    mod_flags = orig_df.any(axis=1)
 
-    return df
+    return df, mod_flags
 
 
 def validate_dates(credate, revdate, default):
@@ -127,6 +128,8 @@ def validate_exitnbr_conflict(df, default):
     Parameter default should refer to exitnbr.
     """
 
+    errors = dict()
+
     # Iterate road elements comprised of multiple road segments (via nid field) and where exitnbr is not the default
     # value.
     for nid in df[(df["nid"].duplicated(keep=False)) & (df["exitnbr"] != default)]["nid"].unique():
@@ -136,9 +139,11 @@ def validate_exitnbr_conflict(df, default):
 
         # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
         if len(vals) > 1:
-            raise ValueError("Invalid exitnbr for road element nid = \"{}\". A road element must have <= 1 exitnbr "
-                             "value, excluding the default field value. Values found: {}."
-                             .format(nid, ", ".join(map('"{}"'.format, sorted(vals)))))
+
+            # Compile error properties.
+            errors[nid] = vals
+
+    return errors
 
 
 def validate_exitnbr_roadclass(exitnbr, roadclass, default):
@@ -150,10 +155,9 @@ def validate_exitnbr_roadclass(exitnbr, roadclass, default):
     # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value.
     if str(exitnbr) != str(default):
         if roadclass not in ("Ramp", "Service Lane"):
-            raise ValueError("Invalid value for roadclass = \"{}\". When exitnbr is not the default field value, "
-                             "roadclass must be \"Ramp\" or \"Service Lane\".".format(roadclass))
+            return 1
 
-    return exitnbr, roadclass
+    return 0
 
 
 def validate_nbrlanes(nbrlanes, default):
@@ -162,9 +166,9 @@ def validate_nbrlanes(nbrlanes, default):
     # Validation: ensure 1 <= nbrlanes <= 8.
     if str(nbrlanes) != str(default):
         if not 1 <= int(nbrlanes) <= 8:
-            raise ValueError("Invalid value for nbrlanes = \"{}\". Value must be between 1 and 8.".format(nbrlanes))
+            return 1
 
-    return nbrlanes
+    return 0
 
 
 def validate_pavement(pavstatus, pavsurf, unpavsurf):
@@ -173,22 +177,18 @@ def validate_pavement(pavstatus, pavsurf, unpavsurf):
     # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
     if pavstatus == "Paved":
         if pavsurf == "None":
-            raise ValueError("Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\". When pavstatus is "
-                             "\"Paved\", pavsurf must not be \"None\".".format(pavstatus, pavsurf))
+            return 1
         if unpavsurf != "None":
-            raise ValueError("Invalid combination for pavstatus = \"{}\", unpavsurf = \"{}\". When pavstatus is "
-                             "\"Paved\", unpavsurf must be \"None\".".format(pavstatus, unpavsurf))
+            return 2
 
     # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
     if pavstatus == "Unpaved":
         if pavsurf != "None":
-            raise ValueError("Invalid combination for pavstatus = \"{}\", pavsurf = \"{}\". When pavstatus is "
-                             "\"Unpaved\", pavsurf must be \"None\".".format(pavstatus, pavsurf))
+            return 3
         if unpavsurf == "None":
-            raise ValueError("Invalid combination for pavstatus = \"{}\", unpavsurf = \"{}\". When pavstatus is "
-                             "\"Unpaved\", unpavsurf must not be \"None\".".format(pavstatus, pavsurf))
+            return 4
 
-    return pavstatus, pavsurf, unpavsurf
+    return 0
 
 
 def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
@@ -200,18 +200,18 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
     # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
     if roadclass in ("Freeway", "Expressway / Highway"):
         if str(rtnumber1) == str(default):
-            raise ValueError(
-                "Invalid value for rtnumber1 = \"{}\". When roadclass is \"Freeway\" or \"Expressway / Highway\", "
-                "rtnumber1 must not be the default field value = \"{}\".".format(rtnumber1, default))
+            return 1
 
-    return roadclass, rtnumber1
+    return 0
 
 
 def validate_roadclass_self_intersection(df):
     """Applies a set of validations to roadclass and structtype fields."""
 
+    errors = {1: pd.Series(), 2: pd.Series()}
+
     # Validation: for self-intersecting road segments, ensure structtype != "None".
-    segments_single = validate_roadclass_structtype(df)
+    segments_single, errors[1] = validate_roadclass_structtype(df)
 
     # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
     #             elements which a) self-intersect and b) touch another road segment where roadclass is in the
@@ -255,14 +255,9 @@ def validate_roadclass_self_intersection(df):
     # Compile uuids of road segments with flagged nid and invalid roadclass.
     # Note: uuid is stored as the index.
     flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+    errors[2] = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
 
-    # Raise validation.
-    if len(flag_uuids):
-        raise ValueError("Invalid value for roadclass. Road elements containing a self-intersection must have one of "
-                         "the following roadclass values for every constituent road segment: {}."
-                         "\nUpdate the following road segments' roadclass attribute (listed by uuid) with one of the "
-                         "aforementioned values:\n{}"
-                         .format(", ".join(map("\"{}\"".format, valid)), "\n".join(flag_uuids)))
+    return errors
 
 
 def validate_roadclass_structtype(df):
@@ -280,14 +275,9 @@ def validate_roadclass_structtype(df):
     # Validation: for self-intersecting road segments, ensure structtype != "None".
     # Note: uuid is stored as the index.
     flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
+    flag_uuids = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
 
-    if len(flag_uuids):
-        raise ValueError("Invalid value for structtype = \"None\". For self-intersecting road segments, structtype "
-                         "must not be \"None\"."
-                         "\nReview the following road segments (listed by uuid):\n{}".format("\n".join(flag_uuids)))
-
-    else:
-        return flag_segments
+    return flag_segments, flag_uuids
 
 
 def validate_route_contiguity(df, default):
@@ -298,6 +288,8 @@ def validate_route_contiguity(df, default):
         rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
     Parameter default should be a dictionary with a key for each of the required fields.
     """
+
+    errors = dict()
 
     # Validation: ensure route has contiguous geometry.
     for field_group in [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
@@ -335,10 +327,12 @@ def validate_route_contiguity(df, default):
                 deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
-                raise ValueError("Invalid route = \"{}\", based on route attributes: {}."
-                                 "\nRoute must be contiguous. Review contiguity at the following endpoints:\n{}"
-                                 "\nAdditionally, review the route name attributes of any ramp features connected to "
-                                 "this route.".format(route_name, ", ".join(field_group), deadends))
+                # Compile error properties.
+                if route_name not in errors.keys():
+                    errors[route_name] = list()
+                errors[route_name].append([field_group, deadends])
+
+    return errors
 
 
 def validate_speed(speed, default):
@@ -348,10 +342,10 @@ def validate_speed(speed, default):
 
         # Validation: ensure 5 <= speed <= 120.
         if not 5 <= int(speed) <= 120:
-            raise ValueError("Invalid value for speed = \"{}\". Value must be between 5 and 120.".format(speed))
+            return 1
 
         # Validation: ensure speed is a multiple of 5.
         if int(speed) % 5 != 0:
-            raise ValueError("Invalid value for speed = \"{}\". Value must be a multiple of 5.".format(speed))
+            return 2
 
-    return speed
+    return 0

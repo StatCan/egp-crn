@@ -1,3 +1,8 @@
+title_route_text:
+  mods: |
+    Records modified for one or more of rtename1en, rtename2en, rtename3en, rtename4en, rtename1fr, rtename2fr, rtename3fr, rtename4fr (listed by uuid):\n{0}
+    Modification details: route name set to title case.
+
 validate_dates:
   errors:
     1: |
@@ -18,16 +23,73 @@ validate_dates:
     6: |
       Invalid records identified for error 6 (listed by uuid):\n{0}
       Error 6 details: Invalid combination for credate-revdate. credate must be <= revdate.
-  mods:
-    1: |
-      Records modified for credate and / or revdate (listed by uuid):\n{0}
-      Modification details: date suffixed with "01" for missing month and / or day values.
+  mods: |
+    Records modified for credate and / or revdate (listed by uuid):\n{0}
+    Modification details: date suffixed with "01" for missing month and / or day values.
+
 validate_exitnbr_conflict:
+  errors:
+    1: |
+      Invalid exitnbr identified for road element nid: "{0}".
+      Error details: Road element cannot have multiple exitnbr values, excluding the default field value.
+
 validate_exitnbr_roadclass:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: Invalid exitnbr-roadclass combination. When exitnbr is not the default field value, roadclass must be "Ramp" or "Service Lane".
+
 validate_nbrlanes:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: nbrlanes must be between 1 and 8.
+
 validate_pavement:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: Invalid pavstatus-pavsurf combination. When pavstatus = "Paved", pavsurf cannot be "None".
+    2: |
+      Invalid records identified for error 2 (listed by uuid):\n{0}
+      Error 2 details: Invalid pavstatus-unpavsurf combination. When pavstatus = "Paved", unpavsurf must be "None".
+    3: |
+      Invalid records identified for error 3 (listed by uuid):\n{0}
+      Error 3 details: Invalid pavstatus-pavsurf combination. When pavstatus = "Unpaved", pavsurf must be "None".
+    4: |
+      Invalid records identified for error 4 (listed by uuid):\n{0}
+      Error 4 details: Invalid pavstatus-unpavsurf combination. When pavstatus = "Unpaved", unpavsurf cannot be "None".
+
 validate_roadclass_rtnumber1:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: Invalid roadclass-rtnumber1 combination. When roadclass = "Freeway" or "Expressway / Highway", rtnumber1 cannot be the default field value.
+
 validate_roadclass_self_intersection:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: roadclass must be one of "Expressway / Highway", "Freeway", "Ramp", or "Rapid Transit" for every road segment constituting a self-intersecting road element.
+
 validate_roadclass_structtype:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: structtype cannot be "None" for self-intersecting road segments.
+
 validate_route_contiguity:
+  errors:
+    1: |
+      Invalid route identified: "{0}", based on route attribute fields: {1}.
+      Error details: Route must be contiguous. Review contiguity at the following endpoints:\n{2}
+      Additionally, review the route attribute fields of any ramp features connected to this route.
+
 validate_speed:
+  errors:
+    1: |
+      Invalid records identified for error 1 (listed by uuid):\n{0}
+      Error 1 details: speed must be between 5 and 120.
+    2: |
+      Invalid records identified for error 2 (listed by uuid):\n{0}
+      Error 2 details: speed must be a multiple of 5.

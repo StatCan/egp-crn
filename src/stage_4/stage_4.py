@@ -57,6 +57,9 @@ class Stage:
         # Create flag dataframes for each gpkg dataframe.
         self.flags = {name: pd.DataFrame({"uuid": df.index.values}) for name, df in self.dframes.items()}
 
+        # Create custom key for error / mod messages that aren't uuid based.
+        self.flags["custom"] = dict()
+
         # Load flag messages yaml.
         domains_yaml = helpers.load_yaml(os.path.abspath("../flag_messages.yaml"))
 
@@ -66,6 +69,18 @@ class Stage:
         logger.info("Loading Geopackage layers.")
 
         self.dframes = helpers.load_gpkg(self.data_path)
+
+    def log_messages(self):
+        """Logs any errors and modification messages flagged by the attribute validations."""
+
+        # Log modifications.
+        # . . . .
+
+        # Log standard errors.
+        # . . . .
+
+        # Log non-standard / custom errors.
+        # . . . .
 
     def unique_attr_validation(self):
         """Applies a set of attribute validations unique to one or more fields and / or tables."""
@@ -83,15 +98,14 @@ class Stage:
             logger.info("Applying validation: nbrlanes. Target dataframe: roadseg.")
 
             # Apply function directly to target field.
-            # TODO: implement flagging logic (currently done universal_attr_validation).
-            self.dframes["roadseg"]["nbrlanes"] = self.dframes["roadseg"]["nbrlanes"].map(
+            self.flags["roadseg"]["validate_nbrlanes_errors"] = self.dframes["roadseg"]["nbrlanes"].map(
                 lambda val: attr_rect_functions.validate_nbrlanes(val, default=self.defaults["roadseg"]["nbrlanes"]))
 
             # Validation: speed.
             logger.info("Applying validation: speed. Target dataframe: roadseg.")
 
             # Apply function directly to target field.
-            self.dframes["roadseg"]["speed"] = self.dframes["roadseg"]["speed"].map(
+            self.flags["roadseg"]["validate_speed_errors"] = self.dframes["roadseg"]["speed"].map(
                 lambda val: attr_rect_functions.validate_speed(val, default=self.defaults["roadseg"]["speed"]))
 
             # Validation: pavement.
@@ -100,7 +114,8 @@ class Stage:
             # Apply function directly to target fields.
             cols = ["pavstatus", "pavsurf", "unpavsurf"]
             args = [self.dframes["roadseg"][col].values for col in cols]
-            self.dframes["roadseg"][cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_pavement)(*args))
+            self.flags["roadseg"]["validate_pavement_errors"] = np.column_stack(np.vectorize(
+                attr_rect_functions.validate_pavement)(*args))
 
             # Validation: roadclass-rtnumber1.
             cols = ["roadclass", "rtnumber1"]
@@ -110,17 +125,16 @@ class Stage:
                 # Compile valid fields, apply function.
                 df = self.dframes[table]
                 args = [df[col].values for col in cols] + [self.defaults[table][cols[1]]]
-                df[cols] = np.column_stack(np.vectorize(attr_rect_functions.validate_roadclass_rtnumber1)(*args))
-
-                # Store results.
-                self.dframes[table] = df
+                self.flags[table]["validate_roadclass_rtnumber1_errors"] = np.column_stack(np.vectorize(
+                    attr_rect_functions.validate_roadclass_rtnumber1)(*args))
 
             # Validation: route text.
             for table in ("roadseg", "ferryseg"):
                 logger.info("Applying validation: route text. Target dataframe: {}.".format(table))
 
                 # Apply function, store results.
-                self.dframes[table] = attr_rect_functions.title_route_text(self.dframes[table], self.defaults[table])
+                self.dframes[table], self.flags[table]["title_route_text_mods"] = attr_rect_functions.title_route_text(
+                    self.dframes[table], self.defaults[table])
 
             # Validation: route contiguity.
             logger.info("Applying validation: route contiguity. Target dataframe: ferryseg and roadseg.")
@@ -128,7 +142,8 @@ class Stage:
             # Concatenate dataframes, apply function.
             df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True,
                                             sort=False))
-            attr_rect_functions.validate_route_contiguity(df, self.defaults["roadseg"])
+            self.flags["custom"]["validate_route_contiguity_errors"] = attr_rect_functions.validate_route_contiguity(
+                df, self.defaults["roadseg"])
 
             # Validation: exitnbr-roadclass.
             logger.info("Applying validation: exitnbr-roadclass. Target dataframe: roadseg.")
@@ -136,25 +151,25 @@ class Stage:
             # Apply function directly to target fields.
             cols = ["exitnbr", "roadclass"]
             args = [self.dframes["roadseg"][col].values for col in cols] + [self.defaults["roadseg"][cols[0]]]
-            self.dframes["roadseg"][cols] = np.column_stack(np.vectorize(
+            self.flags["roadseg"]["validate_exitnbr_roadclass_errors"] = np.column_stack(np.vectorize(
                 attr_rect_functions.validate_exitnbr_roadclass)(*args))
 
             # Validation: exitnbr conflict.
             logger.info("Applying validation: exitnbr conflict. Target dataframe: roadseg.")
 
             # Apply function.
-            attr_rect_functions.validate_exitnbr_conflict(self.dframes["roadseg"], self.defaults["roadseg"]["exitnbr"])
+            self.flags["custom"]["validate_exitnbr_conflict_errors"] = attr_rect_functions.validate_exitnbr_conflict(
+                self.dframes["roadseg"], self.defaults["roadseg"]["exitnbr"])
 
             # Validation: roadclass self-intersection.
             logger.info("Applying validation: roadclass self-intersection. Target dataframe: roadseg.")
 
             # Apply function.
-            attr_rect_functions.validate_roadclass_self_intersection(self.dframes["roadseg"])
+            cols = ["validate_roadclass_structtype_errors", "validate_roadclass_self_intersection_errors"]
+            self.flags["roadseg"][cols] = attr_rect_functions.validate_roadclass_self_intersection(
+                self.dframes["roadseg"])
 
-        except (KeyError, ValueError):
-            logger.exception("Unable to apply validation.")
-            sys.exit(1)
-        except SyntaxError as e:
+        except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")
             logger.exception(e)
             sys.exit(1)
@@ -190,10 +205,7 @@ class Stage:
                 # Store results.
                 self.dframes[name] = df
 
-            except ValueError:
-                logger.exception("Unable to apply validation.")
-                sys.exit(1)
-            except SyntaxError as e:
+            except (SyntaxError, ValueError) as e:
                 logger.exception("Unable to apply validation.")
                 logger.exception(e)
                 sys.exit(1)
@@ -205,6 +217,7 @@ class Stage:
         self.gen_flag_variables()
         self.universal_attr_validation()
         self.unique_attr_validation()
+        self.log_messages()
         self.export_gpkg()
 
 
