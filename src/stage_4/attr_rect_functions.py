@@ -128,7 +128,7 @@ def validate_exitnbr_conflict(df, default):
     Parameter default should refer to exitnbr.
     """
 
-    errors = dict()
+    errors = list()
 
     # Iterate road elements comprised of multiple road segments (via nid field) and where exitnbr is not the default
     # value.
@@ -141,7 +141,7 @@ def validate_exitnbr_conflict(df, default):
         if len(vals) > 1:
 
             # Compile error properties.
-            errors[nid] = vals
+            errors.append("nid: \"{}\", exitnbr values: {}".format(nid, ", ".join(map("\"{}\"".format, vals))))
 
     return errors
 
@@ -289,7 +289,7 @@ def validate_route_contiguity(df, default):
     Parameter default should be a dictionary with a key for each of the required fields.
     """
 
-    errors = dict()
+    errors = list()
 
     # Validation: ensure route has contiguous geometry.
     for field_group in [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
@@ -328,9 +328,8 @@ def validate_route_contiguity(df, default):
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
                 # Compile error properties.
-                if route_name not in errors.keys():
-                    errors[route_name] = list()
-                errors[route_name].append([field_group, deadends])
+                errors.append("Route name: \"{}\", based on attribute fields: {}. Review contiguity at the following "
+                              "endpoints: {}.".format(route_name, ", ".join(field_group), deadends))
 
     return errors
 

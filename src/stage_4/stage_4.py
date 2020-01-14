@@ -61,7 +61,7 @@ class Stage:
         self.flags["custom"] = dict()
 
         # Load flag messages yaml.
-        domains_yaml = helpers.load_yaml(os.path.abspath("../flag_messages.yaml"))
+        self.flag_messages_yaml = helpers.load_yaml(os.path.abspath("../flag_messages.yaml"))
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -73,14 +73,27 @@ class Stage:
     def log_messages(self):
         """Logs any errors and modification messages flagged by the attribute validations."""
 
-        # Log modifications.
-        # . . . .
+        logger.info("Compiling modification and error logs.")
 
-        # Log standard errors.
-        # . . . .
+        # Log standardized modification and error messages.
+        for table in [t for t in self.flags.keys() if t != "custom"]:
 
-        # Log non-standard / custom errors.
-        # . . . .
+            # Log modifications.
+            for col in [c for c in self.flags[table].columns if c.endswith("_mods")]:
+                logger.info("Record modifications: table \"{}\", validation \"{}\"".format(table, col.rstrip("_mods")))
+                args = "\n".join(self.flags[table][self.flags[table][col]].index.values)
+                logger.info(self.flag_messages_yaml[col.rstrip("_mods")]["mods"].format(args))
+
+            # Log standard errors.
+            for col in [c for c in self.flags[table].columns if c.endswith("_errors")]:
+                logger.info("Record errors: table \"{}\", validation \"{}\"".format(table, col.rstrip("_errors")))
+                args = "\n".join(self.flags[table][self.flags[table][col]].index.values)
+                logger.info(self.flag_messages_yaml[col.rstrip("_errors")]["errors"].format(args))
+
+        # Log non-standardized error messages.
+        for key, vals in self.flags["custom"].items():
+            args = "\n".join(vals)
+            logger.info(self.flag_messages_yaml[key.rstrip("_errors")]["errors"].format(args))
 
     def unique_attr_validation(self):
         """Applies a set of attribute validations unique to one or more fields and / or tables."""

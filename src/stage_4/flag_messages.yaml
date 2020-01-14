@@ -30,8 +30,9 @@ validate_dates:
 validate_exitnbr_conflict:
   errors:
     1: |
-      Invalid exitnbr identified for road element nid: "{0}".
-      Error details: Road element cannot have multiple exitnbr values, excluding the default field value.
+      Record errors: table "roadseg", validation: "validate_exitnbr_conflict".
+      Invalid records identified for error 1:\n{0}
+      Error 1 details: Road element cannot have multiple exitnbr values, excluding the default field value.
 
 validate_exitnbr_roadclass:
   errors:
@@ -81,8 +82,9 @@ validate_roadclass_structtype:
 validate_route_contiguity:
   errors:
     1: |
-      Invalid route identified: "{0}", based on route attribute fields: {1}.
-      Error details: Route must be contiguous. Review contiguity at the following endpoints:\n{2}
+      Record errors: table "ferryseg + roadseg", validation: "validate_route_contiguity".
+      Invalid records identified for error 1:\n{0}
+      Error 1 details: Route must be contiguous. Review contiguity at the provided endpoints.
       Additionally, review the route attribute fields of any ramp features connected to this route.
 
 validate_speed:
