@@ -118,7 +118,7 @@ def validate_dates(credate, revdate, default):
             if not int(credate) <= int(revdate):
                 error_flag = 6
 
-    return (credate, revdate), error_flag, mod_flag
+    return (credate, revdate), (error_flag, mod_flag)
 
 
 def validate_exitnbr_conflict(df, default):
