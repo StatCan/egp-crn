@@ -78,22 +78,29 @@ class Stage:
         # Log standardized modification and error messages.
         for table in [t for t in self.flags.keys() if t != "custom"]:
 
-            # Log modifications.
-            for col in [c for c in self.flags[table].columns if c.endswith("_mods")]:
-                logger.info("Record modifications: table \"{}\", validation \"{}\"".format(table, col.rstrip("_mods")))
-                args = "\n".join(self.flags[table][self.flags[table][col]].index.values)
-                logger.info(self.flag_messages_yaml[col.rstrip("_mods")]["mods"].format(args))
+            for typ in ("modifications", "errors"):
 
-            # Log standard errors.
-            for col in [c for c in self.flags[table].columns if c.endswith("_errors")]:
-                logger.info("Record errors: table \"{}\", validation \"{}\"".format(table, col.rstrip("_errors")))
-                args = "\n".join(self.flags[table][self.flags[table][col]].index.values)
-                logger.info(self.flag_messages_yaml[col.rstrip("_errors")]["errors"].format(args))
+                # Log message type.
+                for col in [c for c in self.flags[table].columns if c.endswith(typ[0]) and self.flags[table][c].any()]:
+
+                    # Retrieve data series.
+                    series = self.flags[table][col]
+
+                    # Iterate message codes.
+                    for mcode in [code for code in series.unique() if code]:
+
+                        # Log messages.
+                        vals = series[series == mcode].index
+                        args = [table, col.rstrip("_" + typ), "\n".join(vals)]
+                        logger.info(self.flag_messages_yaml[col.rstrip("_" + typ)][typ][mcode].format(*args))
 
         # Log non-standardized error messages.
         for key, vals in self.flags["custom"].items():
-            args = "\n".join(vals)
-            logger.info(self.flag_messages_yaml[key.rstrip("_errors")]["errors"].format(args))
+            if self.flags["custom"][key]:
+
+                # Log messages.
+                args = [key.rstrip("_errors"), "\n".join(map(str, vals))]
+                logger.info(self.flag_messages_yaml[key.rstrip("_errors")]["errors"][1].format(*args))
 
     def unique_attr_validation(self):
         """Applies a set of attribute validations unique to one or more fields and / or tables."""
@@ -146,11 +153,11 @@ class Stage:
                 logger.info("Applying validation: route text. Target dataframe: {}.".format(table))
 
                 # Apply function, store results.
-                self.dframes[table], self.flags[table]["title_route_text_mods"] = validation_functions.title_route_text(
-                    self.dframes[table], self.defaults[table])
+                self.dframes[table], self.flags[table]["title_route_text_modifications"] = \
+                    validation_functions.title_route_text(self.dframes[table], self.defaults[table])
 
             # Validation: route contiguity.
-            logger.info("Applying validation: route contiguity. Target dataframe: ferryseg and roadseg.")
+            logger.info("Applying validation: route contiguity. Target dataframe: ferryseg + roadseg.")
 
             # Concatenate dataframes, apply function.
             df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True,
@@ -179,12 +186,12 @@ class Stage:
 
             # Apply function.
             cols = ["validate_roadclass_structtype_errors", "validate_roadclass_self_intersection_errors"]
-            self.flags["roadseg"][cols] = validation_functions.validate_roadclass_self_intersection(
-                self.dframes["roadseg"])
+            self.flags["roadseg"][cols[0]], self.flags["roadseg"][cols[1]] = \
+                validation_functions.validate_roadclass_self_intersection(self.dframes["roadseg"],
+                                                                          self.defaults["roadseg"]["nid"])
 
-        except (KeyError, SyntaxError, ValueError) as e:
+        except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
-            logger.exception(e)
             sys.exit(1)
 
     def universal_attr_validation(self):
@@ -213,15 +220,15 @@ class Stage:
                 cols = ["credate", "revdate"]
                 args = [df[col].values for col in cols] + [self.defaults[name][cols[0]]]
                 results = pd.DataFrame(np.column_stack(np.vectorize(validation_functions.validate_dates)(*args)))
-                df[cols], self.flags[name][["validate_dates_errors", "validate_dates_mods"]] = \
-                    results[[0, 1]], results[[2, 3]]
+                df[cols] = results[[0, 1]].values
+                self.flags[name]["validate_dates_errors"], self.flags[name]["validate_dates_modifications"] = \
+                    results[2].values, results[3].values
 
                 # Store results.
                 self.dframes[name] = df
 
-            except (SyntaxError, ValueError) as e:
+            except (KeyError, SyntaxError, ValueError):
                 logger.exception("Unable to apply validation.")
-                logger.exception(e)
                 sys.exit(1)
 
     def execute(self):

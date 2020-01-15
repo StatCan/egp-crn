@@ -45,7 +45,7 @@ def title_route_text(df, default):
         orig_df[col] = pd.Series(orig_series != df[col])
 
     # Configure final modification flags.
-    mod_flags = orig_df.any(axis=1)
+    mod_flags = orig_df.any(axis=1).astype(int)
 
     return df, mod_flags
 
@@ -65,7 +65,7 @@ def validate_dates(credate, revdate, default):
     def validate(date):
 
         # Set default mod flag.
-        mod_flag = False
+        mod_flag = 0
 
         # Apply validation.
         if date != default:
@@ -79,7 +79,7 @@ def validate_dates(credate, revdate, default):
                 date += "01"
 
                 # Update mod flag.
-                mod_flag = True
+                mod_flag = 1
 
             # Validation: valid values for day, month, year (1960+).
             year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
@@ -111,7 +111,7 @@ def validate_dates(credate, revdate, default):
 
         # Configure mod flag.
         if any([mod_flag, mod_flag2]):
-            mod_flag = True
+            mod_flag = 0
 
     if error_flag == 0:
         # Validation: ensure credate <= revdate.
@@ -130,9 +130,11 @@ def validate_exitnbr_conflict(df, default):
 
     errors = list()
 
-    # Iterate road elements comprised of multiple road segments (via nid field) and where exitnbr is not the default
-    # value.
-    for nid in df[(df["nid"].duplicated(keep=False)) & (df["exitnbr"] != default)]["nid"].unique():
+    # Iterate multi-segment road elements (via nid field) and where exitnbr is not the default value.
+    query = (df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)
+    for nid in df[query]["nid"].unique():
+
+        logger.info("Validating road element (nid): \"{}\"".format(nid))
 
         # Compile exitnbr values, excluding the default value.
         vals = df[(df["nid"] == nid) & (df["exitnbr"] != default)]["exitnbr"].unique()
@@ -205,13 +207,16 @@ def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
     return 0
 
 
-def validate_roadclass_self_intersection(df):
-    """Applies a set of validations to roadclass and structtype fields."""
+def validate_roadclass_self_intersection(df, default):
+    """
+    Applies a set of validations to roadclass and structtype fields.
+    Parameter default should refer to nid.
+    """
 
-    errors = {1: pd.Series(), 2: pd.Series()}
+    errors = dict.fromkeys([1, 2], pd.Series(index=df.index))
 
     # Validation: for self-intersecting road segments, ensure structtype != "None".
-    segments_single, errors[1] = validate_roadclass_structtype(df)
+    segments_single, errors[1] = validate_roadclass_structtype(df, default)
 
     # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
     #             elements which a) self-intersect and b) touch another road segment where roadclass is in the
@@ -226,7 +231,7 @@ def validate_roadclass_self_intersection(df):
 
     # Single-segment road elements:
 
-    if len(segments_single):
+    if not segments_single.empty:
 
         # Compile nids of road segments with coords in the validation coords list.
         flag_intersect = np.vectorize(lambda geom: geom.coords[0] in valid_coords)(segments_single["geometry"].values)
@@ -236,9 +241,11 @@ def validate_roadclass_self_intersection(df):
 
     # Compile multi-segment road elements (via non-unique nids).
     # Filter to nids with invalid roadclass (intended to reduce spatial processing).
-    segments_multi = df[(df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid))]
+    segments_multi = df[(df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
 
-    if len(segments_multi):
+    if not segments_multi.empty:
+
+        logger.info("Validating multi-segment road elements.")
 
         # Compile nids of road segments with coords in the validation coords list.
         intersect_func = lambda geom: any(coord in valid_coords for coord in itemgetter(0, -1)(geom.coords))
@@ -246,6 +253,8 @@ def validate_roadclass_self_intersection(df):
 
         # Iterate flagged elements to identify self-intersections.
         for nid in segments_multi[flag_intersect]["nid"].unique():
+
+            logger.info("Validating road element (nid): \"{}\"".format(nid))
 
             # Dissolve road segments.
             element = shapely.ops.linemerge(df[df["nid"] == nid]["geometry"].values)
@@ -259,23 +268,28 @@ def validate_roadclass_self_intersection(df):
         # Compile uuids of road segments with flagged nid and invalid roadclass.
         # Note: uuid is stored as the index.
         flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-        errors[2] = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
+        errors[2] = df.index.isin(flag_uuids).astype(int)
 
-    return errors
+    return errors[1], errors[2]
 
 
-def validate_roadclass_structtype(df):
-    """Applies a set of validations to roadclass and structtype fields."""
+def validate_roadclass_structtype(df, default):
+    """
+    Applies a set of validations to roadclass and structtype fields.
+    Parameter default should refer to nid.
+    """
 
     flag_segments = pd.DataFrame()
-    flag_uuids = pd.Series()
+    errors = pd.Series(index=df.index)
 
     # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
 
     # Compile single-segment road elements (via unique nids).
-    segments = df[~df["nid"].duplicated(keep=False)]
+    segments = df[(~df["nid"].duplicated(keep=False)) & (df["nid"] != default)]
 
-    if len(segments):
+    if not segments.empty:
+
+        logger.info("Validating single-segment road elements.")
 
         # Identify self-intersections (start coord == end coord).
         flag_self_intersect = np.vectorize(lambda geom: geom.coords[0] == geom.coords[-1])(segments["geometry"].values)
@@ -284,9 +298,9 @@ def validate_roadclass_structtype(df):
         # Validation: for self-intersecting road segments, ensure structtype != "None".
         # Note: uuid is stored as the index.
         flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
-        flag_uuids = pd.Series(df.index.map(lambda uuid: uuid in flag_uuids))
+        errors = df.index.isin(flag_uuids).astype(int)
 
-    return flag_segments, flag_uuids
+    return flag_segments, errors
 
 
 def validate_route_contiguity(df, default):
@@ -337,8 +351,8 @@ def validate_route_contiguity(df, default):
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
                 # Compile error properties.
-                errors.append("Route name: \"{}\", based on attribute fields: {}. Review contiguity at the following "
-                              "endpoints: {}.".format(route_name, ", ".join(field_group), deadends))
+                errors.append("Route name: \"{}\", based on attribute fields: {}. Endpoints: {}."
+                              .format(route_name, ", ".join(field_group), deadends))
 
     return errors
 
