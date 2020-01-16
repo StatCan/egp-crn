@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import re
 import sys
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -78,29 +79,34 @@ class Stage:
         # Log standardized modification and error messages.
         for table in [t for t in self.flags.keys() if t != "custom"]:
 
+            # Log message type.
             for typ in ("modifications", "errors"):
 
-                # Log message type.
-                for col in [c for c in self.flags[table].columns if c.endswith(typ[0]) and self.flags[table][c].any()]:
+                # Iterate message flag columns.
+                for col in [c for c in self.flags[table].columns if re.findall("_" + typ + "$", c)]:
 
                     # Retrieve data series.
-                    series = self.flags[table][col]
+                    # Force data type to int.
+                    series = self.flags[table][col].astype(int)
 
                     # Iterate message codes.
-                    for mcode in [code for code in series.unique() if code]:
+                    # Excludes values evaluating to False (i.e. 0, nan, False).
+                    for mcode in sorted([code for code in series.unique() if code]):
 
                         # Log messages.
                         vals = series[series == mcode].index
-                        args = [table, col.rstrip("_" + typ), "\n".join(vals)]
-                        logger.info(self.flag_messages_yaml[col.rstrip("_" + typ)][typ][mcode].format(*args))
+                        validation = re.sub("_" + typ + "$", "", col)
+                        args = [table, validation, "\n".join(vals)]
+                        logger.info(self.flag_messages_yaml[validation][typ][mcode].format(*args))
 
         # Log non-standardized error messages.
         for key, vals in self.flags["custom"].items():
             if self.flags["custom"][key]:
 
                 # Log messages.
-                args = [key.rstrip("_errors"), "\n".join(map(str, vals))]
-                logger.info(self.flag_messages_yaml[key.rstrip("_errors")]["errors"][1].format(*args))
+                validation = re.sub("_errors$", "", key)
+                args = [validation, "\n".join(map(str, vals))]
+                logger.info(self.flag_messages_yaml[validation]["errors"][1].format(*args))
 
     def unique_attr_validation(self):
         """Applies a set of attribute validations unique to one or more fields and / or tables."""

@@ -45,7 +45,7 @@ def title_route_text(df, default):
         orig_df[col] = pd.Series(orig_series != df[col])
 
     # Configure final modification flags.
-    mod_flags = orig_df.any(axis=1).astype(int)
+    mod_flags = orig_df.any(axis=1)
 
     return df, mod_flags
 
@@ -111,7 +111,7 @@ def validate_dates(credate, revdate, default):
 
         # Configure mod flag.
         if any([mod_flag, mod_flag2]):
-            mod_flag = 0
+            mod_flag = 1
 
     if error_flag == 0:
         # Validation: ensure credate <= revdate.
@@ -265,10 +265,10 @@ def validate_roadclass_self_intersection(df, default):
                 # Store nid.
                 flag_nids.append(nid)
 
-        # Compile uuids of road segments with flagged nid and invalid roadclass.
-        # Note: uuid is stored as the index.
-        flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-        errors[2] = df.index.isin(flag_uuids).astype(int)
+    # Compile uuids of road segments with flagged nid and invalid roadclass.
+    # Note: uuid is stored as the index.
+    flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+    errors[2] = df.index.isin(flag_uuids)
 
     return errors[1], errors[2]
 
@@ -298,7 +298,7 @@ def validate_roadclass_structtype(df, default):
         # Validation: for self-intersecting road segments, ensure structtype != "None".
         # Note: uuid is stored as the index.
         flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
-        errors = df.index.isin(flag_uuids).astype(int)
+        errors = df.index.isin(flag_uuids)
 
     return flag_segments, errors
 
@@ -351,8 +351,8 @@ def validate_route_contiguity(df, default):
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
                 # Compile error properties.
-                errors.append("Route name: \"{}\", based on attribute fields: {}. Endpoints: {}."
-                              .format(route_name, ", ".join(field_group), deadends))
+                errors.append("Route name: \"{}\", based on attribute fields: {}."
+                              "\nEndpoints:\n{}.".format(route_name, ", ".join(field_group), deadends))
 
     return errors
 
