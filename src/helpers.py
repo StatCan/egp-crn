@@ -145,7 +145,7 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
         con.close()
         del con_ogr
 
-    except (ValueError, fiona.errors.FionaValueError, sqlite3.Error):
+    except (ValueError, fiona.errors.FionaValueError, fiona.errors.TransactionError, sqlite3.Error):
         logger.exception("Error raised when writing to GeoPackage: \"{}\".".format(output_path))
         sys.exit(1)
 

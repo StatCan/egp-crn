@@ -213,7 +213,7 @@ def validate_roadclass_self_intersection(df, default):
     Parameter default should refer to nid.
     """
 
-    errors = dict.fromkeys([1, 2], pd.Series(index=df.index))
+    errors = dict.fromkeys([1, 2], pd.Series(False, index=df.index))
 
     # Validation: for self-intersecting road segments, ensure structtype != "None".
     segments_single, errors[1] = validate_roadclass_structtype(df, default)
@@ -268,7 +268,7 @@ def validate_roadclass_self_intersection(df, default):
     # Compile uuids of road segments with flagged nid and invalid roadclass.
     # Note: uuid is stored as the index.
     flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-    errors[2] = df.index.isin(flag_uuids)
+    errors[2] = pd.Series(df.index.isin(flag_uuids), index=df.index)
 
     return errors[1], errors[2]
 
@@ -280,7 +280,7 @@ def validate_roadclass_structtype(df, default):
     """
 
     flag_segments = pd.DataFrame()
-    errors = pd.Series(index=df.index)
+    errors = pd.Series(False, index=df.index)
 
     # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
 
@@ -298,7 +298,7 @@ def validate_roadclass_structtype(df, default):
         # Validation: for self-intersecting road segments, ensure structtype != "None".
         # Note: uuid is stored as the index.
         flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
-        errors = df.index.isin(flag_uuids)
+        errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
 
     return flag_segments, errors
 

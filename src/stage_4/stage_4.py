@@ -87,6 +87,9 @@ class Stage:
 
                     # Retrieve data series.
                     # Force data type to int.
+                    # TEST (2 lines)
+                    print(table, col, self.flags[table][col].astype(int))
+                    sys.exit(1)
                     series = self.flags[table][col].astype(int)
 
                     # Iterate message codes.
@@ -245,7 +248,7 @@ class Stage:
         self.universal_attr_validation()
         self.unique_attr_validation()
         self.log_messages()
-        self.export_gpkg()
+#        self.export_gpkg()
 
 
 @click.command()
