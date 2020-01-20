@@ -48,8 +48,14 @@ def identify_duplicate_points(df):
     return errors
 
 
+def identify_isolated_lines(df):
+    """Identifies the uuids of isolated line segments."""
+
+    # . . . .
+
+
 def validate_min_length(df):
-    """Validates the minimum feature length of a GeoDataFrame of LineStrings."""
+    """Validates the minimum feature length of line geometries."""
 
     # Filter records to 0.0002 degrees length (approximately 22.2 meters).
     # Purely intended to reduce processing.
