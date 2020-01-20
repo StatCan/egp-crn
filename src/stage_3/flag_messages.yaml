@@ -1,0 +1,20 @@
+identify_duplicate_lines:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
+      {2}
+      Error 1 details: Duplicate geometry detected.
+
+identify_duplicate_points:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
+      {2}
+      Error 1 details: Duplicate geometry detected.
+
+validate_min_length:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
+      {2}
+      Error 1 details: line segment must be < 2 meters in length.

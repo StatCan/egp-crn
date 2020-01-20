@@ -143,6 +143,22 @@ class Stage:
                 # Apply function.
                 self.flags[table]["identify_duplicate_lines_errors"] = validation_functions.identify_duplicate_lines(df)
 
+            # Validation: identify duplicate point features.
+            for table, df in self.df_points.items():
+                logger.info("Applying validation: identify duplicate point features. Target dataframe: {}."
+                            .format(table))
+
+                # Apply function.
+                self.flags[table]["identify_duplicate_points_errors"] = \
+                    validation_functions.identify_duplicate_points(df)
+
+            # Validation: minimum feature length.
+            logger.info("Applying validation: minimum feature length. Target dataframe: roadseg.")
+
+            # Apply function.
+            self.flags["roadseg"]["validate_min_length_errors"] = \
+                validation_functions.validate_min_length(self.df_lines["roadseg"])
+
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
             sys.exit(1)
