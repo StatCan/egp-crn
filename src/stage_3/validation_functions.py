@@ -1,4 +1,5 @@
 import logging
+import networkx as nx
 import os
 import pandas as pd
 import sys
@@ -51,7 +52,26 @@ def identify_duplicate_points(df):
 def identify_isolated_lines(df):
     """Identifies the uuids of isolated line segments."""
 
-    # . . . .
+    # Convert dataframe to networkx graph.
+    # Drop all columns except uuid and geometry to reduce processing.
+    df.reset_index(drop=False, inplace=True)
+    df.drop(df.columns.difference(["uuid", "geometry"]), axis=1, inplace=True)
+    g = helpers.gdf_to_nx(df, keep_attributes=True, endpoints_only=False)
+
+    # Configure subgraphs.
+    sub_g = nx.connected_component_subgraphs(g)
+
+    # Compile uuids unique to a subgraph.
+    flag_uuids = list()
+    for s in sub_g:
+        if len(set(nx.get_edge_attributes(s, "uuid").values())) == 1:
+            uuid = list(nx.get_edge_attributes(s, "uuid").values())[0]
+            flag_uuids.append(uuid)
+
+    # Compile flagged records as errors.
+    errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
+
+    return errors
 
 
 def validate_min_length(df):
