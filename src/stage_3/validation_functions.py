@@ -79,8 +79,6 @@ def identify_isolated_lines(df):
 def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     """Validates the connectivity between ferry and road line segments."""
 
-    errors = dict.fromkeys([1, 2], pd.Series(False, index=ferryseg.index))
-
     # Validation 1: ensure ferry segments connect to a road segment at at least one endpoint.
 
     # Compile junction coordinates where junctype = "Ferry".
@@ -93,7 +91,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
 
     # Compile uuids of flagged records.
     flag_uuids = ferryseg[mask].index.values
-    errors[1] = pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)
+    errors = pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index).astype("int")
 
     # Validation 2: ensure ferry segments connect to <= 1 road segment at either endpoint.
 
@@ -109,9 +107,9 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
 
     # Compile uuids of flagged records.
     flag_uuids = ferryseg[ferry_multi_intersect].index.values
-    errors[2] = pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)
+    errors[pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)] = 2
 
-    return errors[1], errors[2]
+    return errors
 
 
 def validate_min_length(df):
@@ -137,3 +135,29 @@ def validate_min_length(df):
     errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
 
     return errors
+
+
+def validate_road_structures(roadseg, junction, default):
+    """
+    Validates the structid and structtype attributes of road segments.
+    Parameter default should be a dictionary with a key for each of structid and structtype for roadseg.
+    """
+
+    # Validation 1: ensure dead end road segments have structtype = "None" or the default field value.
+
+    # Compile dead end coordinates.
+    deadend_coords = list(set(chain([geom[0].coords[0] for geom in
+                                     junction[junction["junctype"] == "Dead End"]["geometry"].values])))
+
+    # Compile road segments with potentially invalid structtype.
+    roadseg_invalid = roadseg[~roadseg["structtype"].isin(["None", default["structtype"]])]
+
+    # Compile truly invalid road segments.
+    roadseg_invalid = roadseg_invalid[roadseg_invalid["geometry"].map(
+        lambda geom: any([coords in deadend_coords for coords in itemgetter(0, -1)(geom.coords)]))]
+
+    # Compile uuids of flagged records.
+    flag_uuids = roadseg_invalid.index.values
+    errors = pd.Series(roadseg.index.isin(flag_uuids), index=roadseg.index).astype("int")
+
+    # Validation 2: ensure structid is contiguous.

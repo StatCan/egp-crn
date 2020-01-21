@@ -167,12 +167,19 @@ class Stage:
             self.flags["roadseg"]["identify_isolated_lines_errors"] = validation_functions.identify_isolated_lines(df)
 
             # Validation: validate ferry-road connectivity.
-            logger.info("Applying validation: validate ferry-road connectivity. Target dataframe: ferryseg.")
+            logger.info("Applying validation: ferry-road connectivity. Target dataframe: ferryseg.")
 
             # Apply function.
             self.flags["ferryseg"]["validate_ferry_road_connectivity_errors"] = \
                 validation_functions.validate_ferry_road_connectivity(self.dframes["ferryseg"], self.dframes["roadseg"],
                                                                       self.dframes["junction"])
+
+            # Validation: validate road structures.
+            logger.info("Applying validation: road structures. Target dataframe: roadseg.")
+
+            # Apply function.
+            self.flags["roadseg"]["validate_road_structures_errors"] = validation_functions.validate_road_structures(
+                self.dframes["roadseg"], self.dframes["junction"], self.defaults["roadseg"])
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
