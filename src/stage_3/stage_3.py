@@ -160,11 +160,19 @@ class Stage:
                 validation_functions.validate_min_length(self.df_lines["roadseg"])
 
             # Validation: identify isolated line features.
-            logger.info("Applying validation: identify isolated line features. Target dataframe: ferryseg + roadseg")
+            logger.info("Applying validation: identify isolated line features. Target dataframe: ferryseg + roadseg.")
 
             # Concatenate dataframes, apply function.
             df = gpd.GeoDataFrame(pd.concat(self.df_lines.values(), ignore_index=False, sort=False))
-            self.flags["identify_isolated_lines_errors"] = validation_functions.identify_isolated_lines(df)
+            self.flags["roadseg"]["identify_isolated_lines_errors"] = validation_functions.identify_isolated_lines(df)
+
+            # Validation: validate ferry-road connectivity.
+            logger.info("Applying validation: validate ferry-road connectivity. Target dataframe: ferryseg.")
+
+            # Apply function.
+            self.flags["ferryseg"]["validate_ferry_road_connectivity_errors"] = \
+                validation_functions.validate_ferry_road_connectivity(self.dframes["ferryseg"], self.dframes["roadseg"],
+                                                                      self.dframes["junction"])
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")

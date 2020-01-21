@@ -3,6 +3,8 @@ import networkx as nx
 import os
 import pandas as pd
 import sys
+from itertools import chain
+from operator import itemgetter
 from osgeo import osr
 from shapely.geometry import LineString
 
@@ -72,6 +74,44 @@ def identify_isolated_lines(df):
     errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
 
     return errors
+
+
+def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
+    """Validates the connectivity between ferry and road line segments."""
+
+    errors = dict.fromkeys([1, 2], pd.Series(False, index=ferryseg.index))
+
+    # Validation 1: ensure ferry segments connect to a road segment at at least one endpoint.
+
+    # Compile junction coordinates where junctype = "Ferry".
+    ferry_junctions = list(set(chain([geom[0].coords[0] for geom in
+                                      junction[junction["junctype"] == "Ferry"]["geometry"].values])))
+
+    # Identify ferry segments which do not connect to any road segments.
+    mask = ferryseg["geometry"].map(
+        lambda geom: not any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))
+
+    # Compile uuids of flagged records.
+    flag_uuids = ferryseg[mask].index.values
+    errors[1] = pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)
+
+    # Validation 2: ensure ferry segments connect to <= 1 road segment at either endpoint.
+
+    # Compile road segments which connect to ferry segments.
+    roads_connected = roadseg[roadseg["geometry"].map(
+        lambda geom: any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))]
+
+    # Identify ferry endpoints which intersect multiple road segments.
+    ferry_multi_intersect = ferryseg["geometry"]\
+        .map(lambda ferry: [roads_connected["geometry"]
+             .map(lambda road: any([road_coords == ferry.coords[i] for road_coords in itemgetter(0, -1)(road.coords)]))
+             .sum() > 1 for i in (0, -1)])
+
+    # Compile uuids of flagged records.
+    flag_uuids = ferryseg[ferry_multi_intersect].index.values
+    errors[2] = pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)
+
+    return errors[1], errors[2]
 
 
 def validate_min_length(df):

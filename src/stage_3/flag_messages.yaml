@@ -19,6 +19,17 @@ identify_isolated_lines:
       {2}
       Error 1 details: Isolated line segment detected.
 
+validate_ferry_road_connectivity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
+      {2}
+      Error 1 details: Ferry segment must be connected to a road segment at at least one endpoint.
+    2: |
+      Invalid records identified for table "{0}", validation "{1}", error 2 (listed by uuid):
+      {2}
+      Error 2 details: Ferry segment cannot be connected to multiple road segments at the same endpoint.
+
 validate_min_length:
   errors:
     1: |
