@@ -1,4 +1,5 @@
 import click
+import fiona
 import geopandas as gpd
 import logging
 import networkx as nx
