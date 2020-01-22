@@ -12,7 +12,6 @@ import urllib.request
 import uuid
 import zipfile
 from geopandas_postgis import PostGIS
-from osgeo import ogr
 from psycopg2 import connect, extensions, sql
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.point import Point
@@ -284,8 +283,34 @@ class Stage:
 
         self.attr_equality["uuid"] = [uuid.uuid4().hex for _ in range(len(self.attr_equality))]
         self.attr_equality["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
-        self.attr_equality = self.attr_equality.replace("", "Unknown")
         self.dframes["junction"] = self.attr_equality
+        self.apply_domains()
+
+    def apply_domains(self):
+        """Applies the field domains to each column in the target dataframes."""
+
+        logging.info("Applying field domains to junction.")
+        defaults = helpers.compile_default_values()
+        dtypes = helpers.compile_dtypes()
+        field = None
+
+        try:
+
+            for field, domains in defaults["junction"].items():
+
+                logger.info("Target field \"{}\": Applying domain.".format(field))
+
+                # Apply domains to dataframe.
+                default = defaults["junction"][field]
+                self.dframes["junction"][field] = self.dframes["junction"][field].map(
+                    lambda val: default if val == "" or pd.isna(val) else val)
+
+                # Force adjust data type.
+                self.dframes["junction"][field] = self.dframes["junction"][field].astype(dtypes["junction"][field])
+
+        except (AttributeError, KeyError, ValueError):
+            logger.exception("Invalid schema definition for table: junction, field: {}.".format(field))
+            sys.exit(1)
 
     def export_gpkg(self):
         """Exports the junctions dataframe as a GeoPackage layer."""
