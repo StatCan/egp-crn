@@ -336,14 +336,15 @@ class Stage:
 
             # Spatial.
             if source_yaml["data"]["spatial"]:
-                dest = os.path.abspath("../../data/interim/{}_temp.shp".format(self.source))
+                dest = os.path.abspath("../../data/interim/{}_temp.geojson".format(self.source))
                 kwargs = {"filename": dest}
 
                 # Transform data source crs.
                 logger.info("Transforming data source to EPSG:4617.")
                 try:
-                    args = "ogr2ogr -overwrite -t_srs EPSG:4617 {} {}".format(dest, source_yaml["data"]["filename"])
-                    args += " " + source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else ""
+                    args = "ogr2ogr -overwrite -t_srs EPSG:4617 \"{}\" \"{}\" {} -lco coordinate_precision=6"\
+                        .format(dest, source_yaml["data"]["filename"],
+                                " " + source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "")
                     subprocess.run(args, shell=True, check=True)
                 except subprocess.CalledProcessError as e:
                     logger.exception("Unable to transform data source to EPSG:4617.")
@@ -366,7 +367,7 @@ class Stage:
             if source_yaml["data"]["spatial"]:
                 logger.info("Deleting temporary data source output.")
                 if os.path.exists(dest):
-                    driver = ogr.GetDriverByName("ESRI Shapefile")
+                    driver = ogr.GetDriverByName("GeoJSON")
                     driver.DeleteDataSource(dest)
                     del driver
 
