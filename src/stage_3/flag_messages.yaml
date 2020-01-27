@@ -36,3 +36,10 @@ validate_min_length:
       Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
       {2}
       Error 1 details: Line segment must be < 2 meters in length.
+
+validate_road_structures:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
+      {2}
+      Error 1 details: Dead end road segment must have structtype = "None" or the default field value.
