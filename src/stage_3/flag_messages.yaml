@@ -43,3 +43,9 @@ validate_road_structures:
       Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
       {2}
       Error 1 details: Dead end road segment must have structtype = "None" or the default field value.
+    2: |
+      Invalid records identified for table "{0}", validation "{1}", error 2:
+      {2}
+      Error 2 details: Structure must be contiguous. Review contiguity at the provided endpoints.
+    3: |
+    4: |

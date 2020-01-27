@@ -1,5 +1,6 @@
 import logging
 import networkx as nx
+import numpy as np
 import os
 import pandas as pd
 import sys
@@ -161,3 +162,41 @@ def validate_road_structures(roadseg, junction, default):
     errors = pd.Series(roadseg.index.isin(flag_uuids), index=roadseg.index).astype("int")
 
     # Validation 2: ensure structid is contiguous.
+    errors_2 = list()
+
+    # Compile structids.
+    structids = roadseg["structid"].unique()
+
+    # Remove default value.
+    structids = structids[np.where(structids != default["structid"])]
+
+    if len(structids):
+
+        # Iterate structids.
+        for structid in structids:
+
+            logger.info("Validating structure: \"{}\".".format(structid))
+
+            # Subset dataframe to those records with current structid.
+            structure = roadseg.iloc[list(np.where(roadseg["structid"] == structid)[0])]
+
+            # Load structure as networkx graph.
+            structure_graph = helpers.gdf_to_nx(structure, keep_attributes=False)
+
+            # Validate contiguity (networkx connectivity).
+            if not nx.is_connected(structure_graph):
+                # Identify deadends (locations of discontiguity).
+                deadends = [coords for coords, degree in structure_graph.degree() if degree == 1]
+                deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
+
+                # Compile error properties.
+                errors_2.append("Structure ID: \"{}\".\nEndpoints:\n{}.".format(structid, deadends))
+
+    # Validation 3: ensure structid is applied to all contiguous road segments with the same structtype.
+
+    # Compile road segments with valid structtype.
+    segments = roadseg[~roadseg["structtype"].isin("None", default["structtype"])]
+
+    # . . . .
+
+    return errors, errors_2
