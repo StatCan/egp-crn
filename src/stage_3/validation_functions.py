@@ -192,23 +192,29 @@ def validate_road_structures(roadseg, junction, default):
                 # Compile error properties.
                 errors_2.append("Structure ID: \"{}\".\nEndpoints:\n{}.".format(structid, deadends))
 
-    # Validation 3: ensure structid is applied to all contiguous road segments with the same structtype.
+    # Validation 3: ensure a single, non-default structid is applied to all contiguous road segments with the same
+    #               structtype.
+    # Validation 4: ensure road segments with different structtypes, excluding "None" and the default field value, are
+    #               not contiguous.
     errors_3 = list()
+    errors_4 = list()
 
     # Compile road segments with valid structtype.
     segments = roadseg[~roadseg["structtype"].isin(["None", default["structtype"]])]
 
     # Convert dataframe to networkx graph.
-    # Drop all columns except uuid, structid, and geometry to reduce processing.
+    # Drop all columns except uuid, structid, structtype, and geometry to reduce processing.
     segments.reset_index(drop=False, inplace=True)
-    segments.drop(segments.columns.difference(["uuid", "structid", "geometry"]), axis=1, inplace=True)
+    segments.drop(segments.columns.difference(["uuid", "structid", "structtype", "geometry"]), axis=1, inplace=True)
     segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
 
     # Configure subgraphs.
     sub_g = nx.connected_component_subgraphs(segments_graph)
 
-    # Compile uuids of subgraph if multiple or invalid (default) structids are present.
+    # Iterate subgraphs and apply validations.
     for index, s in enumerate(sub_g):
+
+        # Validation 3.
         structids = set(nx.get_edge_attributes(s, "structid").values())
         if len(structids) > 1 or default["structid"] in structids:
 
@@ -217,4 +223,13 @@ def validate_road_structures(roadseg, junction, default):
             errors_3.append("Structure {}. Structure uuids: {}. Structure IDs: {}."
                             .format(index, ", ".join(map("\"{}\"", uuids)), ", ".join(map("\"{}\"", structids))))
 
-    return errors, errors_2, errors_3
+        # Validation 4.
+        structtypes = set(nx.get_edge_attributes(s, "structtype").values())
+        if len(structtypes) > 1:
+
+            # Compile error properties.
+            uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
+            errors_4.append("Structure {}. Structure uuids: {}. Structure types: {}."
+                            .format(index, ", ".join(map("\"{}\"", uuids)), ", ".join(map("\"{}\"", structtypes))))
+
+    return errors, errors_2, errors_3, errors_4

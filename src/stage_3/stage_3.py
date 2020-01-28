@@ -178,8 +178,11 @@ class Stage:
             logger.info("Applying validation: road structures. Target dataframe: roadseg.")
 
             # Apply function.
-            self.flags["roadseg"]["validate_road_structures_errors"] = validation_functions.validate_road_structures(
-                self.dframes["roadseg"], self.dframes["junction"], self.defaults["roadseg"])
+            cols = ["validate_road_structures_{}errors".format(suf) for suf in ("", "2_", "3_", "4_")]
+            results = validation_functions.validate_road_structures(self.dframes["roadseg"], self.dframes["junction"],
+                                                                    self.defaults["roadseg"])
+            self.flags["roadseg"][cols[0]], self.flags["custom"][cols[1]], self.flags["custom"][cols[2]], \
+            self.flags["custom"][cols[3]] = results
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")

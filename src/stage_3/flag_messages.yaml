@@ -50,5 +50,8 @@ validate_road_structures:
     3: |
       Invalid records identified for table "{0}", validation "{1}", error 3:
       {2}
-      Error 3 details: Structure structid must be universal and not the default field value for all contiguous road segments.
+      Error 3 details: Structure structid must be universal and not the default field value for all constituent road segments.
     4: |
+      Invalid records identified for table "{0}", validation "{1}", error 4:
+      {2}
+      Error 4 details: Structure structtype must be universal and not the default field value for all constituent road segments.
