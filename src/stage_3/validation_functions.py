@@ -113,6 +113,24 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     return errors
 
 
+def validate_line_proximity(df):
+    """Validates the proximity of line segments."""
+
+    # Validation 1: ensure line segments are >= 3 meters from each other, excluding connected segments.
+
+    # Transform records to a meter-based crs: EPSG:3348.
+
+    # Define transformation.
+    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.ImportFromEPSG(4617)
+    prj_target.ImportFromEPSG(3348)
+    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
+
+    # Transform records.
+    df["geometry"] = df["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
+    df.crs["init"] = "epsg:3348"
+
+
 def validate_min_length(df):
     """Validates the minimum feature length of line geometries."""
 
