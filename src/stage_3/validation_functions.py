@@ -193,10 +193,28 @@ def validate_road_structures(roadseg, junction, default):
                 errors_2.append("Structure ID: \"{}\".\nEndpoints:\n{}.".format(structid, deadends))
 
     # Validation 3: ensure structid is applied to all contiguous road segments with the same structtype.
+    errors_3 = list()
 
     # Compile road segments with valid structtype.
-    segments = roadseg[~roadseg["structtype"].isin("None", default["structtype"])]
+    segments = roadseg[~roadseg["structtype"].isin(["None", default["structtype"]])]
 
-    # . . . .
+    # Convert dataframe to networkx graph.
+    # Drop all columns except uuid, structid, and geometry to reduce processing.
+    segments.reset_index(drop=False, inplace=True)
+    segments.drop(segments.columns.difference(["uuid", "structid", "geometry"]), axis=1, inplace=True)
+    segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
 
-    return errors, errors_2
+    # Configure subgraphs.
+    sub_g = nx.connected_component_subgraphs(segments_graph)
+
+    # Compile uuids of subgraph if multiple or invalid (default) structids are present.
+    for index, s in enumerate(sub_g):
+        structids = set(nx.get_edge_attributes(s, "structid").values())
+        if len(structids) > 1 or default["structid"] in structids:
+
+            # Compile error properties.
+            uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
+            errors_3.append("Structure {}. Structure uuids: {}. Structure IDs: {}."
+                            .format(index, ", ".join(map("\"{}\"", uuids)), ", ".join(map("\"{}\"", structids))))
+
+    return errors, errors_2, errors_3

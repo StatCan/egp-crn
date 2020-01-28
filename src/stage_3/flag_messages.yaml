@@ -48,4 +48,7 @@ validate_road_structures:
       {2}
       Error 2 details: Structure must be contiguous. Review contiguity at the provided endpoints.
     3: |
+      Invalid records identified for table "{0}", validation "{1}", error 3:
+      {2}
+      Error 3 details: Structure structid must be universal and not the default field value for all contiguous road segments.
     4: |
