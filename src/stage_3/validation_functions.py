@@ -7,6 +7,7 @@ import sys
 from itertools import chain
 from operator import itemgetter
 from osgeo import osr
+from scipy.spatial import cKDTree
 from shapely.geometry import LineString
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -129,6 +130,38 @@ def validate_line_proximity(df):
     # Transform records.
     df["geometry"] = df["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
     df.crs["init"] = "epsg:3348"
+
+    # Identify line segments within the invalid proximity range 0-3 meters, exclusively.
+    # TODO: Find more efficient method. Currently this would take around 24 hours.
+    proxi_flag = np.vectorize(
+        lambda geom1: any(np.vectorize(
+            lambda geom2: 0 < geom1.distance(geom2) < 3)(df["geometry"].values)))(df["geometry"].values)
+
+    # TODO: finish the following new method.
+    # Generate kdtree.
+    tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
+
+    # Compile indexes of line segments with points within 3 meters distance, exclusively.
+    indexes = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=3))))
+
+    # Compile uuids to exclude from distance measures for each line segment.
+
+    # Convert dataframe to networkx graph.
+    # Drop all columns except uuid and geometry to reduce processing.
+    df.reset_index(drop=False, inplace=True)
+    df.drop(df.columns.difference(["uuid", "geometry"]), axis=1, inplace=True)
+    g = helpers.gdf_to_nx(df, keep_attributes=True, endpoints_only=True)
+
+    # Compile uuids of self and connected line segments in order to create exclusion list.
+    exclude_uuids = df["geometry"].map(
+        lambda geom: list(map(itemgetter(-1), g.edges(itemgetter(0, -1)(geom.coords), data="uuid"))))
+
+    # Calculate index range for each dataframe record.
+    index_ranges = dict.fromkeys(df.index.values)
+    base = 0
+    for index, count in df["geometry"].map(lambda geom: len(geom.coords)).iteritems():
+        index_ranges[index] = [base, base + count]
+        base += count
 
 
 def validate_min_length(df):
