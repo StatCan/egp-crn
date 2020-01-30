@@ -145,8 +145,7 @@ def validate_line_proximity(df):
     proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=3))))
 
     # Compile indexes of line segments with points at 0 meters distance.
-    proxi_idx_exclude = df["geometry"].map(
-        lambda geom: list(chain(*tree.query_ball_point(itemgetter(0, -1)(geom.coords), r=0))))
+    proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=0))))
 
     # Filter excluded indexes from all indexes.
 
