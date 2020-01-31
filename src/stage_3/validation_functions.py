@@ -131,13 +131,6 @@ def validate_line_proximity(df):
     df["geometry"] = df["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
     df.crs["init"] = "epsg:3348"
 
-    # Identify line segments within the invalid proximity range 0-3 meters, exclusively.
-    # TODO: Find more efficient method. Currently this would take around 24 hours.
-    proxi_flag = np.vectorize(
-        lambda geom1: any(np.vectorize(
-            lambda geom2: 0 < geom1.distance(geom2) < 3)(df["geometry"].values)))(df["geometry"].values)
-
-    # TODO: finish the following new method.
     # Generate kdtree.
     tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
 
@@ -147,43 +140,52 @@ def validate_line_proximity(df):
     # Compile indexes of line segments with points at 0 meters distance.
     proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=0))))
 
-    # Filter excluded indexes from all indexes.
-
-    # Merged proximity index series into a dataframe.
+    # Filter coincident indexes from all indexes (these represent self-intersections).
     proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=df.index.values)
+    proxi_idx_keep = proxi_idx.apply(lambda row: set(row[0]) - set(row[1]), axis=1)
 
-    # Filter index values to those not within the exclusion list.
-    proxi_idx_keep = proxi_idx.apply(lambda row: list(set(row[0]) - set(row[1])), axis=1)
+    # Compile the uuids of connected segments to each segment (i.e. segments connected to a given segment's endpoints).
 
-    # # Compile uuids to exclude from distance measures for each line segment.
-    #
-    # # Convert dataframe to networkx graph.
-    # # Drop all columns except uuid and geometry to reduce processing.
-    # df_copy = df.copy(deep=True)
-    # df_copy.reset_index(drop=False, inplace=True)
-    # df.drop(df_copy.columns.difference(["uuid", "geometry"]), axis=1, inplace=True)
-    # g = helpers.gdf_to_nx(df_copy, keep_attributes=True, endpoints_only=True)
-    #
-    # # Compile uuids of self and connected line segments in order to create exclusion list.
-    # exclude_uuids = df["geometry"].map(
-    #     lambda geom: list(map(itemgetter(-1), g.edges(itemgetter(0, -1)(geom.coords), data="uuid"))))
-    #
-    # # Calculate index range for each dataframe record.
-    # index_ranges = dict.fromkeys(df.index.values)
-    # base = 0
-    # for index, count in df["geometry"].map(lambda geom: len(geom.coords)).iteritems():
-    #     index_ranges[index] = [base, base + count]
-    #     base += count
-    #
-    # # Calculate full index set from the index ranges and exclusion uuids.
-    # exclude_indexes = exclude_uuids.map(
-    #     lambda uuids: set(chain.from_iterable(range(*index_ranges[uuid]) for uuid in uuids)))
-    #
-    # # Combine proximity results with exclusion results.
-    # proxi_exclude = pd.DataFrame({"proxi": proxi_indexes, "exclude": exclude_indexes}, index=df.index.values)
-    #
-    # # Filter excluded indexes from proximity indexes.
-    # invalid = proxi_exclude.apply(lambda row: list(set(row[0])-row[1]), axis=1)
+    # Compile the uuid series aligned with the full set of segment endpoints.
+    endpoint_uuids = np.concatenate([[uuid] * count for uuid, count in
+                                     df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+
+    # Compile the x, y coordinate series aligned with the full set of segment endpoints.
+    endpoint_x, endpoint_y, endpoint_z = np.concatenate([itemgetter(0, -1)(geom.coords) for geom in df["geometry"]]).T
+
+    # Join the uuids, x-, and y-coordinates.
+    endpoint_df = pd.DataFrame({"x": endpoint_x, "y": endpoint_y, "uuid": endpoint_uuids})
+
+    # Group uuids according to x-, y-coordinates (i.e. compile uuids with a matching endpoint).
+    endpoint_uuids_grouped = endpoint_df.groupby(["x", "y"])["uuid"].apply(list)
+
+    # Compile the uuids to exclude from proximity analysis for each line segment.
+    # Procedure: retrieve the grouped uuids associated with the endpoints for each line segment.
+    df["exclude_uuids"] = df["geometry"].map(
+        lambda geom: set(chain.from_iterable(itemgetter(*map(
+            lambda pt: pt[:2], itemgetter(0, -1)(geom.coords)))(endpoint_uuids_grouped))))
+
+    # Compile the range of indexes for all coordinates associated with each line segment.
+    idx_ranges = dict.fromkeys(df.index.values)
+    base = 0
+    for index, count in df["geometry"].map(lambda geom: len(geom.coords)).iteritems():
+        idx_ranges[index] = [base, base + count]
+        base += count
+
+    # Convert connected uuid lists to index range lists.
+    df["exclude_ranges"] = df["exclude_uuids"].map(lambda uuids: itemgetter(*uuids)(idx_ranges))
+
+    # Expand index ranges to full set of indexes.
+    df["exclude_indexes"] = df["exclude_ranges"].map(
+        lambda ranges: set(ranges) if type(ranges) == list else set(chain(*map(lambda r: range(*r), ranges))))
+
+    # Join the remaining proximity indexes with excluded indexes.
+    proxi = pd.DataFrame({"current": proxi_idx_keep, "exclude": df["exclude_indexes"]}, index=df.index.values)
+
+    # Remove excluded indexes from proximity indexes.
+    proxi_result = proxi.apply(lambda row: row[0] - row[1], axis=1)
+
+    # TODO: Compile errors.
 
 
 def validate_min_length(df):
