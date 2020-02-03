@@ -4,7 +4,7 @@ import numpy as np
 import os
 import pandas as pd
 import sys
-from itertools import chain
+from itertools import chain, permutations
 from operator import itemgetter
 from osgeo import osr
 from scipy.spatial import cKDTree
@@ -112,6 +112,78 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     errors[pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)] = 2
 
     return errors
+
+
+def validate_line_merging_angle(df):
+    """Validates the merging angle of line segments."""
+
+    # Validation: ensure line segments merge at angles >= 40 degrees.
+
+    # Transform records to a meter-based crs: EPSG:3348.
+
+    # Define transformation.
+    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.ImportFromEPSG(4617)
+    prj_target.ImportFromEPSG(3348)
+    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
+
+    # Transform records.
+    df["geometry"] = df["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
+    df.crs["init"] = "epsg:3348"
+
+    # Compile the uuid groups for all non-unique points.
+
+    # Construct a uuid series aligned to the series of points.
+    pts_uuid = np.concatenate([[uuid] * count for uuid, count in
+                               df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+
+    # Construct x- and y-coordinate series aligned to the series of points.
+    # Disregard z-values.
+    pts_x, pts_y, pts_z = np.concatenate([np.array(geom.coords) for geom in df["geometry"]]).T
+
+    # Join the uuids, x-, and y-coordinates.
+    pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
+
+    # Filter records to only duplicated points.
+    pts_df = pts_df[pts_df.duplicated(["x", "y"], keep=False)]
+
+    # Group uuids according to x- and y-coordinates.
+    # Convert to dataframe to include index in pandas apply.
+    uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
+    uuids_grouped_df = pd.DataFrame({"uuids": uuids_grouped, "index": uuids_grouped.index.values})
+
+    # Retrieve the next point, relative to the target point, for each grouped uuid associated with each point.
+
+    # Compile the endpoints and next-to-endpoint points for each uuid.
+    pts_uuid = dict.fromkeys(df.index.values)
+    for uuid, geom in df["geometry"].iteritems():
+        pts_uuid[uuid] = list(map(lambda coord: coord[:2], itemgetter(0, 1, -2, -1)(geom.coords)))
+
+    # Retrieve the next point for each grouped uuid associated with each point.
+    pts_grouped = pd.Series(np.vectorize(lambda uuids, index: map(
+        lambda uuid: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2], uuids))(
+        uuids_grouped_df.uuids, uuids_grouped_df.index))\
+        .map(lambda vals: list(vals))
+
+    # Compile the permutations of points for each point group.
+    # Convert to dataframe to include index in pandas apply.
+    pts_grouped = pts_grouped.map(lambda pts: list(set(map(tuple, map(sorted, permutations(pts, r=2))))))
+    pts_grouped_df = pd.DataFrame({"pts": pts_grouped, "pt_ref": pts_grouped.index.values})
+
+    # Define function to calculate and return validity of angular degrees between two intersecting lines.
+    def get_invalid_angle(pt1, pt2, ref_pt):
+        angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
+        angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
+        angle_1 += 360 if angle_1 < 0 else 0
+        angle_2 += 360 if angle_2 < 0 else 0
+
+        return abs(angle_1 - angle_2) < 40
+
+    # Calculate the angular degree between each reference point and each of their point permutations.
+    # Return True if any angles are invalid.
+    flags = np.vectorize(
+        lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
+        pts_grouped_df.pts, pts_grouped_df.index)
 
 
 def validate_line_proximity(df):
