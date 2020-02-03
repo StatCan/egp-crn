@@ -30,6 +30,13 @@ validate_ferry_road_connectivity:
       {2}
       Error 2 details: Ferry segment cannot be connected to multiple road segments at the same endpoint.
 
+validate_line_proximity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1:
+      {2}
+      Error 1 details: Line segments must be >= 3 meters from each other, excluding connected segments.
+
 validate_min_length:
   errors:
     1: |

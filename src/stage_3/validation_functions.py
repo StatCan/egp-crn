@@ -117,7 +117,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
 def validate_line_proximity(df):
     """Validates the proximity of line segments."""
 
-    # Validation 1: ensure line segments are >= 3 meters from each other, excluding connected segments.
+    # Validation: ensure line segments are >= 3 meters from each other, excluding connected segments.
 
     # Transform records to a meter-based crs: EPSG:3348.
 
@@ -137,29 +137,31 @@ def validate_line_proximity(df):
     # Compile indexes of line segments with points within 3 meters distance.
     proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=3))))
 
-    # Compile indexes of line segments with points at 0 meters distance.
+    # Compile indexes of line segments with points at 0 meters distance. These represent points comprising the source
+    # line segment.
     proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=0))))
 
-    # Filter coincident indexes from all indexes (these represent self-intersections).
+    # Filter coincident indexes from all indexes.
     proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=df.index.values)
     proxi_idx_keep = proxi_idx.apply(lambda row: set(row[0]) - set(row[1]), axis=1)
 
     # Compile the uuids of connected segments to each segment (i.e. segments connected to a given segment's endpoints).
 
-    # Compile the uuid series aligned with the full set of segment endpoints.
+    # Construct a uuid series aligned to the series of segment endpoints.
     endpoint_uuids = np.concatenate([[uuid] * count for uuid, count in
                                      df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
-    # Compile the x, y coordinate series aligned with the full set of segment endpoints.
+    # Construct x- and y-coordinate series aligned to the series of segment endpoints.
+    # Disregard z-values.
     endpoint_x, endpoint_y, endpoint_z = np.concatenate([itemgetter(0, -1)(geom.coords) for geom in df["geometry"]]).T
 
     # Join the uuids, x-, and y-coordinates.
     endpoint_df = pd.DataFrame({"x": endpoint_x, "y": endpoint_y, "uuid": endpoint_uuids})
 
-    # Group uuids according to x-, y-coordinates (i.e. compile uuids with a matching endpoint).
+    # Group uuids according to x- and y-coordinates (i.e. compile uuids with a matching endpoint).
     endpoint_uuids_grouped = endpoint_df.groupby(["x", "y"])["uuid"].apply(list)
 
-    # Compile the uuids to exclude from proximity analysis for each line segment.
+    # Compile the uuids to exclude from proximity analysis (i.e. connected segments to each source line segment).
     # Procedure: retrieve the grouped uuids associated with the endpoints for each line segment.
     df["exclude_uuids"] = df["geometry"].map(
         lambda geom: set(chain.from_iterable(itemgetter(*map(
@@ -180,12 +182,26 @@ def validate_line_proximity(df):
         lambda ranges: set(ranges) if type(ranges) == list else set(chain(*map(lambda r: range(*r), ranges))))
 
     # Join the remaining proximity indexes with excluded indexes.
-    proxi = pd.DataFrame({"current": proxi_idx_keep, "exclude": df["exclude_indexes"]}, index=df.index.values)
+    proxi = pd.DataFrame({"indexes": proxi_idx_keep, "exclude": df["exclude_indexes"]}, index=df.index.values)
 
     # Remove excluded indexes from proximity indexes.
-    proxi_result = proxi.apply(lambda row: row[0] - row[1], axis=1)
+    proxi_results = proxi.apply(lambda row: row[0] - row[1], axis=1)
 
-    # TODO: Compile errors.
+    # Compile the uuid associated with every point from all line segments, in order.
+    idx_all = pd.Series(np.concatenate([[uuid] * len(range(*indexes)) for uuid, indexes in idx_ranges.items()]))
+
+    # Compile the uuid associated with resulting proximity point indexes for each line segment.
+    proxi_results = proxi_results.map(lambda indexes: itemgetter(*indexes)(idx_all) if indexes else False)
+
+    # Compile error properties.
+    errors = list()
+
+    for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
+        errors.append("Feature uuid \"{}\" is too close to feature uuid(s) {}."
+                      .format(source_uuid, ", ".join(
+            map("\"{}\"".format, [target_uuids] if type(target_uuids) == str else target_uuids))))
+
+    return errors
 
 
 def validate_min_length(df):

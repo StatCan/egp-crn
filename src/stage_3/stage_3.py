@@ -184,6 +184,14 @@ class Stage:
             self.flags["roadseg"][cols[0]], self.flags["custom"][cols[1]], self.flags["custom"][cols[2]], \
             self.flags["custom"][cols[3]] = results
 
+            # Validation: validate line proximity.
+            for table, df in self.df_lines.items():
+                logger.info("Apply validation: line proximity. Target dataframe: {}.".format(table))
+
+                # Apply function.
+                self.flags["custom"]["validate_line_proximity_{}".format(table)] = \
+                    validation_functions.validate_line_proximity(df)
+
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
             sys.exit(1)
