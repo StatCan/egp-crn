@@ -58,6 +58,13 @@ validate_min_length:
       {2}
       Error 1 details: Line segment must be < 2 meters in length.
 
+validate_point_proximity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1:
+      {2}
+      Error 1 details: Points must be >= 3 meters from each other.
+
 validate_road_structures:
   errors:
     1: |

@@ -313,9 +313,9 @@ def validate_line_proximity(df):
     errors = list()
 
     for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
-        errors.append("Feature uuid \"{}\" is too close to feature uuid(s) {}."
-                      .format(source_uuid, ", ".join(
-            map("\"{}\"".format, [target_uuids] if type(target_uuids) == str else target_uuids))))
+        errors.append("Feature uuid \"{}\" is too close to feature uuid(s) {}.".format(
+            source_uuid,
+            ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
 
     return errors
 
@@ -362,7 +362,31 @@ def validate_point_proximity(df):
     df["geometry"] = df["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0])))
     df.crs["init"] = "epsg:3348"
 
-    #.
+    # Generate kdtree.
+    tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
+
+    # Compile indexes of points with other points within 3 meters distance.
+    proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=3))))
+
+    # Compile indexes of points with other points at 0 meters distance. These represent the source point.
+    proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=0))))
+
+    # Filter coincident indexes from all indexes.
+    proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=df.index.values)
+    proxi_idx_keep = proxi_idx.apply(lambda row: set(row[0]) - set(row[1]), axis=1)
+
+    # Compile the uuid associated with resulting proximity point indexes for each point.
+    proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(df.index) if indexes else False)
+
+    # Compile error properties.
+    errors = list()
+
+    for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
+        errors.append("Feature uuid \"{}\" is too close to feature uuid(s) {}.".format(
+            source_uuid,
+            ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
+
+    return errors
 
 
 def validate_road_structures(roadseg, junction, default):

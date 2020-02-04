@@ -207,7 +207,8 @@ class Stage:
                 logger.info("Applying validation: point proximity. Target dataframe: {}.".format(table))
 
                 # Apply function.
-                self.flags[table]["validate_point_proximity_errors"] = validation_functions.validate_point_proximity(df)
+                self.flags["custom"]["validate_point_proximity_{}_errors".format(table)] = \
+                    validation_functions.validate_point_proximity(df)
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
