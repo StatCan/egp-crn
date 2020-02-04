@@ -281,10 +281,17 @@ class Stage:
     def gen_junctions(self):
         """Generate final dataset."""
 
+        # Set standard field values.
         self.attr_equality["uuid"] = [uuid.uuid4().hex for _ in range(len(self.attr_equality))]
         self.attr_equality["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
         self.dframes["junction"] = self.attr_equality
+
+        # Apply field domains.
         self.apply_domains()
+
+        # Convert geometry from multipoint to point.
+        if self.dframes["junction"].geom_type[0] == "MultiPoint":
+            self.multipoint_to_point()
 
     def apply_domains(self):
         """Applies the field domains to each column in the target dataframes."""
@@ -311,6 +318,11 @@ class Stage:
         except (AttributeError, KeyError, ValueError):
             logger.exception("Invalid schema definition for table: junction, field: {}.".format(field))
             sys.exit(1)
+
+    def multipoint_to_point(self):
+        """Converts junction geometry from multipoint to point."""
+
+        self.dframes["junction"]["geometry"] = self.dframes["junction"]["geometry"].map(lambda geom: geom[0])
 
     def export_gpkg(self):
         """Exports the junctions dataframe as a GeoPackage layer."""

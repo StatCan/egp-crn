@@ -202,6 +202,13 @@ class Stage:
                 self.flags[table]["validate_line_endpoint_clustering_errors"] = \
                     validation_functions.validate_line_endpoint_clustering(df)
 
+            # Validation: validate point proximity.
+            for table, df in self.df_points.items():
+                logger.info("Applying validation: point proximity. Target dataframe: {}.".format(table))
+
+                # Apply function.
+                self.flags[table]["validate_point_proximity_errors"] = validation_functions.validate_point_proximity(df)
+
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
             sys.exit(1)

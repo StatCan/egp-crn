@@ -38,10 +38,7 @@ def identify_duplicate_points(df):
     """Identifies the uuids of duplicate point geometries."""
 
     # Retrieve coordinates as tuples.
-    if df.geom_type[0] == "MultiPoint":
-        coords = df["geometry"].map(lambda geom: geom[0].coords[0])
-    else:
-        coords = df["geometry"].map(lambda geom: geom.coords[0])
+    coords = df["geometry"].map(lambda geom: geom.coords[0])
 
     # Identify duplicate geometries.
     mask = coords.duplicated(keep=False)
@@ -346,6 +343,26 @@ def validate_min_length(df):
     errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
 
     return errors
+
+
+def validate_point_proximity(df):
+    """Validates the proximity of points."""
+
+    # Validation: ensure points are >= 3 meters from each other.
+
+    # Transform records to a meter-based crs: EPSG:3348.
+
+    # Define transformation.
+    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.ImportFromEPSG(4617)
+    prj_target.ImportFromEPSG(3348)
+    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
+
+    # Transform records.
+    df["geometry"] = df["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0])))
+    df.crs["init"] = "epsg:3348"
+
+    #.
 
 
 def validate_road_structures(roadseg, junction, default):
