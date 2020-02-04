@@ -2,12 +2,11 @@ import click
 import fiona
 import geopandas as gpd
 import logging
-import numpy as np
 import os
 import pandas as pd
 import re
 import sys
-from itertools import chain
+from operator import itemgetter
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import validation_functions
@@ -170,17 +169,16 @@ class Stage:
             logger.info("Applying validation: ferry-road connectivity. Target dataframe: ferryseg.")
 
             # Apply function.
-            self.flags["ferryseg"]["validate_ferry_road_connectivity_errors"] = \
-                validation_functions.validate_ferry_road_connectivity(self.dframes["ferryseg"], self.dframes["roadseg"],
-                                                                      self.dframes["junction"])
+            self.flags["ferryseg"]["validate_ferry_road_connectivity_errors"] = validation_functions\
+                .validate_ferry_road_connectivity(*itemgetter("ferryseg", "roadseg", "junction")(self.dframes))
 
             # Validation: validate road structures.
             logger.info("Applying validation: road structures. Target dataframe: roadseg.")
 
             # Apply function.
             cols = ["validate_road_structures_{}errors".format(suf) for suf in ("", "2_", "3_", "4_")]
-            results = validation_functions.validate_road_structures(self.dframes["roadseg"], self.dframes["junction"],
-                                                                    self.defaults["roadseg"])
+            results = validation_functions.validate_road_structures(*itemgetter("roadseg", "junction")(self.dframes),
+                                                                    default=self.defaults["roadseg"])
             self.flags["roadseg"][cols[0]], self.flags["custom"][cols[1]], self.flags["custom"][cols[2]], \
             self.flags["custom"][cols[3]] = results
 
@@ -209,6 +207,13 @@ class Stage:
                 # Apply function.
                 self.flags["custom"]["validate_point_proximity_{}_errors".format(table)] = \
                     validation_functions.validate_point_proximity(df)
+
+            # Validation: validate deadend-disjoint proximity.
+            logger.info("Applying validation: deadend-disjoint proximity. Target dataframe: junction.")
+
+            # Apply function.
+            self.flags["junction"]["validate_deadend_disjoint_proximity_errors"] = validation_functions\
+                .validate_deadend_disjoint_proximity(*itemgetter("junction", "roadseg")(self.dframes))
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
