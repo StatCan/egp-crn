@@ -8,7 +8,7 @@ from itertools import chain, permutations
 from operator import itemgetter
 from osgeo import osr
 from scipy.spatial import cKDTree
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -110,6 +110,41 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     # Compile uuids of flagged records.
     flag_uuids = ferryseg[ferry_multi_intersect].index.values
     errors[pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)] = 2
+
+    return errors
+
+
+def validate_line_endpoint_clustering(df):
+    """Validates the quantity of points clustered near the endpoints of line segments."""
+
+    # Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
+
+    # Transform records to a meter-based crs: EPSG:3348.
+
+    # Define transformation.
+    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.ImportFromEPSG(4617)
+    prj_target.ImportFromEPSG(3348)
+    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
+
+    # Transform records.
+    df["geometry"] = df["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
+    df.crs["init"] = "epsg:3348"
+
+    # Filter out records with <= 3 points or length < 83 meters.
+    df_subset = df[~df["geometry"].map(lambda geom: len(geom.coords) <= 3 or geom.length < 83)]
+
+    # Identify invalid records.
+    # Process: either of the following must be true:
+    # a) The distance of the 4th point along the linestring is < 83 meters.
+    # b) The total linestring length minus the distance of the 4th-last point along the linestring is < 83 meters.
+    flags = np.vectorize(lambda geom: (geom.project(Point(geom.coords[3])) < 83) or
+                                      ((geom.length - geom.project(Point(geom.coords[-4]))) < 83)
+                         )(df_subset["geometry"])
+
+    # Compile uuids of flagged records.
+    flag_uuids = df_subset[flags].index.values
+    errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
 
     return errors
 

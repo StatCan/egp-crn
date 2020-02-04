@@ -191,8 +191,16 @@ class Stage:
                                 .format(validation.replace("_", " "), table))
 
                     # Apply function.
-                    self.flags["custom"]["validate_{}_{}".format(validation, table)] = \
+                    self.flags["custom"]["validate_{}_{}_errors".format(validation, table)] = \
                         eval("validation_functions.validate_{}(df)".format(validation))
+
+            # Validation: validate line endpoint clustering.
+            for table, df in self.df_lines.items():
+                logger.info("Applying validation: line endpoint clustering. Target dataframe: {}.".format(table))
+
+                # Apply function.
+                self.flags[table]["validate_line_endpoint_clustering_errors"] = \
+                    validation_functions.validate_line_endpoint_clustering(df)
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
