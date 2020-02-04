@@ -75,6 +75,73 @@ def identify_isolated_lines(df):
     return errors
 
 
+def validate_deadend_disjoint_proximity(junction, roadseg):
+    """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
+
+    # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
+
+    # Filter junctions to junctype = "Dead End".
+    deadends = junction[junction["junctype" == "Dead End"]]
+
+    # Transform records to a meter-based crs: EPSG:3348.
+
+    # Define transformation.
+    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.ImportFromEPSG(4617)
+    prj_target.ImportFromEPSG(3348)
+    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
+
+    # Transform records.
+    deadends["geometry"] = deadends["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0])))
+    deadends.crs["init"] = "epsg:3348"
+    roadseg["geometry"] = roadseg["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
+    roadseg.crs["init"] = "epsg:3348"
+
+    # Generate kdtree.
+    tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
+
+    # Compile indexes of road segments within 5 meters distance of each deadend.
+    proxi_idx_all = deadends["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=5))))
+
+    # Compile index of road segment at 0 meters distance from each deadend. These represent the connected roads.
+    proxi_idx_exclude = deadends["geometry"].map(lambda geom: tree.query(geom.coords))
+
+    # Construct a uuid series aligned to the series of road segment points.
+    roadseg_pts_uuid = np.concatenate([[uuid] * count for uuid, count in
+                                       roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+
+    # Retrieve the uuid associated with the exclusion indexes.
+    proxi_idx_exclude = proxi_idx_exclude.map(lambda index: itemgetter(*index)(roadseg_pts_uuid))
+
+    # Compile the range of indexes for all coordinates associated with each road segment.
+    idx_ranges = dict.fromkeys(roadseg.index.values)
+    base = 0
+    for index, count in roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems():
+        idx_ranges[index] = [base, base + count]
+        base += count
+
+    # Convert associated uuids to expanded index ranges.
+    proxi_idx_exclude = proxi_idx_exclude.map(lambda uuid: list(range(*itemgetter(uuid)(idx_ranges))))
+
+    # Filter coincident indexes from all indexes.
+    proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=deadends.index.values)
+    proxi_idx_keep = proxi_idx.apply(lambda row: set(row[0]) - set(row[1]), axis=1)
+
+    # Compile the uuid associated with resulting proximity point indexes for each deadend.
+    proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(roadseg_pts_uuid) if indexes else False)
+    proxi_results = proxi_results.map(lambda uuids: set(uuids) if isinstance(uuids, tuple) else uuids)
+
+    # Compile error properties.
+    errors = list()
+
+    for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
+        errors.append("junction uuid \"{}\" is too close to roadseg uuid(s) {}.".format(
+            source_uuid,
+            ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
+
+    return errors
+
+
 def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     """Validates the connectivity between ferry and road line segments."""
 
@@ -295,7 +362,7 @@ def validate_line_proximity(df):
 
     # Expand index ranges to full set of indexes.
     df["exclude_indexes"] = df["exclude_ranges"].map(
-        lambda ranges: set(ranges) if type(ranges) == list else set(chain(*map(lambda r: range(*r), ranges))))
+        lambda ranges: set(range(*ranges)) if type(ranges) == list else set(chain(*map(lambda r: range(*r), ranges))))
 
     # Join the remaining proximity indexes with excluded indexes.
     proxi = pd.DataFrame({"indexes": proxi_idx_keep, "exclude": df["exclude_indexes"]}, index=df.index.values)
@@ -366,10 +433,10 @@ def validate_point_proximity(df):
     tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
 
     # Compile indexes of points with other points within 3 meters distance.
-    proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=3))))
+    proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=3))))
 
     # Compile indexes of points with other points at 0 meters distance. These represent the source point.
-    proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=0))))
+    proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=0))))
 
     # Filter coincident indexes from all indexes.
     proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=df.index.values)

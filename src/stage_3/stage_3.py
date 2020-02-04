@@ -212,7 +212,7 @@ class Stage:
             logger.info("Applying validation: deadend-disjoint proximity. Target dataframe: junction.")
 
             # Apply function.
-            self.flags["junction"]["validate_deadend_disjoint_proximity_errors"] = validation_functions\
+            self.flags["custom"]["validate_deadend_disjoint_proximity_errors"] = validation_functions\
                 .validate_deadend_disjoint_proximity(*itemgetter("junction", "roadseg")(self.dframes))
 
         except (KeyError, SyntaxError, ValueError):

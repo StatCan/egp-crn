@@ -19,6 +19,13 @@ identify_isolated_lines:
       {2}
       Error 1 details: Isolated line segment detected.
 
+validate_deadend_disjoint_proximity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "{1}", error 1:
+      {2}
+      Error 1 details: Dead end junctions must be >= 5 meters from disjoint / non-connected road segments.
+
 validate_ferry_road_connectivity:
   errors:
     1: |
