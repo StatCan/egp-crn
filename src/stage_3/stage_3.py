@@ -184,14 +184,15 @@ class Stage:
             self.flags["roadseg"][cols[0]], self.flags["custom"][cols[1]], self.flags["custom"][cols[2]], \
             self.flags["custom"][cols[3]] = results
 
-            # Validation: line proximity.
-            for validation in ("line proximity", "line merging angle"):
+            # Validation: validate line proximity & validate line merging angle.
+            for validation in ("line_proximity", "line_merging_angle"):
                 for table, df in self.df_lines.items():
-                    logger.info("Applying validation: {}. Target dataframe: {}.".format(validation, table))
+                    logger.info("Applying validation: {}. Target dataframe: {}."
+                                .format(validation.replace("_", " "), table))
 
                     # Apply function.
-                    self.flags["custom"]["validate_{}_{}".format(validation.replace(" ", "_"), table)] = \
-                        eval("validation_functions.validate_{}(df)".format(validation.replace(" ", "_")))
+                    self.flags["custom"]["validate_{}_{}".format(validation, table)] = \
+                        eval("validation_functions.validate_{}(df)".format(validation))
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")

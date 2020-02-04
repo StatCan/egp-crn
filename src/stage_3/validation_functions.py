@@ -185,6 +185,18 @@ def validate_line_merging_angle(df):
         lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
         pts_grouped_df.pts, pts_grouped_df.index)
 
+    # Compile the original crs coordinates of all flagged intersections.
+
+    # Filter flagged intersection points (stored as index).
+    flagged_pts = pts_grouped[flags].index.values
+
+    # Revert to original crs: EPSG:4617.
+    # Compile resulting points as errors.
+    prj_transformer = osr.CoordinateTransformation(prj_target, prj_source)
+    errors = list(map(lambda coords: coords[:2], prj_transformer.TransformPoints(flagged_pts)))
+
+    return errors
+
 
 def validate_line_proximity(df):
     """Validates the proximity of line segments."""
