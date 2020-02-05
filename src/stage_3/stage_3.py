@@ -161,9 +161,9 @@ class Stage:
             # Validation: identify isolated line features.
             logger.info("Applying validation: identify isolated line features. Target dataframe: ferryseg + roadseg.")
 
-            # Concatenate dataframes, apply function.
-            df = gpd.GeoDataFrame(pd.concat(self.df_lines.values(), ignore_index=False, sort=False))
-            self.flags["roadseg"]["identify_isolated_lines_errors"] = validation_functions.identify_isolated_lines(df)
+            # Apply function.
+            self.flags["roadseg"]["identify_isolated_lines_errors"] = validation_functions.identify_isolated_lines(
+                *itemgetter("ferryseg", "roadseg")(self.df_lines))
 
             # Validation: validate ferry-road connectivity.
             logger.info("Applying validation: ferry-road connectivity. Target dataframe: ferryseg.")

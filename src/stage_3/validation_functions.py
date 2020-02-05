@@ -1,3 +1,5 @@
+import fiona
+import geopandas as gpd
 import logging
 import networkx as nx
 import numpy as np
@@ -50,8 +52,11 @@ def identify_duplicate_points(df):
     return errors
 
 
-def identify_isolated_lines(df):
-    """Identifies the uuids of isolated line segments."""
+def identify_isolated_lines(ferryseg, roadseg):
+    """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
+
+    # Concatenate ferryseg and roadseg dataframes.
+    df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=False, sort=False))
 
     # Convert dataframe to networkx graph.
     # Drop all columns except uuid and geometry to reduce processing.
@@ -66,10 +71,13 @@ def identify_isolated_lines(df):
     for s in sub_g:
         if len(set(nx.get_edge_attributes(s, "uuid").values())) == 1:
             uuid = list(nx.get_edge_attributes(s, "uuid").values())[0]
-            flag_uuids.append(uuid)
+
+            # Store uuid if from roadseg.
+            if uuid not in ferryseg.index:
+                flag_uuids.append(uuid)
 
     # Compile flagged records as errors.
-    errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
+    errors = pd.Series(roadseg.index.isin(flag_uuids), index=roadseg.index)
 
     return errors
 
