@@ -276,7 +276,8 @@ class Stage:
         attr_fix = self.sql["attributes"]["query"].format(self.stage)
 
         logger.info("Testing for junction equality and altering attributes.")
-        self.attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine)
+        self.attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine, geom_col="geom")
+        self.attr_equality = self.attr_equality.rename(columns={"geom": "geometry"}).set_geometry("geometry")
 
     def gen_junctions(self):
         """Generate final dataset."""
@@ -321,6 +322,9 @@ class Stage:
 
     def multipoint_to_point(self):
         """Converts junction geometry from multipoint to point."""
+
+        logger.info("TABLE:", self.dframes["junction"])
+        logger.info("FIELDS: {}".format(list(self.dframes["junction"].columns)))
 
         self.dframes["junction"]["geometry"] = self.dframes["junction"]["geometry"].map(lambda geom: geom[0])
 
