@@ -55,7 +55,6 @@ def identify_isolated_lines(df):
 
     # Convert dataframe to networkx graph.
     # Drop all columns except uuid and geometry to reduce processing.
-    df.reset_index(drop=False, inplace=True)
     df.drop(df.columns.difference(["uuid", "geometry"]), axis=1, inplace=True)
     g = helpers.gdf_to_nx(df, keep_attributes=True, endpoints_only=False)
 
@@ -148,7 +147,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     # Validation 1: ensure ferry segments connect to a road segment at at least one endpoint.
 
     # Compile junction coordinates where junctype = "Ferry".
-    ferry_junctions = list(set(chain([geom[0].coords[0] for geom in
+    ferry_junctions = list(set(chain([geom.coords[0] for geom in
                                       junction[junction["junctype"] == "Ferry"]["geometry"].values])))
 
     # Identify ferry segments which do not connect to any road segments.
@@ -463,7 +462,7 @@ def validate_road_structures(roadseg, junction, default):
     # Validation 1: ensure dead end road segments have structtype = "None" or the default field value.
 
     # Compile dead end coordinates.
-    deadend_coords = list(set(chain([geom[0].coords[0] for geom in
+    deadend_coords = list(set(chain([geom.coords[0] for geom in
                                      junction[junction["junctype"] == "Dead End"]["geometry"].values])))
 
     # Compile road segments with potentially invalid structtype.
@@ -520,7 +519,6 @@ def validate_road_structures(roadseg, junction, default):
 
     # Convert dataframe to networkx graph.
     # Drop all columns except uuid, structid, structtype, and geometry to reduce processing.
-    segments.reset_index(drop=False, inplace=True)
     segments.drop(segments.columns.difference(["uuid", "structid", "structtype", "geometry"]), axis=1, inplace=True)
     segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
 
