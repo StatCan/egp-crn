@@ -226,6 +226,7 @@ def validate_line_merging_angle(df):
     # Validation: ensure line segments merge at angles >= 40 degrees.
 
     # Transform records to a meter-based crs: EPSG:3348.
+    logger.info("Checkpoint 1")
 
     # Define transformation.
     prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
@@ -234,26 +235,34 @@ def validate_line_merging_angle(df):
     prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
 
     # Transform records.
+    logger.info("Checkpoint 2")
     df["geometry"] = df["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
     df.crs["init"] = "epsg:3348"
 
     # Compile the uuid groups for all non-unique points.
 
     # Construct a uuid series aligned to the series of points.
+    logger.info("Checkpoint 3")
     pts_uuid = np.concatenate([[uuid] * count for uuid, count in
                                df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
     # Construct x- and y-coordinate series aligned to the series of points.
     # Disregard z-values.
+    logger.info("Checkpoint 4")
     pts_x, pts_y, pts_z = np.concatenate([np.array(geom.coords) for geom in df["geometry"]]).T
 
     # Join the uuids, x-, and y-coordinates.
+    logger.info("Checkpoint 5")
     pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
 
     # Filter records to only duplicated points.
+    logger.info("Checkpoint 6")
     pts_df = pts_df[pts_df.duplicated(["x", "y"], keep=False)]
 
     # Exit function if no duplicated points since there is no point in proceeding.
+    logger.info("Checkpoint 7")
+    logger.info(len(pts_df))
+    logger.info(dir(pts_df))
     if not len(pts_df):
 
         return None
@@ -261,16 +270,20 @@ def validate_line_merging_angle(df):
     else:
 
         # Group uuids according to x- and y-coordinates.
+        logger.info("Checkpoint 8")
         uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
 
         # Retrieve the next point, relative to the target point, for each grouped uuid associated with each point.
 
         # Compile the endpoints and next-to-endpoint points for each uuid.
+        logger.info("Checkpoint 9")
         pts_uuid = dict.fromkeys(df.index.values)
+        logger.info("Checkpoint 10")
         for uuid, geom in df["geometry"].iteritems():
             pts_uuid[uuid] = list(map(lambda coord: coord[:2], itemgetter(0, 1, -2, -1)(geom.coords)))
 
         # Retrieve the next point for each grouped uuid associated with each point.
+        logger.info("Checkpoint 11")
         pts_grouped = pd.Series(np.vectorize(lambda uuids, index: map(
             lambda uuid: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2], uuids))(
             uuids_grouped, uuids_grouped.index))\
@@ -278,10 +291,12 @@ def validate_line_merging_angle(df):
 
         # Compile the permutations of points for each point group.
         # Recover source point as index.
+        logger.info("Checkpoint 12")
         pts_grouped = pts_grouped.map(lambda pts: list(set(map(tuple, map(sorted, permutations(pts, r=2))))))
         pts_grouped.index = uuids_grouped.index
 
         # Define function to calculate and return validity of angular degrees between two intersecting lines.
+        logger.info("Checkpoint 13")
         def get_invalid_angle(pt1, pt2, ref_pt):
             angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
             angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
@@ -292,6 +307,7 @@ def validate_line_merging_angle(df):
 
         # Calculate the angular degree between each reference point and each of their point permutations.
         # Return True if any angles are invalid.
+        logger.info("Checkpoint 14")
         flags = np.vectorize(
             lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
             pts_grouped, pts_grouped.index)
@@ -299,12 +315,16 @@ def validate_line_merging_angle(df):
         # Compile the original crs coordinates of all flagged intersections.
 
         # Filter flagged intersection points (stored as index).
+        logger.info("Checkpoint 15")
         flagged_pts = pts_grouped[flags].index.values
 
         # Revert to original crs: EPSG:4617.
         # Compile resulting points as errors.
+        logger.info("Checkpoint 16")
         prj_transformer = osr.CoordinateTransformation(prj_target, prj_source)
+        logger.info("Checkpoint 17")
         errors = list(map(lambda coords: coords[:2], prj_transformer.TransformPoints(flagged_pts)))
+        logger.info("Checkpoint 18")
 
         return errors
 
