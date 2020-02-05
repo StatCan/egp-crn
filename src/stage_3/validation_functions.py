@@ -81,7 +81,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
 
     # Filter junctions to junctype = "Dead End".
-    deadends = junction[junction["junctype" == "Dead End"]]
+    deadends = junction[junction["junctype"] == "Dead End"]
 
     # Transform records to a meter-based crs: EPSG:3348.
 
@@ -104,7 +104,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     proxi_idx_all = deadends["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=5))))
 
     # Compile index of road segment at 0 meters distance from each deadend. These represent the connected roads.
-    proxi_idx_exclude = deadends["geometry"].map(lambda geom: tree.query(geom.coords))
+    proxi_idx_exclude = deadends["geometry"].map(lambda geom: tree.query(geom.coords)[-1])
 
     # Construct a uuid series aligned to the series of road segment points.
     roadseg_pts_uuid = np.concatenate([[uuid] * count for uuid, count in
@@ -247,9 +247,7 @@ def validate_line_merging_angle(df):
     pts_df = pts_df[pts_df.duplicated(["x", "y"], keep=False)]
 
     # Group uuids according to x- and y-coordinates.
-    # Convert to dataframe to include index in pandas apply.
     uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
-    uuids_grouped_df = pd.DataFrame({"uuids": uuids_grouped, "index": uuids_grouped.index.values})
 
     # Retrieve the next point, relative to the target point, for each grouped uuid associated with each point.
 
@@ -261,13 +259,13 @@ def validate_line_merging_angle(df):
     # Retrieve the next point for each grouped uuid associated with each point.
     pts_grouped = pd.Series(np.vectorize(lambda uuids, index: map(
         lambda uuid: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2], uuids))(
-        uuids_grouped_df.uuids, uuids_grouped_df.index))\
+        uuids_grouped, uuids_grouped.index))\
         .map(lambda vals: list(vals))
 
     # Compile the permutations of points for each point group.
-    # Convert to dataframe to include index in pandas apply.
+    # Recover source point as index.
     pts_grouped = pts_grouped.map(lambda pts: list(set(map(tuple, map(sorted, permutations(pts, r=2))))))
-    pts_grouped_df = pd.DataFrame({"pts": pts_grouped, "pt_ref": pts_grouped.index.values})
+    pts_grouped.index = uuids_grouped.index
 
     # Define function to calculate and return validity of angular degrees between two intersecting lines.
     def get_invalid_angle(pt1, pt2, ref_pt):
@@ -282,7 +280,7 @@ def validate_line_merging_angle(df):
     # Return True if any angles are invalid.
     flags = np.vectorize(
         lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
-        pts_grouped_df.pts, pts_grouped_df.index)
+        pts_grouped, pts_grouped.index)
 
     # Compile the original crs coordinates of all flagged intersections.
 
@@ -331,7 +329,7 @@ def validate_line_proximity(df):
     # Compile the uuids of connected segments to each segment (i.e. segments connected to a given segment's endpoints).
 
     # Construct a uuid series aligned to the series of segment endpoints.
-    endpoint_uuids = np.concatenate([[uuid] * count for uuid, count in
+    endpoint_uuids = np.concatenate([[uuid, uuid] for uuid, count in
                                      df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
     # Construct x- and y-coordinate series aligned to the series of segment endpoints.
