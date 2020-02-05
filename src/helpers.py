@@ -188,7 +188,7 @@ def load_gpkg(gpkg_path):
                         df = pd.read_sql_query("select * from {}".format(table_name), con)
 
                     # Set index field: uuid.
-                    df.set_index("uuid", inplace=True)
+                    df.index = df["uuid"]
 
                     # Store result.
                     dframes[table_name] = df
