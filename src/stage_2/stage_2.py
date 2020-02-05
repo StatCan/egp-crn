@@ -323,9 +323,6 @@ class Stage:
     def multipoint_to_point(self):
         """Converts junction geometry from multipoint to point."""
 
-        logger.info("TABLE:", self.dframes["junction"])
-        logger.info("FIELDS: {}".format(list(self.dframes["junction"].columns)))
-
         self.dframes["junction"]["geometry"] = self.dframes["junction"]["geometry"].map(lambda geom: geom[0])
 
     def export_gpkg(self):
