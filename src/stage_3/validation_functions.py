@@ -253,53 +253,60 @@ def validate_line_merging_angle(df):
     # Filter records to only duplicated points.
     pts_df = pts_df[pts_df.duplicated(["x", "y"], keep=False)]
 
-    # Group uuids according to x- and y-coordinates.
-    uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
+    # Exit function if no duplicated points since there is no point in proceeding.
+    if not len(pts_df):
 
-    # Retrieve the next point, relative to the target point, for each grouped uuid associated with each point.
+        return None
 
-    # Compile the endpoints and next-to-endpoint points for each uuid.
-    pts_uuid = dict.fromkeys(df.index.values)
-    for uuid, geom in df["geometry"].iteritems():
-        pts_uuid[uuid] = list(map(lambda coord: coord[:2], itemgetter(0, 1, -2, -1)(geom.coords)))
+    else:
 
-    # Retrieve the next point for each grouped uuid associated with each point.
-    pts_grouped = pd.Series(np.vectorize(lambda uuids, index: map(
-        lambda uuid: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2], uuids))(
-        uuids_grouped, uuids_grouped.index))\
-        .map(lambda vals: list(vals))
+        # Group uuids according to x- and y-coordinates.
+        uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
 
-    # Compile the permutations of points for each point group.
-    # Recover source point as index.
-    pts_grouped = pts_grouped.map(lambda pts: list(set(map(tuple, map(sorted, permutations(pts, r=2))))))
-    pts_grouped.index = uuids_grouped.index
+        # Retrieve the next point, relative to the target point, for each grouped uuid associated with each point.
 
-    # Define function to calculate and return validity of angular degrees between two intersecting lines.
-    def get_invalid_angle(pt1, pt2, ref_pt):
-        angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
-        angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
-        angle_1 += 360 if angle_1 < 0 else 0
-        angle_2 += 360 if angle_2 < 0 else 0
+        # Compile the endpoints and next-to-endpoint points for each uuid.
+        pts_uuid = dict.fromkeys(df.index.values)
+        for uuid, geom in df["geometry"].iteritems():
+            pts_uuid[uuid] = list(map(lambda coord: coord[:2], itemgetter(0, 1, -2, -1)(geom.coords)))
 
-        return abs(angle_1 - angle_2) < 40
+        # Retrieve the next point for each grouped uuid associated with each point.
+        pts_grouped = pd.Series(np.vectorize(lambda uuids, index: map(
+            lambda uuid: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2], uuids))(
+            uuids_grouped, uuids_grouped.index))\
+            .map(lambda vals: list(vals))
 
-    # Calculate the angular degree between each reference point and each of their point permutations.
-    # Return True if any angles are invalid.
-    flags = np.vectorize(
-        lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
-        pts_grouped, pts_grouped.index)
+        # Compile the permutations of points for each point group.
+        # Recover source point as index.
+        pts_grouped = pts_grouped.map(lambda pts: list(set(map(tuple, map(sorted, permutations(pts, r=2))))))
+        pts_grouped.index = uuids_grouped.index
 
-    # Compile the original crs coordinates of all flagged intersections.
+        # Define function to calculate and return validity of angular degrees between two intersecting lines.
+        def get_invalid_angle(pt1, pt2, ref_pt):
+            angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
+            angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
+            angle_1 += 360 if angle_1 < 0 else 0
+            angle_2 += 360 if angle_2 < 0 else 0
 
-    # Filter flagged intersection points (stored as index).
-    flagged_pts = pts_grouped[flags].index.values
+            return abs(angle_1 - angle_2) < 40
 
-    # Revert to original crs: EPSG:4617.
-    # Compile resulting points as errors.
-    prj_transformer = osr.CoordinateTransformation(prj_target, prj_source)
-    errors = list(map(lambda coords: coords[:2], prj_transformer.TransformPoints(flagged_pts)))
+        # Calculate the angular degree between each reference point and each of their point permutations.
+        # Return True if any angles are invalid.
+        flags = np.vectorize(
+            lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
+            pts_grouped, pts_grouped.index)
 
-    return errors
+        # Compile the original crs coordinates of all flagged intersections.
+
+        # Filter flagged intersection points (stored as index).
+        flagged_pts = pts_grouped[flags].index.values
+
+        # Revert to original crs: EPSG:4617.
+        # Compile resulting points as errors.
+        prj_transformer = osr.CoordinateTransformation(prj_target, prj_source)
+        errors = list(map(lambda coords: coords[:2], prj_transformer.TransformPoints(flagged_pts)))
+
+        return errors
 
 
 def validate_line_proximity(df):
