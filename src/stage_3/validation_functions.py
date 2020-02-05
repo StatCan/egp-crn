@@ -496,7 +496,7 @@ def validate_road_structures(roadseg, junction, default):
     if len(structids):
 
         # Iterate structids.
-        for structid in structids:
+        for structid in sorted(structids):
 
             logger.info("Validating structure: \"{}\".".format(structid))
 
@@ -542,8 +542,8 @@ def validate_road_structures(roadseg, junction, default):
 
             # Compile error properties.
             uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors_3.append("Structure {}. Structure uuids: {}. Structure IDs: {}."
-                            .format(index, ", ".join(map("\"{}\"", uuids)), ", ".join(map("\"{}\"", structids))))
+            errors_3.append("Structure: {}. Structure uuids: {}. Structure IDs: {}.".format(
+                index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structids))))
 
         # Validation 4.
         structtypes = set(nx.get_edge_attributes(s, "structtype").values())
@@ -551,7 +551,7 @@ def validate_road_structures(roadseg, junction, default):
 
             # Compile error properties.
             uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors_4.append("Structure {}. Structure uuids: {}. Structure types: {}."
-                            .format(index, ", ".join(map("\"{}\"", uuids)), ", ".join(map("\"{}\"", structtypes))))
+            errors_4.append("Structure: {}. Structure uuids: {}. Structure types: {}.".format(
+                index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structtypes))))
 
     return errors, errors_2, errors_3, errors_4
