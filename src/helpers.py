@@ -114,7 +114,9 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
                 con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
                 con.commit()
 
-            # Set index to data column.
+            # Set index as column "uuid".
+            if "uuid" in df.columns:
+                df.drop("uuid", axis=1, inplace=True)
             df.reset_index(drop=False, inplace=True)
 
             # Spatial data.
