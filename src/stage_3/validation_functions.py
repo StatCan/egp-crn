@@ -173,10 +173,10 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
         lambda geom: any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))]
 
     # Identify ferry endpoints which intersect multiple road segments.
-    ferry_multi_intersect = ferryseg["geometry"]\
-        .map(lambda ferry: [roads_connected["geometry"]
-             .map(lambda road: any([road_coords == ferry.coords[i] for road_coords in itemgetter(0, -1)(road.coords)]))
-             .sum() > 1 for i in (0, -1)])
+    ferry_multi_intersect = ferryseg["geometry"].map(
+        lambda ferry: any([roads_connected["geometry"].map(
+            lambda road: any([road_coords == ferry.coords[i] for road_coords in itemgetter(0, -1)(road.coords)]))
+                          .sum() > 1 for i in (0, -1)]))
 
     # Compile uuids of flagged records.
     flag_uuids = ferryseg[ferry_multi_intersect].index.values
