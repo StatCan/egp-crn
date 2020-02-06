@@ -263,6 +263,7 @@ def validate_line_merging_angle(df):
     logger.info("Checkpoint 7")
     logger.info(len(pts_df))
     logger.info(dir(pts_df))
+    # TODO: put if-else in a later step.
     if not len(pts_df):
 
         return None
