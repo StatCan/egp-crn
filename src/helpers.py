@@ -10,8 +10,8 @@ import sqlite3
 import sys
 import time
 import yaml
-from osgeo import ogr
-from shapely.geometry.point import Point
+from osgeo import ogr, osr
+from shapely.geometry import LineString, Point
 
 
 logger = logging.getLogger()
@@ -287,3 +287,25 @@ def nx_to_gdf(g, nodes=True, edges=True):
         return gdf_nodes
     else:
         return gdf_edges
+
+def reproject_gdf(gdf, epsg_source, epsg_target):
+    """Transforms a GeoDataFrame's geometry column between EPSGs."""
+
+    # Define transformation.
+    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.ImportFromEPSG(epsg_source)
+    prj_target.ImportFromEPSG(epsg_target)
+    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
+
+    # Transform Records.
+    if gdf.geom_type[0] == "LineString":
+        gdf["geometry"] = gdf["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
+    elif gdf.geom_type[0] == "Point":
+        gdf["geometry"] = gdf["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0])))
+    else:
+        raise Exception("Geometry type not supported for EPSG transformation.")
+
+    # Update crs attribute.
+    gdf.crs["init"] = "epsg:{}".format(epsg_target)
+
+    return gdf

@@ -160,7 +160,7 @@ class Stage:
 
                 # Apply function, store results.
                 self.dframes[table], self.flags[table]["title_route_text_modifications"] = \
-                    validation_functions.title_route_text(self.dframes[table], self.defaults[table])
+                    validation_functions.title_route_text(self.dframes[table].copy(deep=True), self.defaults[table])
 
             # Validation: route contiguity.
             logger.info("Applying validation: route contiguity. Target dataframe: ferryseg + roadseg.")
@@ -169,7 +169,7 @@ class Stage:
             df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True,
                                             sort=False))
             self.flags["custom"]["validate_route_contiguity_errors"] = validation_functions.validate_route_contiguity(
-                df, self.defaults["roadseg"])
+                df.copy(deep=True), self.defaults["roadseg"])
 
             # Validation: exitnbr-roadclass.
             logger.info("Applying validation: exitnbr-roadclass. Target dataframe: roadseg.")
@@ -185,7 +185,7 @@ class Stage:
 
             # Apply function.
             self.flags["custom"]["validate_exitnbr_conflict_errors"] = validation_functions.validate_exitnbr_conflict(
-                self.dframes["roadseg"], self.defaults["roadseg"]["exitnbr"])
+                self.dframes["roadseg"].copy(deep=True), self.defaults["roadseg"]["exitnbr"])
 
             # Validation: roadclass self-intersection.
             logger.info("Applying validation: roadclass self-intersection. Target dataframe: roadseg.")
@@ -193,7 +193,7 @@ class Stage:
             # Apply function.
             cols = ["validate_roadclass_structtype_errors", "validate_roadclass_self_intersection_errors"]
             self.flags["roadseg"][cols[0]], self.flags["roadseg"][cols[1]] = \
-                validation_functions.validate_roadclass_self_intersection(self.dframes["roadseg"],
+                validation_functions.validate_roadclass_self_intersection(self.dframes["roadseg"].copy(deep=True),
                                                                           self.defaults["roadseg"]["nid"])
 
         except (KeyError, SyntaxError, ValueError):

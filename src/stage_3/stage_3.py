@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import re
 import sys
+from copy import deepcopy
 from operator import itemgetter
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -134,63 +135,71 @@ class Stage:
 
         try:
 
-            # Validation: identify duplicate line features.
+            # # Validation: identify duplicate line features.
+            # for table, df in self.df_lines.items():
+            #     logger.info("Applying validation: identify duplicate line features. Target dataframe: {}."
+            #                 .format(table))
+            #
+            #     # Apply function.
+            #     self.flags[table]["identify_duplicate_lines_errors"] = validation_functions.identify_duplicate_lines(
+            #         df.copy(deep=True))
+            #
+            # # Validation: identify duplicate point features.
+            # for table, df in self.df_points.items():
+            #     logger.info("Applying validation: identify duplicate point features. Target dataframe: {}."
+            #                 .format(table))
+            #
+            #     # Apply function.
+            #     self.flags[table]["identify_duplicate_points_errors"] = \
+            #         validation_functions.identify_duplicate_points(df.copy(deep=True))
+            #
+            # # Validation: minimum feature length.
+            # logger.info("Applying validation: minimum feature length. Target dataframe: roadseg.")
+            #
+            # # Apply function.
+            # self.flags["roadseg"]["validate_min_length_errors"] = \
+            #     validation_functions.validate_min_length(self.df_lines["roadseg"].copy(deep=True))
+            #
+            # # Validation: identify isolated line features.
+            # logger.info("Applying validation: identify isolated line features. Target dataframe: ferryseg + roadseg.")
+            #
+            # # Apply function.
+            # self.flags["roadseg"]["identify_isolated_lines_errors"] = validation_functions.identify_isolated_lines(
+            #     *map(deepcopy, itemgetter("ferryseg", "roadseg")(self.df_lines)))
+            #
+            # # Validation: validate ferry-road connectivity.
+            # logger.info("Applying validation: ferry-road connectivity. Target dataframe: ferryseg.")
+            #
+            # # Apply function.
+            # self.flags["ferryseg"]["validate_ferry_road_connectivity_errors"] = \
+            #     validation_functions.validate_ferry_road_connectivity(
+            #         *map(deepcopy, itemgetter("ferryseg", "roadseg", "junction")(self.dframes)))
+            #
+            # # Validation: validate road structures.
+            # logger.info("Applying validation: road structures. Target dataframe: roadseg.")
+            #
+            # # Apply function.
+            # cols = ["validate_road_structures_{}errors".format(suf) for suf in ("", "2_", "3_", "4_")]
+            # results = validation_functions.validate_road_structures(
+            #     *map(deepcopy, itemgetter("roadseg", "junction")(self.dframes)), default=self.defaults["roadseg"])
+            # self.flags["roadseg"][cols[0]], self.flags["custom"][cols[1]], self.flags["custom"][cols[2]], \
+            # self.flags["custom"][cols[3]] = results
+            #
+            # # Validation: validate line proximity.
+            # for table, df in self.df_lines.items():
+            #     logger.info("Applying validation: line proximity. Target dataframe: {}.".format(table))
+            #
+            #     # Apply function.
+            #     self.flags["custom"]["validate_line_proximity_{}_errors".format(table)] = \
+            #         validation_functions.validate_line_proximity(df.copy(deep=True))
+
+            # Validation: validate line merging angle.
             for table, df in self.df_lines.items():
-                logger.info("Applying validation: identify duplicate line features. Target dataframe: {}."
-                            .format(table))
+                logger.info("Applying validation: line merging angle. Target dataframe: {}.".format(table))
 
                 # Apply function.
-                self.flags[table]["identify_duplicate_lines_errors"] = validation_functions.identify_duplicate_lines(df)
-
-            # Validation: identify duplicate point features.
-            for table, df in self.df_points.items():
-                logger.info("Applying validation: identify duplicate point features. Target dataframe: {}."
-                            .format(table))
-
-                # Apply function.
-                self.flags[table]["identify_duplicate_points_errors"] = \
-                    validation_functions.identify_duplicate_points(df)
-
-            # Validation: minimum feature length.
-            logger.info("Applying validation: minimum feature length. Target dataframe: roadseg.")
-
-            # Apply function.
-            self.flags["roadseg"]["validate_min_length_errors"] = \
-                validation_functions.validate_min_length(self.df_lines["roadseg"])
-
-            # Validation: identify isolated line features.
-            logger.info("Applying validation: identify isolated line features. Target dataframe: ferryseg + roadseg.")
-
-            # Apply function.
-            self.flags["roadseg"]["identify_isolated_lines_errors"] = validation_functions.identify_isolated_lines(
-                *itemgetter("ferryseg", "roadseg")(self.df_lines))
-
-            # Validation: validate ferry-road connectivity.
-            logger.info("Applying validation: ferry-road connectivity. Target dataframe: ferryseg.")
-
-            # Apply function.
-            self.flags["ferryseg"]["validate_ferry_road_connectivity_errors"] = validation_functions\
-                .validate_ferry_road_connectivity(*itemgetter("ferryseg", "roadseg", "junction")(self.dframes))
-
-            # Validation: validate road structures.
-            logger.info("Applying validation: road structures. Target dataframe: roadseg.")
-
-            # Apply function.
-            cols = ["validate_road_structures_{}errors".format(suf) for suf in ("", "2_", "3_", "4_")]
-            results = validation_functions.validate_road_structures(*itemgetter("roadseg", "junction")(self.dframes),
-                                                                    default=self.defaults["roadseg"])
-            self.flags["roadseg"][cols[0]], self.flags["custom"][cols[1]], self.flags["custom"][cols[2]], \
-            self.flags["custom"][cols[3]] = results
-
-            # Validation: validate line proximity & validate line merging angle.
-            for validation in ("line_proximity", "line_merging_angle"):
-                for table, df in self.df_lines.items():
-                    logger.info("Applying validation: {}. Target dataframe: {}."
-                                .format(validation.replace("_", " "), table))
-
-                    # Apply function.
-                    self.flags["custom"]["validate_{}_{}_errors".format(validation, table)] = \
-                        eval("validation_functions.validate_{}(df)".format(validation))
+                self.flags["custom"]["validate_line_merging_angle_{}_errors".format(table)] = \
+                    validation_functions.validate_line_merging_angle(df.copy(deep=True))
 
             # Validation: validate line endpoint clustering.
             for table, df in self.df_lines.items():
@@ -198,7 +207,7 @@ class Stage:
 
                 # Apply function.
                 self.flags[table]["validate_line_endpoint_clustering_errors"] = \
-                    validation_functions.validate_line_endpoint_clustering(df)
+                    validation_functions.validate_line_endpoint_clustering(df.copy(deep=True))
 
             # Validation: validate point proximity.
             for table, df in self.df_points.items():
@@ -206,14 +215,14 @@ class Stage:
 
                 # Apply function.
                 self.flags["custom"]["validate_point_proximity_{}_errors".format(table)] = \
-                    validation_functions.validate_point_proximity(df)
+                    validation_functions.validate_point_proximity(df.copy(deep=True))
 
             # Validation: validate deadend-disjoint proximity.
             logger.info("Applying validation: deadend-disjoint proximity. Target dataframe: junction.")
 
             # Apply function.
             self.flags["custom"]["validate_deadend_disjoint_proximity_errors"] = validation_functions\
-                .validate_deadend_disjoint_proximity(*itemgetter("junction", "roadseg")(self.dframes))
+                .validate_deadend_disjoint_proximity(*map(deepcopy, itemgetter("junction", "roadseg")(self.dframes)))
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
