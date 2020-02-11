@@ -8,9 +8,8 @@ import pandas as pd
 import sys
 from itertools import chain, permutations
 from operator import itemgetter
-from osgeo import osr
 from scipy.spatial import cKDTree
-from shapely.geometry import LineString, Point
+from shapely.geometry import Point
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
