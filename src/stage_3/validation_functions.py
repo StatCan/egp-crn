@@ -277,7 +277,7 @@ def validate_line_merging_angle(df):
         # Revert to original crs: EPSG:4617.
         flagged_pts = gpd.GeoDataFrame(geometry=gpd.GeoSeries(map(Point, flagged_pts)))
         flagged_pts.crs = dict()
-        flagged_pts = helpers(flagged_pts, 3348, 4617)
+        flagged_pts = helpers.reproject_gdf(flagged_pts, 3348, 4617)
 
         # Compile resulting points as errors.
         errors = list(map(lambda pt: pt.coords[0][:2], flagged_pts["geometry"]))
