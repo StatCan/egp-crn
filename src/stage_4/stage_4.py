@@ -55,11 +55,8 @@ class Stage:
 
         logger.info("Generating flag variables.")
 
-        # Create flag dataframes for each gpkg dataframe.
-        self.flags = {name: pd.DataFrame(index=df.index) for name, df in self.dframes.items()}
-
-        # Create custom key for error / mod messages that aren't uuid based.
-        self.flags["custom"] = dict()
+        # Create flag dictionary entry for each gpkg dataframe.
+        self.flags = {name: {"modifications": dict(), "errors": dict()} for name in self.dframes.keys()}
 
         # Load flag messages yaml.
         self.flag_messages_yaml = helpers.load_yaml(os.path.abspath("flag_messages.yaml"))
@@ -76,37 +73,31 @@ class Stage:
 
         logger.info("Compiling modification and error logs.")
 
-        # Log standardized modification and error messages.
-        for table in [t for t in self.flags.keys() if t != "custom"]:
+        # Iterate dataframe flags.
+        for name in self.flags.keys():
 
-            # Log message type.
-            for typ in ("modifications", "errors"):
+            # Iterate non-empty flag types.
+            for flag_typ in [typ for typ in ("modifications", "errors") if len(self.flags[name][typ])]:
 
-                # Iterate message flag columns.
-                for col in [c for c in self.flags[table].columns if re.findall("_" + typ + "$", c)]:
+                # Iterate non-empty flag tables (validations).
+                for validation in [val for val, data in self.flags[name][flag_typ].items() if len(data)]:
 
-                    # Retrieve data series.
-                    # Force data type to int.
-                    series = self.flags[table][col].astype(int)
+                    # Retrieve flags.
+                    flags = self.flags[name][flag_typ][validation]
 
-                    # Iterate message codes.
-                    # Excludes values evaluating to False (i.e. 0, nan, False).
-                    for mcode in sorted([code for code in series.unique() if code]):
+                    # Log error messages, iteratively if multiple error codes stored in dictionary.
+                    if isinstance(flags, dict):
+                        for code, code_flags in [[k, v] for k, v in flags.items() if len(v)]:
+
+                            # Log messages.
+                            vals = "\n".join(map(str, code_flags))
+                            logger.info(self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
+
+                    else:
 
                         # Log messages.
-                        vals = series[series == mcode].index
-                        validation = re.sub("_" + typ + "$", "", col)
-                        args = [table, validation, "\n".join(vals)]
-                        logger.info(self.flag_messages_yaml[validation][typ][mcode].format(*args))
-
-        # Log non-standardized error messages.
-        for key, vals in self.flags["custom"].items():
-            if self.flags["custom"][key]:
-
-                # Log messages.
-                validation = re.sub("_errors$", "", key)
-                args = [validation, "\n".join(map(str, vals))]
-                logger.info(self.flag_messages_yaml[validation]["errors"][1].format(*args))
+                        vals = "\n".join(map(str, flags))
+                        logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
 
     def unique_attr_validation(self):
         """Applies a set of attribute validations unique to one or more fields and / or tables."""
@@ -168,7 +159,7 @@ class Stage:
             # Concatenate dataframes, apply function.
             df = gpd.GeoDataFrame(pd.concat([self.dframes["ferryseg"], self.dframes["roadseg"]], ignore_index=True,
                                             sort=False))
-            self.flags["custom"]["validate_route_contiguity_errors"] = validation_functions.validate_route_contiguity(
+            self.flags["roadseg"]["validate_route_contiguity_errors"] = validation_functions.validate_route_contiguity(
                 df.copy(deep=True), self.defaults["roadseg"])
 
             # Validation: exitnbr-roadclass.
@@ -184,7 +175,7 @@ class Stage:
             logger.info("Applying validation: exitnbr conflict. Target dataframe: roadseg.")
 
             # Apply function.
-            self.flags["custom"]["validate_exitnbr_conflict_errors"] = validation_functions.validate_exitnbr_conflict(
+            self.flags["roadseg"]["validate_exitnbr_conflict_errors"] = validation_functions.validate_exitnbr_conflict(
                 self.dframes["roadseg"].copy(deep=True), self.defaults["roadseg"]["exitnbr"])
 
             # Validation: roadclass self-intersection.
@@ -222,13 +213,15 @@ class Stage:
                 # Validation: dates.
                 logger.info("Applying validation: dates. Target dataframe: {}.".format(name))
 
-                # Compile valid fields, apply function.
-                cols = ["credate", "revdate"]
-                args = [df[col].values for col in cols] + [self.defaults[name][cols[0]]]
-                results = pd.DataFrame(np.column_stack(np.vectorize(validation_functions.validate_dates)(*args)))
-                df[cols] = results[[0, 1]].values
-                self.flags[name]["validate_dates_errors"], self.flags[name]["validate_dates_modifications"] = \
-                    results[2].values, results[3].values
+                # Apply function.
+                results = validation_functions.validate_dates(df.copy(deep=True), self.defaults[name]["credate"])
+
+                # Store modifications.
+                df[["credate", "revdate"]] = results[[0, 1]].values
+
+                # Store error and modification flags.
+                self.flags[name]["modifications"]["validate_dates"] = results[2]
+                self.flags[name]["errors"]["validate_dates"] = results[3]
 
                 # Store results.
                 self.dframes[name] = df

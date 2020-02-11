@@ -50,76 +50,69 @@ def title_route_text(df, default):
     return df, mod_flags
 
 
-def validate_dates(credate, revdate, default):
+def validate_dates(df, default):
     """
     Applies a set of validations to credate and revdate fields.
     Parameter default is assumed to be identical for credate and revdate fields.
     """
 
-    credate, revdate, default = map(str, [credate, revdate, default])
+    errors = dict()
+    mods = pd.Series(False, index=df.index)
+    # TODO: rewrite validate_dates to map each error validation separately. Fill errors dict with uuid series for each of the 6 validations. Fill mods with uuids.
 
     # Get current date.
     today = datetime.today().strftime("%Y%m%d")
 
     # Validation.
-    def validate(date):
-
-        # Set default mod flag.
-        mod_flag = 0
+    def validate(date, mod_flag):
 
         # Apply validation.
         if date != default:
 
             # Validation: length must be 4, 6, or 8.
             if len(date) not in (4, 6, 8):
-                return date, 1, mod_flag
+                errors[1] = True
 
             # Rectification: default to 01 for missing month and day values.
             while len(date) in (4, 6):
                 date += "01"
 
                 # Update mod flag.
-                mod_flag = 1
+                mod_flag = True
 
             # Validation: valid values for day, month, year (1960+).
             year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
 
             # Year.
             if not 1960 <= year <= int(today[:4]):
-                return date, 2, mod_flag
+                errors[2] = True
 
             # Month.
             if month not in range(1, 12 + 1):
-                return date, 3, mod_flag
+                errors[3] = True
 
             # Day.
             if not 1 <= day <= calendar.mdays[month]:
                 if not all([day == 29, month == 2, calendar.isleap(year)]):
-                    return date, 4, mod_flag
+                    errors[4] = True
 
             # Validation: ensure value <= today.
             if year == today[:4]:
                 if not all([month <= today[4:6], day <= today[6:8]]):
-                    return date, 5, mod_flag
+                    errors[5] = True
 
-        return date, 0, mod_flag
+        return date, mod_flag
 
     # Validation: individual date validations.
-    credate, error_flag, mod_flag = validate(credate)
-    if error_flag == 0:
-        revdate, error_flag, mod_flag2 = validate(revdate)
+    credate, mod_flag = validate(credate, mod_flag)
+    revdate, mod_flag = validate(revdate, mod_flag)
 
-        # Configure mod flag.
-        if any([mod_flag, mod_flag2]):
-            mod_flag = 1
+    # Validation: ensure credate <= revdate.
+    if credate != default and revdate != default:
+        if not int(credate) <= int(revdate):
+            errors[6] = True
 
-    if error_flag == 0:
-        # Validation: ensure credate <= revdate.
-        if credate != default and revdate != default:
-            if not int(credate) <= int(revdate):
-                error_flag = 6
-
-    return credate, revdate, error_flag, mod_flag
+    return credate, revdate, mod_flag, errors
 
 
 def validate_exitnbr_conflict(df, default):

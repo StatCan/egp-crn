@@ -2,7 +2,6 @@ import click
 import logging
 import os
 import pandas as pd
-import re
 import sys
 from copy import deepcopy
 from operator import itemgetter
