@@ -102,8 +102,6 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
         # Iterate dataframes.
         for table_name, df in dataframes.items():
 
-            logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
-
             # Remove pre-existing layer from GeoPackage.
             if table_name in [layer.GetName() for layer in con_ogr]:
 
@@ -113,6 +111,9 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
                 # Remove metadata table.
                 con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
                 con.commit()
+
+            # Write to GeoPackage.
+            logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
 
             # Spatial data.
             if "geometry" in dir(df):

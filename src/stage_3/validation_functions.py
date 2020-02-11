@@ -29,8 +29,7 @@ def identify_duplicate_lines(df):
                                                                                  geom1.equals(geom2)).sum() > 1)
 
     # Compile uuids of flagged records.
-    flag_uuids = df_same_len[mask].index.values
-    errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
+    errors = df_same_len[mask].index.values
 
     return errors
 
@@ -45,8 +44,7 @@ def identify_duplicate_points(df):
     mask = coords.duplicated(keep=False)
 
     # Compile uuids of flagged records.
-    flag_uuids = df[mask].index.values
-    errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
+    errors = df[mask].index.values
 
     return errors
 
@@ -76,7 +74,7 @@ def identify_isolated_lines(ferryseg, roadseg):
                 flag_uuids.append(uuid)
 
     # Compile flagged records as errors.
-    errors = pd.Series(roadseg.index.isin(flag_uuids), index=roadseg.index)
+    errors = flag_uuids
 
     return errors
 
@@ -141,6 +139,8 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
 def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     """Validates the connectivity between ferry and road line segments."""
 
+    errors = dict()
+
     # Validation 1: ensure ferry segments connect to a road segment at at least one endpoint.
 
     # Compile junction coordinates where junctype = "Ferry".
@@ -152,8 +152,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
         lambda geom: not any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))
 
     # Compile uuids of flagged records.
-    flag_uuids = ferryseg[mask].index.values
-    errors = pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index).astype("int")
+    errors[1] = ferryseg[mask].index.values
 
     # Validation 2: ensure ferry segments connect to <= 1 road segment at either endpoint.
 
@@ -168,8 +167,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
                           .sum() > 1 for i in (0, -1)]))
 
     # Compile uuids of flagged records.
-    flag_uuids = ferryseg[ferry_multi_intersect].index.values
-    errors[pd.Series(ferryseg.index.isin(flag_uuids), index=ferryseg.index)] = 2
+    errors[2] = ferryseg[ferry_multi_intersect].index.values
 
     return errors
 
@@ -194,8 +192,7 @@ def validate_line_endpoint_clustering(df):
                          )(df_subset["geometry"])
 
     # Compile uuids of flagged records.
-    flag_uuids = df_subset[flags].index.values
-    errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
+    errors = df_subset[flags].index.values
 
     return errors
 
@@ -230,7 +227,7 @@ def validate_line_merging_angle(df):
     # Exit function if no shared points exists (b/c therefore no line merges exist).
     if not len(uuids_grouped):
 
-        return None
+        return list()
 
     else:
 
@@ -376,8 +373,7 @@ def validate_min_length(df):
     df_sub = helpers.reproject_gdf(df_sub, 4617, 3348)
 
     # Validation: ensure line segments are >= 2 meters in length.
-    flag_uuids = df_sub[df_sub.length < 2].index.values
-    errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
+    errors = df_sub[df_sub.length < 2].index.values
 
     return errors
 
@@ -423,6 +419,8 @@ def validate_road_structures(roadseg, junction, default):
     Parameter default should be a dictionary with a key for each of structid and structtype for roadseg.
     """
 
+    errors = dict()
+
     # Validation 1: ensure dead end road segments have structtype = "None" or the default field value.
 
     # Compile dead end coordinates.
@@ -437,11 +435,10 @@ def validate_road_structures(roadseg, junction, default):
         lambda geom: any([coords in deadend_coords for coords in itemgetter(0, -1)(geom.coords)]))]
 
     # Compile uuids of flagged records.
-    flag_uuids = roadseg_invalid.index.values
-    errors = pd.Series(roadseg.index.isin(flag_uuids), index=roadseg.index).astype("int")
+    errors[1] = roadseg_invalid.index.values
 
     # Validation 2: ensure structid is contiguous.
-    errors_2 = list()
+    errors[2] = list()
 
     # Compile structids.
     structids = roadseg["structid"].unique()
@@ -469,14 +466,14 @@ def validate_road_structures(roadseg, junction, default):
                 deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
 
                 # Compile error properties.
-                errors_2.append("Structure ID: \"{}\".\nEndpoints:\n{}.".format(structid, deadends))
+                errors[2].append("Structure ID: \"{}\".\nEndpoints:\n{}.".format(structid, deadends))
 
     # Validation 3: ensure a single, non-default structid is applied to all contiguous road segments with the same
     #               structtype.
     # Validation 4: ensure road segments with different structtypes, excluding "None" and the default field value, are
     #               not contiguous.
-    errors_3 = list()
-    errors_4 = list()
+    errors[3] = list()
+    errors[4] = list()
 
     # Compile road segments with valid structtype.
     segments = roadseg[~roadseg["structtype"].isin(["None", default["structtype"]])]
@@ -498,7 +495,7 @@ def validate_road_structures(roadseg, junction, default):
 
             # Compile error properties.
             uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors_3.append("Structure: {}. Structure uuids: {}. Structure IDs: {}.".format(
+            errors[3].append("Structure: {}. Structure uuids: {}. Structure IDs: {}.".format(
                 index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structids))))
 
         # Validation 4.
@@ -507,7 +504,7 @@ def validate_road_structures(roadseg, junction, default):
 
             # Compile error properties.
             uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors_4.append("Structure: {}. Structure uuids: {}. Structure types: {}.".format(
+            errors[4].append("Structure: {}. Structure uuids: {}. Structure types: {}.".format(
                 index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structtypes))))
 
-    return errors, errors_2, errors_3, errors_4
+    return errors
