@@ -51,9 +51,10 @@ class Stage:
                     raise KeyError("Missing required layer: \"{}\".".format(table))
 
             # Group tables by geometry type.
-            self.df_lines = {name: df for name, df in self.dframes.items() if name in ("ferryseg", "roadseg")}
-            self.df_points = {name: df for name, df in self.dframes.items() if name in ("blkpassage", "junction",
-                                                                                        "tollpoint")}
+            self.df_lines = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
+                             ("ferryseg", "roadseg")}
+            self.df_points = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
+                              ("blkpassage", "junction", "tollpoint")}
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to compile dataframes.")

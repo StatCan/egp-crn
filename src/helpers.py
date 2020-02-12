@@ -192,7 +192,7 @@ def load_gpkg(gpkg_path):
                     df.index = df["uuid"]
 
                     # Store result.
-                    dframes[table_name] = df
+                    dframes[table_name] = df.copy(deep=True)
                     logger.info("Successfully loaded layer into dataframe: \"{}\".".format(table_name))
 
                 else:
