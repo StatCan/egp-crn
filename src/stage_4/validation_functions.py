@@ -1,4 +1,6 @@
 import calendar
+import fiona
+import geopandas as gpd
 import logging
 import networkx as nx
 import numpy as np
@@ -35,19 +37,19 @@ def title_route_text(df, default):
     cols = ["rtename1en", "rtename2en", "rtename3en", "rtename4en",
             "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
 
-    orig_df = df[cols]
+    mods = df[cols].copy(deep=True)
 
     for col in cols:
-        orig_series = df[col]
+        orig_series = df[col].copy(deep=True)
         df[col] = df[col].map(lambda route: route if route == default[col] else route.title())
 
         # Store modifications flag for column.
-        orig_df[col] = pd.Series(orig_series != df[col])
+        mods[col] = pd.Series(orig_series != df[col])
 
-    # Configure final modification flags.
-    mod_flags = orig_df.any(axis=1)
+    # Compile uuids of modified records.
+    mods = mods[mods.any(axis=1)].index.values
 
-    return df, mod_flags
+    return df, mods
 
 
 def validate_dates(df, default):
@@ -122,36 +124,39 @@ def validate_dates(df, default):
         # Subset to non-default values.
         df_sub = df[df[col] != default]
 
-        # Validation 1: length must be 4, 6, or 8.
-        results = df_sub[col].map(lambda date: 1 if len(date) not in (4, 6, 8) else 0)
-        errors[1].extend(results[results == 1].index.values)
+        if len(df_sub):
 
-        # Modification: default to 01 for missing month and day values.
-        df_sub["uuid_temp"] = df.index
-        df_sub[col] = df_sub[["uuid_temp", col]].apply(lambda row: modify_date(*row), axis=1)
-        df_sub.drop("uuid_temp", axis=1, inplace=True)
-        df[col] = df_sub[col]
+            # Validation 1: length must be 4, 6, or 8.
+            results = df_sub[col].map(lambda date: 1 if len(date) not in (4, 6, 8) else 0)
+            errors[1].extend(results[results == 1].index.values)
 
-        # Validation 2: valid date - year.
-        results = df_sub[col].map(lambda date: 1 if not (1960 <= int(date[:4]) <= today["year"]) else 0)
-        errors[2].extend(results[results == 1].index.values)
+            # Modification: default to 01 for missing month and day values.
+            df_sub["uuid_temp"] = df.index
+            df_sub[col] = df_sub[["uuid_temp", col]].apply(lambda row: modify_date(*row), axis=1)
+            df_sub.drop("uuid_temp", axis=1, inplace=True)
+            df[col] = df_sub[col]
 
-        # Validation 3: valid date - month.
-        results = df_sub[col].map(lambda date: 1 if (int(date[4:6]) not in range(1, 12+1)) else 0)
-        errors[3].extend(results[results == 1].index.values)
+            # Validation 2: valid date - year.
+            results = df_sub[col].map(lambda date: 1 if not (1960 <= int(date[:4]) <= today["year"]) else 0)
+            errors[2].extend(results[results == 1].index.values)
 
-        # Validation 4: valid date - day.
-        results = df_sub[col].map(lambda date: validate_day(date))
-        errors[4].extend(results[results == 1].index.values)
+            # Validation 3: valid date - month.
+            results = df_sub[col].map(lambda date: 1 if (int(date[4:6]) not in range(1, 12+1)) else 0)
+            errors[3].extend(results[results == 1].index.values)
 
-        # Validation 5: ensure date <= today.
-        results = df_sub[col].map(lambda date: validate_date_vs_today(date))
-        errors[5].extend(results[results == 1].index.values)
+            # Validation 4: valid date - day.
+            results = df_sub[col].map(lambda date: validate_day(date))
+            errors[4].extend(results[results == 1].index.values)
+
+            # Validation 5: ensure date <= today.
+            results = df_sub[col].map(lambda date: validate_date_vs_today(date))
+            errors[5].extend(results[results == 1].index.values)
 
     # Validation 6: ensure credate <= revdate.
     df_sub = df[(df["credate"] != default) & (df["revdate"] != default)]
-    results = df_sub[["credate", "revdate"]].apply(lambda row: 1 if not int(row[0]) <= int(row[1]) else 0, axis=1)
-    errors[6].extend(results[results == 1].index.values)
+    if len(df_sub):
+        results = df_sub[["credate", "revdate"]].apply(lambda row: 1 if not int(row[0]) <= int(row[1]) else 0, axis=1)
+        errors[6].extend(results[results == 1].index.values)
 
     return df[["credate", "revdate"]], errors, mods
 
@@ -182,63 +187,68 @@ def validate_exitnbr_conflict(df, default):
     return errors
 
 
-def validate_exitnbr_roadclass(exitnbr, roadclass, default):
+def validate_exitnbr_roadclass(df, default):
     """
     Applies a set of validations to exitnbr and roadclass fields.
     Parameter default should refer to exitnbr.
     """
 
+    # Subset dataframe to non-default values.
+    df_subset = df[df["exitnbr"] != default]
+
     # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value.
-    if str(exitnbr) != str(default):
-        if roadclass not in ("Ramp", "Service Lane"):
-            return 1
+    # Compile uuids of flagged records.
+    errors = df_subset[~df_subset["roadclass"].isin(["Ramp", "Service Lane"])].index.values
 
-    return 0
+    return errors
 
 
-def validate_nbrlanes(nbrlanes, default):
+def validate_nbrlanes(df, default):
     """Applies a set of validations to nbrlanes field."""
 
+    # Subset dataframe to non-default values.
+    df_subset = df[df["nbrlanes"] != default]
+
     # Validation: ensure 1 <= nbrlanes <= 8.
-    if str(nbrlanes) != str(default):
-        if not 1 <= int(nbrlanes) <= 8:
-            return 1
+    flags = df_subset["nbrlanes"].map(lambda nbrlanes: not 1 <= int(nbrlanes) <= 8)
 
-    return 0
+    # Compile uuids of flagged records.
+    errors = df_subset[flags].index.values
+
+    return errors
 
 
-def validate_pavement(pavstatus, pavsurf, unpavsurf):
+def validate_pavement(df):
     """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
 
+    errors = dict()
+
+    # Apply validations and compile uuids of flagged records.
+
     # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
-    if pavstatus == "Paved":
-        if pavsurf == "None":
-            return 1
-        if unpavsurf != "None":
-            return 2
+    errors[1] = df[(df["pavstatus"] == "Paved") & (df["pavsurf"] == "None")].index.values
+    errors[2] = df[(df["pavstatus"] == "Paved") & (df["unpavsurf"] != "None")].index.values
 
     # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
-    if pavstatus == "Unpaved":
-        if pavsurf != "None":
-            return 3
-        if unpavsurf == "None":
-            return 4
+    errors[3] = df[(df["pavstatus"] == "Unpaved") & (df["pavsurf"] != "None")].index.values
+    errors[4] = df[(df["pavstatus"] == "Unpaved") & (df["unpavsurf"] == "None")].index.values
 
-    return 0
+    return errors
 
 
-def validate_roadclass_rtnumber1(roadclass, rtnumber1, default):
+def validate_roadclass_rtnumber1(df, default):
     """
     Applies a set of validations to roadclass and rtnumber1 fields.
     Parameter default should refer to rtnumber1.
     """
 
-    # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
-    if roadclass in ("Freeway", "Expressway / Highway"):
-        if str(rtnumber1) == str(default):
-            return 1
+    # Apply validations and compile uuids of flagged records.
 
-    return 0
+    # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
+    errors = df[df["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
+                df["rtnumber1"].map(lambda rtnumber1: rtnumber1 == default)].index.values
+
+    return errors
 
 
 def validate_roadclass_self_intersection(df, default):
@@ -247,7 +257,7 @@ def validate_roadclass_self_intersection(df, default):
     Parameter default should refer to nid.
     """
 
-    errors = dict.fromkeys([1, 2], pd.Series(False, index=df.index))
+    errors = dict()
 
     # Validation: for self-intersecting road segments, ensure structtype != "None".
     segments_single, errors[1] = validate_roadclass_structtype(df, default)
@@ -300,10 +310,8 @@ def validate_roadclass_self_intersection(df, default):
                 flag_nids.append(nid)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
-    flag_uuids = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-    errors[2] = pd.Series(df.index.isin(flag_uuids), index=df.index)
-
-    return errors[1], errors[2]
+    errors[2] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+    return errors
 
 
 def validate_roadclass_structtype(df, default):
@@ -313,7 +321,7 @@ def validate_roadclass_structtype(df, default):
     """
 
     flag_segments = pd.DataFrame()
-    errors = pd.Series(False, index=df.index)
+    errors = list()
 
     # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
 
@@ -329,13 +337,12 @@ def validate_roadclass_structtype(df, default):
         flag_segments = segments[flag_self_intersect]
 
         # Validation: for self-intersecting road segments, ensure structtype != "None".
-        flag_uuids = flag_segments[flag_segments["structtype"] == "None"].index.values
-        errors = pd.Series(df.index.isin(flag_uuids), index=df.index)
+        errors = flag_segments[flag_segments["structtype"] == "None"].index.values
 
     return flag_segments, errors
 
 
-def validate_route_contiguity(df, default):
+def validate_route_contiguity(ferryseg, roadseg, default):
     """
     Applies a set of validations to route attributes (rows represent field groups):
         rtename1en, rtename2en, rtename3en, rtename4en,
@@ -345,6 +352,9 @@ def validate_route_contiguity(df, default):
     """
 
     errors = list()
+
+    # Concatenate ferryseg and roadseg.
+    df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=True, sort=False))
 
     # Validation: ensure route has contiguous geometry.
     for field_group in [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
@@ -389,17 +399,24 @@ def validate_route_contiguity(df, default):
     return errors
 
 
-def validate_speed(speed, default):
+def validate_speed(df, default):
     """Applies a set of validations to speed field."""
 
-    if str(speed) != str(default):
+    errors = dict()
 
-        # Validation: ensure 5 <= speed <= 120.
-        if not 5 <= int(speed) <= 120:
-            return 1
+    # Subset dataframe to non-default values.
+    df_subset = df[df["speed"] != default]
 
-        # Validation: ensure speed is a multiple of 5.
-        if int(speed) % 5 != 0:
-            return 2
+    # Validation: ensure 5 <= speed <= 120.
+    flags = df_subset["speed"].map(lambda speed: not 5 <= int(speed) <= 120)
 
-    return 0
+    # Compile uuids of flagged records.
+    errors[1] = df_subset[flags].index.values
+
+    # Validation 2: ensure speed is a multiple of 5.
+    flags = df_subset["speed"].map(lambda speed: int(speed) % 5 != 0)
+
+    # Compile uuids of flagged records.
+    errors[2] = df_subset[flags].index.values
+
+    return errors
