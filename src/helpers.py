@@ -292,6 +292,9 @@ def nx_to_gdf(g, nodes=True, edges=True):
 def reproject_gdf(gdf, epsg_source, epsg_target):
     """Transforms a GeoDataFrame's geometry column between EPSGs."""
 
+    # Deep copy dataframe to avoid reprojecting original.
+    gdf = gdf.copy(deep=True)
+
     # Define transformation.
     prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
     prj_source.ImportFromEPSG(epsg_source)
