@@ -216,12 +216,10 @@ class Stage:
                 # Apply function.
                 results = validation_functions.validate_dates(df.copy(deep=True), self.defaults[name]["credate"])
 
-                # Store modifications.
-                df[["credate", "revdate"]] = results[[0, 1]].values
-
-                # Store error and modification flags.
-                self.flags[name]["modifications"]["validate_dates"] = results[2]
-                self.flags[name]["errors"]["validate_dates"] = results[3]
+                # Store modifications, error flags, and modification flags.
+                df[["credate", "revdate"]] = results[0]
+                self.flags[name]["errors"]["validate_dates"] = results[2]
+                self.flags[name]["modifications"]["validate_dates"] = results[3]
 
                 # Store results.
                 self.dframes[name] = df

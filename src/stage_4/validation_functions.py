@@ -56,63 +56,104 @@ def validate_dates(df, default):
     Parameter default is assumed to be identical for credate and revdate fields.
     """
 
-    errors = dict()
-    mods = pd.Series(False, index=df.index)
-    # TODO: rewrite validate_dates to map each error validation separately. Fill errors dict with uuid series for each of the 6 validations. Fill mods with uuids.
+    errors = {i: list() for i in range(1, 6+1)}
+    mods = list()
 
     # Get current date.
-    today = datetime.today().strftime("%Y%m%d")
+    today_str = datetime.today().strftime("%Y%m%d")
+    today = {"year": int(today_str[:4]), "month": int(today_str[4:6]), "day": int(today_str[6:8])}
 
-    # Validation.
-    def validate(date, mod_flag):
+    # Define functions.
+    def modify_date(uuid, date):
+        """
+        1) Replaces non-numeric or non-standard length values with today's date to avoid ValueErrors in validations.
+        2) Appends 01 to date for missing month and day values.
+        Appends uuid to mods series if modification is actually applied.
+        """
 
-        # Apply validation.
-        if date != default:
+        # Set non-numeric or non-standard length value to today's date.
+        try:
+            int(date)
+        except ValueError:
+            mods.append(uuid)
+            return today_str
 
-            # Validation: length must be 4, 6, or 8.
-            if len(date) not in (4, 6, 8):
-                errors[1] = True
+        if len(date) not in (4, 6, 8):
+            mods.append(uuid)
+            return today_str
 
-            # Rectification: default to 01 for missing month and day values.
-            while len(date) in (4, 6):
-                date += "01"
+        # Append 01 to incomplete date values.
+        flag = False
 
-                # Update mod flag.
-                mod_flag = True
+        while len(date) in (4, 6):
+            date += "01"
+            flag = True
 
-            # Validation: valid values for day, month, year (1960+).
-            year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
+        if flag:
+            mods.append(uuid)
 
-            # Year.
-            if not 1960 <= year <= int(today[:4]):
-                errors[2] = True
+        return date
 
-            # Month.
-            if month not in range(1, 12 + 1):
-                errors[3] = True
+    def validate_day(date):
+        """Validate the day value in a date."""
 
-            # Day.
-            if not 1 <= day <= calendar.mdays[month]:
-                if not all([day == 29, month == 2, calendar.isleap(year)]):
-                    errors[4] = True
+        year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
 
-            # Validation: ensure value <= today.
-            if year == today[:4]:
-                if not all([month <= today[4:6], day <= today[6:8]]):
-                    errors[5] = True
+        if not 1 <= day <= calendar.mdays[month]:
+            if not all([day == 29, month == 2, calendar.isleap(year)]):
+                return 1
 
-        return date, mod_flag
+        return 0
 
-    # Validation: individual date validations.
-    credate, mod_flag = validate(credate, mod_flag)
-    revdate, mod_flag = validate(revdate, mod_flag)
+    def validate_date_vs_today(date):
+        """Validate the date relative to today's date."""
 
-    # Validation: ensure credate <= revdate.
-    if credate != default and revdate != default:
-        if not int(credate) <= int(revdate):
-            errors[6] = True
+        year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
 
-    return credate, revdate, mod_flag, errors
+        if year == today["year"]:
+            if not all([month <= today["month"], day <= today["day"]]):
+                return 1
+
+        return 0
+
+    # Iterate credate and revdate, applying validations.
+    for col in ("credate", "revdate"):
+
+        # Subset to non-default values.
+        df_sub = df[df[col] != default]
+
+        # Validation 1: length must be 4, 6, or 8.
+        results = df_sub[col].map(lambda date: 1 if len(date) not in (4, 6, 8) else 0)
+        errors[1].extend(results[results == 1].index.values)
+
+        # Modification: default to 01 for missing month and day values.
+        df_sub["uuid_temp"] = df.index
+        df_sub[col] = df_sub[["uuid_temp", col]].apply(lambda row: modify_date(*row), axis=1)
+        df_sub.drop("uuid_temp", axis=1, inplace=True)
+        df[col] = df_sub[col]
+
+        # Validation 2: valid date - year.
+        results = df_sub[col].map(lambda date: 1 if not (1960 <= int(date[:4]) <= today["year"]) else 0)
+        errors[2].extend(results[results == 1].index.values)
+
+        # Validation 3: valid date - month.
+        results = df_sub[col].map(lambda date: 1 if (int(date[4:6]) not in range(1, 12+1)) else 0)
+        errors[3].extend(results[results == 1].index.values)
+
+        # Validation 4: valid date - day.
+        results = df_sub[col].map(lambda date: validate_day(date))
+        errors[4].extend(results[results == 1].index.values)
+
+        # Validation 5: ensure date <= today.
+        results = df_sub[col].map(lambda date: validate_date_vs_today(date))
+        errors[5].extend(results[results == 1].index.values)
+
+    # Validation 6: ensure credate <= revdate.
+    df_sub = df[(df["credate"] != default) & (df["revdate"] != default)]
+    results = df_sub[["credate", "revdate"]].apply(lambda row: 1 if not int(row[0]) <= int(row[1]) else 0, axis=1)
+    errors[6].extend(results[results == 1].index.values)
+
+    return df[["credate", "revdate"]], errors, mods
 
 
 def validate_exitnbr_conflict(df, default):
