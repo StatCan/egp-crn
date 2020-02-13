@@ -153,7 +153,7 @@ class Stage:
 
         logger.info("Importing roadseg geodataframe into PostGIS.")
         self.dframes["roadseg"].postgis.to_postgis(con=self.engine, table_name="stage_{}".format(self.stage),
-                                                   geometry="LineString", if_exists="replace")
+                                                   geometry="LineString", if_exists="replace", index=False)
 
         logger.info("Loading SQL yaml.")
         self.sql = helpers.load_yaml("../sql.yaml")
