@@ -191,11 +191,8 @@ class Stage:
                 # Validation: strip whitespace.
                 logger.info("Applying validation: strip whitespace. Target dataframe: {}.".format(name))
 
-                # Compile valid fields, apply function.
-                df_valid = df.select_dtypes(include="object")
-                if "geometry" in df_valid.columns:
-                    df_valid.drop("geometry", axis=1, inplace=True)
-                df[df_valid.columns] = df_valid.applymap(validation_functions.strip_whitespace)
+                # Apply function.
+                df = validation_functions.strip_whitespace(df.copy(deep=True))
 
                 # Validation: dates.
                 logger.info("Applying validation: dates. Target dataframe: {}.".format(name))

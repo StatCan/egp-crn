@@ -10,6 +10,7 @@ import sqlite3
 import sys
 import time
 import yaml
+from copy import deepcopy
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
 
@@ -293,7 +294,8 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
     """Transforms a GeoDataFrame's geometry column between EPSGs."""
 
     # Deep copy dataframe to avoid reprojecting original.
-    gdf = gdf.copy(deep=True)
+    # Explicitly copy crs property since it is excluded from default copy method.
+    gdf = gpd.GeoDataFrame(gdf.copy(deep=True), crs=deepcopy(gdf.crs))
 
     # Define transformation.
     prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()

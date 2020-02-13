@@ -19,10 +19,19 @@ import helpers
 logger = logging.getLogger()
 
 
-def strip_whitespace(val):
-    """Strips leading and trailing whitespace from the given value."""
+def strip_whitespace(df):
+    """Strips leading and trailing whitespace from the given value for each dataframe column."""
 
-    return val.strip()
+    # Compile valid columns, excluding geometry.
+    df_valid = df.select_dtypes(include="object")
+    if "geometry" in df_valid.columns:
+        df_valid.drop("geometry", axis=1, inplace=True)
+
+    # Iterate columns, applying modification.
+    for col in df_valid:
+        df[col] = df[col].map(str.strip)
+
+    return df
 
 
 def title_route_text(df, default):
