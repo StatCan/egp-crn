@@ -7,6 +7,7 @@ import numpy as np
 import os
 import pandas as pd
 import shapely.ops
+import string
 import sys
 from datetime import datetime
 from itertools import chain
@@ -210,6 +211,49 @@ def validate_exitnbr_roadclass(df, default):
     errors = df_subset[~df_subset["roadclass"].isin(["Ramp", "Service Lane"])].index.values
 
     return errors
+
+
+def validate_ids(df, default):
+    """
+    Applies a set of validations to all id fields.
+    Sets all id fields to lowercase.
+    Parameter default should be a dictionary with a key for each of the required fields.
+    """
+
+    errors = {1: list(), 2: list(), 3: dict()}
+
+    # Iterate fields ending with "id".
+    for field in [fld for fld in df.columns if fld.endswith("id")]:
+
+        # Subset dataframe to non-default values.
+        df_subset = df[df[field] != default[field]]
+
+        # Modification: set ids to lowercase.
+        df_subset[field] = df_subset[field].map(str.lower)
+        df.loc[df_subset.index, field] = df_subset[field]
+
+        # Validation 1: ensure ids are 32 digits.
+        # Compile uuids of flagged records.
+        flag_uuids = df_subset[df_subset[field].map(lambda val: len(val) != 32)].index.values
+        for val in flag_uuids:
+            errors[1].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+        # Validation 2: ensure ids are hexadecimal.
+        # Compile uuids of flagged records.
+        flag_uuids = df_subset[df_subset[field].map(
+            lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
+        for val in flag_uuids:
+            errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+    # Validation 3: ensure nid is unique.
+
+    # Subset dataframe to non-default values.
+    df_subset = df[df["nid"] != default["nid"]]
+
+    # Compile uuids of flagged records.
+    errors[3] = df_subset[df_subset["nid"].duplicated(keep=False)].index.values
+
+    return df, errors
 
 
 def validate_nbrlanes(df, default):

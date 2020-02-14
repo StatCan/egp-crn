@@ -205,6 +205,13 @@ class Stage:
                 self.flags[name]["errors"]["validate_dates"] = results[1]
                 self.flags[name]["modifications"]["validate_dates"] = results[2]
 
+                # Validation: ids.
+                logger.info("Apply validation: ids. Target dataframe: {}.".format(name))
+
+                # Apply function.
+                df, self.flags[name]["errors"]["validate_ids"] = validation_functions\
+                    .validate_ids(df.copy(deep=True), self.defaults[name])
+
                 # Store results.
                 self.dframes[name] = df
 

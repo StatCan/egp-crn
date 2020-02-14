@@ -3,7 +3,7 @@ title_route_text:
     1: |
       Records modified for table "{0}", validation "title_route_text" (listed by uuid):
       {1}
-      Modification details: route name set to title case for one or more of rtename1en, rtename2en, rtename3en, rtename4en, rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+      Modification details: Route name set to title case for one or more of rtename1en, rtename2en, rtename3en, rtename4en, rtename1fr, rtename2fr, rtename3fr, rtename4fr.
 
 validate_dates:
   errors:
@@ -35,7 +35,7 @@ validate_dates:
     1: |
       Records modified for table "{0}", validation "validate_dates" (listed by uuid):
       {1}
-      Modification details: date suffixed with "01" for missing month and / or day values for one or more of credate, revdate.
+      Modification details: Date suffixed with "01" for missing month and / or day values for one or more of credate, revdate.
 
 validate_exitnbr_conflict:
   errors:
@@ -50,6 +50,21 @@ validate_exitnbr_roadclass:
       Invalid records identified for table "{0}", validation "validate_exitnbr_roadclass", error 1 (listed by uuid):
       {1}
       Error 1 details: Invalid exitnbr-roadclass combination. When exitnbr is not the default field value, roadclass must be "Ramp" or "Service Lane".
+
+validate_ids:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_ids", error 1 (listed by uuid):
+      {1}
+      Error 1 details: IDs must be 32 digits in length.
+    2: |
+      Invalid records identified for table "{0}", validation "validate_ids", error 2 (listed by uuid):
+      {1}
+      Error 2 details: IDs must be hexadecimal.
+    3: |
+      Invalid records identified for table "{0}", validation "validate_ids", error 3 (listed by uuid):
+      {1}
+      Error 3 details: nid must be unique.
 
 validate_nbrlanes:
   errors:
