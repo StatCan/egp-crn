@@ -45,19 +45,21 @@ class Stage:
 
     def filter_duplicates(self):
         """
-        Filter duplicate records from addrange and strplaname to simplify linkages.
-        This task occurs regardless of altnamlink production requirement.
+        Filter duplicate records from addrange and strplaname, only if altnamlink does not exist.
+        This is intended to simplify tables and linkages.
         """
 
-        logger.info("Filtering duplicates from addrange and strplaname.")
+        if "altnamlink" not in self.dframes:
 
-        # Filter duplicate records (ignoring uuid and nid columns).
-        for name, df in self.dframes.items():
+            logger.info("Filtering duplicates from addrange and strplaname.")
 
-            if name in ("addrange", "strplaname"):
+            # Filter duplicate records (ignoring uuid and nid columns).
+            for name, df in self.dframes.items():
 
-                kwargs = {"subset": df.columns.difference(["uuid", "nid"]), "keep": "first", "inplace": False}
-                self.dframes[name] = df.drop_duplicates(**kwargs)
+                if name in ("addrange", "strplaname"):
+
+                    kwargs = {"subset": df.columns.difference(["uuid", "nid"]), "keep": "first", "inplace": False}
+                    self.dframes[name] = df.drop_duplicates(**kwargs)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
