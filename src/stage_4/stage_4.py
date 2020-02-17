@@ -210,7 +210,7 @@ class Stage:
 
                 # Apply function.
                 df, self.flags[name]["errors"]["validate_ids"] = validation_functions\
-                    .validate_ids(df.copy(deep=True), self.defaults[name])
+                    .validate_ids(name, df.copy(deep=True), self.defaults[name])
 
                 # Store results.
                 self.dframes[name] = df

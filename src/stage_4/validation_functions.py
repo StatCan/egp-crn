@@ -213,14 +213,14 @@ def validate_exitnbr_roadclass(df, default):
     return errors
 
 
-def validate_ids(df, default):
+def validate_ids(name, df, default):
     """
     Applies a set of validations to all id fields.
     Sets all id fields to lowercase.
     Parameter default should be a dictionary with a key for each of the required fields.
     """
 
-    errors = {1: list(), 2: list(), 3: dict()}
+    errors = {1: list(), 2: list(), 3: dict(), 4: list()}
 
     # Iterate fields ending with "id".
     for field in [fld for fld in df.columns if fld.endswith("id")]:
@@ -245,13 +245,31 @@ def validate_ids(df, default):
         for val in flag_uuids:
             errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
-    # Validation 3: ensure nid is unique.
+    # Iterate unique id fields.
+    unique_fields = {
+        "addrange": ["nid"],
+        "altnamlink": ["nid"],
+        "blkpassage": ["nid"],
+        "ferryseg": ["nid", "ferrysegid"],
+        "junction": ["nid"],
+        "roadseg": ["nid", "roadsegid"],
+        "strplaname": ["nid"],
+        "tollpoint": ["nid"]
+    }
 
-    # Subset dataframe to non-default values.
-    df_subset = df[df["nid"] != default["nid"]]
+    for field in unique_fields[name]:
 
-    # Compile uuids of flagged records.
-    errors[3] = df_subset[df_subset["nid"].duplicated(keep=False)].index.values
+        # Validation 3: ensure certain id fields are unique.
+        # Compile uuids of flagged records.
+        flag_uuids = df[df[field].duplicated(keep=False)].index.values
+        for val in flag_uuids:
+            errors[3].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+        # Validation 4: ensure unique id fields are not the default field value.
+        # Compile uuids of flagged records.
+        flag_uuids = df[df[field] == default[field]].index.values
+        for val in flag_uuids:
+            errors[4].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
     return df, errors
 

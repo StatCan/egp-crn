@@ -3,9 +3,6 @@ import logging
 import os
 import pandas as pd
 import sys
-import uuid
-from datetime import datetime
-from itertools import chain
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -30,7 +27,7 @@ class Stage:
     def __init__(self, source):
         self.stage = 6
         self.source = source.lower()
-        self.altnamlink_required = True
+        self.required = True
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -38,44 +35,20 @@ class Stage:
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
 
-        # Compile default field values and dtypes.
-        self.defaults = helpers.compile_default_values()
-        self.dtypes = helpers.compile_dtypes()["altnamlink"]
-
-    def apply_altnamlink_domains(self):
-        """Applies the field domains to each column in the altnamlink dataframe."""
-
-        if "altnamlink" in self.dframes:
-
-            logging.info("Applying field domains to altnamlink.")
-            field = None
-
-            try:
-
-                for field, default in self.defaults["altnamlink"].items():
-                    logger.info("Target field \"{}\": Applying domain.".format(field))
-
-                    # Apply domains to dataframe.
-                    self.dframes["altnamlink"][field] = self.dframes["altnamlink"][field].map(
-                        lambda val: default if val == "" or pd.isna(val) else val)
-
-                    # Force adjust data type.
-                    self.dframes["altnamlink"][field] = self.dframes["altnamlink"][field].astype(self.dtypes[field])
-
-            except (AttributeError, KeyError, ValueError):
-                logger.exception("Invalid schema definition for table: altnamlink, field: {}.".format(field))
-                sys.exit(1)
-
     def export_gpkg(self):
         """Exports the dataframes as GeoPackage layers."""
 
         logger.info("Exporting dataframes to GeoPackage layers.")
 
         # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.dframes, self.data_path)
+        dframes = {name: df for name, df in self.dframes.items() if name in ("addrange", "altnamlink", "strplaname")}
+        helpers.export_gpkg(dframes, self.data_path)
 
     def filter_duplicates(self):
-        """Filter duplicate records from addrange and strplaname to simplify linkages."""
+        """
+        Filter duplicate records from addrange and strplaname to simplify linkages.
+        This task occurs regardless of altnamlink production requirement.
+        """
 
         logger.info("Filtering duplicates from addrange and strplaname.")
 
@@ -87,44 +60,6 @@ class Stage:
                 kwargs = {"subset": df.columns.difference(["uuid", "nid"]), "keep": "first", "inplace": True}
                 self.dframes[name] = df.drop_duplicates(**kwargs)
 
-    def gen_altnamlink(self):
-        """Generate altnamlink dataframe."""
-
-        logger.info("Validating altnamlink requirement.")
-
-        # Check if altnamlink is required.
-        # Process: altnamlink is only required if addrange l_altnanid or r_altnanid contain non-default values.
-        addrange = self.dframes["addrange"]
-        altnanids = set(chain.from_iterable(addrange[addrange[col] != self.defaults["addrange"][col]][col] for
-                                            col in ("l_altnanid", "r_altnanid")))
-        if len(altnanids) and all([table in self.dframes for table in ("addrange", "strplaname")]):
-
-            logger.info("Validation = True: altnamlink required.")
-            self.altnamlink_required = True
-
-            logger.info("Generating altnamlink dataframe.")
-
-            # Generate altnamlink dataframe from addrange l_altnanid and r_altnanid values.
-            altnamlink = pd.DataFrame(
-                {field: pd.Series(list(altnanids), dtype=dtype) if field.lower() == "nid" else pd.Series(dtype=dtype)
-                 for field, dtype in self.dtypes.items()})
-
-            # Force lowercase field names.
-            altnamlink.columns = map(str.lower, altnamlink.columns)
-
-            # Populate all possible fields.
-            altnamlink["uuid"] = [uuid.uuid4().hex for _ in range(len(altnamlink))]
-            altnamlink["credate"] = datetime.today().strftime("%Y%m%d")
-            altnamlink["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
-
-            # Store result.
-            self.dframes["altnamlink"] = altnamlink
-
-        else:
-
-            logger.info("Validation = False: altnamlink not required.")
-            self.altnamlink_required = False
-
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
 
@@ -132,24 +67,75 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-    def populate_altnamlink(self):
-        """Populates the altnamlink dataframe."""
+    def validate_linkages(self):
+        """Validate the linkages between all required dataframes."""
 
-        if self.altnamlink_required:
+        logger.info("Validating table linkages.")
 
-            # . . . .
+        # Define linkages.
+        linkages = [
+            ["addrange", "l_altnanid", "altnamlink", "nid"],
+            ["addrange", "r_altnanid", "altnamlink", "nid"],
+            ["addrange", "l_offnanid", "strplaname", "nid"],
+            ["addrange", "r_offnanid", "strplaname", "nid"],
+            ["altnamlink", "strnamenid", "strplaname", "nid"],
+            ["blkpassage", "roadnid", "roadseg", "nid"],
+            ["roadseg", "adrangenid", "addrange", "nid"],
+            ["tollpoint", "roadnid", "roadseg", "nid"]
+        ]
 
-    def verify_tables(self):
-        """Verifies the existence of required GeoPackage layers: addrange and strplaname."""
+        # Validate linkages.
+        try:
+
+            flag = False
+
+            for linkage in [link for link in linkages if all([table in self.dframes for table in (link[0], link[2])])]:
+
+                logger.info("Validating table linkage: {}.{} - {}.{}.".format(*linkage))
+                source, target = self.dframes[linkage[0]][linkage[1]], self.dframes[linkage[2]][linkage[3]]
+
+                if not set(source).issubset(target):
+
+                    flag = True
+
+                    # Compile invalid values.
+                    flag_vals = ", ".join(list(set(source) - set(target)))
+                    logger.info("Invalid table linkage. The following values from {1}.{2} are not present in {3}.{4}: "
+                                "{0}.".format(flag_vals, *linkage))
+
+            if flag:
+                raise ValueError("Invalid table linkages identified.")
+
+        except ValueError:
+            logger.exception("")
+            sys.exit(1)
+
+    def verify_altnamlink_requirement(self):
+        """
+        Verifies the requirement to process altnamlink via validating the existence of required GeoPackage layers:
+        addrange, altnamlink, and strplaname.
+        """
+
+        logger.info("Verifying altnamlink processing requirement.")
 
         try:
 
             # Verify tables.
-            for table in ("addrange", "strplaname"):
-                if table not in self.dframes:
-                    raise KeyError("Missing required layer: \"{}\".".format(table))
+            if not all([table in self.dframes for table in ("addrange", "altnamlink", "strplaname")]):
 
-        except KeyError:
+                # Ensure altnamlink doesn't exist without associated linked tables.
+                if "altnamlink" in self.dframes:
+                    raise ValueError("Unable to validate altnamlink without both addrange and strplaname.")
+
+                self.required = False
+
+            # Log verification results.
+            if self.required:
+                logger.info("Verification = True: altnamlink processing required.")
+            else:
+                logger.info("Verification = False: altnamlink processing not required.")
+
+        except ValueError:
             logger.exception("")
             sys.exit(1)
 
@@ -157,11 +143,10 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
-        self.verify_tables()
-        self.gen_altnamlink()
-        self.apply_altnamlink_domains()
         self.filter_duplicates()
-        self.populate_altnamlink()
+        self.verify_altnamlink_requirement()
+        if self.required:
+            self.validate_linkages()
         self.export_gpkg()
 
 
