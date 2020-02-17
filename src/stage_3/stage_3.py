@@ -65,8 +65,15 @@ class Stage:
 
         logger.info("Exporting dataframes to GeoPackage layers.")
 
+        # Filter dataframe which require exporting.
+        dframes = dict()
+        for name, df in self.dframes.items():
+            if any([len(v) for k, v in self.flags[name]["modifications"]]):
+                dframes[name] = df
+
         # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.dframes, self.data_path)
+        if len(dframes):
+            helpers.export_gpkg(dframes, self.data_path)
 
     def gen_flag_variables(self):
         """Generates variables required for storing and logging error and modification flags for records."""
