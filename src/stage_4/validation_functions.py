@@ -228,16 +228,15 @@ def validate_ids(name, df, default):
     dtypes = helpers.compile_dtypes()
 
     # Iterate fields ending with "id".
-    for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid"]:
+    for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid" and dtypes[name][fld] == "str"]:
 
         # Subset dataframe to non-default values.
         df_subset = df[df[field] != default[field]]
 
         # Modification: set ids to lowercase.
-        if dtypes[name][field] == "str":
-            df_subset[field] = df_subset[field].map(str.lower)
-            df.loc[df_subset.index, field] = df_subset[field]
-            mods.append("Field \"{}\" set to lowercase.".format(field))
+        df_subset[field] = df_subset[field].map(str.lower)
+        df.loc[df_subset.index, field] = df_subset[field]
+        mods.append("Field \"{}\" set to lowercase.".format(field))
 
         # Validation 1: ensure ids are 32 digits.
         # Compile uuids of flagged records.

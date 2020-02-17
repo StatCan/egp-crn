@@ -1,3 +1,10 @@
+strip_whitespace:
+  modifications:
+    1: |
+      Records modified for table "{0}", validation "strip_whitespace":
+      {1}
+      Modification details: Field values stripped of leading and trailing whitespace.
+
 title_route_text:
   modifications:
     1: |
