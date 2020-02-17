@@ -23,6 +23,8 @@ logger = logging.getLogger()
 def strip_whitespace(df):
     """Strips leading and trailing whitespace from the given value for each dataframe column."""
 
+    mods = list()
+
     # Compile valid columns, excluding geometry.
     df_valid = df.select_dtypes(include="object")
     if "geometry" in df_valid.columns:
@@ -31,8 +33,9 @@ def strip_whitespace(df):
     # Iterate columns, applying modification.
     for col in df_valid:
         df[col] = df[col].map(str.strip)
+        mods.append("Field \"{}\" set to lowercase.".format(col))
 
-    return df
+    return df, mods
 
 
 def title_route_text(df, default):
@@ -220,17 +223,21 @@ def validate_ids(name, df, default):
     Parameter default should be a dictionary with a key for each of the required fields.
     """
 
-    errors = {1: list(), 2: list(), 3: dict(), 4: list()}
+    mods = list()
+    errors = {1: list(), 2: list(), 3: list(), 4: list()}
+    dtypes = helpers.compile_dtypes()
 
     # Iterate fields ending with "id".
-    for field in [fld for fld in df.columns if fld.endswith("id")]:
+    for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid"]:
 
         # Subset dataframe to non-default values.
         df_subset = df[df[field] != default[field]]
 
         # Modification: set ids to lowercase.
-        df_subset[field] = df_subset[field].map(str.lower)
-        df.loc[df_subset.index, field] = df_subset[field]
+        if dtypes[name][field] == "str":
+            df_subset[field] = df_subset[field].map(str.lower)
+            df.loc[df_subset.index, field] = df_subset[field]
+            mods.append("Field \"{}\" set to lowercase.".format(field))
 
         # Validation 1: ensure ids are 32 digits.
         # Compile uuids of flagged records.
@@ -271,7 +278,7 @@ def validate_ids(name, df, default):
         for val in flag_uuids:
             errors[4].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
-    return df, errors
+    return df, errors, mods
 
 
 def validate_nbrlanes(df, default):

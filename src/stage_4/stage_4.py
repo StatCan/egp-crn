@@ -199,7 +199,9 @@ class Stage:
                 logger.info("Applying validation: strip whitespace. Target dataframe: {}.".format(name))
 
                 # Apply function.
-                df = validation_functions.strip_whitespace(df.copy(deep=True))
+                # Store modifications and flags.
+                df, self.flags[name]["modifications"]["strip_whitespace"] = \
+                    validation_functions.strip_whitespace(df.copy(deep=True))
 
                 # Validation: dates.
                 logger.info("Applying validation: dates. Target dataframe: {}.".format(name))
@@ -216,8 +218,12 @@ class Stage:
                 logger.info("Apply validation: ids. Target dataframe: {}.".format(name))
 
                 # Apply function.
-                df, self.flags[name]["errors"]["validate_ids"] = validation_functions\
-                    .validate_ids(name, df.copy(deep=True), self.defaults[name])
+                results = validation_functions.validate_ids(name, df.copy(deep=True), self.defaults[name])
+
+                # Store modifications, error flags, and modification flags.
+                df = results[0]
+                self.flags[name]["errors"]["validate_ids"] = results[1]
+                self.flags[name]["modifications"]["validate_ids"] = results[2]
 
                 # Store results.
                 self.dframes[name] = df
