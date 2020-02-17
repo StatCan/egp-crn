@@ -27,7 +27,6 @@ class Stage:
     def __init__(self, source):
         self.stage = 6
         self.source = source.lower()
-        self.required = True
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -57,7 +56,7 @@ class Stage:
 
             if name in ("addrange", "strplaname"):
 
-                kwargs = {"subset": df.columns.difference(["uuid", "nid"]), "keep": "first", "inplace": True}
+                kwargs = {"subset": df.columns.difference(["uuid", "nid"]), "keep": "first", "inplace": False}
                 self.dframes[name] = df.drop_duplicates(**kwargs)
 
     def load_gpkg(self):
@@ -110,43 +109,12 @@ class Stage:
             logger.exception("")
             sys.exit(1)
 
-    def verify_altnamlink_requirement(self):
-        """
-        Verifies the requirement to process altnamlink via validating the existence of required GeoPackage layers:
-        addrange, altnamlink, and strplaname.
-        """
-
-        logger.info("Verifying altnamlink processing requirement.")
-
-        try:
-
-            # Verify tables.
-            if not all([table in self.dframes for table in ("addrange", "altnamlink", "strplaname")]):
-
-                # Ensure altnamlink doesn't exist without associated linked tables.
-                if "altnamlink" in self.dframes:
-                    raise ValueError("Unable to validate altnamlink without both addrange and strplaname.")
-
-                self.required = False
-
-            # Log verification results.
-            if self.required:
-                logger.info("Verification = True: altnamlink processing required.")
-            else:
-                logger.info("Verification = False: altnamlink processing not required.")
-
-        except ValueError:
-            logger.exception("")
-            sys.exit(1)
-
     def execute(self):
         """Executes an NRN stage."""
 
         self.load_gpkg()
         self.filter_duplicates()
-        self.verify_altnamlink_requirement()
-        if self.required:
-            self.validate_linkages()
+        self.validate_linkages()
         self.export_gpkg()
 
 
