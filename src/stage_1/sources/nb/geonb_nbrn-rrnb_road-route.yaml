@@ -26,8 +26,8 @@ conform:
     provider:
     revdate:
     specvers:
-    l_altnanid: nid
-    r_altnanid: nid
+    l_altnanid:
+    r_altnanid:
     l_digdirfg:
     r_digdirfg:
     l_hnumf:

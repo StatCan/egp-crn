@@ -97,7 +97,7 @@ class Stage:
         addrange = self.dframes["addrange"]
         altnanids = set(chain.from_iterable(addrange[addrange[col] != self.defaults["addrange"][col]][col] for
                                             col in ("l_altnanid", "r_altnanid")))
-        if len(altnanids):
+        if len(altnanids) and all([table in self.dframes for table in ("addrange", "strplaname")]):
 
             logger.info("Validation = True: altnamlink required.")
             self.altnamlink_required = True
