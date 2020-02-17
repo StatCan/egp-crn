@@ -11,6 +11,7 @@ import sys
 import urllib.request
 import uuid
 import zipfile
+from datetime import datetime
 from geopandas_postgis import PostGIS
 from psycopg2 import connect, extensions, sql
 from shapely.geometry.multipoint import MultiPoint
@@ -284,6 +285,7 @@ class Stage:
 
         # Set standard field values.
         self.attr_equality["uuid"] = [uuid.uuid4().hex for _ in range(len(self.attr_equality))]
+        self.attr_equality["credate"] = datetime.today().strftime("%Y%m%d")
         self.attr_equality["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
         self.dframes["junction"] = self.attr_equality
 
