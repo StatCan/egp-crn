@@ -27,6 +27,7 @@ class Stage:
     def __init__(self, source):
         self.stage = 6
         self.source = source.lower()
+        self.mods = list()
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -40,8 +41,12 @@ class Stage:
         logger.info("Exporting dataframes to GeoPackage layers.")
 
         # Export target dataframes to GeoPackage layers.
-        dframes = {name: df for name, df in self.dframes.items() if name in ("addrange", "altnamlink", "strplaname")}
-        helpers.export_gpkg(dframes, self.data_path)
+        dframes = {name: df for name, df in self.dframes.items() if name in self.mods}
+
+        if len(dframes):
+            helpers.export_gpkg(dframes, self.data_path)
+        else:
+            logger.info("Export not required, no dataframe modifications detected.")
 
     def filter_duplicates(self):
         """
@@ -58,8 +63,14 @@ class Stage:
 
                 if name in ("addrange", "strplaname"):
 
+                    # Drop duplicates.
                     kwargs = {"subset": df.columns.difference(["uuid", "nid"]), "keep": "first", "inplace": False}
-                    self.dframes[name] = df.drop_duplicates(**kwargs)
+                    new_df = df.drop_duplicates(**kwargs)
+
+                    # Replace original dataframe only if modifications were made.
+                    if len(df) != len(new_df):
+                        self.dframes[name] = new_df
+                        self.mods.append(name)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
