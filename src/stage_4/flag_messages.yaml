@@ -76,6 +76,11 @@ validate_ids:
       Invalid records identified for table "{0}", validation "validate_ids", error 4 (listed by uuid):
       {1}
       Error 4 details: IDs in this field must be unique.
+  modifications:
+    1: |
+      Records modified for table "{0}", validation "validate_ids":
+      {1}
+      Modification details: Field values set to lowercase.
 
 validate_nbrlanes:
   errors:

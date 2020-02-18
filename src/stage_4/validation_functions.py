@@ -33,7 +33,11 @@ def strip_whitespace(df):
     # Iterate columns, applying modification.
     for col in df_valid:
         df[col] = df[col].map(str.strip)
-        mods.append("Field \"{}\" set to lowercase.".format(col))
+        mods.append(col)
+
+    # Configure modification message.
+    if len(mods):
+        mods = "Fields stripped of whitespace: {}.".format(", ".join(map("\"{}\"".format, mods)))
 
     return df, mods
 
@@ -236,7 +240,7 @@ def validate_ids(name, df, default):
         # Modification: set ids to lowercase.
         df_subset[field] = df_subset[field].map(str.lower)
         df.loc[df_subset.index, field] = df_subset[field]
-        mods.append("Field \"{}\" set to lowercase.".format(field))
+        mods.append(field)
 
         # Validation 1: ensure ids are 32 digits.
         # Compile uuids of flagged records.
@@ -250,6 +254,10 @@ def validate_ids(name, df, default):
             lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
         for val in flag_uuids:
             errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+    # Configure modification message.
+    if len(mods):
+        mods = "Fields set to lowercase: {}.".format(", ".join(map("\"{}\"".format, mods)))
 
     # Iterate unique id fields.
     unique_fields = {
