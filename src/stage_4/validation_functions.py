@@ -7,6 +7,7 @@ import numpy as np
 import os
 import pandas as pd
 import shapely.ops
+import string
 import sys
 from datetime import datetime
 from itertools import chain
@@ -22,6 +23,8 @@ logger = logging.getLogger()
 def strip_whitespace(df):
     """Strips leading and trailing whitespace from the given value for each dataframe column."""
 
+    mods = list()
+
     # Compile valid columns, excluding geometry.
     df_valid = df.select_dtypes(include="object")
     if "geometry" in df_valid.columns:
@@ -29,9 +32,15 @@ def strip_whitespace(df):
 
     # Iterate columns, applying modification.
     for col in df_valid:
-        df[col] = df[col].map(str.strip)
+        if df[col].map(lambda val: val != val.strip()).any():
+            df[col] = df[col].map(str.strip)
+            mods.append(col)
 
-    return df
+    # Configure modification message.
+    if len(mods):
+        mods = "Fields stripped of whitespace: {}.".format(", ".join(map("\"{}\"".format, mods)))
+
+    return df, mods
 
 
 def title_route_text(df, default):
@@ -210,6 +219,75 @@ def validate_exitnbr_roadclass(df, default):
     errors = df_subset[~df_subset["roadclass"].isin(["Ramp", "Service Lane"])].index.values
 
     return errors
+
+
+def validate_ids(name, df, default):
+    """
+    Applies a set of validations to all id fields.
+    Sets all id fields to lowercase.
+    Parameter default should be a dictionary with a key for each of the required fields.
+    """
+
+    mods = list()
+    errors = {1: list(), 2: list(), 3: list(), 4: list()}
+    dtypes = helpers.compile_dtypes()
+
+    # Iterate fields ending with "id".
+    for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid" and dtypes[name][fld] == "str"]:
+
+        # Subset dataframe to non-default values.
+        df_subset = df[df[field] != default[field]]
+
+        # Modification: set ids to lowercase.
+        if df_subset[field].map(lambda val: val != val.lower()).any():
+            df_subset[field] = df_subset[field].map(str.lower)
+            df.loc[df_subset.index, field] = df_subset[field]
+            mods.append(field)
+
+        # Validation 1: ensure ids are 32 digits.
+        # Compile uuids of flagged records.
+        flag_uuids = df_subset[df_subset[field].map(lambda val: len(val) != 32)].index.values
+        for val in flag_uuids:
+            errors[1].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+        # Validation 2: ensure ids are hexadecimal.
+        # Compile uuids of flagged records.
+        flag_uuids = df_subset[df_subset[field].map(
+            lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
+        for val in flag_uuids:
+            errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+    # Configure modification message.
+    if len(mods):
+        mods = "Fields set to lowercase: {}.".format(", ".join(map("\"{}\"".format, mods)))
+
+    # Iterate unique id fields.
+    unique_fields = {
+        "addrange": ["nid"],
+        "altnamlink": ["nid"],
+        "blkpassage": ["nid"],
+        "ferryseg": ["nid", "ferrysegid"],
+        "junction": ["nid"],
+        "roadseg": ["nid", "roadsegid"],
+        "strplaname": ["nid"],
+        "tollpoint": ["nid"]
+    }
+
+    for field in unique_fields[name]:
+
+        # Validation 3: ensure certain id fields are unique.
+        # Compile uuids of flagged records.
+        flag_uuids = df[df[field].duplicated(keep=False)].index.values
+        for val in flag_uuids:
+            errors[3].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+        # Validation 4: ensure unique id fields are not the default field value.
+        # Compile uuids of flagged records.
+        flag_uuids = df[df[field] == default[field]].index.values
+        for val in flag_uuids:
+            errors[4].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+    return df, errors, mods
 
 
 def validate_nbrlanes(df, default):

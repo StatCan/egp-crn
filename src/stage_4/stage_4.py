@@ -45,8 +45,17 @@ class Stage:
 
         logger.info("Exporting dataframes to GeoPackage layers.")
 
+        # Filter dataframe which require exporting.
+        dframes = dict()
+        for name, df in self.dframes.items():
+            if any([len(v) for k, v in self.flags[name]["modifications"].items()]):
+                dframes[name] = df
+
         # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.dframes, self.data_path)
+        if len(dframes):
+            helpers.export_gpkg(dframes, self.data_path)
+        else:
+            logger.info("Export not required, no dataframe modifications detected.")
 
     def gen_flag_variables(self):
         """Generates variables required for storing and logging error and modification flags for records."""
@@ -192,7 +201,9 @@ class Stage:
                 logger.info("Applying validation: strip whitespace. Target dataframe: {}.".format(name))
 
                 # Apply function.
-                df = validation_functions.strip_whitespace(df.copy(deep=True))
+                # Store modifications and flags.
+                df, self.flags[name]["modifications"]["strip_whitespace"] = \
+                    validation_functions.strip_whitespace(df.copy(deep=True))
 
                 # Validation: dates.
                 logger.info("Applying validation: dates. Target dataframe: {}.".format(name))
@@ -204,6 +215,17 @@ class Stage:
                 df[["credate", "revdate"]] = results[0]
                 self.flags[name]["errors"]["validate_dates"] = results[1]
                 self.flags[name]["modifications"]["validate_dates"] = results[2]
+
+                # Validation: ids.
+                logger.info("Apply validation: ids. Target dataframe: {}.".format(name))
+
+                # Apply function.
+                results = validation_functions.validate_ids(name, df.copy(deep=True), self.defaults[name])
+
+                # Store modifications, error flags, and modification flags.
+                df = results[0]
+                self.flags[name]["errors"]["validate_ids"] = results[1]
+                self.flags[name]["modifications"]["validate_ids"] = results[2]
 
                 # Store results.
                 self.dframes[name] = df
