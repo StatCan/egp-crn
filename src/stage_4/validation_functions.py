@@ -32,8 +32,9 @@ def strip_whitespace(df):
 
     # Iterate columns, applying modification.
     for col in df_valid:
-        df[col] = df[col].map(str.strip)
-        mods.append(col)
+        if df[col].map(lambda val: val != val.strip()).any():
+            df[col] = df[col].map(str.strip)
+            mods.append(col)
 
     # Configure modification message.
     if len(mods):
@@ -238,9 +239,10 @@ def validate_ids(name, df, default):
         df_subset = df[df[field] != default[field]]
 
         # Modification: set ids to lowercase.
-        df_subset[field] = df_subset[field].map(str.lower)
-        df.loc[df_subset.index, field] = df_subset[field]
-        mods.append(field)
+        if df_subset[field].map(lambda val: val != val.lower()).any():
+            df_subset[field] = df_subset[field].map(str.lower)
+            df.loc[df_subset.index, field] = df_subset[field]
+            mods.append(field)
 
         # Validation 1: ensure ids are 32 digits.
         # Compile uuids of flagged records.

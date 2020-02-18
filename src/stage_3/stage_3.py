@@ -68,12 +68,14 @@ class Stage:
         # Filter dataframe which require exporting.
         dframes = dict()
         for name, df in self.dframes.items():
-            if any([len(v) for k, v in self.flags[name]["modifications"]]):
+            if any([len(v) for k, v in self.flags[name]["modifications"].items()]):
                 dframes[name] = df
 
         # Export target dataframes to GeoPackage layers.
         if len(dframes):
             helpers.export_gpkg(dframes, self.data_path)
+        else:
+            logger.info("Export not required, no dataframe modifications detected.")
 
     def gen_flag_variables(self):
         """Generates variables required for storing and logging error and modification flags for records."""

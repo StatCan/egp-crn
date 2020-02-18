@@ -75,7 +75,7 @@ validate_ids:
     4: |
       Invalid records identified for table "{0}", validation "validate_ids", error 4 (listed by uuid):
       {1}
-      Error 4 details: IDs in this field must be unique.
+      Error 4 details: Unique ID fields must not be the default field value.
   modifications:
     1: |
       Records modified for table "{0}", validation "validate_ids":
