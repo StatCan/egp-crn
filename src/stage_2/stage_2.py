@@ -153,7 +153,7 @@ class Stage:
 
         logger.info("Importing roadseg geodataframe into PostGIS.")
         self.dframes["roadseg"].postgis.to_postgis(con=self.engine, table_name="stage_{}".format(self.stage),
-                                                   geometry="LineString", if_exists="replace")
+                                                   geometry="LineString", if_exists="replace", index=False)
 
         logger.info("Loading SQL yaml.")
         self.sql = helpers.load_yaml("../sql.yaml")
@@ -276,15 +276,23 @@ class Stage:
         attr_fix = self.sql["attributes"]["query"].format(self.stage)
 
         logger.info("Testing for junction equality and altering attributes.")
-        self.attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine)
+        self.attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine, geom_col="geom")
+        self.attr_equality = self.attr_equality.rename(columns={"geom": "geometry"}).set_geometry("geometry")
 
     def gen_junctions(self):
         """Generate final dataset."""
 
+        # Set standard field values.
         self.attr_equality["uuid"] = [uuid.uuid4().hex for _ in range(len(self.attr_equality))]
         self.attr_equality["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
         self.dframes["junction"] = self.attr_equality
+
+        # Apply field domains.
         self.apply_domains()
+
+        # Convert geometry from multipoint to point.
+        if self.dframes["junction"].geom_type[0] == "MultiPoint":
+            self.multipoint_to_point()
 
     def apply_domains(self):
         """Applies the field domains to each column in the target dataframes."""
@@ -311,6 +319,11 @@ class Stage:
         except (AttributeError, KeyError, ValueError):
             logger.exception("Invalid schema definition for table: junction, field: {}.".format(field))
             sys.exit(1)
+
+    def multipoint_to_point(self):
+        """Converts junction geometry from multipoint to point."""
+
+        self.dframes["junction"]["geometry"] = self.dframes["junction"]["geometry"].map(lambda geom: geom[0])
 
     def export_gpkg(self):
         """Exports the junctions dataframe as a GeoPackage layer."""

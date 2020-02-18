@@ -1,107 +1,107 @@
 title_route_text:
   modifications:
     1: |
-      Records modified for table "{0}", validation "{1}" (listed by uuid):
-      {2}
+      Records modified for table "{0}", validation "title_route_text" (listed by uuid):
+      {1}
       Modification details: route name set to title case for one or more of rtename1en, rtename2en, rtename3en, rtename4en, rtename1fr, rtename2fr, rtename3fr, rtename4fr.
 
 validate_dates:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_dates", error 1 (listed by uuid):
+      {1}
       Error 1 details: Invalid length for credate and / or revdate. Length must be 4, 6, or 8.
     2: |
-      Invalid records identified for table "{0}", validation "{1}", error 2 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_dates", error 2 (listed by uuid):
+      {1}
       Error 2 details: Invalid year for credate and / or revdate. Indexes 0:3 must be between 1960 and today, inclusively.
     3: |
-      Invalid records identified for table "{0}", validation "{1}", error 3 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_dates", error 3 (listed by uuid):
+      {1}
       Error 3 details: Invalid month for credate and / or revdate. Indexes 4:5 must be between 01 and 12, inclusively.
     4: |
-      Invalid records identified for table "{0}", validation "{1}", error 4 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_dates", error 4 (listed by uuid):
+      {1}
       Error 4 details: Invalid day for credate and / or revdate. Indexes 6:7 must be a valid zero-padded day of the given month and year.
     5: |
-      Invalid records identified for table "{0}", validation "{1}", error 5 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_dates", error 5 (listed by uuid):
+      {1}
       Error 5 details: Future date specified for credate and / or revdate. Date must be <= today.
     6: |
-      Invalid records identified for table "{0}", validation "{1}", error 6 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_dates", error 6 (listed by uuid):
+      {1}
       Error 6 details: Invalid combination for credate-revdate. credate must be <= revdate.
   modifications:
     1: |
-      Records modified for table "{0}", validation "{1}" (listed by uuid):
-      {2}
+      Records modified for table "{0}", validation "validate_dates" (listed by uuid):
+      {1}
       Modification details: date suffixed with "01" for missing month and / or day values for one or more of credate, revdate.
 
 validate_exitnbr_conflict:
   errors:
     1: |
-      Invalid records identified for table "roadseg", validation "{0}", error 1:
+      Invalid records identified for table "{0}", validation "validate_exitnbr_conflict", error 1:
       {1}
       Error 1 details: Road element cannot have multiple exitnbr values, excluding the default field value.
 
 validate_exitnbr_roadclass:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_exitnbr_roadclass", error 1 (listed by uuid):
+      {1}
       Error 1 details: Invalid exitnbr-roadclass combination. When exitnbr is not the default field value, roadclass must be "Ramp" or "Service Lane".
 
 validate_nbrlanes:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_nbrlanes", error 1 (listed by uuid):
+      {1}
       Error 1 details: nbrlanes must be between 1 and 8.
 
 validate_pavement:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_pavement", error 1 (listed by uuid):
+      {1}
       Error 1 details: Invalid pavstatus-pavsurf combination. When pavstatus = "Paved", pavsurf cannot be "None".
     2: |
-      Invalid records identified for table "{0}", validation "{1}", error 2 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_pavement", error 2 (listed by uuid):
+      {1}
       Error 2 details: Invalid pavstatus-unpavsurf combination. When pavstatus = "Paved", unpavsurf must be "None".
     3: |
-      Invalid records identified for table "{0}", validation "{1}", error 3 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_pavement", error 3 (listed by uuid):
+      {1}
       Error 3 details: Invalid pavstatus-pavsurf combination. When pavstatus = "Unpaved", pavsurf must be "None".
     4: |
-      Invalid records identified for table "{0}", validation "{1}", error 4 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_pavement", error 4 (listed by uuid):
+      {1}
       Error 4 details: Invalid pavstatus-unpavsurf combination. When pavstatus = "Unpaved", unpavsurf cannot be "None".
 
 validate_roadclass_rtnumber1:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_roadclass_rtnumber1", error 1 (listed by uuid):
+      {1}
       Error 1 details: Invalid roadclass-rtnumber1 combination. When roadclass = "Freeway" or "Expressway / Highway", rtnumber1 cannot be the default field value.
 
 validate_roadclass_self_intersection:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_roadclass_self_intersection", error 1 (listed by uuid):
+      {1}
       Error 1 details: roadclass must be one of "Expressway / Highway", "Freeway", "Ramp", or "Rapid Transit" for every road segment constituting a self-intersecting road element.
 
 validate_roadclass_structtype:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_roadclass_structtype", error 1 (listed by uuid):
+      {1}
       Error 1 details: structtype cannot be "None" for self-intersecting road segments.
 
 validate_route_contiguity:
   errors:
     1: |
-      Invalid records identified for table "ferryseg + roadseg", validation "{0}", error 1:
+      Invalid records identified for table "{0}", validation "validate_route_contiguity", error 1:
       {1}
       Error 1 details: Route must be contiguous. Review contiguity at the provided endpoints.
       Additionally, review the route attribute fields of any ramp features connected to this route.
@@ -109,10 +109,10 @@ validate_route_contiguity:
 validate_speed:
   errors:
     1: |
-      Invalid records identified for table "{0}", validation "{1}", error 1 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_speed", error 1 (listed by uuid):
+      {1}
       Error 1 details: speed must be between 5 and 120.
     2: |
-      Invalid records identified for table "{0}", validation "{1}", error 2 (listed by uuid):
-      {2}
+      Invalid records identified for table "{0}", validation "validate_speed", error 2 (listed by uuid):
+      {1}
       Error 2 details: speed must be a multiple of 5.

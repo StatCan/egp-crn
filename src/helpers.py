@@ -10,8 +10,9 @@ import sqlite3
 import sys
 import time
 import yaml
-from osgeo import ogr
-from shapely.geometry.point import Point
+from copy import deepcopy
+from osgeo import ogr, osr
+from shapely.geometry import LineString, Point
 
 
 logger = logging.getLogger()
@@ -102,8 +103,6 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
         # Iterate dataframes.
         for table_name, df in dataframes.items():
 
-            logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
-
             # Remove pre-existing layer from GeoPackage.
             if table_name in [layer.GetName() for layer in con_ogr]:
 
@@ -114,8 +113,8 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
                 con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
                 con.commit()
 
-            # Set index to data column.
-            df.reset_index(drop=False, inplace=True)
+            # Write to GeoPackage.
+            logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
 
             # Spatial data.
             if "geometry" in dir(df):
@@ -191,10 +190,10 @@ def load_gpkg(gpkg_path):
                         df = pd.read_sql_query("select * from {}".format(table_name), con)
 
                     # Set index field: uuid.
-                    df.set_index("uuid", inplace=True)
+                    df.index = df["uuid"]
 
                     # Store result.
-                    dframes[table_name] = df
+                    dframes[table_name] = df.copy(deep=True)
                     logger.info("Successfully loaded layer into dataframe: \"{}\".".format(table_name))
 
                 else:
@@ -290,3 +289,29 @@ def nx_to_gdf(g, nodes=True, edges=True):
         return gdf_nodes
     else:
         return gdf_edges
+
+def reproject_gdf(gdf, epsg_source, epsg_target):
+    """Transforms a GeoDataFrame's geometry column between EPSGs."""
+
+    # Deep copy dataframe to avoid reprojecting original.
+    # Explicitly copy crs property since it is excluded from default copy method.
+    gdf = gpd.GeoDataFrame(gdf.copy(deep=True), crs=deepcopy(gdf.crs))
+
+    # Define transformation.
+    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.ImportFromEPSG(epsg_source)
+    prj_target.ImportFromEPSG(epsg_target)
+    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
+
+    # Transform Records.
+    if gdf.geom_type[0] == "LineString":
+        gdf["geometry"] = gdf["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
+    elif gdf.geom_type[0] == "Point":
+        gdf["geometry"] = gdf["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0])))
+    else:
+        raise Exception("Geometry type not supported for EPSG transformation.")
+
+    # Update crs attribute.
+    gdf.crs["init"] = "epsg:{}".format(epsg_target)
+
+    return gdf

@@ -1,0 +1,92 @@
+identify_duplicate_lines:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "identify_duplicate_lines", error 1 (listed by uuid):
+      {1}
+      Error 1 details: Duplicate geometry detected.
+
+identify_duplicate_points:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "identify_duplicate_points", error 1 (listed by uuid):
+      {1}
+      Error 1 details: Duplicate geometry detected.
+
+identify_isolated_lines:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "identify_isolated_lines", error 1 (listed by uuid):
+      {1}
+      Error 1 details: Isolated line segment detected.
+
+validate_deadend_disjoint_proximity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_deadend_disjoint_proximity", error 1:
+      {1}
+      Error 1 details: Dead end junctions must be >= 5 meters from disjoint / non-connected road segments.
+
+validate_ferry_road_connectivity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_ferry_road_connectivity", error 1 (listed by uuid):
+      {1}
+      Error 1 details: Ferry segment must be connected to a road segment at at least one endpoint.
+    2: |
+      Invalid records identified for table "{0}", validation "validate_ferry_road_connectivity", error 2 (listed by uuid):
+      {1}
+      Error 2 details: Ferry segment cannot be connected to multiple road segments at the same endpoint.
+
+validate_line_endpoint_clustering:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_line_endpoint_clustering", error 1 (listed by uuid):
+      {1}
+      Error 1 details: Line segments must have <= 3 points within 83 meters of either endpoint, inclusively.
+
+validate_line_merging_angle:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_line_merging_angle", error 1. Review the following intersection points:
+      {1}
+      Error 1 details: Line segments must only merge at angles >= 40 degrees.
+
+validate_line_proximity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_line_proximity", error 1:
+      {1}
+      Error 1 details: Line segments must be >= 3 meters from each other, excluding connected segments.
+
+validate_min_length:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_min_length", error 1 (listed by uuid):
+      {1}
+      Error 1 details: Line segment must be < 2 meters in length.
+
+validate_point_proximity:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_point_proximity", error 1:
+      {1}
+      Error 1 details: Points must be >= 3 meters from each other.
+
+validate_road_structures:
+  errors:
+    1: |
+      Invalid records identified for table "{0}", validation "validate_road_structures", error 1 (listed by uuid):
+      {1}
+      Error 1 details: Dead end road segment must have structtype = "None" or the default field value.
+    2: |
+      Invalid records identified for table "{0}", validation "validate_road_structures", error 2:
+      {1}
+      Error 2 details: Structure must be contiguous. Review contiguity at the provided endpoints.
+    3: |
+      Invalid records identified for table "{0}", validation "validate_road_structures", error 3:
+      {1}
+      Error 3 details: Structure structid must be universal and not the default field value for all constituent road segments.
+    4: |
+      Invalid records identified for table "{0}", validation "validate_road_structures", error 4:
+      {1}
+      Error 4 details: Structure structtype must be universal and not the default field value for all constituent road segments.
