@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 import sys
+import uuid
 from copy import deepcopy
 from operator import attrgetter, itemgetter
 
@@ -235,6 +236,10 @@ def split_record(vals, field=None):
 
             # Append split records to dataframe.
             vals = vals.append(vals_split, ignore_index=False)
+
+        # Reset uuids and index.
+        vals["uuid"] = [uuid.uuid4().hex for _ in range(len(vals))]
+        vals.index = vals["uuid"]
 
         return vals
 
