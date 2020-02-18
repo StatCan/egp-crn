@@ -242,9 +242,9 @@ class Stage:
                    "lpr_000a16a_e.zip"
         try:
             urllib.request.urlretrieve(adm_file, '../../data/raw/boundary.zip')
-        except urllib.error.URLError as e:
+        except (TimeoutError, urllib.error.URLError) as e:
             logger.exception("Unable to download administrative boundary file: \"{}\".".format(adm_file))
-            logger.exception("urllib error: {}".format(e))
+            logger.exception(e)
             sys.exit(1)
 
         # Extract zipped file.
