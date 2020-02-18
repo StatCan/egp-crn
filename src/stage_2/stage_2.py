@@ -240,7 +240,15 @@ class Stage:
         logger.info("Downloading administrative boundary file.")
         adm_file = "http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/" \
                    "lpr_000a16a_e.zip"
-        urllib.request.urlretrieve(adm_file, '../../data/raw/boundary.zip')
+        try:
+            urllib.request.urlretrieve(adm_file, '../../data/raw/boundary.zip')
+        except urllib.error.URLError as e:
+            logger.exception("Unable to download administrative boundary file: \"{}\".".format(adm_file))
+            logger.exception("urllib error: {}".format(e))
+            sys.exit(1)
+
+        # Extract zipped file.
+        logger.info("Extracting zipped administrative boundary file.")
         with zipfile.ZipFile("../../data/raw/boundary.zip", "r") as zip_ref:
             zip_ref.extractall("../../data/raw/boundary")
 
