@@ -266,9 +266,9 @@ def validate_ids(name, df, default):
         "addrange": ["nid"],
         "altnamlink": ["nid"],
         "blkpassage": ["nid"],
-        "ferryseg": ["nid", "ferrysegid"],
+        "ferryseg": ["ferrysegid"],
         "junction": ["nid"],
-        "roadseg": ["nid", "roadsegid"],
+        "roadseg": ["roadsegid"],
         "strplaname": ["nid"],
         "tollpoint": ["nid"]
     }
