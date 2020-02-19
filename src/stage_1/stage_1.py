@@ -48,6 +48,9 @@ class Stage:
             logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
 
+        # Store ID field updates for re-referencing purposes post-field mapping.
+        self.nid_changes = dict()
+
     def apply_domains(self):
         """Applies the field domains to each column in the target dataframes."""
 
@@ -159,7 +162,10 @@ class Stage:
                         # Split records if required.
                         if field_mapping_results["split_record"]:
                             # Duplicate records that were split.
-                            target_gdf = field_map_functions.split_record(target_gdf, target_field)
+                            target_gdf, nid_changes = field_map_functions.split_record(target_gdf, target_field)
+
+                            # Store nid changes.
+                            self.nid_changes[target_name] = nid_changes
 
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
@@ -421,6 +427,50 @@ class Stage:
 
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
 
+    def repair_nid_linkages(self):
+        """Repairs the linkages between dataframes if any nid fields were altered."""
+
+        if len(self.nid_changes):
+
+            logger.info("Repairing nid linkages.")
+
+            # Define linkages.
+            linkages = {
+                "addrange":
+                    {
+                        "roadseg": ["adrangenid"]
+                    },
+                "altnamlink":
+                    {
+                        "addrange": ["l_altnanid", "r_altnanid"]
+                    },
+                "roadseg":
+                    {
+                        "blkpassage": ["roadnid"],
+                        "tollpoint": ["roadnid"]
+                    },
+                "strplaname":
+                    {
+                        "addrange": ["l_offnanid", "r_offnanid"],
+                        "altnamlink": ["strnamenid"]
+                    }
+            }
+
+            # Iterate tables with nid linkages.
+            for source, nid_changes in self.nid_changes.items():
+
+                # Iterate linked tables (targets).
+                for target in [t for t in linkages[source] if t in self.target_gdframes]:
+
+                    # Retrieve target dataframe.
+                    target_df = self.target_gdframes[target]
+
+                    # Iterate linked columns.
+                    for col in linkages[source][target]:
+
+                        # Update column with new source nids.
+                        self.target_gdframes[target][col] = target_df[col].map(nid_changes)
+
     def execute(self):
         """Executes an NRN stage."""
 
@@ -431,6 +481,7 @@ class Stage:
         self.gen_target_dataframes()
         self.apply_field_mapping()
         self.apply_domains()
+        self.repair_nid_linkages()
         self.export_gpkg()
 
 

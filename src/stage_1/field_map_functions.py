@@ -237,11 +237,18 @@ def split_record(vals, field=None):
             # Append split records to dataframe.
             vals = vals.append(vals_split, ignore_index=False)
 
-        # Reset uuids and index.
+        # Store original nids.
+        nids_orig = vals["nid"].values
+
+        # Reset nids, uuids, and index.
+        vals["nid"] = [uuid.uuid4().hex for _ in range(len(vals))]
         vals["uuid"] = [uuid.uuid4().hex for _ in range(len(vals))]
         vals.index = vals["uuid"]
 
-        return vals
+        # Compile orig-new nid mapping.
+        nid_changes = dict(zip(nids_orig, vals["nid"].values))
+
+        return vals, nid_changes
 
 
 def validate_dtypes(val_name, val, dtypes):
