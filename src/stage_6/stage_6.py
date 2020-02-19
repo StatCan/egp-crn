@@ -126,12 +126,12 @@ class Stage:
                     source_ids = self.dframes[source][col]
 
                     # Validate linkages.
-                    logger.info("Validating table linkage: {}.{} - {}.nid.".format(source, col, target))
+                    logger.info("Validating nid linkage: {}.{} - {}.nid.".format(source, col, target))
                     if not set(source_ids).issubset(target_ids):
 
                         # Compile invalid values and configure error messages.
                         flag_vals = "\n".join(list(set(source_ids) - set(target_ids)))
-                        errors.append("Invalid table linkage. The following values from {}.{} are not present in "
+                        errors.append("Invalid nid linkage. The following values from {}.{} are not present in "
                                       "{}.{}: {}.".format(source, col, target, flag_vals))
 
         # Log error messages.

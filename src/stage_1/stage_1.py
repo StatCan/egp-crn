@@ -469,6 +469,7 @@ class Stage:
                     for col in linkages[source][target]:
 
                         # Update column with new source nids.
+                        logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, col, target))
                         self.target_gdframes[target][col] = target_df[col].map(nid_changes)
 
     def execute(self):
