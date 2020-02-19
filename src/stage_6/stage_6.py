@@ -83,6 +83,7 @@ class Stage:
         """Validate the linkages between all required dataframes."""
 
         logger.info("Validating table linkages.")
+        errors = list()
 
         # Define linkages.
         linkages = [
@@ -97,30 +98,24 @@ class Stage:
         ]
 
         # Validate linkages.
-        try:
+        for linkage in [link for link in linkages if all([table in self.dframes for table in (link[0], link[2])])]:
 
-            flag = False
+            logger.info("Validating table linkage: {}.{} - {}.{}.".format(*linkage))
+            source, target = self.dframes[linkage[0]][linkage[1]], self.dframes[linkage[2]][linkage[3]]
 
-            for linkage in [link for link in linkages if all([table in self.dframes for table in (link[0], link[2])])]:
+            if not set(source).issubset(target):
 
-                logger.info("Validating table linkage: {}.{} - {}.{}.".format(*linkage))
-                source, target = self.dframes[linkage[0]][linkage[1]], self.dframes[linkage[2]][linkage[3]]
+                # Compile invalid values and configure error messages.
+                flag_vals = "\n".join(list(set(source) - set(target)))
+                errors.append("Invalid table linkage. The following values from {1}.{2} are not present in {3}.{4}: "
+                              "{0}.".format(flag_vals, *linkage))
 
-                if not set(source).issubset(target):
+        # Log error messages.
+        if len(errors):
+            logger.info("Invalid table linkages identified.")
 
-                    flag = True
-
-                    # Compile invalid values.
-                    flag_vals = ", ".join(list(set(source) - set(target)))
-                    logger.info("Invalid table linkage. The following values from {1}.{2} are not present in {3}.{4}: "
-                                "{0}.".format(flag_vals, *linkage))
-
-            if flag:
-                raise ValueError("Invalid table linkages identified.")
-
-        except ValueError:
-            logger.exception("")
-            sys.exit(1)
+            for error in errors:
+                logger.info(error)
 
     def execute(self):
         """Executes an NRN stage."""
