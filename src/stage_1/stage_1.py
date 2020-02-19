@@ -69,7 +69,7 @@ class Stage:
                     logger.info("Target field \"{}\": Applying domain.".format(field))
 
                     # Apply domains to series via apply_functions.
-                    series_orig = self.target_gdframes[table][field]
+                    series_orig = self.target_gdframes[table][field].copy()
                     series_new = series_orig.map(
                         lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"],
                                                                              default=defaults[table][field]))

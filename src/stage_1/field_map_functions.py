@@ -238,7 +238,7 @@ def split_record(vals, field=None):
             vals = vals.append(vals_split, ignore_index=False)
 
         # Store original nids.
-        nids_orig = vals["nid"].values
+        nids_orig = vals["nid"].values.copy()
 
         # Reset nids, uuids, and index.
         vals["nid"] = [uuid.uuid4().hex for _ in range(len(vals))]
