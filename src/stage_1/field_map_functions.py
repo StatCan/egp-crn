@@ -240,10 +240,8 @@ def split_record(vals, field=None):
         # Store original nids.
         nids_orig = vals["nid"].values.copy()
 
-        # Reset nids, uuids, and index.
+        # Assign new nids.
         vals["nid"] = [uuid.uuid4().hex for _ in range(len(vals))]
-        vals["uuid"] = [uuid.uuid4().hex for _ in range(len(vals))]
-        vals.index = vals["uuid"]
 
         # Compile orig-new nid mapping.
         nid_changes = dict(zip(nids_orig, vals["nid"].values))

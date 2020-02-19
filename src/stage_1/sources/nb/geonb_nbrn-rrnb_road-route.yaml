@@ -90,9 +90,9 @@ conform:
               strip_result: True
     l_hnumtypl:
     r_hnumtypl:
-    nid: nid
-    l_offnanid: nid
-    r_offnanid: nid
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
     l_rfsysind:
     r_rfsysind:
   roadseg:
@@ -106,7 +106,7 @@ conform:
     specvers:
     l_adddirfg:
     r_adddirfg:
-    adrangenid: nid
+    adrangenid: uuid
     closing: closing
     exitnbr: exitnbr
     l_hnumf:
@@ -202,7 +202,7 @@ conform:
             pattern_from: "[-]"
             pattern_to: " "
     muniquad:
-    nid: nid
+    nid: uuid
     placename:
       fields: [l_placenam, r_placenam]
       functions:

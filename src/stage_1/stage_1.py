@@ -48,7 +48,11 @@ class Stage:
             logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
 
-        # Store ID field updates for re-referencing purposes post-field mapping.
+        # Configure field defaults and dtypes.
+        self.defaults = helpers.compile_default_values()
+        self.dtypes = helpers.compile_dtypes()
+
+        # Store nid field updates for re-linkage post-field mapping.
         self.nid_changes = dict()
 
     def apply_domains(self):
@@ -56,8 +60,6 @@ class Stage:
 
         logging.info("Applying field domains.")
         table = field = None
-        defaults = helpers.compile_default_values()
-        dtypes = helpers.compile_dtypes()
 
         try:
 
@@ -72,10 +74,10 @@ class Stage:
                     series_orig = self.target_gdframes[table][field].copy()
                     series_new = series_orig.map(
                         lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"],
-                                                                             default=defaults[table][field]))
+                                                                             default=self.defaults[table][field]))
 
                     # Force adjust data type.
-                    series_new = series_new.astype(dtypes[table][field])
+                    series_new = series_new.astype(self.dtypes[table][field])
 
                     # Compile and quantify modified values.
                     series_mod = series_orig != series_new
@@ -428,7 +430,10 @@ class Stage:
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
 
     def repair_nid_linkages(self):
-        """Repairs the linkages between dataframes if any nid fields were altered."""
+        """
+        Repairs the linkages between dataframes if any nid fields were altered.
+        Additionally, generates new uuids to restore record uniqueness.
+        """
 
         if len(self.nid_changes):
 
@@ -470,7 +475,15 @@ class Stage:
 
                         # Update column with new source nids.
                         logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, col, target))
-                        self.target_gdframes[target][col] = target_df[col].map(nid_changes)
+                        default = self.defaults[target][col]
+                        self.target_gdframes[target][col] = \
+                            target_df[col].map(lambda val: val if val == default else nid_changes[val])
+
+                # Generate new uuids.
+                logger.info("Generating new uuids for \"{}\".".format(source))
+                self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
+                                                        range(len(self.target_gdframes[source]))]
+                self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
 
     def execute(self):
         """Executes an NRN stage."""
