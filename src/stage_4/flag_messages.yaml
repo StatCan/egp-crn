@@ -118,6 +118,10 @@ validate_roadclass_rtnumber1:
 validate_roadclass_self_intersection:
   errors:
     1: |
+      Invalid records identified for table "{0}", validation "validate_roadclass_structtype", error 1 (listed by uuid):
+      {1}
+      Error 1 details: structtype cannot be "None" for self-intersecting road segments.
+    2: |
       Invalid records identified for table "{0}", validation "validate_roadclass_self_intersection", error 1 (listed by uuid):
       {1}
       Error 1 details: roadclass must be one of "Expressway / Highway", "Freeway", "Ramp", or "Rapid Transit" for every road segment constituting a self-intersecting road element.
