@@ -150,8 +150,8 @@ class Stage:
 
                         # Create mapped dataframe from source and target dataframes, keeping only source fields.
                         # Convert to series.
-                        mapped_series = pd.DataFrame({field: target_gdf["uuid"].map(source_gdf.set_index("uuid")[field])
-                                                      for field in source_field["fields"]})
+                        mapped_series = pd.DataFrame({field: target_gdf["uuid"].map(
+                            source_gdf.set_index("uuid", drop=False)[field]) for field in source_field["fields"]})
                         mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
                         # Apply field mapping functions to mapped series.
