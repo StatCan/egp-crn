@@ -191,6 +191,8 @@ def validate_exitnbr_conflict(df, default):
     query = (df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)
     for nid in df[query]["nid"].unique():
 
+        logger.info("Validating road element (nid): \"{}\"".format(nid))
+
         # Compile exitnbr values, excluding the default value.
         vals = df[(df["nid"] == nid) & (df["exitnbr"] != default)]["exitnbr"].unique()
 
@@ -382,6 +384,8 @@ def validate_roadclass_self_intersection(df, default):
 
         # Iterate flagged elements to identify self-intersections.
         for nid in segments_multi[flag_intersect]["nid"].unique():
+
+            logger.info("Validating road element (nid): \"{}\"".format(nid))
 
             # Dissolve road segments.
             element = shapely.ops.linemerge(df[df["nid"] == nid]["geometry"].values)
