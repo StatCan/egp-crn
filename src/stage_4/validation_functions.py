@@ -344,10 +344,10 @@ def validate_roadclass_self_intersection(df, default):
     Parameter default should refer to nid.
     """
 
-    errors = dict()
+    errors = [dict(), dict()]
 
     # Validation: for self-intersecting road segments, ensure structtype != "None".
-    segments_single, errors[1] = validate_roadclass_structtype(df, default)
+    segments_single, errors[0][1] = validate_roadclass_structtype(df, default)
 
     # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
     #             elements which a) self-intersect and b) touch another road segment where roadclass is in the
@@ -397,7 +397,7 @@ def validate_roadclass_self_intersection(df, default):
                 flag_nids.append(nid)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
-    errors[2] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+    errors[1][1] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
     return errors
 
 
