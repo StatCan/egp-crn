@@ -451,8 +451,6 @@ def validate_road_structures(roadseg, junction, default):
         # Iterate structids.
         for structid in sorted(structids):
 
-            logger.info("Validating structure: \"{}\".".format(structid))
-
             # Subset dataframe to those records with current structid.
             structure = roadseg.iloc[list(np.where(roadseg["structid"] == structid)[0])]
 
