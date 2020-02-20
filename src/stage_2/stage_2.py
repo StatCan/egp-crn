@@ -45,6 +45,9 @@ class Stage:
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
 
+        # Compile database configuration variables.
+        self.db_config = helpers.load_yaml(os.path.abspath("db_config.yaml"))
+
     def create_db(self):
         """Creates the PostGIS database needed for Stage 2."""
 
@@ -53,17 +56,20 @@ class Stage:
 
         # default postgres connection needed to create the nrn database
         conn = connect(
-            dbname="postgres",
-            user="postgres",
-            host="localhost",
-            password="password"
+            dbname=self.db_config["dbname"],
+            user=self.db_config["user"],
+            host=self.db_config["host"],
+            password=self.db_config["password"]
         )
 
         # postgres database url for geoprocessing
         nrn_url = URL(
-            drivername='postgresql+psycopg2', host='localhost',
-            database=nrn_db, username='postgres',
-            port='5432', password='password'
+            drivername=self.db_config["drivername"],
+            host=self.db_config["host"],
+            database=nrn_db,
+            username=self.db_config["username"],
+            port=self.db_config["port"],
+            password=self.db_config["password"]
         )
 
         # engine to connect to nrn database
@@ -99,9 +105,9 @@ class Stage:
         # connection parameters for newly created database
         nrn_conn = connect(
             dbname=nrn_db,
-            user="postgres",
-            host="localhost",
-            password="password"
+            user=self.db_config["user"],
+            host=self.db_config["host"],
+            password=self.db_config["password"]
         )
 
         nrn_conn.set_isolation_level(autocommit)
