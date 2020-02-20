@@ -449,9 +449,10 @@ def validate_road_structures(roadseg, junction, default):
     if len(structids):
 
         # Iterate structids.
-        for structid in sorted(structids):
+        structid_count = len(structids)
+        for index, structid in enumerate(sorted(structids)):
 
-            logger.info("Validating structure: \"{}\".".format(structid))
+            logger.info("Validating structure {} of {}: \"{}\".".format(index + 1, structid_count, structid))
 
             # Subset dataframe to those records with current structid.
             structure = roadseg.iloc[list(np.where(roadseg["structid"] == structid)[0])]
