@@ -180,8 +180,8 @@ class Stage:
             # Apply function.
             self.flags["roadseg"]["errors"]["validate_roadclass_structtype"], \
             self.flags["roadseg"]["errors"]["validate_roadclass_self_intersection"] = validation_functions\
-                .validate_roadclass_self_intersection(
-                self.dframes["roadseg"].copy(deep=True), self.defaults["roadseg"]["nid"]).values()
+                .validate_roadclass_self_intersection(self.dframes["roadseg"].copy(deep=True),
+                                                      self.defaults["roadseg"]["nid"])
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
