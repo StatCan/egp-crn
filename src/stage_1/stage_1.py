@@ -48,13 +48,18 @@ class Stage:
             logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
 
+        # Configure field defaults and dtypes.
+        self.defaults = helpers.compile_default_values()
+        self.dtypes = helpers.compile_dtypes()
+
+        # Store nid field updates for re-linkage post-field mapping.
+        self.nid_changes = dict()
+
     def apply_domains(self):
         """Applies the field domains to each column in the target dataframes."""
 
         logging.info("Applying field domains.")
         table = field = None
-        defaults = helpers.compile_default_values()
-        dtypes = helpers.compile_dtypes()
 
         try:
 
@@ -66,13 +71,13 @@ class Stage:
                     logger.info("Target field \"{}\": Applying domain.".format(field))
 
                     # Apply domains to series via apply_functions.
-                    series_orig = self.target_gdframes[table][field]
+                    series_orig = self.target_gdframes[table][field].copy()
                     series_new = series_orig.map(
                         lambda val: eval("field_map_functions.apply_domain")(val, domain=domains["all"],
-                                                                             default=defaults[table][field]))
+                                                                             default=self.defaults[table][field]))
 
                     # Force adjust data type.
-                    series_new = series_new.astype(dtypes[table][field])
+                    series_new = series_new.astype(self.dtypes[table][field])
 
                     # Compile and quantify modified values.
                     series_mod = series_orig != series_new
@@ -145,8 +150,8 @@ class Stage:
 
                         # Create mapped dataframe from source and target dataframes, keeping only source fields.
                         # Convert to series.
-                        mapped_series = pd.DataFrame({field: target_gdf["uuid"].map(source_gdf.set_index("uuid")[field])
-                                                      for field in source_field["fields"]})
+                        mapped_series = pd.DataFrame({field: target_gdf["uuid"].map(
+                            source_gdf.set_index("uuid", drop=False)[field]) for field in source_field["fields"]})
                         mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
                         # Apply field mapping functions to mapped series.
@@ -159,7 +164,10 @@ class Stage:
                         # Split records if required.
                         if field_mapping_results["split_record"]:
                             # Duplicate records that were split.
-                            target_gdf = field_map_functions.split_record(target_gdf, target_field)
+                            target_gdf, nid_changes = field_map_functions.split_record(target_gdf, target_field)
+
+                            # Store nid changes.
+                            self.nid_changes[target_name] = nid_changes
 
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf
@@ -421,6 +429,62 @@ class Stage:
 
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
 
+    def repair_nid_linkages(self):
+        """
+        Repairs the linkages between dataframes if any nid fields were altered.
+        Additionally, generates new uuids to restore record uniqueness.
+        """
+
+        if len(self.nid_changes):
+
+            logger.info("Repairing nid linkages.")
+
+            # Define linkages.
+            linkages = {
+                "addrange":
+                    {
+                        "roadseg": ["adrangenid"]
+                    },
+                "altnamlink":
+                    {
+                        "addrange": ["l_altnanid", "r_altnanid"]
+                    },
+                "roadseg":
+                    {
+                        "blkpassage": ["roadnid"],
+                        "tollpoint": ["roadnid"]
+                    },
+                "strplaname":
+                    {
+                        "addrange": ["l_offnanid", "r_offnanid"],
+                        "altnamlink": ["strnamenid"]
+                    }
+            }
+
+            # Iterate tables with nid linkages.
+            for source, nid_changes in self.nid_changes.items():
+
+                # Iterate linked tables (targets).
+                for target in [t for t in linkages[source] if t in self.target_gdframes]:
+
+                    # Retrieve target dataframe.
+                    target_df = self.target_gdframes[target]
+
+                    # Iterate linked columns.
+                    for col in linkages[source][target]:
+
+                        # Update column with new source nids.
+                        logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, col, target))
+                        default = self.defaults[target][col]
+                        self.target_gdframes[target][col] = \
+                            target_df[col].map(lambda val: val if val == default else nid_changes[val])
+
+                # Generate new uuids.
+                logger.info("Generating new uuids for \"{}\".".format(source))
+                self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
+                                                        range(len(self.target_gdframes[source]))]
+                self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
+
     def execute(self):
         """Executes an NRN stage."""
 
@@ -431,6 +495,7 @@ class Stage:
         self.gen_target_dataframes()
         self.apply_field_mapping()
         self.apply_domains()
+        self.repair_nid_linkages()
         self.export_gpkg()
 
 

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 import sys
+import uuid
 from copy import deepcopy
 from operator import attrgetter, itemgetter
 
@@ -236,7 +237,16 @@ def split_record(vals, field=None):
             # Append split records to dataframe.
             vals = vals.append(vals_split, ignore_index=False)
 
-        return vals
+        # Store original nids.
+        nids_orig = vals["nid"].values.copy()
+
+        # Assign new nids.
+        vals["nid"] = [uuid.uuid4().hex for _ in range(len(vals))]
+
+        # Compile orig-new nid mapping.
+        nid_changes = dict(zip(nids_orig, vals["nid"].values))
+
+        return vals, nid_changes
 
 
 def validate_dtypes(val_name, val, dtypes):

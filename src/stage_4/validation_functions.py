@@ -189,9 +189,10 @@ def validate_exitnbr_conflict(df, default):
 
     # Iterate multi-segment road elements (via nid field) and where exitnbr is not the default value.
     query = (df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)
-    for nid in df[query]["nid"].unique():
+    nid_count = len(df[query]["nid"].unique())
+    for index, nid in enumerate(df[query]["nid"].unique()):
 
-        logger.info("Validating road element (nid): \"{}\"".format(nid))
+        logger.info("Validating road element (nid {} of {}): \"{}\"".format(index + 1, nid_count, nid))
 
         # Compile exitnbr values, excluding the default value.
         vals = df[(df["nid"] == nid) & (df["exitnbr"] != default)]["exitnbr"].unique()
@@ -266,9 +267,9 @@ def validate_ids(name, df, default):
         "addrange": ["nid"],
         "altnamlink": ["nid"],
         "blkpassage": ["nid"],
-        "ferryseg": ["nid", "ferrysegid"],
+        "ferryseg": ["ferrysegid"],
         "junction": ["nid"],
-        "roadseg": ["nid", "roadsegid"],
+        "roadseg": ["roadsegid"],
         "strplaname": ["nid"],
         "tollpoint": ["nid"]
     }
@@ -344,10 +345,10 @@ def validate_roadclass_self_intersection(df, default):
     Parameter default should refer to nid.
     """
 
-    errors = dict()
+    errors = [dict(), dict()]
 
     # Validation: for self-intersecting road segments, ensure structtype != "None".
-    segments_single, errors[1] = validate_roadclass_structtype(df, default)
+    segments_single, errors[0][1] = validate_roadclass_structtype(df, default)
 
     # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
     #             elements which a) self-intersect and b) touch another road segment where roadclass is in the
@@ -383,9 +384,10 @@ def validate_roadclass_self_intersection(df, default):
         flag_intersect = np.vectorize(intersect_func)(segments_multi["geometry"].values)
 
         # Iterate flagged elements to identify self-intersections.
-        for nid in segments_multi[flag_intersect]["nid"].unique():
+        nid_count = len(segments_multi[flag_intersect]["nid"].unique())
+        for index, nid in enumerate(segments_multi[flag_intersect]["nid"].unique()):
 
-            logger.info("Validating road element (nid): \"{}\"".format(nid))
+            logger.info("Validating road element (nid {} of {}): \"{}\"".format(index + 1, nid_count, nid))
 
             # Dissolve road segments.
             element = shapely.ops.linemerge(df[df["nid"] == nid]["geometry"].values)
@@ -397,7 +399,7 @@ def validate_roadclass_self_intersection(df, default):
                 flag_nids.append(nid)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
-    errors[2] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+    errors[1][1] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
     return errors
 
 
@@ -462,9 +464,10 @@ def validate_route_contiguity(ferryseg, roadseg, default):
         route_names = sorted(route_names)
 
         # Iterate route names.
-        for route_name in route_names:
+        route_count = len(route_names)
+        for index, route_name in enumerate(route_names):
 
-            logger.info("Validating route: \"{}\".".format(route_name))
+            logger.info("Validating route {} of {}: \"{}\".".format(index + 1, route_count, route_name))
 
             # Subset dataframe to those records with route name in at least one field.
             route_df = df.iloc[list(np.where(df[field_group] == route_name)[0])]

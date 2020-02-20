@@ -1,0 +1,9 @@
+# Example file. The following credentials are all PostgreSQL defaults and do not reflect the personal credentials of any actual user.
+
+dbname: postgres
+drivername: postgresql+psycopg2
+host: localhost
+password: password
+port: 5432
+user: postgres
+username: postgres

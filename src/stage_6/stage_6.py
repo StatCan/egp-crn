@@ -79,55 +79,74 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-    def validate_linkages(self):
-        """Validate the linkages between all required dataframes."""
+    def validate_nid_linkages(self):
+        """Validate the nid linkages between all required dataframes."""
 
-        logger.info("Validating table linkages.")
+        logger.info("Validating nid linkages.")
+        errors = list()
 
         # Define linkages.
-        linkages = [
-            ["addrange", "l_altnanid", "altnamlink", "nid"],
-            ["addrange", "r_altnanid", "altnamlink", "nid"],
-            ["addrange", "l_offnanid", "strplaname", "nid"],
-            ["addrange", "r_offnanid", "strplaname", "nid"],
-            ["altnamlink", "strnamenid", "strplaname", "nid"],
-            ["blkpassage", "roadnid", "roadseg", "nid"],
-            ["roadseg", "adrangenid", "addrange", "nid"],
-            ["tollpoint", "roadnid", "roadseg", "nid"]
-        ]
+        linkages = {
+            "addrange":
+                {
+                    "altnamlink": ["l_altnanid", "r_altnanid"],
+                    "strplaname": ["l_offnanid", "r_offnanid"]
+                },
+            "altnamlink":
+                {
+                    "strplaname": ["strnamenid"]
+                },
+            "blkpassage":
+                {
+                    "roadseg": ["roadnid"]
+                },
+            "roadseg":
+                {
+                    "addrange": ["adrangenid"]
+                },
+            "tollpoint":
+                {
+                    "roadseg": ["roadnid"]
+                }
+        }
 
-        # Validate linkages.
-        try:
+        # Iterate tables with nid linkages.
+        for source in [s for s in linkages if s in self.dframes]:
 
-            flag = False
+            # Iterate linked tables (targets).
+            for target in [t for t in linkages[source] if t in self.dframes]:
 
-            for linkage in [link for link in linkages if all([table in self.dframes for table in (link[0], link[2])])]:
+                # Retrieve nid from target.
+                target_ids = self.dframes[target]["nid"]
 
-                logger.info("Validating table linkage: {}.{} - {}.{}.".format(*linkage))
-                source, target = self.dframes[linkage[0]][linkage[1]], self.dframes[linkage[2]][linkage[3]]
+                # Iterate source columns with nid linkages.
+                for col in linkages[source][target]:
 
-                if not set(source).issubset(target):
+                    # Retrieve source column ids.
+                    source_ids = self.dframes[source][col]
 
-                    flag = True
+                    # Validate linkages.
+                    logger.info("Validating nid linkage: {}.{} - {}.nid.".format(source, col, target))
+                    if not set(source_ids).issubset(target_ids):
 
-                    # Compile invalid values.
-                    flag_vals = ", ".join(list(set(source) - set(target)))
-                    logger.info("Invalid table linkage. The following values from {1}.{2} are not present in {3}.{4}: "
-                                "{0}.".format(flag_vals, *linkage))
+                        # Compile invalid values and configure error messages.
+                        flag_vals = "\n".join(list(set(source_ids) - set(target_ids)))
+                        errors.append("Invalid nid linkage. The following values from {}.{} are not present in "
+                                      "{}.nid: {}.".format(source, col, target, flag_vals))
 
-            if flag:
-                raise ValueError("Invalid table linkages identified.")
+        # Log error messages.
+        if len(errors):
+            logger.info("Invalid nid linkages identified.")
 
-        except ValueError:
-            logger.exception("")
-            sys.exit(1)
+            for error in errors:
+                logger.info(error)
 
     def execute(self):
         """Executes an NRN stage."""
 
         self.load_gpkg()
         self.filter_duplicates()
-        self.validate_linkages()
+        self.validate_nid_linkages()
         self.export_gpkg()
 
 
