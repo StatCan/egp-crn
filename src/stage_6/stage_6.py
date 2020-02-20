@@ -132,7 +132,7 @@ class Stage:
                         # Compile invalid values and configure error messages.
                         flag_vals = "\n".join(list(set(source_ids) - set(target_ids)))
                         errors.append("Invalid nid linkage. The following values from {}.{} are not present in "
-                                      "{}.{}: {}.".format(source, col, target, flag_vals))
+                                      "{}.nid: {}.".format(source, col, target, flag_vals))
 
         # Log error messages.
         if len(errors):
