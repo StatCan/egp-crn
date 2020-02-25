@@ -1,0 +1,191 @@
+data:
+  dirname: NRN_RRN_<identifier>_<edition>_<version>_GPKG
+  filename: NRN_RRN_<identifier>_<edition>_<version>_GPKG_en.gpkg
+  driver: GPKG
+conform:
+  addrange:
+    layer: NRN_<identifier>_<edition>_<version>_ADDRANGE
+    fields:
+      acqtech:    ACQTECH
+      metacover:  METACOVER
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      accuracy:   ACCURACY
+      provider:   PROVIDER
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      l_altnanid: L_ALTNANID
+      r_altnanid: R_ALTNANID
+      l_digdirfg: L_DIGDIRFG
+      r_digdirfg: R_DIGDIRFG
+      l_hnumf:    L_HNUMF
+      r_hnumf:    R_HNUMF
+      l_hnumsuff: L_HNUMSUFF
+      r_hnumsuff: R_HNUMSUFF
+      l_hnumtypf: L_HNUMTYPF
+      r_hnumtypf: R_HNUMTYPF
+      l_hnumstr:  L_HNUMSTR
+      r_hnumstr:  R_HNUMSTR
+      l_hnuml:    L_HNUML
+      r_hnuml:    R_HNUML
+      l_hnumsufl: L_HNUMSUFL
+      r_hnumsufl: R_HNUMSUFL
+      l_hnumtypl: L_HNUMTYPL
+      r_hnumtypl: R_HNUMTYPL
+      nid:        NID
+      l_offnanid: L_OFFNANID
+      r_offnanid: R_OFFNANID
+      l_rfsysind: L_RFSYSIND
+      r_rfsysind: R_RFSYSIND
+  altnamlink:
+    layer: NRN_<identifier>_<edition>_<version>_ALTNAMLINK
+    fields:
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      nid:        NID
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      strnamenid: STRNAMENID
+  blkpassage:
+    layer: NRN_<identifier>_<edition>_<version>_BLKPASSAGE
+    fields:
+      acqtech:    ACQTECH
+      metacover:  METACOVER
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      accuracy:   ACCURACY
+      provider:   PROVIDER
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      blkpassty:  BLKPASSTY
+      nid:        NID
+      roadnid:    ROADNID
+  ferryseg:
+    layer: NRN_<identifier>_<edition>_<version>_FERRYSEG
+    fields:
+      acqtech:    ACQTECH
+      metacover:  METACOVER
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      accuracy:   ACCURACY
+      provider:   PROVIDER
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      closing:    CLOSING
+      ferrysegid: FERRYSEGID
+      roadclass:  ROADCLASS
+      nid:        NID
+      rtename1en: RTENAME1EN
+      rtename2en: RTENAME2EN
+      rtename3en: RTENAME3EN
+      rtename4en: RTENAME4EN
+      rtename1fr: RTENAME1FR
+      rtename2fr: RTENAME2FR
+      rtename3fr: RTENAME3FR
+      rtename4fr: RTENAME4FR
+      rtnumber1:  RTNUMBER1
+      rtnumber2:  RTNUMBER2
+      rtnumber3:  RTNUMBER3
+      rtnumber4:  RTNUMBER4
+      rtnumber5:  RTNUMBER5
+  junction:
+    layer: NRN_<identifier>_<edition>_<version>_JUNCTION
+    fields:
+      acqtech:    ACQTECH
+      metacover:  METACOVER
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      accuracy:   ACCURACY
+      provider:   PROVIDER
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      exitnbr:    EXITNBR
+      junctype:   JUNCTYPE
+      nid:        NID
+  roadseg:
+    layer: NRN_<identifier>_<edition>_<version>_ROADSEG
+    fields:
+      acqtech:    ACQTECH
+      metacover:  METACOVER
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      accuracy:   ACCURACY
+      provider:   PROVIDER
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      l_adddirfg: L_ADDDIRFG
+      r_adddirfg: R_ADDDIRFG
+      adrangenid: ADRANGENID
+      closing:    CLOSING
+      exitnbr:    EXITNBR
+      l_hnumf:    L_HNUMF
+      r_hnumf:    R_HNUMF
+      roadclass:  ROADCLASS
+      l_hnuml:    L_HNUML
+      r_hnuml:    R_HNUML
+      nid:        NID
+      nbrlanes:   NBRLANES
+      l_placenam: L_PLACENAM
+      r_placenam: R_PLACENAM
+      l_stname_c: L_STNAME_C
+      r_stname_c: R_STNAME_C
+      pavsurf:    PAVSURF
+      pavstatus:  PAVSTATUS
+      roadjuris:  ROADJURIS
+      roadsegid:  ROADSEGID
+      rtename1en: RTENAME1EN
+      rtename2en: RTENAME2EN
+      rtename3en: RTENAME3EN
+      rtename4en: RTENAME4EN
+      rtename1fr: RTENAME1FR
+      rtename2fr: RTENAME2FR
+      rtename3fr: RTENAME3FR
+      rtename4fr: RTENAME4FR
+      rtnumber1:  RTNUMBER1
+      rtnumber2:  RTNUMBER2
+      rtnumber3:  RTNUMBER3
+      rtnumber4:  RTNUMBER4
+      rtnumber5:  RTNUMBER5
+      speed:      SPEED
+      strunameen: STRUNAMEEN
+      strunamefr: STRUNAMEFR
+      structid:   STRUCTID
+      structtype: STRUCTTYPE
+      trafficdir: TRAFFICDIR
+      unpavsurf:  UNPAVSURF
+  strplaname:
+    layer: NRN_<identifier>_<edition>_<version>_STRPLANAME
+    fields:
+      acqtech:    ACQTECH
+      metacover:  METACOVER
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      accuracy:   ACCURACY
+      provider:   PROVIDER
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      dirprefix:  DIRPREFIX
+      dirsuffix:  DIRSUFFIX
+      muniquad:   MUNIQUAD
+      nid:        NID
+      placename:  PLACENAME
+      placetype:  PLACETYPE
+      province:   PROVINCE
+      starticle:  STARTICLE
+      namebody:   NAMEBODY
+      strtypre:   STRTYPRE
+      strtysuf:   STRTYSUF
+  tollpoint:
+    layer: NRN_<identifier>_<edition>_<version>_TOLLPOINT
+    fields:
+      acqtech:    ACQTECH
+      metacover:  METACOVER
+      credate:    CREDATE
+      datasetnam: DATASETNAM
+      accuracy:   ACCURACY
+      provider:   PROVIDER
+      revdate:    REVDATE
+      specvers:   SPECVERS
+      nid:        NID
+      roadnid:    ROADNID
+      tollpttype: TOLLPTTYPE
