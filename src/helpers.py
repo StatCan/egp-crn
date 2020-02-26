@@ -34,10 +34,10 @@ class Timer:
         logger.info("Finished. Time elapsed: {}.".format(delta))
 
 
-def compile_default_values():
+def compile_default_values(lang="en"):
     """Compiles the default value for each field in each table."""
 
-    dft_vals = load_yaml(os.path.abspath("../field_domains_en.yaml"))["default"]
+    dft_vals = load_yaml(os.path.abspath("../field_domains_{}.yaml".format(lang)))["default"]
     dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
     defaults = dict()
 
