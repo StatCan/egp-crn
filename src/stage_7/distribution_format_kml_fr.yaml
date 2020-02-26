@@ -1,0 +1,16 @@
+data:
+  dirname: NRN_RRN_<identifier>_<edition>_<version>_KML
+  filename:
+  driver: LIBKML
+conform:
+  roadseg:
+    layer: NRN_RRN_<identifier>_<edition>_<version>_KML_fr.kmz
+    fields:
+      l_adddirfg: sensNumerisationAdresse_Gauche
+      r_adddirfg: sensNumerisationAdresse_Droite
+      nid:        idn
+      l_placenam: nomLieuOfficiel_Gauche
+      r_placenam: nomLieuOfficiel_Droite
+      l_stname_c: nomRueOfficielConcat_Gauche
+      r_stname_c: nomRueOfficielConcat_Droite
+      rtnumber1:  numeroRoute1
