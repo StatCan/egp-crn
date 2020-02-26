@@ -1,5 +1,7 @@
 data:
-  dirname: NRN_RRN_<identifier>_<edition>_<version>_GML
+  dirname:
+    parent: NRN_RRN_<identifier>_<edition>_<version>_GML
+    child: RRN_<identifier>_<edition>_<version>_GML_fr
   filename:
   driver: GML
 conform:

@@ -1,5 +1,7 @@
 data:
-  dirname: NRN_RRN_<identifier>_<edition>_<version>_SHAPE
+  dirname:
+    parent: NRN_RRN_<identifier>_<edition>_<version>_SHAPE
+    child: RRN_<identifier>_<edition>_<version>_SHAPE_fr
   filename:
   driver: ESRI Shapefile
 conform:

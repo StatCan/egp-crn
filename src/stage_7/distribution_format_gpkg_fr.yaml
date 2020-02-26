@@ -1,6 +1,8 @@
 data:
-  dirname: NRN_RRN_<identifier>_<edition>_<version>_GPKG
-  filename: NRN_RRN_<identifier>_<edition>_<version>_GPKG_fr.gpkg
+  dirname:
+    parent: NRN_RRN_<identifier>_<edition>_<version>_GPKG
+    child:
+  filename: RRN_<identifier>_<edition>_<version>_GPKG_fr.gpkg
   driver: GPKG
 conform:
   addrange:
