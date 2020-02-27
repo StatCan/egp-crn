@@ -27,11 +27,11 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, edition, version):
+    def __init__(self, source, major_version, minor_version):
         self.stage = 7
         self.source = source.lower()
-        self.edition = edition
-        self.version = version
+        self.major_version = major_version
+        self.minor_version = minor_version
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -108,8 +108,13 @@ class Stage:
         logger.info("Exporting data.")
 
         def format_path(path):
-            for var, val in {"identifier": self.source, "edition": self.edition, "version": self.version}.items():
-                path = path.replace("<{}>".format(var), str(val).upper())
+            upper = True if os.path.basename(path)[0].isupper() else False
+
+            for key in ("source", "major_version", "minor_version"):
+                val = str(eval("self.{}".format(key)))
+                val = val.upper() if upper else val.lower()
+                path = path.replace("<{}>".format(key), val)
+
             return path
 
         # Iterate formats and languages.
@@ -291,15 +296,15 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
-@click.argument("edition")
-@click.argument("version")
-def main(source, edition, version):
+@click.argument("major_version")
+@click.argument("minor_version")
+def main(source, major_version, minor_version):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source, edition, version)
+            stage = Stage(source, major_version, minor_version)
             stage.execute()
 
     except KeyboardInterrupt:
