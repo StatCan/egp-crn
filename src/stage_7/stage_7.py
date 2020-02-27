@@ -2,7 +2,10 @@ import click
 import logging
 import os
 import pandas as pd
+import pathlib
+import subprocess
 import sys
+from osgeo import ogr
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -24,9 +27,11 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, edition, version):
         self.stage = 7
         self.source = source.lower()
+        self.edition = edition
+        self.version = version
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -39,6 +44,9 @@ class Stage:
         if os.path.exists(self.output_path):
             logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
+
+        # Compile output formats.
+        self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
 
     def compile_french_domain_mapping(self):
         """Compiles French field domains mapped to their English equivalents for all dataframes."""
@@ -94,11 +102,71 @@ class Stage:
                     except (AttributeError, KeyError, ValueError):
                         logger.exception("Unable to configure field mapping for English-French domains.")
 
-    def export_gpkg(self):
-        """Exports the dataframes as GeoPackage layers."""
+    def export_data(self):
+        """Exports and packages all data."""
 
-        logger.info("Exporting dataframes to GeoPackage layers.")
-#        helpers.export_gpkg(self.dframes, self.data_path)
+        logger.info("Exporting data.")
+
+        def format_path(path):
+            for var, val in {"identifier": self.source, "edition": self.edition, "version": self.version}.items():
+                path = path.replace("<{}>".format(var), str(val).upper())
+            return path
+
+        # Iterate formats and languages.
+        for frmt in self.dframes:
+            for lang in self.dframes[frmt]:
+
+                # Retrieve export specifications.
+                export_specs = helpers.load_yaml("distribution_formats/{}/{}.yaml".format(lang, frmt))
+                driver_long_name = ogr.GetDriverByName(export_specs["data"]["driver"]).GetMetadata()["DMD_LONGNAME"]
+
+                logger.info("Exporting format: \"{}\", language: \"{}\".".format(driver_long_name, lang))
+
+                # Configure and format export paths and table names.
+                export_dir = format_path(export_specs["data"]["dir"])
+                export_file = format_path(export_specs["data"]["file"]) if export_specs["data"]["file"] else None
+                export_tables = {table: format_path(export_specs["conform"][table]["name"]) for table in
+                                 self.dframes[frmt][lang]}
+
+                # Generate directory structure.
+                logger.info("Generating directory structure: \"{}\".".format(export_dir))
+                pathlib.Path(export_dir).mkdir(parents=True, exist_ok=True)
+
+                # Export data to temporary file.
+                temp_path = os.path.join(os.path.dirname(self.data_path), "{}_temp.gpkg".format(self.source))
+                logger.info("Exporting temporary GeoPackage: \"{}\".".format(temp_path))
+                helpers.export_gpkg(self.dframes[frmt][lang], temp_path)
+
+                # Export data.
+                logger.info("Transforming data format from GeoPackage to {}.".format(driver_long_name))
+                try:
+
+                    # Iterable tables.
+                    for table in export_tables:
+
+                        # Define ogr2ogr command.
+                        args = "ogr2ogr -f \"{}\" -append \"{}\" \"{}\" {} {}".format(
+                            export_specs["data"]["driver"],
+                            os.path.join(export_dir, export_file if export_file else export_tables[table]),
+                            temp_path,
+                            table,
+                            "-nln {}".format(export_tables[table]) if export_file else ""
+                        )
+
+                        # Run subprocess.
+                        subprocess.run(args, shell=True, check=True)
+
+                except subprocess.CalledProcessError as e:
+                    logger.exception("Unable to transform data source.")
+                    logger.exception("ogr2ogr error: {}".format(e))
+                    sys.exit(1)
+
+                # Delete temporary file.
+                logger.info("Deleting temporary GeoPackage: \"{}\".".format(temp_path))
+                if os.path.exists(temp_path):
+                    driver = ogr.GetDriverByName("GPKG")
+                    driver.DeleteDataSource(temp_path)
+                    del driver
 
     def gen_french_dataframes(self):
         """
@@ -109,7 +177,10 @@ class Stage:
         logger.info("Generating French dataframes.")
 
         # Reconfigure dataframes dict to hold English and French data.
-        dframes = {name: {"en": df.copy(deep=True), "fr": None} for name, df in self.dframes.items()}
+        dframes = {"en": dict(), "fr": dict()}
+        for lang in ("en", "fr"):
+            for table, df in self.dframes.items():
+                dframes[lang][table] = df.copy(deep=True)
 
         # Apply data mapping.
         defaults_en = helpers.compile_default_values(lang="en")
@@ -119,7 +190,7 @@ class Stage:
         try:
 
             # Iterate dataframes.
-            for table, df in self.dframes.items():
+            for table, df in dframes["fr"].items():
 
                 logger.info("Applying French data mapping to \"{}\".".format(table))
 
@@ -137,14 +208,63 @@ class Stage:
                         df.loc[df[field] == defaults_en[table][field], field] = defaults_fr[table][field]
 
                 # Store resulting dataframe.
-                dframes[table]["fr"] = df
+                dframes["fr"][table] = df
+
+            # Store results.
+            self.dframes = dframes
 
         except (AttributeError, KeyError, ValueError):
             logger.exception("Unable to apply French data mapping for table: {}, field: {}.".format(table, field))
             sys.exit(1)
 
-        # Store results.
-        self.dframes = dframes
+    def gen_output_schemas(self):
+        """Generate the output schema required for each dataframe and each output format."""
+
+        logger.info("Generating output schemas.")
+        frmt, lang, table = None, None, None
+
+        # Reconfigure dataframes dict to hold all formats and languages.
+        dframes = {frmt: {"en": dict(), "fr": dict()} for frmt in self.formats}
+
+        try:
+
+            # Iterate formats.
+            for frmt in dframes:
+                # Iterate languages.
+                for lang in dframes[frmt]:
+
+                    # Retrieve schemas.
+                    schemas = helpers.load_yaml("distribution_formats/{}/{}.yaml".format(lang, frmt))["conform"]
+
+                    # Iterate tables.
+                    for table in [t for t in schemas if t in self.dframes[lang]]:
+
+                        logger.info("Generating output schema for format: \"{}\", language: \"{}\", table: \"{}\"."
+                                    .format(frmt, lang, table))
+
+                        # Conform dataframe to output schema.
+
+                        # Retrieve dataframe.
+                        df = self.dframes[lang][table].copy(deep=True)
+
+                        # Drop non-required columns.
+                        drop_columns = df.columns.difference([*schemas[table]["fields"], "geometry"])
+                        df.drop(drop_columns, axis=1, inplace=True)
+
+                        # Conform column names.
+                        df.columns = map(lambda col: "geometry" if col == "geometry" else schemas[table]["fields"][col],
+                                         df.columns)
+
+                        # Store results.
+                        dframes[frmt][lang][table] = df
+
+            # Store result.
+            self.dframes = dframes
+
+        except (AttributeError, KeyError, ValueError):
+            logger.exception("Unable to apply output schema for format: {}, language: {}, table: {}."
+                             .format(frmt, lang, table))
+            sys.exit(1)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -153,25 +273,33 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
+    def zip_data(self):
+        """Compresses all exported data directories to .zip format."""
+
+        # TODO
+
     def execute(self):
         """Executes an NRN stage."""
 
         self.load_gpkg()
         self.compile_french_domain_mapping()
         self.gen_french_dataframes()
-        # TODO: write format exporting function. self.export_gpkg is commented out since it may not be used.
-#        self.export_gpkg()
+        self.gen_output_schemas()
+        self.export_data()
+        self.zip_data()
 
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
-def main(source):
+@click.argument("edition")
+@click.argument("version")
+def main(source, edition, version):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, edition, version)
             stage.execute()
 
     except KeyboardInterrupt:

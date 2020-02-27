@@ -1,12 +1,10 @@
 data:
-  dirname:
-    parent: NRN_RRN_<identifier>_<edition>_<version>_SHAPE
-    child: NRN_<identifier>_<edition>_<version>_SHAPE_en
-  filename:
-  driver: ESRI Shapefile
+  dir: NRN_RRN_<identifier>_<edition>_<version>_GPKG
+  file: NRN_<identifier>_<edition>_<version>_GPKG_en.gpkg
+  driver: GPKG
 conform:
   addrange:
-    layer: NRN_<identifier>_<edition>_<version>_ADDRANGE.shp
+    name: NRN_<identifier>_<edition>_<version>_ADDRANGE
     fields:
       acqtech:    ACQTECH
       metacover:  METACOVER
@@ -40,7 +38,7 @@ conform:
       l_rfsysind: L_RFSYSIND
       r_rfsysind: R_RFSYSIND
   altnamlink:
-    layer: NRN_<identifier>_<edition>_<version>_ALTNAMLINK.shp
+    name: NRN_<identifier>_<edition>_<version>_ALTNAMLINK
     fields:
       credate:    CREDATE
       datasetnam: DATASETNAM
@@ -49,7 +47,7 @@ conform:
       specvers:   SPECVERS
       strnamenid: STRNAMENID
   blkpassage:
-    layer: NRN_<identifier>_<edition>_<version>_BLKPASSAGE.shp
+    name: NRN_<identifier>_<edition>_<version>_BLKPASSAGE
     fields:
       acqtech:    ACQTECH
       metacover:  METACOVER
@@ -63,7 +61,7 @@ conform:
       nid:        NID
       roadnid:    ROADNID
   ferryseg:
-    layer: NRN_<identifier>_<edition>_<version>_FERRYSEG.shp
+    name: NRN_<identifier>_<edition>_<version>_FERRYSEG
     fields:
       acqtech:    ACQTECH
       metacover:  METACOVER
@@ -91,7 +89,7 @@ conform:
       rtnumber4:  RTNUMBER4
       rtnumber5:  RTNUMBER5
   junction:
-    layer: NRN_<identifier>_<edition>_<version>_JUNCTION.shp
+    name: NRN_<identifier>_<edition>_<version>_JUNCTION
     fields:
       acqtech:    ACQTECH
       metacover:  METACOVER
@@ -105,7 +103,7 @@ conform:
       junctype:   JUNCTYPE
       nid:        NID
   roadseg:
-    layer: NRN_<identifier>_<edition>_<version>_ROADSEG.shp
+    name: NRN_<identifier>_<edition>_<version>_ROADSEG
     fields:
       acqtech:    ACQTECH
       metacover:  METACOVER
@@ -156,7 +154,7 @@ conform:
       trafficdir: TRAFFICDIR
       unpavsurf:  UNPAVSURF
   strplaname:
-    layer: NRN_<identifier>_<edition>_<version>_STRPLANAME.shp
+    name: NRN_<identifier>_<edition>_<version>_STRPLANAME
     fields:
       acqtech:    ACQTECH
       metacover:  METACOVER
@@ -178,7 +176,7 @@ conform:
       strtypre:   STRTYPRE
       strtysuf:   STRTYSUF
   tollpoint:
-    layer: NRN_<identifier>_<edition>_<version>_TOLLPOINT.shp
+    name: NRN_<identifier>_<edition>_<version>_TOLLPOINT
     fields:
       acqtech:    ACQTECH
       metacover:  METACOVER

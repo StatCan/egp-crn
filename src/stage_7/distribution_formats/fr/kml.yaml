@@ -1,12 +1,10 @@
 data:
-  dirname:
-    parent: NRN_RRN_<identifier>_<edition>_<version>_KML
-    child:
-  filename:
+  dir: NRN_RRN_<identifier>_<edition>_<version>_KML
+  file:
   driver: LIBKML
 conform:
   roadseg:
-    layer: RRN_<identifier>_<edition>_<version>_KML_fr.kmz
+    name: RRN_<identifier>_<edition>_<version>_KML_fr.kmz
     fields:
       l_adddirfg: sensNumerisationAdresse_Gauche
       r_adddirfg: sensNumerisationAdresse_Droite
