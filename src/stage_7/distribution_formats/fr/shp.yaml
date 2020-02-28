@@ -1,10 +1,10 @@
 data:
-  dir: NRN_RRN_<identifier>_<edition>_<version>_SHAPE/RRN_<identifier>_<edition>_<version>_SHAPE_fr
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_SHAPE/RRN_<source>_<major_version>_<minor_version>_SHAPE_fr
   file:
   driver: ESRI Shapefile
 conform:
   addrange:
-    name: RRN_<identifier>_<edition>_<version>_INTERVADR.shp
+    name: RRN_<source>_<major_version>_<minor_version>_INTERVADR.shp
     fields:
       acqtech:    TECHACQ
       metacover:  COUVERMETA
@@ -38,7 +38,7 @@ conform:
       l_rfsysind: SYSREF_G
       r_rfsysind: SYSREF_D
   altnamlink:
-    name: RRN_<identifier>_<edition>_<version>_LIENNOFF.shp
+    name: RRN_<source>_<major_version>_<minor_version>_LIENNOFF.shp
     fields:
       credate:    DATECRE
       datasetnam: NOMJEUDONN
@@ -47,7 +47,7 @@ conform:
       specvers:   VERSNORMES
       strnamenid: IDNOMRUE
   blkpassage:
-    name: RRN_<identifier>_<edition>_<version>_PASSAGEOBS.shp
+    name: RRN_<source>_<major_version>_<minor_version>_PASSAGEOBS.shp
     fields:
       acqtech:    TECHACQ
       metacover:  COUVERMETA
@@ -61,7 +61,7 @@ conform:
       nid:        IDN
       roadnid:    IDNELEMRTE
   ferryseg:
-    name: RRN_<identifier>_<edition>_<version>_SLIAISONTR.shp
+    name: RRN_<source>_<major_version>_<minor_version>_SLIAISONTR.shp
     fields:
       acqtech:    TECHACQ
       metacover:  COUVERMETA
@@ -89,7 +89,7 @@ conform:
       rtnumber4:  NUMROUTE4
       rtnumber5:  NUMROUTE5
   junction:
-    name: RRN_<identifier>_<edition>_<version>_JONCTION.shp
+    name: RRN_<source>_<major_version>_<minor_version>_JONCTION.shp
     fields:
       acqtech:    TECHACQ
       metacover:  COUVERMETA
@@ -103,7 +103,7 @@ conform:
       junctype:   TYPEJONC
       nid:        IDN
   roadseg:
-    name: RRN_<identifier>_<edition>_<version>_SEGMROUT.shp
+    name: RRN_<source>_<major_version>_<minor_version>_SEGMROUT.shp
     fields:
       acqtech:    TECHACQ
       metacover:  COUVERMETA
@@ -154,7 +154,7 @@ conform:
       trafficdir: SENSCIRCUL
       unpavsurf:  TYPENONREV
   strplaname:
-    name: RRN_<identifier>_<edition>_<version>_NOMRUELIEU.shp
+    name: RRN_<source>_<major_version>_<minor_version>_NOMRUELIEU.shp
     fields:
       acqtech:    TECHACQ
       metacover:  COUVERMETA
@@ -176,7 +176,7 @@ conform:
       strtypre:   PRETYPRUE
       strtysuf:   SUFTYPRUE
   tollpoint:
-    name: RRN_<identifier>_<edition>_<version>_POSTEPEAGE.shp
+    name: RRN_<source>_<major_version>_<minor_version>_POSTEPEAGE.shp
     fields:
       acqtech:    TECHACQ
       metacover:  COUVERMETA

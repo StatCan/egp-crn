@@ -1,10 +1,10 @@
 data:
-  dir: NRN_RRN_<identifier>_<edition>_<version>_KML
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_KML/RRN_<source>_<major_version>_<minor_version>_KML_fr
   file:
   driver: LIBKML
 conform:
   roadseg:
-    name: RRN_<identifier>_<edition>_<version>_KML_fr.kmz
+    name: RRN_<source>_<major_version>_<minor_version>_KML_fr.kmz
     fields:
       l_adddirfg: sensNumerisationAdresse_Gauche
       r_adddirfg: sensNumerisationAdresse_Droite

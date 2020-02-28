@@ -1,10 +1,10 @@
 data:
-  dir: NRN_RRN_<identifier>_<edition>_<version>_GML/NRN_<identifier>_<edition>_<version>_GML_en
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_GML/NRN_<source>_<major_version>_<minor_version>_GML_en
   file:
   driver: GML
 conform:
   addrange:
-    name: NRN_<identifier>_<edition>_<version>_AddressRange.gml
+    name: NRN_<source>_<major_version>_<minor_version>_AddressRange.gml
     fields:
       acqtech:    acquisitionTechnique
       metacover:  metadataCoverage
@@ -38,7 +38,7 @@ conform:
       l_rfsysind: left_ReferenceSystemIndicator
       r_rfsysind: right_ReferenceSystemIndicator
   altnamlink:
-    name: NRN_<identifier>_<edition>_<version>_AlternateNameLink.gml
+    name: NRN_<source>_<major_version>_<minor_version>_AlternateNameLink.gml
     fields:
       credate:    creationDate
       datasetnam: datasetName
@@ -47,7 +47,7 @@ conform:
       specvers:   standardVersion
       strnamenid: streetNameNid
   blkpassage:
-    name: NRN_<identifier>_<edition>_<version>_BlockedPassage.gml
+    name: NRN_<source>_<major_version>_<minor_version>_BlockedPassage.gml
     fields:
       acqtech:    acquisitionTechnique
       metacover:  metadataCoverage
@@ -61,7 +61,7 @@ conform:
       nid:        nid
       roadnid:    roadElementNid
   ferryseg:
-    name: NRN_<identifier>_<edition>_<version>_FerryConnectionSegment.gml
+    name: NRN_<source>_<major_version>_<minor_version>_FerryConnectionSegment.gml
     fields:
       acqtech:    acquisitionTechnique
       metacover:  metadataCoverage
@@ -89,7 +89,7 @@ conform:
       rtnumber4:  routeNumber4
       rtnumber5:  routeNumber5
   junction:
-    name: NRN_<identifier>_<edition>_<version>_Junction.gml
+    name: NRN_<source>_<major_version>_<minor_version>_Junction.gml
     fields:
       acqtech:    acquisitionTechnique
       metacover:  metadataCoverage
@@ -103,7 +103,7 @@ conform:
       junctype:   junctionType
       nid:        nid
   roadseg:
-    name: NRN_<identifier>_<edition>_<version>_RoadSegment.gml
+    name: NRN_<source>_<major_version>_<minor_version>_RoadSegment.gml
     fields:
       acqtech:    acquisitionTechnique
       metacover:  metadataCoverage
@@ -154,7 +154,7 @@ conform:
       trafficdir: trafficDirection
       unpavsurf:  unpavedRoadSurfaceType
   strplaname:
-    name: NRN_<identifier>_<edition>_<version>_StreetPlaceNames.gml
+    name: NRN_<source>_<major_version>_<minor_version>_StreetPlaceNames.gml
     fields:
       acqtech:    acquisitionTechnique
       metacover:  metadataCoverage
@@ -176,7 +176,7 @@ conform:
       strtypre:   streetTypePrefix
       strtysuf:   streetTypeSuffix
   tollpoint:
-    name: NRN_<identifier>_<edition>_<version>_TollPoint.gml
+    name: NRN_<source>_<major_version>_<minor_version>_TollPoint.gml
     fields:
       acqtech:    acquisitionTechnique
       metacover:  metadataCoverage

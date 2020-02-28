@@ -1,10 +1,10 @@
 data:
-  dir: NRN_RRN_<identifier>_<edition>_<version>_GML/RRN_<identifier>_<edition>_<version>_GML_fr
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_GML/RRN_<source>_<major_version>_<minor_version>_GML_fr
   file:
   driver: GML
 conform:
   addrange:
-    name: RRN_<identifier>_<edition>_<version>_IntervalleAdresse.gml
+    name: RRN_<source>_<major_version>_<minor_version>_IntervalleAdresse.gml
     fields:
       acqtech:    techniqueAcquisition
       metacover:  couvertureMetadonnees
@@ -38,7 +38,7 @@ conform:
       l_rfsysind: indicSystemeReference_Gauche
       r_rfsysind: indicSystemeReference_Droite
   altnamlink:
-    name: RRN_<identifier>_<edition>_<version>_LienNomNonOfficiel.gml
+    name: RRN_<source>_<major_version>_<minor_version>_LienNomNonOfficiel.gml
     fields:
       credate:    dateCreation
       datasetnam: nomJeuDonnees
@@ -47,7 +47,7 @@ conform:
       specvers:   versionNormes
       strnamenid: idnNomRue
   blkpassage:
-    name: RRN_<identifier>_<edition>_<version>_PassageObstrue.gml
+    name: RRN_<source>_<major_version>_<minor_version>_PassageObstrue.gml
     fields:
       acqtech:    techniqueAcquisition
       metacover:  couvertureMetadonnees
@@ -61,7 +61,7 @@ conform:
       nid:        idn
       roadnid:    idnElementRoutier
   ferryseg:
-    name: RRN_<identifier>_<edition>_<version>_SegmentLiaisonTransbordeur.gml
+    name: RRN_<source>_<major_version>_<minor_version>_SegmentLiaisonTransbordeur.gml
     fields:
       acqtech:    techniqueAcquisition
       metacover:  couvertureMetadonnees
@@ -89,7 +89,7 @@ conform:
       rtnumber4:  numeroRoute4
       rtnumber5:  numeroRoute5
   junction:
-    name: RRN_<identifier>_<edition>_<version>_Jonction.gml
+    name: RRN_<source>_<major_version>_<minor_version>_Jonction.gml
     fields:
       acqtech:    techniqueAcquisition
       metacover:  couvertureMetadonnees
@@ -103,7 +103,7 @@ conform:
       junctype:   typeJonction
       nid:        idn
   roadseg:
-    name: RRN_<identifier>_<edition>_<version>_SegmentRoutier.gml
+    name: RRN_<source>_<major_version>_<minor_version>_SegmentRoutier.gml
     fields:
       acqtech:    techniqueAcquisition
       metacover:  couvertureMetadonnees
@@ -154,7 +154,7 @@ conform:
       trafficdir: sensCirculation
       unpavsurf:  typeChausseeNonRevetue
   strplaname:
-    name: RRN_<identifier>_<edition>_<version>_NomRueLieu.gml
+    name: RRN_<source>_<major_version>_<minor_version>_NomRueLieu.gml
     fields:
       acqtech:    techniqueAcquisition
       metacover:  couvertureMetadonnees
@@ -176,7 +176,7 @@ conform:
       strtypre:   prefixeTypeRue
       strtysuf:   suffixeTypeRue
   tollpoint:
-    name: RRN_<identifier>_<edition>_<version>_PostePeage.gml
+    name: RRN_<source>_<major_version>_<minor_version>_PostePeage.gml
     fields:
       acqtech:    techniqueAcquisition
       metacover:  couvertureMetadonnees
