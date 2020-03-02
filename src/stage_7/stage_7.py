@@ -1,12 +1,17 @@
 import click
+import fiona
+import geopandas as gpd
 import logging
+import numpy as np
 import os
 import pandas as pd
 import pathlib
 import subprocess
 import sys
+from itertools import chain
 from operator import itemgetter
 from osgeo import ogr
+from scipy.spatial import Delaunay
 from shapely.geometry import Polygon
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -104,20 +109,20 @@ class Stage:
                     except (AttributeError, KeyError, ValueError):
                         logger.exception("Unable to configure field mapping for English-French domains.")
 
-    def define_kml_bboxes(self):
+    def define_kml_bboxes(self, df):
         """
-        Defines a set of bounding box extents to divide the kml-bound data.
+        Defines a set of bounding box extents to divide the kml-bound input GeoDataFrame.
         This is required due to the low feature / size limitations of kml.
         """
 
         logger.info("Defining KML bounding boxes.")
 
         # Retrieve total bbox.
-        total_bbox = self.dframes["kml"]["en"]["geometry"].total_bounds
+        total_bbox = df["geometry"].total_bounds
 
         # Calculate bboxes.
-        bbox_size = 0.08
-        self.bboxes = list()
+        bbox_size = 0.1
+        bboxes = list()
 
         x0, x1 = total_bbox[0], total_bbox[2]
         while x0 < x1:
@@ -127,23 +132,73 @@ class Stage:
 
                 # Convert bbox to shapely polygon.
                 coords = [x0, y0, x0 + bbox_size, y0 + bbox_size]
-                bbox = Polygon([(itemgetter(indexes)(coords)) for indexes in ((0, 1), (0, 3), (2, 3), (2, 1), (0, 1))])
-
-                # Store bbox only if it intersects dataframe geometries.
-                if self.dframes["kml"]["en"]["geometry"].intersects(bbox).any():
-                    self.bboxes.append(coords)
+                bbox = Polygon([(itemgetter(*indexes)(coords)) for indexes in ((0, 1), (0, 3), (2, 3), (2, 1), (0, 1))])
+                bboxes.append(bbox)
 
                 y0 += bbox_size
 
             x0 += bbox_size
+
+        # Filter invalid bboxes.
+
+        # Create GeoDataFrame from bboxes.
+        bboxes_df = gpd.GeoDataFrame(geometry=bboxes)
+
+        # Create Delaunay tesselation from bboxes.
+        delaunay = Delaunay(np.concatenate([np.array(geom.exterior.coords) for geom in bboxes]))
+
+        # Compile input feature points.
+        feature_pts = np.concatenate([np.array(geom.coords) for geom in df["geometry"]])
+
+        # Find simplices containing feature points.
+        indexes = list(set(delaunay.find_simplex(feature_pts)))
+        valid_simplices_idx = itemgetter(indexes)(delaunay.simplices)
+
+        # Convert simplex indexes to coordinates.
+        valid_simplices_pts = list(map(lambda indexes: itemgetter(*indexes)(delaunay.points), valid_simplices_idx))
+        valid_simplices_pts_all = set(map(tuple, chain.from_iterable(valid_simplices_pts)))
+
+        # Identify valid bboxes.
+        # Process: Subtract valid simplices coordinates from bbox coordinates.
+        valid_bboxes = bboxes_df[bboxes_df["geometry"].map(
+            lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 0)]
+
+        # Identify validity of uncertain bboxes (boundary bboxes which may or may not contain a simplex).
+        # Process: Subtract bbox coordinates from valid simplices coordinates, keep bboxes where at least one simplex
+        # has 0 remaining coordinates (i.e. the simplex is completely within the bbox).
+
+        # Create GeoDataFrame from simplices.
+        valid_simplices_df = pd.DataFrame({"coords": [set(map(tuple, simplex)) for simplex in valid_simplices_pts]})
+
+        # Compile uncertain bboxes.
+        bboxes_uncertain = bboxes_df.loc[bboxes_df["geometry"].map(
+            lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 1)]
+        bboxes_uncertain_values = bboxes_uncertain["geometry"].map(lambda bbox: set(bbox.exterior.coords)).values
+
+        # Identify valid bboxes.
+        valid_bboxes_uncertain = bboxes_uncertain[np.vectorize(
+            lambda bbox: valid_simplices_df["coords"].map(
+                lambda simplex: len(simplex - bbox) == 0).any())(bboxes_uncertain_values)]
+
+        # Append all valid bboxes.
+        valid_bboxes_all = valid_bboxes.append(valid_bboxes_uncertain, ignore_index=True)
+
+        # Store only bbox coords.
+        self.bboxes = valid_bboxes_all["geometry"].exterior.map(
+            lambda geom: "{} {} {} {}".format(*chain.from_iterable(itemgetter(0, 2)(geom.coords)))).to_list()
 
     def export_data(self):
         """Exports and packages all data."""
 
         logger.info("Exporting data.")
 
-        # Iterate formats and languages.
+        # Iterate formats.
         for frmt in self.dframes:
+
+            # Compile bboxes if format=kml.
+            bboxes = self.define_kml_bboxes(self.dframes[frmt]["en"])
+
+            # Iterate languages.
             for lang in self.dframes[frmt]:
 
                 # Retrieve export specifications.
@@ -204,7 +259,7 @@ class Stage:
                     # Iterate bboxes if format=kml.
                     if frmt == "kml":
 
-                        for index, bbox in enumerate(self.bboxes):
+                        for index, bbox in enumerate(bboxes):
 
                             # Modify output name and add bbox to ogr2ogr parameters.
                             dest = kwargs["dest"]
@@ -352,7 +407,6 @@ class Stage:
         self.compile_french_domain_mapping()
         self.gen_french_dataframes()
         self.gen_output_schemas()
-        self.define_kml_bboxes()
         self.export_data()
         self.zip_data()
 
