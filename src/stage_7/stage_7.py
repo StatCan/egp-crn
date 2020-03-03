@@ -192,6 +192,24 @@ class Stage:
 
         logger.info("Exporting data.")
 
+        def ogr2ogr(driver, dest, src, src_layer, nln="", clipsrc=""):
+            """Runs an ogr2ogr subprocess."""
+
+            try:
+
+                # Format ogr2ogr command.
+                args = "ogr2ogr -f \"{}\" -append \"{}\" \"{}\" {} {} {}"\
+                    .format(driver, dest, src, src_layer, "-nln {}".format(nln) if nln else "",
+                            "-clipsrc {}".format(*clipsrc) if clipsrc else "")
+
+                # Run subprocess.
+                subprocess.run(args, shell=True, check=True)
+
+            except subprocess.CalledProcessError as e:
+                logger.exception("Unable to transform data source.")
+                logger.exception("ogr2ogr error: {}".format(e))
+                sys.exit(1)
+
         # Iterate formats.
         for frmt in self.dframes:
 
@@ -224,25 +242,6 @@ class Stage:
 
                 # Export data.
                 logger.info("Transforming data format from GeoPackage to {}.".format(driver_long_name))
-
-                def ogr2ogr(driver, dest, src, src_layer, nln="", clipsrc=""):
-                    """Runs an ogr2ogr subprocess."""
-
-                    try:
-
-                        # Format ogr2ogr command.
-                        args = "ogr2ogr -f \"{}\" -append \"{}\" \"{}\" {} {} {}"\
-                            .format(driver, dest, src, src_layer,
-                                    "-nln {}".format(nln) if nln else "",
-                                    "-clipsrc {} {} {} {}".format(*clipsrc) if clipsrc else "")
-
-                        # Run subprocess.
-                        subprocess.run(args, shell=True, check=True)
-
-                    except subprocess.CalledProcessError as e:
-                        logger.exception("Unable to transform data source.")
-                        logger.exception("ogr2ogr error: {}".format(e))
-                        sys.exit(1)
 
                 # Iterate tables.
                 for table in export_tables:
