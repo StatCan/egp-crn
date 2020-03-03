@@ -192,24 +192,6 @@ class Stage:
 
         logger.info("Exporting data.")
 
-        def ogr2ogr(driver, dest, src, src_layer, nln="", clipsrc=""):
-            """Runs an ogr2ogr subprocess."""
-
-            try:
-
-                # Format ogr2ogr command.
-                args = "ogr2ogr -f \"{}\" -append \"{}\" \"{}\" {} {} {}"\
-                    .format(driver, dest, src, src_layer, "-nln {}".format(nln) if nln else "",
-                            "-clipsrc {}".format(*clipsrc) if clipsrc else "")
-
-                # Run subprocess.
-                subprocess.run(args, shell=True, check=True)
-
-            except subprocess.CalledProcessError as e:
-                logger.exception("Unable to transform data source.")
-                logger.exception("ogr2ogr error: {}".format(e))
-                sys.exit(1)
-
         # Iterate formats.
         for frmt in self.dframes:
 
@@ -266,11 +248,11 @@ class Stage:
                             kwargs["clipsrc"] = bbox
 
                             # Run ogr2ogr subprocess.
-                            ogr2ogr(**kwargs)
+                            self.ogr2ogr(**kwargs)
 
                     else:
                         # Run ogr2ogr subprocess.
-                        ogr2ogr(**kwargs)
+                        self.ogr2ogr(**kwargs)
 
                 # Delete temporary file.
                 logger.info("Deleting temporary GeoPackage: \"{}\".".format(temp_path))
@@ -393,6 +375,26 @@ class Stage:
         logger.info("Loading Geopackage layers.")
 
         self.dframes = helpers.load_gpkg(self.data_path)
+
+    @staticmethod
+    def ogr2ogr(driver, dest, src, src_layer, nln="", clipsrc=""):
+        """Runs an ogr2ogr subprocess."""
+
+        try:
+
+            # Format ogr2ogr command.
+            args = "ogr2ogr -f \"{}\" -append \"{}\" \"{}\" {} {} {}"\
+                .format(driver, dest, src, src_layer,
+                        "-nln {}".format(nln) if nln else "",
+                        "-clipsrc {}".format(*clipsrc) if clipsrc else "")
+
+            # Run subprocess.
+            subprocess.run(args, shell=True, check=True)
+
+        except subprocess.CalledProcessError as e:
+            logger.exception("Unable to transform data source.")
+            logger.exception("ogr2ogr error: {}".format(e))
+            sys.exit(1)
 
     def zip_data(self):
         """Compresses all exported data directories to .zip format."""
