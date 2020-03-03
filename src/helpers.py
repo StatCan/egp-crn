@@ -7,11 +7,13 @@ import os
 import pandas as pd
 import shutil
 import sqlite3
+import subprocess
 import sys
 import time
 import yaml
 from copy import deepcopy
 from osgeo import ogr, osr
+from queue import Queue
 from shapely.geometry import LineString, Point
 
 
@@ -149,6 +151,40 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
         sys.exit(1)
 
 
+def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
+    """Converts a pandas dataframe to a networkx graph."""
+
+    logger.info("Loading GeoPandas GeoDataFrame into NetworkX graph.")
+
+    # Generate graph from GeoDataFrame of LineStrings, keeping crs property and (optionally) fields.
+    g = nx.Graph()
+    g.graph['crs'] = gdf.crs
+    fields = list(gdf.columns) if keep_attributes else None
+
+    # Iterate rows.
+    for index, row in gdf.iterrows():
+
+        # Compile geometry as edges.
+        coords = [*row.geometry.coords]
+        if endpoints_only:
+            edges = [[coords[0], coords[-1]]]
+        else:
+            edges = [[coords[i], coords[i + 1]] for i in range(len(coords) - 1)]
+
+        # Compile attributes.
+        attributes = dict()
+        if keep_attributes:
+            data = [row[field] for field in fields]
+            attributes = dict(zip(fields, data))
+
+        # Add edges.
+        g.add_edges_from(edges, **attributes)
+
+    logger.info("Successfully loaded GeoPandas GeoDataFrame into NetworkX graph.")
+
+    return g
+
+
 def load_gpkg(gpkg_path):
     """Returns a dictionary of geopackage layers loaded into pandas or geopandas (geo)dataframes."""
 
@@ -226,40 +262,6 @@ def load_yaml(path):
             logger.exception("Unable to load yaml file: \"{}\".".format(path))
 
 
-def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
-    """Converts a pandas dataframe to a networkx graph."""
-
-    logger.info("Loading GeoPandas GeoDataFrame into NetworkX graph.")
-
-    # Generate graph from GeoDataFrame of LineStrings, keeping crs property and (optionally) fields.
-    g = nx.Graph()
-    g.graph['crs'] = gdf.crs
-    fields = list(gdf.columns) if keep_attributes else None
-
-    # Iterate rows.
-    for index, row in gdf.iterrows():
-
-        # Compile geometry as edges.
-        coords = [*row.geometry.coords]
-        if endpoints_only:
-            edges = [[coords[0], coords[-1]]]
-        else:
-            edges = [[coords[i], coords[i + 1]] for i in range(len(coords) - 1)]
-
-        # Compile attributes.
-        attributes = dict()
-        if keep_attributes:
-            data = [row[field] for field in fields]
-            attributes = dict(zip(fields, data))
-
-        # Add edges.
-        g.add_edges_from(edges, **attributes)
-
-    logger.info("Successfully loaded GeoPandas GeoDataFrame into NetworkX graph.")
-
-    return g
-
-
 def nx_to_gdf(g, nodes=True, edges=True):
     """Converts a networkx graph to pandas dataframe."""
 
@@ -289,6 +291,42 @@ def nx_to_gdf(g, nodes=True, edges=True):
         return gdf_nodes
     else:
         return gdf_edges
+
+
+def ogr2ogr(expression, threaded=False, queue=None):
+    """Runs an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters."""
+
+    try:
+
+        if threaded:
+            while True:
+
+                expression, log = queue.get()
+
+                # Format ogr2ogr command.
+                expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
+
+                # Log message.
+                logger.info(log)
+
+                # Run subprocess.
+                subprocess.run(expression, shell=True, check=True)
+
+                queue.task_done()
+
+        else:
+
+            # Format ogr2ogr command.
+            expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
+
+            # Run subprocess.
+            subprocess.run(expression, shell=True, check=True)
+
+    except subprocess.CalledProcessError as e:
+        logger.exception("Unable to transform data source.")
+        logger.exception("ogr2ogr error: {}".format(e))
+        sys.exit(1)
+
 
 def reproject_gdf(gdf, epsg_source, epsg_target):
     """Transforms a GeoDataFrame's geometry column between EPSGs."""

@@ -6,13 +6,14 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
-import subprocess
 import sys
 from itertools import chain
 from operator import itemgetter
 from osgeo import ogr
+from queue import Queue
 from scipy.spatial import Delaunay
 from shapely.geometry import Polygon
+from threading import Thread
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -109,13 +110,14 @@ class Stage:
                     except (AttributeError, KeyError, ValueError):
                         logger.exception("Unable to configure field mapping for English-French domains.")
 
-    def define_kml_bboxes(self, df):
+    def define_kml_bboxes(self, table="roadseg"):
         """
         Defines a set of bounding box extents to divide the kml-bound input GeoDataFrame.
         This is required due to the low feature / size limitations of kml.
         """
 
         logger.info("Defining KML bounding boxes.")
+        df = self.dframes["kml"]["en"][table]
 
         # Retrieve total bbox.
         total_bbox = df["geometry"].total_bounds
@@ -192,13 +194,9 @@ class Stage:
 
         logger.info("Exporting data.")
 
-        # Iterate formats.
-        for frmt in self.dframes:
-
-            # Compile bboxes if format=kml.
-            bboxes = self.define_kml_bboxes(self.dframes[frmt]["en"])
-
-            # Iterate languages.
+        # Iterate formats and languages.
+        # for frmt in self.dframes:
+        for frmt in ["kml"]:
             for lang in self.dframes[frmt]:
 
                 # Retrieve export specifications.
@@ -230,29 +228,45 @@ class Stage:
 
                     # Configure ogr2ogr inputs.
                     kwargs = {
-                        "driver": export_specs["data"]["driver"],
-                        "dest": os.path.join(export_dir, export_file if export_file else export_tables[table]),
-                        "src": temp_path,
+                        "driver": "-f {}".format(export_specs["data"]["driver"]),
+                        "append": "-append",
+                        "dest": "\"{}\""
+                            .format(os.path.join(export_dir, export_file if export_file else export_tables[table])),
+                        "src": "\"{}\"".format(temp_path),
                         "src_layer": table,
-                        "nln": export_tables[table] if export_file else ""
+                        "nln": "-nln {}".format(export_tables[table]) if export_file else ""
                     }
 
                     # Iterate bboxes if format=kml.
                     if frmt == "kml":
 
-                        for index, bbox in enumerate(bboxes):
+                        total = len(self.bboxes)
+                        queue = Queue()
+
+                        for i in range(5):
+
+                            worker = Thread(target=helpers.ogr2ogr, args=("", True, queue))
+                            worker.start()
+
+                        for index, bbox in enumerate(self.bboxes):
 
                             # Modify output name and add bbox to ogr2ogr parameters.
-                            dest = kwargs["dest"]
-                            kwargs["dest"] = os.path.splitext(dest)[0] + "_{}".format(index) + os.path.splitext(dest)[1]
-                            kwargs["clipsrc"] = bbox
+                            name, extension = os.path.splitext(kwargs["dest"])
+                            kwargs["dest"] = name.rpartition("_")[0] + "_{}".format(index) + extension
+                            kwargs["clipsrc"] = "-clipsrc {}".format(bbox)
 
-                            # Run ogr2ogr subprocess.
-                            self.ogr2ogr(**kwargs)
+                            # Add ogr2ogr subprocess to thread queue.
+                            log = "Transforming table: \"{}\" ({} of {}).".format(table, index + 1, total)
+                            queue.put((kwargs, log))
+
+                        queue.join()
 
                     else:
+
+                        logger.info("Transforming table: \"{}\".".format(table))
+
                         # Run ogr2ogr subprocess.
-                        self.ogr2ogr(**kwargs)
+                        helpers.ogr2ogr(kwargs)
 
                 # Delete temporary file.
                 logger.info("Deleting temporary GeoPackage: \"{}\".".format(temp_path))
@@ -376,26 +390,6 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-    @staticmethod
-    def ogr2ogr(driver, dest, src, src_layer, nln="", clipsrc=""):
-        """Runs an ogr2ogr subprocess."""
-
-        try:
-
-            # Format ogr2ogr command.
-            args = "ogr2ogr -f \"{}\" -append \"{}\" \"{}\" {} {} {}"\
-                .format(driver, dest, src, src_layer,
-                        "-nln {}".format(nln) if nln else "",
-                        "-clipsrc {}".format(*clipsrc) if clipsrc else "")
-
-            # Run subprocess.
-            subprocess.run(args, shell=True, check=True)
-
-        except subprocess.CalledProcessError as e:
-            logger.exception("Unable to transform data source.")
-            logger.exception("ogr2ogr error: {}".format(e))
-            sys.exit(1)
-
     def zip_data(self):
         """Compresses all exported data directories to .zip format."""
 
@@ -408,6 +402,7 @@ class Stage:
         self.compile_french_domain_mapping()
         self.gen_french_dataframes()
         self.gen_output_schemas()
+        self.define_kml_bboxes()
         self.export_data()
         self.zip_data()
 
