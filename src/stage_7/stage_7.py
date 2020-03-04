@@ -13,6 +13,7 @@ from operator import itemgetter
 from osgeo import ogr
 from scipy.spatial import Delaunay
 from shapely.geometry import Polygon
+from zipfile import ZipFile
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -400,7 +401,25 @@ class Stage:
     def zip_data(self):
         """Compresses all exported data directories to .zip format."""
 
-        # TODO
+        logger.info("Apply .zip compression to output data directories.")
+
+        # Iterate output directories.
+        for root in os.listdir("../../data/processed/{}".format(self.source)):
+
+            # Walk directory and zip contents.
+            root = os.path.abspath(root)
+            logger.info("Applying .zip compression to directory \"{}\".".format(root))
+
+            with ZipFile("{}.zip".format(root), "w") as zip:
+                for dir, subdirs, files in os.walk(root):
+                    for file in files:
+                        path = os.path.join(dir, file)
+
+                        # Configure relative path inside .zip file.
+                        arcpath = os.path.join(os.path.basename(root), os.path.relpath(path, root))
+
+                        # Write to .zip file.
+                        zip.write(path, arcpath)
 
     def execute(self):
         """Executes an NRN stage."""
