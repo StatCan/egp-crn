@@ -7,13 +7,13 @@ import os
 import pandas as pd
 import pathlib
 import sys
+import zipfile
 from itertools import chain
 from multiprocessing.pool import ThreadPool
 from operator import itemgetter
 from osgeo import ogr
 from scipy.spatial import Delaunay
 from shapely.geometry import Polygon
-from zipfile import ZipFile
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -410,16 +410,23 @@ class Stage:
             root = os.path.abspath(root)
             logger.info("Applying .zip compression to directory \"{}\".".format(root))
 
-            with ZipFile("{}.zip".format(root), "w") as zip:
-                for dir, subdirs, files in os.walk(root):
-                    for file in files:
-                        path = os.path.join(dir, file)
+            try:
 
-                        # Configure relative path inside .zip file.
-                        arcpath = os.path.join(os.path.basename(root), os.path.relpath(path, root))
+                with zipfile.ZipFile("{}.zip".format(root), "w") as zip:
+                    for dir, subdirs, files in os.walk(root):
+                        for file in files:
+                            path = os.path.join(dir, file)
 
-                        # Write to .zip file.
-                        zip.write(path, arcpath)
+                            # Configure relative path inside .zip file.
+                            arcpath = os.path.join(os.path.basename(root), os.path.relpath(path, root))
+
+                            # Write to .zip file.
+                            zip.write(path, arcpath)
+
+            except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
+                logger.exception("Unable to compress directory.")
+                logger.exception("zipfile error: {}".format(e))
+                sys.exit(1)
 
     def execute(self):
         """Executes an NRN stage."""
@@ -431,6 +438,7 @@ class Stage:
         self.define_kml_bboxes()
         self.export_data()
         self.zip_data()
+        # TODO: delete original directories after compression.
 
 
 @click.command()
