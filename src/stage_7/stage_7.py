@@ -8,12 +8,11 @@ import pandas as pd
 import pathlib
 import sys
 from itertools import chain
+from multiprocessing.pool import ThreadPool
 from operator import itemgetter
 from osgeo import ogr
-from queue import Queue
 from scipy.spatial import Delaunay
 from shapely.geometry import Polygon
-from threading import Thread
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -195,8 +194,7 @@ class Stage:
         logger.info("Exporting data.")
 
         # Iterate formats and languages.
-        # for frmt in self.dframes:
-        for frmt in ["kml"]:
+        for frmt in self.dframes:
             for lang in self.dframes[frmt]:
 
                 # Retrieve export specifications.
@@ -241,25 +239,34 @@ class Stage:
                     if frmt == "kml":
 
                         total = len(self.bboxes)
-                        queue = Queue()
+                        tasks = list()
 
-                        for i in range(5):
-
-                            worker = Thread(target=helpers.ogr2ogr, args=("", True, queue))
-                            worker.start()
-
+                        # Configure ogr2ogr tasks.
                         for index, bbox in enumerate(self.bboxes):
+                            index += 1
 
-                            # Modify output name and add bbox to ogr2ogr parameters.
-                            name, extension = os.path.splitext(kwargs["dest"])
-                            kwargs["dest"] = name.rpartition("_")[0] + "_{}".format(index) + extension
+                            # Configure logging message.
+                            log = "Transforming table: \"{}\" ({} of {}).".format(table, index, total)
+
+                            # Configure ogr2ogr parameters.
+
+                            # Add modified output name to ogr2ogr parameters.
+                            if index == 1:
+                                kwargs["dest"] = "{}_1{}".format(*os.path.splitext(kwargs["dest"]))
+                            else:
+                                name, ext = os.path.splitext(kwargs["dest"])
+                                kwargs["dest"] = "{2}{3}{0}{1}".format(index, ext, *name.rpartition("_")[:-1])
+
+                            # Add bbox to ogr2ogr parameters.
                             kwargs["clipsrc"] = "-clipsrc {}".format(bbox)
 
-                            # Add ogr2ogr subprocess to thread queue.
-                            log = "Transforming table: \"{}\" ({} of {}).".format(table, index + 1, total)
-                            queue.put((kwargs, log))
+                            # Store task.
+                            tasks.append((kwargs.copy(), log))
 
-                        queue.join()
+                        # Execute tasks.
+                        with ThreadPool(4) as tpool:
+                            tpool.starmap(helpers.ogr2ogr, tasks)
+                        tpool.join()
 
                     else:
 

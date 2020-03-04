@@ -13,7 +13,6 @@ import time
 import yaml
 from copy import deepcopy
 from osgeo import ogr, osr
-from queue import Queue
 from shapely.geometry import LineString, Point
 
 
@@ -293,34 +292,19 @@ def nx_to_gdf(g, nodes=True, edges=True):
         return gdf_edges
 
 
-def ogr2ogr(expression, threaded=False, queue=None):
+def ogr2ogr(expression, log=None):
     """Runs an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters."""
 
     try:
 
-        if threaded:
-            while True:
+        if log:
+            logger.info(log)
 
-                expression, log = queue.get()
+        # Format ogr2ogr command.
+        expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
 
-                # Format ogr2ogr command.
-                expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
-
-                # Log message.
-                logger.info(log)
-
-                # Run subprocess.
-                subprocess.run(expression, shell=True, check=True)
-
-                queue.task_done()
-
-        else:
-
-            # Format ogr2ogr command.
-            expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
-
-            # Run subprocess.
-            subprocess.run(expression, shell=True, check=True)
+        # Run subprocess.
+        subprocess.run(expression, shell=True, check=True)
 
     except subprocess.CalledProcessError as e:
         logger.exception("Unable to transform data source.")
