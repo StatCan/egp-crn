@@ -18,50 +18,66 @@ data:
   spatial: True
 conform:
   addrange:
-    nid: uuid
-    datasetnam: DATASETNAM
-    specvers: SPECVERS
     acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: DATASETNAM
     accuracy: ACCURACY
     provider: PROVIDER
-    credate: CREDATE
     revdate: REVDATE
-    metacover: METACOVER
-    l_digdirfg: L_DIGDIRFG
-    l_hnumstr: L_HNUMSTR
-    l_rfsysind: L_RFSYSIND
-    l_hnumtypf: L_HNUMTYPF
-    l_hnumf: L_HNUMF
-    l_hnumsuff: L_HNUMSUFF
-    l_hnumtypl: L_HNUMTYPL
-    l_hnuml: L_HNUML
-    l_hnumsufl: L_HNUMSUFL
-    l_offnanid: uuid
+    specvers: SPECVERS
     l_altnanid: L_ALTNANID
-    r_digdirfg: R_DIGDIRFG
-    r_hnumstr: R_HNUMSTR
-    r_rfsysind: R_RFSYSIND
-    r_hnumtypf: R_HNUMTYPF
-    r_hnumf: R_HNUMF
-    r_hnumsuff: R_HNUMSUFF
-    r_hnumtypl: R_HNUMTYPL
-    r_hnuml: R_HNUML
-    r_hnumsufl: R_HNUMSUFL
-    r_offnanid: uuid
     r_altnanid: R_ALTNANID
-  roadseg:
+    l_digdirfg: L_DIGDIRFG
+    r_digdirfg: R_DIGDIRFG
+    l_hnumf: L_HNUMF
+    r_hnumf: R_HNUMF
+    l_hnumsuff: L_HNUMSUFF
+    r_hnumsuff: R_HNUMSUFF
+    l_hnumtypf: L_HNUMTYPF
+    r_hnumtypf: R_HNUMTYPF
+    l_hnumstr: L_HNUMSTR
+    r_hnumstr: R_HNUMSTR
+    l_hnuml: L_HNUML
+    r_hnuml: R_HNUML
+    l_hnumsufl: L_HNUMSUFL
+    r_hnumsufl: R_HNUMSUFL
+    l_hnumtypl: L_HNUMTYPL
+    r_hnumtypl: R_HNUMTYPL
     nid: uuid
-    roadsegid: ROADSEGID
-    adrangenid: ADRANGENID
-    datasetnam: DATASETNAM
-    specvers: SPECVERS
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind:
+    r_rfsysind:
+  roadseg:
     acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: DATASETNAM
     accuracy: ACCURACY
     provider: PROVIDER
-    credate: CREDATE
     revdate: REVDATE
-    metacover: METACOVER
+    specvers: SPECVERS
+    l_adddirfg:                           # TODO 1 of 2
+    r_adddirfg:                           # TODO 2 of 2
+    adrangenid: ADRANGENID
+    closing: CLOSING
+    exitnbr: EXITNBR
+    l_hnumf: L_HNUMF
+    r_hnumf: R_HNUMF
     roadclass: ROADCLASS
+    l_hnuml: L_HNUML
+    r_hnuml: R_HNUML
+    nid: uuid
+    nbrlanes: NBRLANES
+    l_placenam: PLACE_L
+    r_placenam: PLACE_R
+    l_stname_c: NAME
+    r_stname_c: NAME
+    pavsurf: PAVSURF
+    pavstatus: PAVSTATUS
+    roadjuris: ROADJURIS
+    roadsegid: ROADSEGID
     rtename1en: RTENAME1EN
     rtename2en: RTENAME2EN
     rtename3en: RTENAME3EN
@@ -75,40 +91,34 @@ conform:
     rtnumber3: RTNUMBER3
     rtnumber4: RTNUMBER4
     rtnumber5: RTNUMBER5
-    exitnbr: EXITNBR
-    nbrlanes: NBRLANES
-    pavstatus: PAVSTATUS
-    pavsurf: PAVSURF
-    unpavsurf: UNPAVSURF
-    structid: STRUCTID
-    structtype: STRUCTTYPE
+    speed: SPEED
     strunameen: STRUNAMEEN
     strunamefr: STRUNAMEFR
-    closing: CLOSING
-    speed: SPEED
+    structid: STRUCTID
+    structtype: STRUCTTYPE
     trafficdir: TRAFFICDIR
-    roadjuris: ROADJURIS
+    unpavsurf: UNPAVSURF
   strplaname:
-    nid: uuid
-    datasetnam: DATASETNAM
-    specvers: SPECVERS
     acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: DATASETNAM
     accuracy: ACCURACY
     provider: PROVIDER
-    credate: CREDATE
     revdate: REVDATE
-    metacover: METACOVER
+    specvers: SPECVERS
     dirprefix: DIRPREFIX
-    strtypre: STRTYPRE
-    starticle:
-    namebody: NAMEBODY
-    strtysuf: STRTYSUF
     dirsuffix: DIRSUFFIX
     muniquad:
+    nid: uuid
     placename:
-      fields: [PLACE_L, PLACE_R]
+      fields: [l_placenam, r_placenam]
       functions:
         - function: split_record
           field: None
-    province: "Prince Edward Island"
     placetype:
+    province: "Prince Edward Island"
+    starticle:
+    namebody: NAMEBODY
+    strtypre: STRTYPRE
+    strtysuf: STRTYSUF
