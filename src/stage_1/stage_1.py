@@ -5,7 +5,6 @@ import geopandas as gpd
 import logging
 import os
 import pandas as pd
-import subprocess
 import sys
 import uuid
 from inspect import getmembers, isfunction
