@@ -348,16 +348,16 @@ class Stage:
                 kwargs = {"filename": dest}
 
                 # Transform data source crs.
-                logger.info("Transforming data source to EPSG:4617.")
-                try:
-                    args = "ogr2ogr -overwrite -t_srs EPSG:4617 \"{}\" \"{}\" {} -lco coordinate_precision=6"\
-                        .format(dest, source_yaml["data"]["filename"],
-                                " " + source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "")
-                    subprocess.run(args, shell=True, check=True)
-                except subprocess.CalledProcessError as e:
-                    logger.exception("Unable to transform data source to EPSG:4617.")
-                    logger.exception("ogr2ogr error: {}".format(e))
-                    sys.exit(1)
+                logger.info("Transforming data source to EPSG:4617 and rounding coordinates to 6 decimal places.")
+
+                helpers.ogr2ogr({
+                    "overwrite": "-overwrite",
+                    "t_srs": "-t_srs EPSG:4617",
+                    "dest": "\"{}\"".format(dest),
+                    "src": "\"{}\"".format(source_yaml["data"]["filename"]),
+                    "src_layer": source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "",
+                    "lco": "-lco coordinate_precision=6"
+                })
 
             # Tabular.
             else:
