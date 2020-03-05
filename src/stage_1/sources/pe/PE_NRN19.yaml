@@ -1,0 +1,114 @@
+coverage:
+  country: ca
+  province: pe
+  ISO3166:
+    alpha2: CA-PE
+    country: Canada
+    subdivision: Prince Edward Island
+  website: https://data.princeedwardisland.ca
+license:
+  url: https://www.princeedwardisland.ca/en/information/finance/open-government-license-prince-edward-island
+  text: Open Government License - Prince Edward Island
+language: en
+data:
+  filename: PEI_NRN19/PEI_NRN19.shp
+  layer:
+  driver: ESRI Shapefile
+  crs: "EPSG:2954"
+  spatial: True
+conform:
+  addrange:
+    nid: uuid
+    datasetnam: DATASETNAM
+    specvers: SPECVERS
+    acqtech: ACQTECH
+    accuracy: ACCURACY
+    provider: PROVIDER
+    credate: CREDATE
+    revdate: REVDATE
+    metacover: METACOVER
+    l_digdirfg: L_DIGDIRFG
+    l_hnumstr: L_HNUMSTR
+    l_rfsysind: L_RFSYSIND
+    l_hnumtypf: L_HNUMTYPF
+    l_hnumf: L_HNUMF
+    l_hnumsuff: L_HNUMSUFF
+    l_hnumtypl: L_HNUMTYPL
+    l_hnuml: L_HNUML
+    l_hnumsufl: L_HNUMSUFL
+    l_offnanid: uuid
+    l_altnanid: L_ALTNANID
+    r_digdirfg: R_DIGDIRFG
+    r_hnumstr: R_HNUMSTR
+    r_rfsysind: R_RFSYSIND
+    r_hnumtypf: R_HNUMTYPF
+    r_hnumf: R_HNUMF
+    r_hnumsuff: R_HNUMSUFF
+    r_hnumtypl: R_HNUMTYPL
+    r_hnuml: R_HNUML
+    r_hnumsufl: R_HNUMSUFL
+    r_offnanid: uuid
+    r_altnanid: R_ALTNANID
+  roadseg:
+    nid: uuid
+    roadsegid: ROADSEGID
+    adrangenid: ADRANGENID
+    datasetnam: DATASETNAM
+    specvers: SPECVERS
+    acqtech: ACQTECH
+    accuracy: ACCURACY
+    provider: PROVIDER
+    credate: CREDATE
+    revdate: REVDATE
+    metacover: METACOVER
+    roadclass: ROADCLASS
+    rtename1en: RTENAME1EN
+    rtename2en: RTENAME2EN
+    rtename3en: RTENAME3EN
+    rtename4en: RTENAME4EN
+    rtename1fr: RTENAME1FR
+    rtename2fr: RTENAME2FR
+    rtename3fr: RTENAME3FR
+    rtename4fr: RTENAME4FR
+    rtnumber1: RTNUMBER1
+    rtnumber2: RTNUMBER2
+    rtnumber3: RTNUMBER3
+    rtnumber4: RTNUMBER4
+    rtnumber5: RTNUMBER5
+    exitnbr: EXITNBR
+    nbrlanes: NBRLANES
+    pavstatus: PAVSTATUS
+    pavsurf: PAVSURF
+    unpavsurf: UNPAVSURF
+    structid: STRUCTID
+    structtype: STRUCTTYPE
+    strunameen: STRUNAMEEN
+    strunamefr: STRUNAMEFR
+    closing: CLOSING
+    speed: SPEED
+    trafficdir: TRAFFICDIR
+    roadjuris: ROADJURIS
+  strplaname:
+    nid: uuid
+    datasetnam: DATASETNAM
+    specvers: SPECVERS
+    acqtech: ACQTECH
+    accuracy: ACCURACY
+    provider: PROVIDER
+    credate: CREDATE
+    revdate: REVDATE
+    metacover: METACOVER
+    dirprefix: DIRPREFIX
+    strtypre: STRTYPRE
+    starticle:
+    namebody: NAMEBODY
+    strtysuf: STRTYSUF
+    dirsuffix: DIRSUFFIX
+    muniquad:
+    placename:
+      fields: [PLACE_L, PLACE_R]
+      functions:
+        - function: split_record
+          field: None
+    province: "Prince Edward Island"
+    placetype:
