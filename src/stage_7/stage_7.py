@@ -6,6 +6,7 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
+import shutil
 import sys
 import zipfile
 from itertools import chain
@@ -227,7 +228,7 @@ class Stage:
 
                     # Configure ogr2ogr inputs.
                     kwargs = {
-                        "driver": "-f {}".format(export_specs["data"]["driver"]),
+                        "driver": "-f \"{}\"".format(export_specs["data"]["driver"]),
                         "append": "-append",
                         "dest": "\"{}\""
                             .format(os.path.join(export_dir, export_file if export_file else export_tables[table])),
@@ -404,28 +405,44 @@ class Stage:
         logger.info("Apply .zip compression to output data directories.")
 
         # Iterate output directories.
-        for root in os.listdir("../../data/processed/{}".format(self.source)):
+        root = os.path.abspath("../../data/processed/{}".format(self.source))
+        for data_dir in os.listdir(root):
+
+            data_dir = os.path.join(root, data_dir)
 
             # Walk directory and zip contents.
-            root = os.path.abspath(root)
-            logger.info("Applying .zip compression to directory \"{}\".".format(root))
+            logger.info("Applying .zip compression to directory \"{}\".".format(data_dir))
 
             try:
 
-                with zipfile.ZipFile("{}.zip".format(root), "w") as zip:
-                    for dir, subdirs, files in os.walk(root):
+                with zipfile.ZipFile("{}.zip".format(data_dir), "w") as zip:
+                    for dir, subdirs, files in os.walk(data_dir):
                         for file in files:
+
+                            # Configure path.
                             path = os.path.join(dir, file)
 
-                            # Configure relative path inside .zip file.
-                            arcpath = os.path.join(os.path.basename(root), os.path.relpath(path, root))
+                            # Configure new relative path inside .zip file.
+                            arcname = os.path.join(os.path.basename(data_dir), os.path.relpath(path, data_dir))
 
                             # Write to .zip file.
-                            zip.write(path, arcpath)
+                            zip.write(path, arcname)
 
             except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
                 logger.exception("Unable to compress directory.")
                 logger.exception("zipfile error: {}".format(e))
+                sys.exit(1)
+
+            # Remove original directory.
+            logger.info("Removing original directory: \"{}\".".format(data_dir))
+
+            try:
+
+                shutil.rmtree(data_dir)
+
+            except (OSError, shutil.Error) as e:
+                logger.exception("Unable to remove directory.")
+                logger.exception("shutil error: {}".format(e))
                 sys.exit(1)
 
     def execute(self):
@@ -438,7 +455,6 @@ class Stage:
         self.define_kml_bboxes()
         self.export_data()
         self.zip_data()
-        # TODO: delete original directories after compression.
 
 
 @click.command()
