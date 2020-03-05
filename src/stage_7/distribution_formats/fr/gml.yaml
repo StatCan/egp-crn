@@ -1,0 +1,191 @@
+data:
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_GML/RRN_<source>_<major_version>_<minor_version>_GML_fr
+  file:
+  driver: GML
+conform:
+  addrange:
+    name: RRN_<source>_<major_version>_<minor_version>_IntervalleAdresse.gml
+    fields:
+      acqtech:    techniqueAcquisition
+      metacover:  couvertureMetadonnees
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      accuracy:   precisionPlanimetrique
+      provider:   fournisseur
+      revdate:    dateRevision
+      specvers:   versionNormes
+      l_altnanid: idnNomRueNonOfficiel_Gauche
+      r_altnanid: idnNomRueNonOfficiel_Droite
+      l_digdirfg: sensNumerisation_Gauche
+      r_digdirfg: sensNumerisation_Droite
+      l_hnumf:    numPremiereMaison_Gauche
+      r_hnumf:    numPremiereMaison_Droite
+      l_hnumsuff: suffixNumPremiereMaison_Gauche
+      r_hnumsuff: suffixNumPremiereMaison_Droite
+      l_hnumtypf: typeNumPremiereMaison_Gauche
+      r_hnumtypf: typeNumPremiereMaison_Droite
+      l_hnumstr:  structureNumMaison_Gauche
+      r_hnumstr:  structureNumMaison_Droite
+      l_hnuml:    numDerniereMaison_Gauche
+      r_hnuml:    numDerniereMaison_Droite
+      l_hnumsufl: suffixNumDerniereMaison_Gauche
+      r_hnumsufl: suffixNumDerniereMaison_Droite
+      l_hnumtypl: typeNumDerniereMaison_Gauche
+      r_hnumtypl: typeNumDerniereMaison_Droite
+      nid:        idn
+      l_offnanid: idnNomRueOfficiel_Gauche
+      r_offnanid: idnNomRueOfficiel_Droite
+      l_rfsysind: indicSystemeReference_Gauche
+      r_rfsysind: indicSystemeReference_Droite
+  altnamlink:
+    name: RRN_<source>_<major_version>_<minor_version>_LienNomNonOfficiel.gml
+    fields:
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      nid:        idn
+      revdate:    dateRevision
+      specvers:   versionNormes
+      strnamenid: idnNomRue
+  blkpassage:
+    name: RRN_<source>_<major_version>_<minor_version>_PassageObstrue.gml
+    fields:
+      acqtech:    techniqueAcquisition
+      metacover:  couvertureMetadonnees
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      accuracy:   precisionPlanimetrique
+      provider:   fournisseur
+      revdate:    dateRevision
+      specvers:   versionNormes
+      blkpassty:  typePassageObstrue
+      nid:        idn
+      roadnid:    idnElementRoutier
+  ferryseg:
+    name: RRN_<source>_<major_version>_<minor_version>_SegmentLiaisonTransbordeur.gml
+    fields:
+      acqtech:    techniqueAcquisition
+      metacover:  couvertureMetadonnees
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      accuracy:   precisionPlanimetrique
+      provider:   fournisseur
+      revdate:    dateRevision
+      specvers:   versionNormes
+      closing:    periodeFermeture
+      ferrysegid: idSegmentLiaisonTransbordeur
+      roadclass:  classRoutiereFonctionnelle
+      nid:        idn
+      rtename1en: nomRouteAnglais1
+      rtename2en: nomRouteAnglais2
+      rtename3en: nomRouteAnglais3
+      rtename4en: nomRouteAnglais4
+      rtename1fr: nomRouteFrançais1
+      rtename2fr: nomRouteFrançais2
+      rtename3fr: nomRouteFrançais3
+      rtename4fr: nomRouteFrançais4
+      rtnumber1:  numeroRoute1
+      rtnumber2:  numeroRoute2
+      rtnumber3:  numeroRoute3
+      rtnumber4:  numeroRoute4
+      rtnumber5:  numeroRoute5
+  junction:
+    name: RRN_<source>_<major_version>_<minor_version>_Jonction.gml
+    fields:
+      acqtech:    techniqueAcquisition
+      metacover:  couvertureMetadonnees
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      accuracy:   precisionPlanimetrique
+      provider:   fournisseur
+      revdate:    dateRevision
+      specvers:   versionNormes
+      exitnbr:    numeroSortie
+      junctype:   typeJonction
+      nid:        idn
+  roadseg:
+    name: RRN_<source>_<major_version>_<minor_version>_SegmentRoutier.gml
+    fields:
+      acqtech:    techniqueAcquisition
+      metacover:  couvertureMetadonnees
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      accuracy:   precisionPlanimetrique
+      provider:   fournisseur
+      revdate:    dateRevision
+      specvers:   versionNormes
+      l_adddirfg: sensNumerisationAdresse_Gauche
+      r_adddirfg: sensNumerisationAdresse_Droite
+      adrangenid: idnIntervalleAdresse
+      closing:    periodeFermeture
+      exitnbr:    numeroSortie
+      l_hnumf:    numPremiereMaison_Gauche
+      r_hnumf:    numPremiereMaison_Droite
+      roadclass:  classRoutiereFonctionnelle
+      l_hnuml:    numDerniereMaison_Gauche
+      r_hnuml:    numDerniereMaison_Droite
+      nid:        idn
+      nbrlanes:   nombreVoies
+      l_placenam: nomLieuOfficiel_Gauche
+      r_placenam: nomLieuOfficiel_Droite
+      l_stname_c: nomRueOfficielConcat_Gauche
+      r_stname_c: nomRueOfficielConcat_Droite
+      pavsurf:    typeChausseeRevetue
+      pavstatus:  etatRevetement
+      roadjuris:  autoriteRoute
+      roadsegid:  idSegmentRoutier
+      rtename1en: nomRouteAnglais1
+      rtename2en: nomRouteAnglais2
+      rtename3en: nomRouteAnglais3
+      rtename4en: nomRouteAnglais4
+      rtename1fr: nomRouteFrançais1
+      rtename2fr: nomRouteFrançais2
+      rtename3fr: nomRouteFrançais3
+      rtename4fr: nomRouteFrançais4
+      rtnumber1:  numeroRoute1
+      rtnumber2:  numeroRoute2
+      rtnumber3:  numeroRoute3
+      rtnumber4:  numeroRoute4
+      rtnumber5:  numeroRoute5
+      speed:      limitesVitesse
+      strunameen: nomStructureAnglais
+      strunamefr: nomStructureFrançais
+      structid:   idStructure
+      structtype: typeStructure
+      trafficdir: sensCirculation
+      unpavsurf:  typeChausseeNonRevetue
+  strplaname:
+    name: RRN_<source>_<major_version>_<minor_version>_NomRueLieu.gml
+    fields:
+      acqtech:    techniqueAcquisition
+      metacover:  couvertureMetadonnees
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      accuracy:   precisionPlanimetrique
+      provider:   fournisseur
+      revdate:    dateRevision
+      specvers:   versionNormes
+      dirprefix:  prefixeDirection
+      dirsuffix:  suffixeDirection
+      muniquad:   muniQuadrant
+      nid:        idn
+      placename:  nomLieu
+      placetype:  typeLieu
+      province:   province
+      starticle:  articleNomRue
+      namebody:   corpsNomRue
+      strtypre:   prefixeTypeRue
+      strtysuf:   suffixeTypeRue
+  tollpoint:
+    name: RRN_<source>_<major_version>_<minor_version>_PostePeage.gml
+    fields:
+      acqtech:    techniqueAcquisition
+      metacover:  couvertureMetadonnees
+      credate:    dateCreation
+      datasetnam: nomJeuDonnees
+      accuracy:   precisionPlanimetrique
+      provider:   fournisseur
+      revdate:    dateRevision
+      specvers:   versionNormes
+      nid:        idn
+      roadnid:    idnElementRoutier
+      tollpttype: typePassageObstrue

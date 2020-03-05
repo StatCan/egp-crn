@@ -1,0 +1,191 @@
+data:
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_GML/NRN_<source>_<major_version>_<minor_version>_GML_en
+  file:
+  driver: GML
+conform:
+  addrange:
+    name: NRN_<source>_<major_version>_<minor_version>_AddressRange.gml
+    fields:
+      acqtech:    acquisitionTechnique
+      metacover:  metadataCoverage
+      credate:    creationDate
+      datasetnam: datasetName
+      accuracy:   planimetricAccuracy
+      provider:   provider
+      revdate:    revisionDate
+      specvers:   standardVersion
+      l_altnanid: left_AlternateStreetNameNid
+      r_altnanid: right_AlternateStreetNameNid
+      l_digdirfg: left_DigitizingDirectionFlag
+      r_digdirfg: right_DigitizingDirectionFlag
+      l_hnumf:    left_FirstHouseNumber
+      r_hnumf:    right_FirstHouseNumber
+      l_hnumsuff: left_FirstHouseNumberSuffix
+      r_hnumsuff: right_FirstHouseNumberSuffix
+      l_hnumtypf: left_FirstHouseNumberType
+      r_hnumtypf: right_FirstHouseNumberType
+      l_hnumstr:  left_HouseNumberStructure
+      r_hnumstr:  right_HouseNumberStructure
+      l_hnuml:    left_LastHouseNumber
+      r_hnuml:    right_LastHouseNumber
+      l_hnumsufl: left_LastHouseNumberSuffix
+      r_hnumsufl: right_LastHouseNumberSuffix
+      l_hnumtypl: left_LastHouseNumberType
+      r_hnumtypl: right_LastHouseNumberType
+      nid:        nid
+      l_offnanid: left_OfficialStreetNameNid
+      r_offnanid: right_OfficialStreetNameNid
+      l_rfsysind: left_ReferenceSystemIndicator
+      r_rfsysind: right_ReferenceSystemIndicator
+  altnamlink:
+    name: NRN_<source>_<major_version>_<minor_version>_AlternateNameLink.gml
+    fields:
+      credate:    creationDate
+      datasetnam: datasetName
+      nid:        nid
+      revdate:    revisionDate
+      specvers:   standardVersion
+      strnamenid: streetNameNid
+  blkpassage:
+    name: NRN_<source>_<major_version>_<minor_version>_BlockedPassage.gml
+    fields:
+      acqtech:    acquisitionTechnique
+      metacover:  metadataCoverage
+      credate:    creationDate
+      datasetnam: datasetName
+      accuracy:   planimetricAccuracy
+      provider:   provider
+      revdate:    revisionDate
+      specvers:   standardVersion
+      blkpassty:  blockedPassageType
+      nid:        nid
+      roadnid:    roadElementNid
+  ferryseg:
+    name: NRN_<source>_<major_version>_<minor_version>_FerryConnectionSegment.gml
+    fields:
+      acqtech:    acquisitionTechnique
+      metacover:  metadataCoverage
+      credate:    creationDate
+      datasetnam: datasetName
+      accuracy:   planimetricAccuracy
+      provider:   provider
+      revdate:    revisionDate
+      specvers:   standardVersion
+      closing:    closingPeriod
+      ferrysegid: ferrySegmentId
+      roadclass:  functionalRoadClass
+      nid:        nid
+      rtename1en: routeNameEnglish1
+      rtename2en: routeNameEnglish2
+      rtename3en: routeNameEnglish3
+      rtename4en: routeNameEnglish4
+      rtename1fr: routeNameFrench1
+      rtename2fr: routeNameFrench2
+      rtename3fr: routeNameFrench3
+      rtename4fr: routeNameFrench4
+      rtnumber1:  routeNumber1
+      rtnumber2:  routeNumber2
+      rtnumber3:  routeNumber3
+      rtnumber4:  routeNumber4
+      rtnumber5:  routeNumber5
+  junction:
+    name: NRN_<source>_<major_version>_<minor_version>_Junction.gml
+    fields:
+      acqtech:    acquisitionTechnique
+      metacover:  metadataCoverage
+      credate:    creationDate
+      datasetnam: datasetName
+      accuracy:   planimetricAccuracy
+      provider:   provider
+      revdate:    revisionDate
+      specvers:   standardVersion
+      exitnbr:    exitNumber
+      junctype:   junctionType
+      nid:        nid
+  roadseg:
+    name: NRN_<source>_<major_version>_<minor_version>_RoadSegment.gml
+    fields:
+      acqtech:    acquisitionTechnique
+      metacover:  metadataCoverage
+      credate:    creationDate
+      datasetnam: datasetName
+      accuracy:   planimetricAccuracy
+      provider:   provider
+      revdate:    revisionDate
+      specvers:   standardVersion
+      l_adddirfg: left_AddressDirectionFlag
+      r_adddirfg: right_AddressDirectionFlag
+      adrangenid: addressRangeNid
+      closing:    closingPeriod
+      exitnbr:    exitNumber
+      l_hnumf:    left_FirstHouseNumber
+      r_hnumf:    right_FirstHouseNumber
+      roadclass:  functionalRoadClass
+      l_hnuml:    left_LastHouseNumber
+      r_hnuml:    right_LastHouseNumber
+      nid:        nid
+      nbrlanes:   numberLanes
+      l_placenam: left_OfficialPlaceName
+      r_placenam: right_OfficialPlaceName
+      l_stname_c: left_OfficialStreetNameConcat
+      r_stname_c: right_OfficialStreetNameConcat
+      pavsurf:    pavedRoadSurfaceType
+      pavstatus:  pavementStatus
+      roadjuris:  roadJurisdiction
+      roadsegid:  roadSegmentId
+      rtename1en: routeNameEnglish1
+      rtename2en: routeNameEnglish2
+      rtename3en: routeNameEnglish3
+      rtename4en: routeNameEnglish4
+      rtename1fr: routeNameFrench1
+      rtename2fr: routeNameFrench2
+      rtename3fr: routeNameFrench3
+      rtename4fr: routeNameFrench4
+      rtnumber1:  routeNumber1
+      rtnumber2:  routeNumber2
+      rtnumber3:  routeNumber3
+      rtnumber4:  routeNumber4
+      rtnumber5:  routeNumber5
+      speed:      speedRestrictions
+      strunameen: structureNameEnglish
+      strunamefr: structureNameFrench
+      structid:   structureId
+      structtype: structureType
+      trafficdir: trafficDirection
+      unpavsurf:  unpavedRoadSurfaceType
+  strplaname:
+    name: NRN_<source>_<major_version>_<minor_version>_StreetPlaceNames.gml
+    fields:
+      acqtech:    acquisitionTechnique
+      metacover:  metadataCoverage
+      credate:    creationDate
+      datasetnam: datasetName
+      accuracy:   planimetricAccuracy
+      provider:   provider
+      revdate:    revisionDate
+      specvers:   standardVersion
+      dirprefix:  directionalPrefix
+      dirsuffix:  directionalSuffix
+      muniquad:   muniQuadrant
+      nid:        nid
+      placename:  placeName
+      placetype:  placeType
+      province:   province
+      starticle:  streetNameArticle
+      namebody:   streetNameBody
+      strtypre:   streetTypePrefix
+      strtysuf:   streetTypeSuffix
+  tollpoint:
+    name: NRN_<source>_<major_version>_<minor_version>_TollPoint.gml
+    fields:
+      acqtech:    acquisitionTechnique
+      metacover:  metadataCoverage
+      credate:    creationDate
+      datasetnam: datasetName
+      accuracy:   planimetricAccuracy
+      provider:   provider
+      revdate:    revisionDate
+      specvers:   standardVersion
+      nid:        nid
+      roadnid:    roadElementNid
+      tollpttype: tollPointType
