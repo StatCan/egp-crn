@@ -163,7 +163,7 @@ class Stage:
                                                    geometry="LineString", if_exists="replace", index=False)
 
         logger.info("Loading SQL yaml.")
-        self.sql = helpers.load_yaml("../sql.yaml")
+        self.sql = helpers.load_yaml("sql.yaml")
 
         # source:
         # https://gis.stackexchange.com/questions/20835/identifying-road-intersections-using-postgis
@@ -244,8 +244,8 @@ class Stage:
 
         # Download administrative boundary file.
         logger.info("Downloading administrative boundary file.")
-        adm_file = "http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/" \
-                   "lpr_000a16a_e.zip"
+        adm_file = helpers.load_yaml("../boundary_files.yaml")["provinces"]
+
         try:
             urllib.request.urlretrieve(adm_file, '../../data/raw/boundary.zip')
         except (TimeoutError, urllib.error.URLError) as e:
