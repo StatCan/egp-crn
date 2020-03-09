@@ -1,3 +1,4 @@
+import ast
 import logging
 import numpy as np
 import pandas as pd
@@ -50,6 +51,62 @@ def apply_domain(val, domain, default):
     return default
 
 
+def conditional_values(vals, conditions_map, else_value=None):
+    """
+    Updates the given value based on a series of conditions.
+    Parameter 'vals' should be one or many field values (depending if one or many fields were passed to function).
+    Parameter 'conditions_map' expected to be a dictionary of python conditions-values; excluding if, elif, and else
+    keywords and using str.format() indexing ({index}) to refer to the input values given by parameter 'vals'.
+    Example:
+        {
+        "int({0}) % 2 == 0": "Even",
+        "int({0}) % 2 == 1": "Odd"
+        }
+    Parameter 'else_value' should be the else-condition value. If missing, the first input value will be returned.
+    """
+
+    def sanitize(expr):
+        """Sanitizes the input expression for safe usage in eval()."""
+
+        try:
+
+            parsed = ast.parse(expr, mode="eval")
+            fixed = ast.fix_missing_locations(parsed)
+            compile(fixed, "<string>", "eval")
+
+            return expr
+
+        except (SyntaxError, ValueError):
+            logger.exception("Invalid expression: \"{}\".".format(expr))
+            sys.exit(1)
+
+    # Validate inputs.
+    validate_dtypes("conditions_map", conditions_map, dict)
+    for condition in conditions_map:
+        validate_dtypes("conditions_map[\"{}\"]", condition, str)
+
+    # Format conditions with input values.
+    vals = vals if isinstance(vals, list) else [vals]
+    vals_formatted = ["\"{}\"".format(val) if isinstance(val, str) else val for val in vals]
+    conditions = dict(zip(map(lambda val: val.format(*vals_formatted), conditions_map.keys()), conditions_map.values()))
+
+    # Sanitize input conditions.
+    conditions = dict(zip(map(sanitize, conditions.keys()), conditions.values()))
+
+    # Iterate conditions.
+    return_val = else_value if else_value else vals[0]
+    for condition, value in conditions.items():
+
+        # Test condition.
+        if eval(condition):
+
+            # Store value and break iteration.
+            return_val = value
+            break
+
+    return return_val
+
+
 def copy_attribute_functions(field_mapping_attributes, params):
     """
     Compiles the field mapping functions for each of the given field mapping attributes (target table columns).
@@ -71,12 +128,16 @@ def copy_attribute_functions(field_mapping_attributes, params):
     # Validate inputs.
     validate_dtypes("copy_attribute_functions", params, dict)
     validate_dtypes("copy_attribute_functions[\"attributes\"]", params["attributes"], list)
+
+    # Validate function attributes - modifications (if any) are set as universal key.
     if "modify_parameters" in params.keys():
         for index, attribute in enumerate(params["attributes"]):
             validate_dtypes("copy_attribute_functions[\"attributes\"][{}]".format(index), attribute, str)
         for func in params["modify_parameters"]:
             validate_dtypes("copy_attribute_functions[\"modify_parameters\"][\"{}\"]".format(func),
                             params["modify_parameters"][func], dict)
+
+    # Validate function attributes - modifications (if any) are nested in attributes key.
     else:
         for index, attribute in enumerate(params["attributes"]):
             validate_dtypes("copy_attribute_functions[\"attributes\"][{}]".format(index), attribute, [str, dict])
@@ -111,20 +172,34 @@ def copy_attribute_functions(field_mapping_attributes, params):
     return attribute_func_lists
 
 
-def direct(val, **kwargs):
+def direct(val, cast_type=None):
     """
     Returns the given value. Intended to provide a function call for direct (1:1) field mapping.
+    Parameter 'cast_type' expected to be a string representation of a python data type. Example: "str", "int", etc.
 
     Possible yaml construction of direct field mapping:
 
     1) target_field:                                2) target_field: source_field or raw value
          fields: source_field or raw value
          functions:
-           direct:
-             parameter: None
+           - function: direct
+             cast_type: 'int'
     """
 
-    return np.nan if val == "" or pd.isna(val) else val
+    # Process null value.
+    if val == "" or pd.isna(val):
+        return np.nan
+
+    # Cast data.
+    if cast_type in ("float", "int", "str"):
+
+        try:
+
+            return eval("{}({})".format(cast_type, val))
+
+        except (TypeError, ValueError):
+            logger.exception("Unable to cast value \"{}\" from {} to {}.".format(val, type(val), type(cast_type)))
+            sys.exit(1)
 
 
 def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):

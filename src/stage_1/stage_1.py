@@ -141,7 +141,7 @@ class Stage:
                         # Restructure dict for direct field mapping in case of string input.
                         if isinstance(source_field, str):
                             source_field = {"fields": [source_field],
-                                            "functions": [{"function": "direct", "param": None}]}
+                                            "functions": [{"function": "direct", "cast_type": None}]}
 
                         # Convert single field attribute to list.
                         if isinstance(source_field["fields"], str):
