@@ -265,10 +265,10 @@ class Stage:
         # Transform administrative boundary file to GeoPackage layer with crs EPSG:4617.
         logger.info("Transforming administrative boundary file.")
         helpers.ogr2ogr({
-            "driver": "-f GPKG",
-            "query": "-where PRUID='{}'".format(
+            "query": "-where \"\\\"PRUID\\\"='{}'\"".format(
                 {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
                  "qc": 24, "sk": 47, "yt": 60}[self.source]),
+            "driver": "-f \"GPKG\"",
             "dest": os.path.abspath("../../data/raw/boundaries.gpkg"),
             "src": os.path.abspath("../../data/raw/boundaries/{}".format(filename)),
             "options": "-t_srs EPSG:4617 -nlt MULTIPOLYGON -nln {} -lco overwrite=yes".format(self.source)

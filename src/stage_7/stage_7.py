@@ -6,6 +6,7 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
+import re
 import shutil
 import sys
 import urllib.request
@@ -112,57 +113,34 @@ class Stage:
                     except (AttributeError, KeyError, ValueError):
                         logger.exception("Unable to configure field mapping for English-French domains.")
 
-    def define_kml_bboxes(self, table="roadseg"):
+    def define_kml_groups(self, table="roadseg"):
         """
-        Defines a set of bounding box extents to divide the kml-bound input GeoDataFrame.
-        This is required due to the low feature / size limitations of kml.
+        Defines groups by which to segregate the kml-bound input GeoDataFrame.
+        This is required due to the low feature and size limitations of kml.
         """
 
-        logger.info("Defining KML regions.")
+        logger.info("Defining KML groups.")
+        df = self.dframes["kml"]["en"][table]
 
-        # Retrieve administrative boundary file.
-        logger.info("Downloading administrative boundary file.")
-        source = helpers.load_yaml("../boundary_files.yaml")["municipalities"]
-        url, filename = itemgetter("url", "filename")(source)
+        # Compile placenames.
+        placenames = sorted(set(np.append(df["l_placenam"].unique(), df["r_placenam"].unique())))
+        placenames = pd.Series(placenames)
 
-        try:
-            urllib.request.urlretrieve(url, "../../data/raw/boundaries.zip")
-        except (TimeoutError, urllib.error.URLError) as e:
-            logger.exception("Unable to download administrative boundary file: \"{}\".".format(url))
-            logger.exception(e)
-            sys.exit(1)
-
-        # Extract zipped files.
-        logger.info("Extracting zipped administrative boundary file.")
-        with zipfile.ZipFile("../../data/raw/boundaries.zip", "r") as f:
-            f.extractall("../../data/raw/boundaries")
-
-        # Transform administrative boundary file to GeoPackage layer with crs EPSG:4617.
-        logger.info("Transforming administrative boundary file.")
-        helpers.ogr2ogr({
-            "driver": "-f GPKG",
-            "query": "-where PRUID='{}'".format(
-                {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
-                 "qc": 24, "sk": 47, "yt": 60}[self.source]),
-            "dest": os.path.abspath("../../data/raw/boundaries.gpkg"),
-            "src": os.path.abspath("../../data/raw/boundaries/".format(filename)),
-            "options": "-t_srs EPSG:4617 -nlt MULTIPOLYGON -nln {} -lco overwrite=yes".format(self.source)
+        # Generate placenames dataframe.
+        # names: Conform placenames to valid file names.
+        # queries: Configure ogr2ogr -where parameter.
+        placenames_df = pd.DataFrame({
+            "names": placenames.map(lambda name: re.sub("[\W_]+", "_", name)),
+            "queries": placenames.map(lambda name: "\\\"l_placenam\\\"='{0}' or \\\"r_placenam\\\"='{0}'".format(name))
         })
 
-        # Remove temporary files.
-        logger.info("Remove temporary administrative boundary files and directories.")
-        for path in ("../../data/raw/boundaries", "../../data/raw/boundaries.zip"):
-            if os.path.exists(path):
-                try:
-                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
-                except OSError as e:
-                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
-                    logger.warning("OSError: {}.".format(e))
-                    continue
+        # Identify placenames exceeding feature limit: 1000.
+        limit = 1000
+        flags = np.vectorize(lambda name: len(df[(df["l_placenam"] == name) | (df["r_placenam"] == name)]) > limit)(
+            placenames_df["names"])
+        placenames_exceeded = placenames_df[flags]
 
-        # Load GeoDataFrames.
-        df = self.dframes["kml"]["en"][table]
-        boundaries_df = gpd.read_file("../../data/raw/boundaries.gpkg", layer=self.source, crs=df.crs)
+        # ...
 
         # logger.info("Defining KML bounding boxes.")
         # df = self.dframes["kml"]["en"][table]
@@ -499,7 +477,7 @@ class Stage:
         self.compile_french_domain_mapping()
         self.gen_french_dataframes()
         self.gen_output_schemas()
-        self.define_kml_bboxes()
+        self.define_kml_groups()
         self.export_data()
         self.zip_data()
 
