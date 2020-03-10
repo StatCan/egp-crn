@@ -13,6 +13,7 @@ import uuid
 import zipfile
 from datetime import datetime
 from geopandas_postgis import PostGIS
+from operator import itemgetter
 from psycopg2 import connect, extensions, sql
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.point import Point
@@ -242,55 +243,57 @@ class Stage:
     def fix_junctype(self):
         """Fix junctype of junctions outside of administrative boundaries."""
 
+        logger.info("Adjusting NatProvTer boundary junctions.")
+
         # Download administrative boundary file.
         logger.info("Downloading administrative boundary file.")
-        adm_file = helpers.load_yaml("../boundary_files.yaml")["provinces"]
+        source = helpers.load_yaml("../boundary_files.yaml")["provinces"]
+        url, filename = itemgetter("url", "filename")(source)
 
         try:
-            urllib.request.urlretrieve(adm_file, '../../data/raw/boundary.zip')
+            urllib.request.urlretrieve(url, "../../data/raw/boundaries.zip")
         except (TimeoutError, urllib.error.URLError) as e:
-            logger.exception("Unable to download administrative boundary file: \"{}\".".format(adm_file))
+            logger.exception("Unable to download administrative boundary file: \"{}\".".format(url))
             logger.exception(e)
             sys.exit(1)
 
         # Extract zipped file.
         logger.info("Extracting zipped administrative boundary file.")
-        with zipfile.ZipFile("../../data/raw/boundary.zip", "r") as zip_ref:
-            zip_ref.extractall("../../data/raw/boundary")
+        with zipfile.ZipFile("../../data/raw/boundaries.zip", "r") as f:
+            f.extractall("../../data/raw/boundaries")
 
         # Transform administrative boundary file to GeoPackage layer with crs EPSG:4617.
         logger.info("Transforming administrative boundary file.")
-        try:
-            subprocess.run("ogr2ogr -f GPKG -where PRUID='{}' ../../data/raw/boundary.gpkg "
-                           "../../data/raw/boundary/lpr_000a16a_e.shp -t_srs EPSG:4617 -nlt MULTIPOLYGON -nln {} "
-                           "-lco overwrite=yes "
-                           .format({"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62,
-                                    "on": 35, "pe": 11, "qc": 24, "sk": 47, "yt": 60}[self.source], self.source))
-        except subprocess.CalledProcessError as e:
-            logger.exception("Unable to transform data source to EPSG:4617.")
-            logger.exception("ogr2ogr error: {}".format(e))
-            sys.exit(1)
+        helpers.ogr2ogr({
+            "driver": "-f GPKG",
+            "query": "-where PRUID='{}'".format(
+                {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
+                 "qc": 24, "sk": 47, "yt": 60}[self.source]),
+            "dest": os.path.abspath("../../data/raw/boundaries.gpkg"),
+            "src": os.path.abspath("../../data/raw/boundaries/{}".format(filename)),
+            "options": "-t_srs EPSG:4617 -nlt MULTIPOLYGON -nln {} -lco overwrite=yes".format(self.source)
+        })
 
+        # Remove temporary files.
         logger.info("Remove temporary administrative boundary files and directories.")
-        paths = ["../../data/raw/boundary", "../../data/raw/boundary.zip"]
-        for path in paths:
+        for path in ("../../data/raw/boundaries", "../../data/raw/boundaries.zip"):
             if os.path.exists(path):
                 try:
                     os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
                 except OSError as e:
-                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(paths[0])))
+                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
                     logger.warning("OSError: {}.".format(e))
                     continue
 
-        bound_adm = gpd.read_file("../../data/raw/boundary.gpkg", layer=self.source)
-        bound_adm.crs = self.dframes["roadseg"].crs
-
+        # Load boundaries into PostGIS.
         logger.info("Importing administrative boundary into PostGIS.")
+        bound_adm = gpd.read_file("../../data/raw/boundary.gpkg", layer=self.source, crs=self.dframes["roadseg"].crs)
         bound_adm.postgis.to_postgis(con=self.engine, table_name="adm", if_exists="replace", geometry='MultiPolygon')
 
+        # Query junctions and update attributes.
+        logger.info("Testing for junction equality and altering attributes.")
         attr_fix = self.sql["attributes"]["query"].format(self.stage)
 
-        logger.info("Testing for junction equality and altering attributes.")
         self.attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine, geom_col="geom")
         self.attr_equality = self.attr_equality.rename(columns={"geom": "geometry"}).set_geometry("geometry")
 

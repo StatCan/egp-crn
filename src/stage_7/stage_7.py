@@ -8,6 +8,7 @@ import pandas as pd
 import pathlib
 import shutil
 import sys
+import urllib.request
 import zipfile
 from itertools import chain
 from multiprocessing.pool import ThreadPool
@@ -117,78 +118,124 @@ class Stage:
         This is required due to the low feature / size limitations of kml.
         """
 
-        logger.info("Defining KML bounding boxes.")
+        logger.info("Defining KML regions.")
+
+        # Retrieve administrative boundary file.
+        logger.info("Downloading administrative boundary file.")
+        source = helpers.load_yaml("../boundary_files.yaml")["municipalities"]
+        url, filename = itemgetter("url", "filename")(source)
+
+        try:
+            urllib.request.urlretrieve(url, "../../data/raw/boundaries.zip")
+        except (TimeoutError, urllib.error.URLError) as e:
+            logger.exception("Unable to download administrative boundary file: \"{}\".".format(url))
+            logger.exception(e)
+            sys.exit(1)
+
+        # Extract zipped files.
+        logger.info("Extracting zipped administrative boundary file.")
+        with zipfile.ZipFile("../../data/raw/boundaries.zip", "r") as f:
+            f.extractall("../../data/raw/boundaries")
+
+        # Transform administrative boundary file to GeoPackage layer with crs EPSG:4617.
+        logger.info("Transforming administrative boundary file.")
+        helpers.ogr2ogr({
+            "driver": "-f GPKG",
+            "query": "-where PRUID='{}'".format(
+                {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
+                 "qc": 24, "sk": 47, "yt": 60}[self.source]),
+            "dest": os.path.abspath("../../data/raw/boundaries.gpkg"),
+            "src": os.path.abspath("../../data/raw/boundaries/".format(filename)),
+            "options": "-t_srs EPSG:4617 -nlt MULTIPOLYGON -nln {} -lco overwrite=yes".format(self.source)
+        })
+
+        # Remove temporary files.
+        logger.info("Remove temporary administrative boundary files and directories.")
+        for path in ("../../data/raw/boundaries", "../../data/raw/boundaries.zip"):
+            if os.path.exists(path):
+                try:
+                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
+                except OSError as e:
+                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
+                    logger.warning("OSError: {}.".format(e))
+                    continue
+
+        # Load GeoDataFrames.
         df = self.dframes["kml"]["en"][table]
+        boundaries_df = gpd.read_file("../../data/raw/boundaries.gpkg", layer=self.source, crs=df.crs)
 
-        # Retrieve total bbox.
-        total_bbox = df["geometry"].total_bounds
-
-        # Calculate bboxes.
-        bbox_size = 0.1
-        bboxes = list()
-
-        x0, x1 = total_bbox[0], total_bbox[2]
-        while x0 < x1:
-
-            y0, y1 = total_bbox[1], total_bbox[3]
-            while y0 < y1:
-
-                # Convert bbox to shapely polygon.
-                coords = [x0, y0, x0 + bbox_size, y0 + bbox_size]
-                bbox = Polygon([(itemgetter(*indexes)(coords)) for indexes in ((0, 1), (0, 3), (2, 3), (2, 1), (0, 1))])
-                bboxes.append(bbox)
-
-                y0 += bbox_size
-
-            x0 += bbox_size
-
-        # Filter invalid bboxes.
-
-        # Create GeoDataFrame from bboxes.
-        bboxes_df = gpd.GeoDataFrame(geometry=bboxes)
-
-        # Create Delaunay tesselation from bboxes.
-        delaunay = Delaunay(np.concatenate([np.array(geom.exterior.coords) for geom in bboxes]))
-
-        # Compile input feature points.
-        feature_pts = np.concatenate([np.array(geom.coords) for geom in df["geometry"]])
-
-        # Find simplices containing feature points.
-        indexes = list(set(delaunay.find_simplex(feature_pts)))
-        valid_simplices_idx = itemgetter(indexes)(delaunay.simplices)
-
-        # Convert simplex indexes to coordinates.
-        valid_simplices_pts = list(map(lambda indexes: itemgetter(*indexes)(delaunay.points), valid_simplices_idx))
-        valid_simplices_pts_all = set(map(tuple, chain.from_iterable(valid_simplices_pts)))
-
-        # Identify valid bboxes.
-        # Process: Subtract valid simplices coordinates from bbox coordinates.
-        valid_bboxes = bboxes_df[bboxes_df["geometry"].map(
-            lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 0)]
-
-        # Identify validity of uncertain bboxes (boundary bboxes which may or may not contain a simplex).
-        # Process: Subtract bbox coordinates from valid simplices coordinates, keep bboxes where at least one simplex
-        # has 0 remaining coordinates (i.e. the simplex is completely within the bbox).
-
-        # Create GeoDataFrame from simplices.
-        valid_simplices_df = pd.DataFrame({"coords": [set(map(tuple, simplex)) for simplex in valid_simplices_pts]})
-
-        # Compile uncertain bboxes.
-        bboxes_uncertain = bboxes_df.loc[bboxes_df["geometry"].map(
-            lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 1)]
-        bboxes_uncertain_values = bboxes_uncertain["geometry"].map(lambda bbox: set(bbox.exterior.coords)).values
-
-        # Identify valid bboxes.
-        valid_bboxes_uncertain = bboxes_uncertain[np.vectorize(
-            lambda bbox: valid_simplices_df["coords"].map(
-                lambda simplex: len(simplex - bbox) == 0).any())(bboxes_uncertain_values)]
-
-        # Append all valid bboxes.
-        valid_bboxes_all = valid_bboxes.append(valid_bboxes_uncertain, ignore_index=True)
-
-        # Store only bbox coords.
-        self.bboxes = valid_bboxes_all["geometry"].exterior.map(
-            lambda geom: "{} {} {} {}".format(*chain.from_iterable(itemgetter(0, 2)(geom.coords)))).to_list()
+        # logger.info("Defining KML bounding boxes.")
+        # df = self.dframes["kml"]["en"][table]
+        #
+        # # Retrieve total bbox.
+        # total_bbox = df["geometry"].total_bounds
+        #
+        # # Calculate bboxes.
+        # bbox_size = 0.1
+        # bboxes = list()
+        #
+        # x0, x1 = total_bbox[0], total_bbox[2]
+        # while x0 < x1:
+        #
+        #     y0, y1 = total_bbox[1], total_bbox[3]
+        #     while y0 < y1:
+        #
+        #         # Convert bbox to shapely polygon.
+        #         coords = [x0, y0, x0 + bbox_size, y0 + bbox_size]
+        #         bbox = Polygon([(itemgetter(*indexes)(coords)) for indexes in ((0, 1), (0, 3), (2, 3), (2, 1), (0, 1))])
+        #         bboxes.append(bbox)
+        #
+        #         y0 += bbox_size
+        #
+        #     x0 += bbox_size
+        #
+        # # Filter invalid bboxes.
+        #
+        # # Create GeoDataFrame from bboxes.
+        # bboxes_df = gpd.GeoDataFrame(geometry=bboxes)
+        #
+        # # Create Delaunay tesselation from bboxes.
+        # delaunay = Delaunay(np.concatenate([np.array(geom.exterior.coords) for geom in bboxes]))
+        #
+        # # Compile input feature points.
+        # feature_pts = np.concatenate([np.array(geom.coords) for geom in df["geometry"]])
+        #
+        # # Find simplices containing feature points.
+        # indexes = list(set(delaunay.find_simplex(feature_pts)))
+        # valid_simplices_idx = itemgetter(indexes)(delaunay.simplices)
+        #
+        # # Convert simplex indexes to coordinates.
+        # valid_simplices_pts = list(map(lambda indexes: itemgetter(*indexes)(delaunay.points), valid_simplices_idx))
+        # valid_simplices_pts_all = set(map(tuple, chain.from_iterable(valid_simplices_pts)))
+        #
+        # # Identify valid bboxes.
+        # # Process: Subtract valid simplices coordinates from bbox coordinates.
+        # valid_bboxes = bboxes_df[bboxes_df["geometry"].map(
+        #     lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 0)]
+        #
+        # # Identify validity of uncertain bboxes (boundary bboxes which may or may not contain a simplex).
+        # # Process: Subtract bbox coordinates from valid simplices coordinates, keep bboxes where at least one simplex
+        # # has 0 remaining coordinates (i.e. the simplex is completely within the bbox).
+        #
+        # # Create GeoDataFrame from simplices.
+        # valid_simplices_df = pd.DataFrame({"coords": [set(map(tuple, simplex)) for simplex in valid_simplices_pts]})
+        #
+        # # Compile uncertain bboxes.
+        # bboxes_uncertain = bboxes_df.loc[bboxes_df["geometry"].map(
+        #     lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 1)]
+        # bboxes_uncertain_values = bboxes_uncertain["geometry"].map(lambda bbox: set(bbox.exterior.coords)).values
+        #
+        # # Identify valid bboxes.
+        # valid_bboxes_uncertain = bboxes_uncertain[np.vectorize(
+        #     lambda bbox: valid_simplices_df["coords"].map(
+        #         lambda simplex: len(simplex - bbox) == 0).any())(bboxes_uncertain_values)]
+        #
+        # # Append all valid bboxes.
+        # valid_bboxes_all = valid_bboxes.append(valid_bboxes_uncertain, ignore_index=True)
+        #
+        # # Store only bbox coords.
+        # self.bboxes = valid_bboxes_all["geometry"].exterior.map(
+        #     lambda geom: "{} {} {} {}".format(*chain.from_iterable(itemgetter(0, 2)(geom.coords)))).to_list()
 
     def export_data(self):
         """Exports and packages all data."""
