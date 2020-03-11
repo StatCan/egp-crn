@@ -1,6 +1,6 @@
 data:
   dir: NRN_RRN_<source>_<major_version>_<minor_version>_KML/RRN_<source>_<major_version>_<minor_version>_KML_fr
-  file: RRN_<source>_<major_version>_<minor_version>_KML_fr.kmz
+  file: <name>.kmz
   driver: LIBKML
 conform:
   roadseg:

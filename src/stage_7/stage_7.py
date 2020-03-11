@@ -1,6 +1,4 @@
 import click
-import fiona
-import geopandas as gpd
 import logging
 import numpy as np
 import os
@@ -9,14 +7,10 @@ import pathlib
 import re
 import shutil
 import sys
-import urllib.request
 import zipfile
-from itertools import chain
 from multiprocessing.pool import ThreadPool
 from operator import itemgetter
 from osgeo import ogr
-from scipy.spatial import Delaunay
-from shapely.geometry import Polygon
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -130,90 +124,55 @@ class Stage:
         # names: Conform placenames to valid file names.
         # queries: Configure ogr2ogr -where parameter.
         placenames_df = pd.DataFrame({
-            "names": placenames.map(lambda name: re.sub("[\W_]+", "_", name)),
-            "queries": placenames.map(lambda name: "\\\"l_placenam\\\"='{0}' or \\\"r_placenam\\\"='{0}'".format(name))
+            "names": map(lambda name: re.sub("[\W_]+", "_", name), placenames),
+            "queries": map("-where \"\\\"l_placenam\\\"='{0}' or \\\"r_placenam\\\"='{0}'\"".format, placenames)
         })
 
-        # Identify placenames exceeding feature limit: 1000.
+        # Identify placenames exceeding feature limit.
+        logger.info("Identifying placenames with excessive feature totals.")
+
         limit = 1000
         flags = np.vectorize(lambda name: len(df[(df["l_placenam"] == name) | (df["r_placenam"] == name)]) > limit)(
             placenames_df["names"])
-        placenames_exceeded = placenames_df[flags]
+        placenames_exceeded = placenames_df[flags]["names"]
 
-        # ...
+        # Remove exceeding placenames from placenames dataframe.
+        placenames_df = placenames_df[~placenames_df["names"].isin(placenames_exceeded)]
 
-        # logger.info("Defining KML bounding boxes.")
-        # df = self.dframes["kml"]["en"][table]
-        #
-        # # Retrieve total bbox.
-        # total_bbox = df["geometry"].total_bounds
-        #
-        # # Calculate bboxes.
-        # bbox_size = 0.1
-        # bboxes = list()
-        #
-        # x0, x1 = total_bbox[0], total_bbox[2]
-        # while x0 < x1:
-        #
-        #     y0, y1 = total_bbox[1], total_bbox[3]
-        #     while y0 < y1:
-        #
-        #         # Convert bbox to shapely polygon.
-        #         coords = [x0, y0, x0 + bbox_size, y0 + bbox_size]
-        #         bbox = Polygon([(itemgetter(*indexes)(coords)) for indexes in ((0, 1), (0, 3), (2, 3), (2, 1), (0, 1))])
-        #         bboxes.append(bbox)
-        #
-        #         y0 += bbox_size
-        #
-        #     x0 += bbox_size
-        #
-        # # Filter invalid bboxes.
-        #
-        # # Create GeoDataFrame from bboxes.
-        # bboxes_df = gpd.GeoDataFrame(geometry=bboxes)
-        #
-        # # Create Delaunay tesselation from bboxes.
-        # delaunay = Delaunay(np.concatenate([np.array(geom.exterior.coords) for geom in bboxes]))
-        #
-        # # Compile input feature points.
-        # feature_pts = np.concatenate([np.array(geom.coords) for geom in df["geometry"]])
-        #
-        # # Find simplices containing feature points.
-        # indexes = list(set(delaunay.find_simplex(feature_pts)))
-        # valid_simplices_idx = itemgetter(indexes)(delaunay.simplices)
-        #
-        # # Convert simplex indexes to coordinates.
-        # valid_simplices_pts = list(map(lambda indexes: itemgetter(*indexes)(delaunay.points), valid_simplices_idx))
-        # valid_simplices_pts_all = set(map(tuple, chain.from_iterable(valid_simplices_pts)))
-        #
-        # # Identify valid bboxes.
-        # # Process: Subtract valid simplices coordinates from bbox coordinates.
-        # valid_bboxes = bboxes_df[bboxes_df["geometry"].map(
-        #     lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 0)]
-        #
-        # # Identify validity of uncertain bboxes (boundary bboxes which may or may not contain a simplex).
-        # # Process: Subtract bbox coordinates from valid simplices coordinates, keep bboxes where at least one simplex
-        # # has 0 remaining coordinates (i.e. the simplex is completely within the bbox).
-        #
-        # # Create GeoDataFrame from simplices.
-        # valid_simplices_df = pd.DataFrame({"coords": [set(map(tuple, simplex)) for simplex in valid_simplices_pts]})
-        #
-        # # Compile uncertain bboxes.
-        # bboxes_uncertain = bboxes_df.loc[bboxes_df["geometry"].map(
-        #     lambda bbox: len(set(bbox.exterior.coords) - valid_simplices_pts_all) == 1)]
-        # bboxes_uncertain_values = bboxes_uncertain["geometry"].map(lambda bbox: set(bbox.exterior.coords)).values
-        #
-        # # Identify valid bboxes.
-        # valid_bboxes_uncertain = bboxes_uncertain[np.vectorize(
-        #     lambda bbox: valid_simplices_df["coords"].map(
-        #         lambda simplex: len(simplex - bbox) == 0).any())(bboxes_uncertain_values)]
-        #
-        # # Append all valid bboxes.
-        # valid_bboxes_all = valid_bboxes.append(valid_bboxes_uncertain, ignore_index=True)
-        #
-        # # Store only bbox coords.
-        # self.bboxes = valid_bboxes_all["geometry"].exterior.map(
-        #     lambda geom: "{} {} {} {}".format(*chain.from_iterable(itemgetter(0, 2)(geom.coords)))).to_list()
+        # Add rowid field to simulate SQLite column.
+        df["ROWID"] = range(1, len(df) + 1)
+
+        # Compile limit-sized rowid ranges for each exceeding placename.
+        for placename in placenames_exceeded:
+
+            logger.info("Separating features for limit-exceeding placename: \"{}\".".format(placename))
+
+            # Compile rowids for placename.
+            rowids = df[(df["l_placenam"] == placename) | (df["r_placenam"] == placename)]["ROWID"].values
+
+            # Compile feature index bounds based on feature limit.
+            bounds = list(itemgetter([i*limit for i in range(0, int(len(rowids) / limit) +
+                                                             (0 if (len(rowids) % limit == 0) else 1))])(rowids))
+            bounds.append(rowids[-1] + 1)
+
+            # Configure placename sql statements for each feature bounds.
+            sql_statements = list(map(lambda vals: "ROWID >= {} and ROWID < {}".format(vals[1], bounds[vals[0] + 1]),
+                                      enumerate(bounds[:-1])))
+
+            # Add sql statements to placenames dataframe.
+            rows = pd.DataFrame({
+                "names": map(lambda i: "{}_{}".format(placename, i), range(1, len(sql_statements) + 1)),
+                "queries": map("-sql \"select * from roadseg where {}\" -dialect SQLITE".format, sql_statements)
+            })
+
+            # Append new rows to placenames dataframe.
+            placenames_df = placenames_df.append(rows).reset_index(drop=True)
+
+        # Drop rowid field.
+        placenames_df.drop("ROWID", axis=1, inplace=True)
+
+        # Store results.
+        self.kml_groups = placenames_df
 
     def export_data(self):
         """Exports and packages all data."""
@@ -254,7 +213,7 @@ class Stage:
                     # Configure ogr2ogr inputs.
                     kwargs = {
                         "driver": "-f \"{}\"".format(export_specs["data"]["driver"]),
-                        "append": "-append",
+                        "pre_args": "-append",
                         "dest": "\"{}\""
                             .format(os.path.join(export_dir, export_file if export_file else export_tables[table])),
                         "src": "\"{}\"".format(temp_path),
@@ -262,30 +221,23 @@ class Stage:
                         "nln": "-nln {}".format(export_tables[table]) if export_file else ""
                     }
 
-                    # Iterate bboxes if format=kml.
+                    # Iterate kml groups.
                     if frmt == "kml":
 
-                        total = len(self.bboxes)
+                        total = len(self.kml_groups)
                         tasks = list()
 
                         # Configure ogr2ogr tasks.
-                        for index, bbox in enumerate(self.bboxes):
+                        for index, task in self.kml_groups.iterrows():
                             index += 1
 
                             # Configure logging message.
                             log = "Transforming table: \"{}\" ({} of {}).".format(table, index, total)
 
-                            # Configure ogr2ogr parameters.
-
-                            # Add modified output name to ogr2ogr parameters.
-                            if index == 1:
-                                kwargs["dest"] = "{}_1{}".format(*os.path.splitext(kwargs["dest"]))
-                            else:
-                                name, ext = os.path.splitext(kwargs["dest"])
-                                kwargs["dest"] = "{2}{3}{0}{1}".format(index, ext, *name.rpartition("_")[:-1])
-
-                            # Add bbox to ogr2ogr parameters.
-                            kwargs["clipsrc"] = "-clipsrc {}".format(bbox)
+                            # Add kml group name and query to ogr2ogr parameters.
+                            path, ext = os.path.splitext(kwargs["dest"])
+                            kwargs["dest"] = path.replace("<name>", task[0]) + ext
+                            kwargs["pre_args"] = " ".join([kwargs["pre_args"], task[1]])
 
                             # Store task.
                             tasks.append((kwargs.copy(), log))
@@ -310,6 +262,8 @@ class Stage:
                     del driver
 
     def format_path(self, path):
+        """Formats a path with class variables: source, major_version, minor_version."""
+
         upper = True if os.path.basename(path)[0].isupper() else False
 
         for key in ("source", "major_version", "minor_version"):
@@ -322,7 +276,7 @@ class Stage:
     def gen_french_dataframes(self):
         """
         Generate French equivalents of all dataframes.
-        Note: Only the data values areupdated, not the column names.
+        Note: Only the data values are updated, not the column names.
         """
 
         logger.info("Generating French dataframes.")
