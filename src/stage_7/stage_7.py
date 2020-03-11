@@ -107,72 +107,89 @@ class Stage:
                     except (AttributeError, KeyError, ValueError):
                         logger.exception("Unable to configure field mapping for English-French domains.")
 
-    def define_kml_groups(self, table="roadseg"):
+    def define_kml_groups(self):
         """
         Defines groups by which to segregate the kml-bound input GeoDataFrame.
         This is required due to the low feature and size limitations of kml.
         """
 
         logger.info("Defining KML groups.")
-        df = self.dframes["kml"]["en"][table]
+        self.kml_groups = dict()
+        placenames, placenames_exceeded = None, None
 
-        # Compile placenames.
-        placenames = sorted(set(np.append(df["l_placenam"].unique(), df["r_placenam"].unique())))
-        placenames = pd.Series(placenames)
+        # Iterate languages.
+        for lang in ("en", "fr"):
 
-        # Generate placenames dataframe.
-        # names: Conform placenames to valid file names.
-        # queries: Configure ogr2ogr -where parameter.
-        placenames_df = pd.DataFrame({
-            "names": map(lambda name: re.sub("[\W_]+", "_", name), placenames),
-            "queries": map("-where \"\\\"l_placenam\\\"='{0}' or \\\"r_placenam\\\"='{0}'\"".format, placenames)
-        })
+            logger.info("Defining KML groups for language: \"{}\".".format(lang))
 
-        # Identify placenames exceeding feature limit.
-        logger.info("Identifying placenames with excessive feature totals.")
+            # Determine language-specific field names.
+            l_placenam, r_placenam = itemgetter("l_placenam", "r_placenam")(
+                helpers.load_yaml("distribution_formats/{}/kml.yaml".format(lang))["conform"]["roadseg"]["fields"])
 
-        limit = 1000
-        flags = np.vectorize(lambda name: len(df[(df["l_placenam"] == name) | (df["r_placenam"] == name)]) > limit)(
-            placenames_df["names"])
-        placenames_exceeded = placenames_df[flags]["names"]
+            # Retrieve source dataframe.
+            df = self.dframes["kml"][lang]["roadseg"].copy(deep=True)
 
-        # Remove exceeding placenames from placenames dataframe.
-        placenames_df = placenames_df[~placenames_df["names"].isin(placenames_exceeded)]
+            # Compile placenames.
+            if placenames is None:
+                placenames = sorted(set(np.append(df[l_placenam].unique(), df[r_placenam].unique())))
+                placenames = pd.Series(placenames)
 
-        # Add rowid field to simulate SQLite column.
-        df["ROWID"] = range(1, len(df) + 1)
-
-        # Compile limit-sized rowid ranges for each exceeding placename.
-        for placename in placenames_exceeded:
-
-            logger.info("Separating features for limit-exceeding placename: \"{}\".".format(placename))
-
-            # Compile rowids for placename.
-            rowids = df[(df["l_placenam"] == placename) | (df["r_placenam"] == placename)]["ROWID"].values
-
-            # Compile feature index bounds based on feature limit.
-            bounds = list(itemgetter([i*limit for i in range(0, int(len(rowids) / limit) +
-                                                             (0 if (len(rowids) % limit == 0) else 1))])(rowids))
-            bounds.append(rowids[-1] + 1)
-
-            # Configure placename sql statements for each feature bounds.
-            sql_statements = list(map(lambda vals: "ROWID >= {} and ROWID < {}".format(vals[1], bounds[vals[0] + 1]),
-                                      enumerate(bounds[:-1])))
-
-            # Add sql statements to placenames dataframe.
-            rows = pd.DataFrame({
-                "names": map(lambda i: "{}_{}".format(placename, i), range(1, len(sql_statements) + 1)),
-                "queries": map("-sql \"select * from roadseg where {}\" -dialect SQLITE".format, sql_statements)
+            # Generate placenames dataframe.
+            # names: Conform placenames to valid file names.
+            # queries: Configure ogr2ogr -where query.
+            placenames_df = pd.DataFrame({
+                "names": map(lambda name: re.sub("[\W_]+", "_", name), placenames),
+                "queries": placenames.map(lambda name: "-where \"\\\"{0}\\\"='{2}' or \\\"{1}\\\"='{2}'\""
+                                          .format(l_placenam, r_placenam, name.replace("'", "''")))
             })
 
-            # Append new rows to placenames dataframe.
-            placenames_df = placenames_df.append(rows).reset_index(drop=True)
+            # Identify placenames exceeding feature limit.
+            if placenames_exceeded is None:
+                logger.info("Identifying placenames with excessive feature totals.")
 
-        # Drop rowid field.
-        placenames_df.drop("ROWID", axis=1, inplace=True)
+                limit = 1000
+                flags = np.vectorize(
+                    lambda name: len(df[(df[l_placenam] == name) | (df[r_placenam] == name)]) > limit)(
+                    placenames_df["names"])
+                placenames_exceeded = placenames_df[flags]["names"]
 
-        # Store results.
-        self.kml_groups = placenames_df
+            # Remove exceeding placenames from placenames dataframe.
+            placenames_df = placenames_df[~placenames_df["names"].isin(placenames_exceeded)]
+
+            # Add rowid field to simulate SQLite column.
+            df["ROWID"] = range(1, len(df) + 1)
+
+            # Compile limit-sized rowid ranges for each exceeding placename.
+            for placename in placenames_exceeded:
+
+                logger.info("Separating features for limit-exceeding placename: \"{}\".".format(placename))
+
+                # Compile rowids for placename.
+                rowids = df[(df[l_placenam] == placename) | (df[r_placenam] == placename)]["ROWID"].values
+
+                # Compile feature index bounds based on feature limit.
+                bounds = list(itemgetter([i*limit for i in range(0, int(len(rowids) / limit) +
+                                                                 (0 if (len(rowids) % limit == 0) else 1))])(rowids))
+                bounds.append(rowids[-1] + 1)
+
+                # Configure placename sql statements for each feature bounds.
+                sql_statements = list(map(
+                    lambda vals: "(ROWID >= {0} and ROWID < {1}) and ({2} = '{4}' or {3} = '{4}')"
+                        .format(vals[1], bounds[vals[0] + 1], l_placenam, r_placenam, placename.replace("'", "''")),
+                    enumerate(bounds[:-1])
+                ))
+
+                # Add sql statements to placenames dataframe.
+                rows = pd.DataFrame({
+                    "names": map(lambda i: "{}_{}".format(placename, i), range(1, len(sql_statements) + 1)),
+                    "queries": map("-sql \"select * from roadseg where {}\" -dialect SQLITE".format, sql_statements)
+                })
+
+                # Append new rows to placenames dataframe.
+                placenames_df = placenames_df.append(rows).reset_index(drop=True)
+
+            # Store results.
+            self.kml_groups[lang] = placenames_df
 
     def export_data(self):
         """Exports and packages all data."""
@@ -180,7 +197,8 @@ class Stage:
         logger.info("Exporting data.")
 
         # Iterate formats and languages.
-        for frmt in self.dframes:
+        # for frmt in self.dframes:
+        for frmt in ["kml"]:
             for lang in self.dframes[frmt]:
 
                 # Retrieve export specifications.
@@ -213,7 +231,8 @@ class Stage:
                     # Configure ogr2ogr inputs.
                     kwargs = {
                         "driver": "-f \"{}\"".format(export_specs["data"]["driver"]),
-                        "pre_args": "-append",
+                        "append": "-append",
+                        "pre_args": "",
                         "dest": "\"{}\""
                             .format(os.path.join(export_dir, export_file if export_file else export_tables[table])),
                         "src": "\"{}\"".format(temp_path),
@@ -224,26 +243,27 @@ class Stage:
                     # Iterate kml groups.
                     if frmt == "kml":
 
-                        total = len(self.kml_groups)
+                        kml_groups = self.kml_groups[lang]
+                        total = len(kml_groups)
                         tasks = list()
 
                         # Configure ogr2ogr tasks.
-                        for index, task in self.kml_groups.iterrows():
+                        for index, task in kml_groups.iterrows():
                             index += 1
 
                             # Configure logging message.
-                            log = "Transforming table: \"{}\" ({} of {}).".format(table, index, total)
+                            log = "Transforming table: \"{}\" ({} of {}: \"{}\").".format(table, index, total, task[0])
 
                             # Add kml group name and query to ogr2ogr parameters.
                             path, ext = os.path.splitext(kwargs["dest"])
-                            kwargs["dest"] = path.replace("<name>", task[0]) + ext
-                            kwargs["pre_args"] = " ".join([kwargs["pre_args"], task[1]])
+                            kwargs["dest"] = os.path.join(os.path.dirname(path), task[0]) + ext
+                            kwargs["pre_args"] = task[1]
 
                             # Store task.
                             tasks.append((kwargs.copy(), log))
 
                         # Execute tasks.
-                        with ThreadPool(4) as tpool:
+                        with ThreadPool(5) as tpool:
                             tpool.starmap(helpers.ogr2ogr, tasks)
                         tpool.join()
 

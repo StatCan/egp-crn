@@ -30,7 +30,11 @@ conform:
     r_altnanid: R_ALTNANID
     l_digdirfg: L_DIGDIRFG
     r_digdirfg: R_DIGDIRFG
-    l_hnumf: L_HNUMF
+    l_hnumf:
+      fields: L_HNUMF
+      functions:
+        - function: direct
+          cast_type: int
     r_hnumf: R_HNUMF
     l_hnumsuff: L_HNUMSUFF
     r_hnumsuff: R_HNUMSUFF
@@ -63,7 +67,11 @@ conform:
     adrangenid: ADRANGENID
     closing: CLOSING
     exitnbr: EXITNBR
-    l_hnumf: L_HNUMF
+    l_hnumf:
+      fields: L_HNUMF
+      functions:
+        - function: direct
+          cast_type: int
     r_hnumf: R_HNUMF
     roadclass: ROADCLASS
     l_hnuml: L_HNUML
@@ -77,7 +85,11 @@ conform:
     pavsurf: PAVSURF
     pavstatus: PAVSTATUS
     roadjuris: ROADJURIS
-    roadsegid: ROADSEGID
+    roadsegid:
+      fields: ROADSEGID
+      functions:
+        - function: direct
+          cast_type: int
     rtename1en: RTENAME1EN
     rtename2en: RTENAME2EN
     rtename3en: RTENAME3EN
