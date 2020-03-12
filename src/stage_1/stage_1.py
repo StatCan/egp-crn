@@ -128,7 +128,7 @@ class Stage:
                         logger.info("Target field \"{}\": No mapping provided.".format(target_field))
 
                     # Raw value mapping.
-                    elif isinstance(source_field, str) and (source_field not in source_gdf.columns):
+                    elif isinstance(source_field, str) and (source_field.lower() not in source_gdf.columns):
                         logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
 
                         # Update target dataframe with raw value.
@@ -146,6 +146,9 @@ class Stage:
                         # Convert single field attribute to list.
                         if isinstance(source_field["fields"], str):
                             source_field["fields"] = [source_field["fields"]]
+
+                        # Convert field to lowercase.
+                        source_field["fields"] = list(map(str.lower, source_field["fields"]))
 
                         # Create mapped dataframe from source and target dataframes, keeping only source fields.
                         # Convert to series.

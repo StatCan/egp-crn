@@ -35,15 +35,27 @@ conform:
       functions:
         - function: direct
           cast_type: int
-    r_hnumf: R_HNUMF
+    r_hnumf:
+      fields: R_HNUMF
+      functions:
+        - function: direct
+          cast_type: int
     l_hnumsuff: L_HNUMSUFF
     r_hnumsuff: R_HNUMSUFF
     l_hnumtypf: L_HNUMTYPF
     r_hnumtypf: R_HNUMTYPF
     l_hnumstr: L_HNUMSTR
     r_hnumstr: R_HNUMSTR
-    l_hnuml: L_HNUML
-    r_hnuml: R_HNUML
+    l_hnuml:
+      fields: L_HNUML
+      functions:
+        - function: direct
+          cast_type: int
+    r_hnuml:
+      fields: R_HNUML
+      functions:
+        - function: direct
+          cast_type: int
     l_hnumsufl: L_HNUMSUFL
     r_hnumsufl: R_HNUMSUFL
     l_hnumtypl: L_HNUMTYPL
@@ -64,7 +76,7 @@ conform:
     specvers: SPECVERS
     l_adddirfg: L_DIGDIRFG
     r_adddirfg: R_DIGDIRFG
-    adrangenid: ADRANGENID
+    adrangenid: uuid
     closing: CLOSING
     exitnbr: EXITNBR
     l_hnumf:
@@ -72,10 +84,22 @@ conform:
       functions:
         - function: direct
           cast_type: int
-    r_hnumf: R_HNUMF
+    r_hnumf:
+      fields: R_HNUMF
+      functions:
+        - function: direct
+          cast_type: int
     roadclass: ROADCLASS
-    l_hnuml: L_HNUML
-    r_hnuml: R_HNUML
+    l_hnuml:
+      fields: L_HNUML
+      functions:
+        - function: direct
+          cast_type: int
+    r_hnuml:
+      fields: R_HNUML
+      functions:
+        - function: direct
+          cast_type: int
     nid: NID
     nbrlanes: NBRLANES
     l_placenam: PLACE_L
@@ -85,11 +109,7 @@ conform:
     pavsurf: PAVSURF
     pavstatus: PAVSTATUS
     roadjuris: ROADJURIS
-    roadsegid:
-      fields: ROADSEGID
-      functions:
-        - function: direct
-          cast_type: int
+    roadsegid: uuid
     rtename1en: RTENAME1EN
     rtename2en: RTENAME2EN
     rtename3en: RTENAME3EN
