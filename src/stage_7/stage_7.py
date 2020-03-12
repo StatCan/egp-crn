@@ -1,5 +1,6 @@
 import click
 import logging
+import multiprocessing
 import numpy as np
 import os
 import pandas as pd
@@ -8,9 +9,10 @@ import re
 import shutil
 import sys
 import zipfile
-from multiprocessing.pool import ThreadPool
 from operator import itemgetter
 from osgeo import ogr
+from queue import Queue
+from threading import Thread
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -197,8 +199,7 @@ class Stage:
         logger.info("Exporting data.")
 
         # Iterate formats and languages.
-        # for frmt in self.dframes:
-        for frmt in ["kml"]:
+        for frmt in self.dframes:
             for lang in self.dframes[frmt]:
 
                 # Retrieve export specifications.
@@ -245,7 +246,7 @@ class Stage:
 
                         kml_groups = self.kml_groups[lang]
                         total = len(kml_groups)
-                        tasks = list()
+                        tasks = Queue(maxsize=0)
 
                         # Configure ogr2ogr tasks.
                         for index, task in kml_groups.iterrows():
@@ -260,12 +261,14 @@ class Stage:
                             kwargs["pre_args"] = task[1]
 
                             # Store task.
-                            tasks.append((kwargs.copy(), log))
+                            tasks.put((kwargs.copy(), log))
 
                         # Execute tasks.
-                        with ThreadPool(5) as tpool:
-                            tpool.starmap(helpers.ogr2ogr, tasks)
-                        tpool.join()
+                        for t in range(multiprocessing.cpu_count()):
+                            worker = Thread(target=self.thread_ogr2ogr, args=(tasks,))
+                            worker.setDaemon(True)
+                            worker.start()
+                        tasks.join()
 
                     else:
 
@@ -397,6 +400,15 @@ class Stage:
         logger.info("Loading Geopackage layers.")
 
         self.dframes = helpers.load_gpkg(self.data_path)
+
+    def thread_ogr2ogr(self, tasks):
+        """Calls helpers.ogr2ogr via threads."""
+
+        while not tasks.empty():
+
+            task = tasks.get()
+            helpers.ogr2ogr(*task)
+            tasks.task_done()
 
     def zip_data(self):
         """Compresses all exported data directories to .zip format."""

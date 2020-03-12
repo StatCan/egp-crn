@@ -292,24 +292,36 @@ def nx_to_gdf(g, nodes=True, edges=True):
         return gdf_edges
 
 
-def ogr2ogr(expression, log=None):
+def ogr2ogr(expression, log=None, max_attempts=5):
     """Runs an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters."""
 
-    try:
+    attempt = 1
 
-        if log:
-            logger.info(log)
+    if log:
+        logger.info(log)
 
-        # Format ogr2ogr command.
-        expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
+    while attempt <= max_attempts:
 
-        # Run subprocess.
-        subprocess.run(expression, shell=True, check=True)
+        try:
 
-    except subprocess.CalledProcessError as e:
-        logger.exception("Unable to transform data source.")
-        logger.exception("ogr2ogr error: {}".format(e))
-        sys.exit(1)
+            # Format ogr2ogr command.
+            expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
+
+            # Run subprocess.
+            subprocess.run(expression, shell=True, check=True)
+            break
+
+        except subprocess.CalledProcessError as e:
+
+            if attempt == max_attempts:
+                logger.exception("Unable to transform data source.")
+                logger.exception("ogr2ogr error: {}".format(e))
+                logger.warning("Maximum attempts reached. Exiting program.")
+                sys.exit(1)
+            else:
+                logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
+                attempt += 1
+                continue
 
 
 def reproject_gdf(gdf, epsg_source, epsg_target):
