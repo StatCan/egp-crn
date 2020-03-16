@@ -346,8 +346,7 @@ class Stage:
 
             # Spatial.
             if source_yaml["data"]["spatial"]:
-                dest = os.path.abspath("../../data/interim/{}_temp.geojson".format(self.source))
-                kwargs = {"filename": dest}
+                kwargs = {"filename": os.path.abspath("../../data/interim/{}_temp.geojson".format(self.source))}
 
                 # Transform data source crs.
                 logger.info("Transforming data source to EPSG:4617 and rounding coordinates to 6 decimal places.")
@@ -355,7 +354,7 @@ class Stage:
                 helpers.ogr2ogr({
                     "overwrite": "-overwrite",
                     "t_srs": "-t_srs EPSG:4617",
-                    "dest": "\"{}\"".format(dest),
+                    "dest": "\"{}\"".format(kwargs["filename"]),
                     "src": "\"{}\"".format(source_yaml["data"]["filename"]),
                     "src_layer": source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "",
                     "lco": "-lco coordinate_precision=6"
@@ -370,15 +369,15 @@ class Stage:
             try:
                 gdf = gpd.read_file(**kwargs)
             except fiona.errors.FionaValueError:
-                logger.exception("ValueError raised when importing source {}.".format(dest))
+                logger.exception("ValueError raised when importing source {}.".format(kwargs["filename"]))
                 sys.exit(1)
 
             # Remove temp data source.
             if source_yaml["data"]["spatial"]:
                 logger.info("Deleting temporary data source output.")
-                if os.path.exists(dest):
+                if os.path.exists(kwargs["filename"]):
                     driver = ogr.GetDriverByName("GeoJSON")
-                    driver.DeleteDataSource(dest)
+                    driver.DeleteDataSource(kwargs["filename"])
                     del driver
 
             # Force lowercase field names.
