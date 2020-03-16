@@ -6,7 +6,6 @@ import networkx as nx
 import os
 import pandas as pd
 import shutil
-import subprocess
 import sys
 import urllib.request
 import uuid

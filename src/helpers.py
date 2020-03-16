@@ -12,6 +12,7 @@ import sys
 import time
 import yaml
 from copy import deepcopy
+from fiona import crs
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
 
@@ -121,7 +122,7 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
             if "geometry" in dir(df):
 
                 # Open GeoPackage.
-                with fiona.open(output_path, "w", overwrite=True, layer=table_name, driver="GPKG", crs=df.crs,
+                with fiona.open(output_path, "w", overwrite=True, layer=table_name, driver="GPKG", crs=df.crs.to_wkt(),
                                 schema=gpd.io.file.infer_schema(df)) as gpkg:
 
                     # Write to GeoPackage.
@@ -346,6 +347,6 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
         raise Exception("Geometry type not supported for EPSG transformation.")
 
     # Update crs attribute.
-    gdf.crs["init"] = "epsg:{}".format(epsg_target)
+    gdf.crs["init"] = crs.from_epsg(epsg_target)
 
     return gdf
