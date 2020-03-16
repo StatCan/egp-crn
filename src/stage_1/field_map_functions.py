@@ -190,8 +190,14 @@ def direct(val, cast_type=None):
     if val == "" or pd.isna(val):
         return np.nan
 
+    # Return direct value.
+    if cast_type is None:
+        return val
+
     # Cast data.
-    if cast_type in ("float", "int", "str"):
+    cast_types = ("float", "int", "str")
+
+    if cast_type in cast_types:
 
         try:
 
@@ -200,6 +206,11 @@ def direct(val, cast_type=None):
         except (TypeError, ValueError):
             logger.exception("Unable to cast value \"{}\" from {} to {}.".format(val, type(val), type(cast_type)))
             sys.exit(1)
+
+    else:
+        logger.exception("Invalid cast type \"{}\". Cast type must be one of {}."
+                         .format(cast_type, ", ".join(map("\"{}\"".format, cast_types))))
+        sys.exit(1)
 
 
 def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):

@@ -26,8 +26,8 @@ conform:
     provider: PROVIDER
     revdate: REVDATE
     specvers: SPECVERS
-    l_altnanid: L_ALTNANID
-    r_altnanid: R_ALTNANID
+    l_altnanid:
+    r_altnanid:
     l_digdirfg: L_DIGDIRFG
     r_digdirfg: R_DIGDIRFG
     l_hnumf:
@@ -60,7 +60,7 @@ conform:
     r_hnumsufl: R_HNUMSUFL
     l_hnumtypl: L_HNUMTYPL
     r_hnumtypl: R_HNUMTYPL
-    nid: NID
+    nid: uuid
     l_offnanid: uuid
     r_offnanid: uuid
     l_rfsysind: L_RFSYSIND
@@ -109,7 +109,7 @@ conform:
     pavsurf: PAVSURF
     pavstatus: PAVSTATUS
     roadjuris: ROADJURIS
-    roadsegid: uuid
+    roadsegid: TODO: CONSTRUCT AUTOINCREMENT FUNCTION
     rtename1en: RTENAME1EN
     rtename2en: RTENAME2EN
     rtename3en: RTENAME3EN
@@ -142,7 +142,7 @@ conform:
     dirprefix: DIRPREFIX
     dirsuffix: DIRSUFFIX
     muniquad:
-    nid: NID
+    nid: uuid
     placename:
       fields: [PLACE_L, PLACE_R]
       functions:
