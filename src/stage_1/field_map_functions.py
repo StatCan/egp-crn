@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 import re
+import sqlite3
 import sys
 import uuid
 from copy import deepcopy
@@ -10,6 +11,16 @@ from operator import attrgetter, itemgetter
 
 
 logger = logging.getLogger()
+
+
+# Define universally-accessible sqlite database.
+db = sqlite3.connect(":memory:")
+cur = db.cursor()
+
+# Create single-row counter table.
+cur.execute("create table counter (idx integer default 0);")
+cur.execute("insert into counter (idx) values (0);")
+db.commit()
 
 
 def apply_domain(val, domain, default):
@@ -211,6 +222,38 @@ def direct(val, cast_type=None):
         logger.exception("Invalid cast type \"{}\". Cast type must be one of {}."
                          .format(cast_type, ", ".join(map("\"{}\"".format, cast_types))))
         sys.exit(1)
+
+
+def gen_uuid(val):
+    """Returns a uuid4 hexadecimal string."""
+
+    return uuid.uuid4().hex
+
+
+def incrementor(val, column, start=1, step=1):
+    """
+    Returns and increments an integer from counter.{column}, starting from and incrementing by the given start and step
+    inputs.
+    """
+
+    # Validate inputs.
+    validate_dtypes("column", column, str)
+    validate_dtypes("start", start, int)
+    validate_dtypes("step", step, int)
+
+    # Add column, ignoring exception if already exists.
+    try:
+        cur.execute("alter table counter add {} integer default {};".format(column, start))
+    except sqlite3.OperationalError:
+        pass
+
+    # Retrieve count.
+    count = cur.execute("select {} from counter;".format(column)).fetchone()[0]
+
+    # Increment column.
+    cur.execute("update counter set {0} = {0}+{1};".format(column, step))
+
+    return count
 
 
 def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):
