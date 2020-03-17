@@ -78,11 +78,13 @@ class Stage:
                     # Force adjust data type.
                     series_new = series_new.astype(self.dtypes[table][field])
 
+                    # Store results to target dataframe.
+                    self.target_gdframes[table][field] = series_new.copy()
+
                     # Compile and quantify modified values.
-                    series_mod = series_orig != series_new
-                    if series_mod.any():
-                        df = pd.concat([series_orig, series_new], axis=1, ignore_index=True)[series_mod]
-                        df.columns = ["orig", "new"]
+                    mods = series_orig.astype(str) != series_new.astype(str)
+                    if mods.any():
+                        df = pd.DataFrame({"orig": series_orig[mods], "new": series_new[mods]})
                         df.fillna(-99, inplace=True)
                         df_grouped = df.groupby(["orig", "new"]).size().reset_index()
                         df_grouped.replace(-99, pd.np.nan, inplace=True)
@@ -93,9 +95,6 @@ class Stage:
                         # Log record modifications.
                         for record in df_grouped.values:
                             logger.warning("Modified {} instance(s) of \"{}\" to \"{}\".".format(*record))
-
-                    # Store results to target dataframe.
-                    self.target_gdframes[table][field] = series_new
 
         except (AttributeError, KeyError, ValueError):
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
