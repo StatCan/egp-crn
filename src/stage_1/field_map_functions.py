@@ -330,52 +330,39 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
     return re.sub(pattern_from, pattern_to, val, flags=re.I)
 
 
-def split_record(vals, field=None):
-    """
-    If vals = pandas dataframe: Splits records on the given field.
-    If vals = numpy ndarray: Returns value.
+def split_record(df, field):
+    """Splits pandas dataframe records on the input field."""
 
-    This function is executed in two separate parts due to the functionality of stage_1.apply_functions, which operates
-    on a series. Since splitting records in a series would not affect the original dataframe, the input series is simply
-    returned. This function is then called again within stage_1, once all mapping functions have been applied to the
-    target dataframe, to execute the row splitting.
+    # Validate column count.
+    count = len(df[field][0])
+    if count != 2:
+        logger.exception("Invalid column count for split_records: {}. Only 2 columns are permitted.".format(count))
+        sys.exit(1)
 
-    It was decided to keep split_record as a callable field mapping function instead of creating a separate function
-    within stage_1 such that split_record can exist within a chain of other field mapping functions.
-    """
+    # Identify records to be split.
+    df_split = df.loc[df[field].map(lambda val: val[0] != val[1])].copy(deep=True)
 
-    # Return values.
-    if isinstance(vals, np.ndarray):
+    if len(df_split):
 
-        return vals
+        # Keep first instance for original records.
+        df[field] = df[field].map(lambda val: val[0])
 
-    # Split records.
-    else:
+        # Keep second instance for split records.
+        df_split[field] = df_split[field].map(lambda val: val[1])
 
-        # Identify records to be split.
-        vals_split = vals.loc[vals[field].map(lambda val: val[0] != val[1])].copy(deep=True)
+        # Append split records to dataframe.
+        df = df.append(df_split, ignore_index=False)
 
-        if len(vals_split):
+    # Store original nids.
+    nids_orig = df["nid"].values.copy()
 
-            # Keep first instance for original records.
-            vals[field] = vals[field].map(lambda val: val[0])
+    # Assign new nids.
+    df["nid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
-            # Keep second instance for split records.
-            vals_split[field] = vals_split[field].map(lambda val: val[1])
+    # Compile orig-new nid mapping.
+    nid_changes = dict(zip(nids_orig, df["nid"].values))
 
-            # Append split records to dataframe.
-            vals = vals.append(vals_split, ignore_index=False)
-
-        # Store original nids.
-        nids_orig = vals["nid"].values.copy()
-
-        # Assign new nids.
-        vals["nid"] = [uuid.uuid4().hex for _ in range(len(vals))]
-
-        # Compile orig-new nid mapping.
-        nid_changes = dict(zip(nids_orig, vals["nid"].values))
-
-        return vals, nid_changes
+    return df, nid_changes
 
 
 def validate_dtypes(val_name, val, dtypes):

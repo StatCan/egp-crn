@@ -8,6 +8,7 @@ import pandas as pd
 import sys
 import uuid
 from inspect import getmembers, isfunction
+from operator import itemgetter
 from osgeo import ogr
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -140,7 +141,7 @@ class Stage:
                         # Restructure dict for direct field mapping in case of string input.
                         if isinstance(source_field, str):
                             source_field = {"fields": [source_field],
-                                            "functions": [{"function": "direct", "cast_type": None}]}
+                                            "functions": [{"function": "direct"}]}
 
                         # Convert single field attribute to list.
                         if isinstance(source_field["fields"], str):
@@ -149,22 +150,42 @@ class Stage:
                         # Convert field to lowercase.
                         source_field["fields"] = list(map(str.lower, source_field["fields"]))
 
-                        # Create mapped dataframe from source and target dataframes, keeping only source fields.
-                        # Convert to series.
-                        mapped_series = pd.DataFrame({field: target_gdf["uuid"].map(
+                        # Create mapped dataframe from source and target dataframes, keeping only the source fields.
+                        mapped_df = pd.DataFrame({field: target_gdf["uuid"].map(
                             source_gdf.set_index("uuid", drop=False)[field]) for field in source_field["fields"]})
-                        mapped_series = mapped_series.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
-                        # Apply field mapping functions to mapped series.
-                        field_mapping_results = self.apply_functions(
-                            maps, mapped_series, source_field["functions"], self.domains[target_name], target_field)
+                        # Determine if source fields must be processed separately or together.
+                        try:
+                            process_separately = itemgetter("process_separately")(source_field)
+                        except KeyError:
+                            process_separately = False
+                            source_field["fields"] = [source_field["fields"]]
+
+                        # Iterate source fields.
+                        results = pd.DataFrame(columns=range(len(source_field["fields"])))
+                        for index, field in enumerate(source_field["fields"]):
+
+                            # Retrieve series from mapped dataframe.
+                            mapped_series = mapped_df[field] if process_separately else \
+                                mapped_df.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
+
+                            # Apply field mapping functions to mapped series.
+                            field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"],
+                                                                         self.domains[target_name], target_field)
+
+                            # Store results.
+                            results[index] = field_mapping_results["series"].copy(deep=True)
+
+                        # Convert results dataframe to series.
+                        field_mapping_results["series"] = results.apply(
+                            lambda row: row[0] if len(row) == 1 else row.values, axis=1)
 
                         # Update target dataframe.
-                        target_gdf[target_field] = field_mapping_results["series"]
+                        target_gdf[target_field] = field_mapping_results["series"].copy(deep=True)
 
                         # Split records if required.
                         if field_mapping_results["split_record"]:
-                            # Duplicate records that were split.
+                            # Split records.
                             target_gdf, nid_changes = field_map_functions.split_record(target_gdf, target_field)
 
                             # Store nid changes.
@@ -183,6 +204,7 @@ class Stage:
 
             if func_name == "split_record":
                 split_record = True
+                break
 
             logger.info("Applying field mapping function: {}.".format(func_name))
 

@@ -12,7 +12,7 @@ import sys
 import time
 import yaml
 from copy import deepcopy
-from fiona import crs
+from geoalchemy2 import WKTElement, Geometry
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
 
@@ -185,6 +185,29 @@ def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
     return g
 
 
+def gdf_to_postgis(gdf, name, engine, **kwargs):
+    """
+    Converts a GeoPandas GeoDataFrame to a PostGIS database table.
+    **kwargs: Keyword args for GeoPandas.GeoDataFrame.to_sql method.
+    """
+
+    logger.info("Loading GeoDataFrame into PostGIS via SQLAlchemy engine url: \"{}\".".format(repr(engine.url)))
+
+    # Copy input GeoDataFrame.
+    gdf = gdf.copy(deep=True)
+
+    # Compile geometry attributes
+    srid = gdf.crs.to_epsg()
+    geom_type = gdf.geom_type[0].upper()
+
+    # Store geometry as geom.
+    gdf["geom"] = gdf["geometry"].map(lambda geom: WKTElement(geom.wkt, srid=srid))
+    gdf.drop("geometry", axis=1, inplace=True)
+
+    # Call GeoPandas.GeoDataFrame.to_sql method.
+    gdf.to_sql(name=name, con=engine, dtype={"geom": Geometry(geometry_type=geom_type, srid=srid)}, **kwargs)
+
+
 def load_gpkg(gpkg_path):
     """Returns a dictionary of geopackage layers loaded into pandas or geopandas (geo)dataframes."""
 
@@ -347,6 +370,6 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
         raise Exception("Geometry type not supported for EPSG transformation.")
 
     # Update crs attribute.
-    gdf.crs["init"] = crs.from_epsg(epsg_target)
+    gdf.crs = "epsg:{}".format(epsg_target)
 
     return gdf

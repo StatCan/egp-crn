@@ -49,7 +49,7 @@ def identify_duplicate_points(df):
     return errors
 
 
-def identify_isolated_lines(ferryseg, roadseg):
+def identify_isolated_lines(roadseg, ferryseg):
     """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
 
     # Concatenate ferryseg and roadseg dataframes.
@@ -193,6 +193,22 @@ def validate_line_endpoint_clustering(df):
 
     # Compile uuids of flagged records.
     errors = df_subset[flags].index.values
+
+    return errors
+
+
+def validate_line_length(df):
+    """Validates the minimum feature length of line geometries."""
+
+    # Filter records to 0.0002 degrees length (approximately 22.2 meters).
+    # Purely intended to reduce processing.
+    df_sub = df[df.length <= 0.0002]
+
+    # Transform records to a meter-based crs: EPSG:3348.
+    df_sub = helpers.reproject_gdf(df_sub, 4617, 3348)
+
+    # Validation: ensure line segments are >= 2 meters in length.
+    errors = df_sub[df_sub.length < 2].index.values
 
     return errors
 
@@ -358,22 +374,6 @@ def validate_line_proximity(df):
         errors.append("Feature uuid \"{}\" is too close to feature uuid(s) {}.".format(
             source_uuid,
             ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
-
-    return errors
-
-
-def validate_min_length(df):
-    """Validates the minimum feature length of line geometries."""
-
-    # Filter records to 0.0002 degrees length (approximately 22.2 meters).
-    # Purely intended to reduce processing.
-    df_sub = df[df.length <= 0.0002]
-
-    # Transform records to a meter-based crs: EPSG:3348.
-    df_sub = helpers.reproject_gdf(df_sub, 4617, 3348)
-
-    # Validation: ensure line segments are >= 2 meters in length.
-    errors = df_sub[df_sub.length < 2].index.values
 
     return errors
 

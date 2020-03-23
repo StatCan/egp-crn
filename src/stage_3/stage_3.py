@@ -45,16 +45,12 @@ class Stage:
 
         try:
 
-            # Verify tables.
-            for table in ("ferryseg", "junction", "roadseg"):
-                if table not in self.dframes:
-                    raise KeyError("Missing required layer: \"{}\".".format(table))
-
             # Group tables by geometry type.
-            self.df_lines = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
-                             ("ferryseg", "roadseg")}
-            self.df_points = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
-                              ("blkpassage", "junction", "tollpoint")}
+            self.df_by_type = dict()
+            self.df_by_type["lines"] = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
+                                        ("ferryseg", "roadseg")}
+            self.df_by_type["points"] = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
+                                         ("blkpassage", "junction", "tollpoint")}
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to compile dataframes.")
@@ -100,6 +96,15 @@ class Stage:
 
         logger.info("Compiling modification and error logs.")
 
+        # Define validation logger.
+        validation_logger = logging.getLogger()
+        validation_logger.setLevel(logging.INFO)
+        handler = logging.FileHandler(os.path.abspath("../../data/interim/stage_{}_{}.log"
+                                                      .format(self.stage, self.source)))
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+        validation_logger.addHandler(handler)
+
         # Iterate dataframe flags.
         for name in self.flags.keys():
 
@@ -118,13 +123,14 @@ class Stage:
 
                             # Log messages.
                             vals = "\n".join(map(str, code_flags))
-                            logger.info(self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
+                            validation_logger.info(
+                                self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
 
                     else:
 
                         # Log messages.
                         vals = "\n".join(map(str, flags))
-                        logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
+                        validation_logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
 
     def validations(self):
         """Applies a set of geometry-based validations unique to one or more fields and / or tables."""
@@ -133,92 +139,54 @@ class Stage:
 
         try:
 
-            # Validation: identify duplicate line features.
-            for table, df in self.df_lines.items():
-                logger.info("Applying validation: identify duplicate line features. Target dataframe: {}."
-                            .format(table))
+            # Iterate standard validations.
+            # Description: validations that apply to any single dataset and only capture errors.
 
-                # Apply function.
-                self.flags[table]["errors"]["identify_duplicate_lines"] = validation_functions\
-                    .identify_duplicate_lines(df.copy(deep=True))
+            funcs_by_type = {"lines": ("identify_duplicate_lines", "validate_line_proximity",
+                                       "validate_line_merging_angle", "validate_line_endpoint_clustering",
+                                       "validate_line_length"),
+                             "points": ("identify_duplicate_points", "validate_point_proximity")}
 
-            # Validation: identify duplicate point features.
-            for table, df in self.df_points.items():
-                logger.info("Applying validation: identify duplicate point features. Target dataframe: {}."
-                            .format(table))
+            for geom_type, funcs in funcs_by_type.items():
+                for func in funcs:
+                    for table, df in self.df_by_type[geom_type].items():
 
-                # Apply function.
-                self.flags[table]["errors"]["identify_duplicate_points"] = validation_functions\
-                    .identify_duplicate_points(df.copy(deep=True))
+                        logger.info("Applying validation: {}. Target dataframe: {}."
+                                    .format(func.replace("_", " "), table))
 
-            # Validation: minimum feature length.
-            logger.info("Applying validation: minimum feature length. Target dataframe: roadseg.")
+                        # Apply function.
+                        args = (df.copy(deep=True),)
+                        self.flags[table]["errors"][func] = eval("validation_functions.{}(*args)".format(func))
 
-            # Apply function.
-            self.flags["roadseg"]["errors"]["validate_min_length"] = validation_functions\
-                .validate_min_length(self.df_lines["roadseg"].copy(deep=True))
+            # Iterate non-standard validations.
+            # Description: validations that are (any): dataset-specific, receive multiple parameters,
+            # capture modifications.
 
-            # Validation: identify isolated line features.
-            logger.info("Applying validation: identify isolated line features. Target dataframe: ferryseg + roadseg.")
+            # Iterate non-standard validations - errors only.
+            funcs = {"identify_isolated_lines": {"tables": ["roadseg", "ferryseg"], "kwargs": {}},
+                     "validate_ferry_road_connectivity": {"tables": ["ferryseg", "roadseg", "junction"], "kwargs": {}},
+                     "validate_road_structures": {"tables": ["roadseg", "junction"],
+                                                  "kwargs": {"default": self.defaults["roadseg"]}},
+                     "validate_deadend_disjoint_proximity": {"tables": ["junction", "roadseg"], "kwargs": {}}}
 
-            # Apply function.
-            self.flags["roadseg"]["errors"]["identify_isolated_lines"] = validation_functions\
-                .identify_isolated_lines(*map(deepcopy, itemgetter("ferryseg", "roadseg")(self.df_lines)))
+            for func, params in funcs.items():
 
-            # Validation: validate ferry-road connectivity.
-            logger.info("Applying validation: ferry-road connectivity. Target dataframe: ferryseg.")
+                logger.info("Applying validation: {}. Target dataframe: {}."
+                            .format(func.replace("_", " "), params["tables"][0]))
 
-            # Apply function.
-            self.flags["ferryseg"]["errors"]["validate_ferry_road_connectivity"] = validation_functions\
-                .validate_ferry_road_connectivity(
-                *map(deepcopy, itemgetter("ferryseg", "roadseg", "junction")(self.dframes)))
+                # Verify dataframe availability.
+                missing = [name for name in params["tables"] if name not in self.dframes]
+                if any(missing):
+                    logger.warning("Missing required layer(s): {}. Skipping validation."
+                                   .format(", ".join(map("\"{}\"".format, missing))))
+                    continue
 
-            # Validation: validate road structures.
-            logger.info("Applying validation: road structures. Target dataframe: roadseg.")
-
-            # Apply function.
-            self.flags["roadseg"]["errors"]["validate_road_structures"] = validation_functions\
-                .validate_road_structures(
-                *map(deepcopy, itemgetter("roadseg", "junction")(self.dframes)), default=self.defaults["roadseg"])
-
-            # Validation: validate line proximity.
-            for table, df in self.df_lines.items():
-                logger.info("Applying validation: line proximity. Target dataframe: {}.".format(table))
-
-                # Apply function.
-                self.flags[table]["errors"]["validate_line_proximity"] = validation_functions\
-                    .validate_line_proximity(df.copy(deep=True))
-
-            # Validation: validate line merging angle.
-            for table, df in self.df_lines.items():
-                logger.info("Applying validation: line merging angle. Target dataframe: {}.".format(table))
-
-                # Apply function.
-                self.flags[table]["errors"]["validate_line_merging_angle"] = validation_functions\
-                    .validate_line_merging_angle(df.copy(deep=True))
-
-            # Validation: validate line endpoint clustering.
-            for table, df in self.df_lines.items():
-                logger.info("Applying validation: line endpoint clustering. Target dataframe: {}.".format(table))
-
-                # Apply function.
-                self.flags[table]["errors"]["validate_line_endpoint_clustering"] = validation_functions\
-                    .validate_line_endpoint_clustering(df.copy(deep=True))
-
-            # Validation: validate point proximity.
-            for table, df in self.df_points.items():
-                logger.info("Applying validation: point proximity. Target dataframe: {}.".format(table))
-
-                # Apply function.
-                self.flags[table]["errors"]["validate_point_proximity"] = validation_functions\
-                    .validate_point_proximity(df.copy(deep=True))
-
-            # Validation: validate deadend-disjoint proximity.
-            logger.info("Applying validation: deadend-disjoint proximity. Target dataframe: junction.")
-
-            # Apply function.
-            self.flags["junction"]["errors"]["validate_deadend_disjoint_proximity"] = validation_functions\
-                .validate_deadend_disjoint_proximity(*map(deepcopy, itemgetter("junction", "roadseg")(self.dframes)))
+                else:
+                    # Apply function.
+                    args = map(deepcopy, itemgetter(*params["tables"])(self.dframes))
+                    kwargs = params["kwargs"]
+                    self.flags[params["tables"][0]]["errors"][func] = eval("validation_functions.{}(*args, **kwargs)"
+                                                                           .format(func))
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
