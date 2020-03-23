@@ -1,0 +1,288 @@
+coverage:
+  country: ca
+  province: pe
+  ISO3166:
+    alpha2: CA-PE
+    country: Canada
+    subdivision: Prince Edward Island
+  website: https://data.princeedwardisland.ca
+license:
+  url: https://www.princeedwardisland.ca/en/information/finance/open-government-license-prince-edward-island
+  text: Open Government License - Prince Edward Island
+language: en
+data:
+  filename: PEI_NRN19/PEI_NRN19.shp
+  layer:
+  driver: ESRI Shapefile
+  crs: "EPSG:2954"
+  spatial: True
+conform:
+  addrange:
+    acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: DATASETNAM
+    accuracy: ACCURACY
+    provider: PROVIDER
+    revdate: REVDATE
+    specvers: SPECVERS
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg: L_DIGDIRFG
+    r_digdirfg: R_DIGDIRFG
+    l_hnumf:
+      fields: L_HNUMF
+      functions:
+        - function: direct
+          cast_type: int
+    r_hnumf:
+      fields: R_HNUMF
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumf]
+    l_hnumsuff:
+      fields: L_HNUMSUFF
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    r_hnumsuff:
+      fields: R_HNUMSUFF
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumsuff]
+    l_hnumtypf: L_HNUMTYPF
+    r_hnumtypf: R_HNUMTYPF
+    l_hnumstr: L_HNUMSTR
+    r_hnumstr: R_HNUMSTR
+    l_hnuml:
+      fields: L_HNUML
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumf]
+    r_hnuml:
+      fields: R_HNUML
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumf]
+    l_hnumsufl:
+      fields: L_HNUMSUFL
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    r_hnumsufl:
+      fields: R_HNUMSUFL
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumsufl]
+    l_hnumtypl: L_HNUMTYPL
+    r_hnumtypl: R_HNUMTYPL
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind: L_RFSYSIND
+    r_rfsysind: R_RFSYSIND
+  roadseg:
+    acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: DATASETNAM
+    accuracy: ACCURACY
+    provider: PROVIDER
+    revdate: REVDATE
+    specvers: SPECVERS
+    l_adddirfg: L_DIGDIRFG
+    r_adddirfg: R_DIGDIRFG
+    adrangenid: uuid
+    closing: CLOSING
+    exitnbr:
+      fields: EXITNBR
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    l_hnumf:
+      fields: L_HNUMF
+      functions:
+        - function: direct
+          cast_type: int
+    r_hnumf:
+      fields: R_HNUMF
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumf]
+    roadclass: ROADCLASS
+    l_hnuml:
+      fields: L_HNUML
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumf]
+    r_hnuml:
+      fields: R_HNUML
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_hnumf]
+    nid: NID
+    nbrlanes: NBRLANES
+    l_placenam:
+      fields: PLACE_L
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    r_placenam:
+      fields: PLACE_R
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_placenam]
+    l_stname_c:
+      fields: NAME
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    r_stname_c:
+      fields: NAME
+      functions:
+        - function: copy_attribute_functions
+          attributes: [l_stname_c]
+    pavsurf: PAVSURF
+    pavstatus: PAVSTATUS
+    roadjuris: ROADJURIS
+    roadsegid:
+      fields: uuid
+      functions:
+        - function: incrementor
+          column: roadseg_roadsegid
+          start: 1
+          step: 1
+    rtename1en:
+      fields: RTENAME1EN
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    rtename2en:
+      fields: RTENAME2EN
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtename3en:
+      fields: RTENAME3EN
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtename4en:
+      fields: RTENAME4EN
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtename1fr:
+      fields: RTENAME1FR
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtename2fr:
+      fields: RTENAME2FR
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtename3fr:
+      fields: RTENAME3FR
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtename4fr:
+      fields: RTENAME4FR
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtnumber1:
+      fields: RTNUMBER1
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtnumber2:
+      fields: RTNUMBER2
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtnumber3:
+      fields: RTNUMBER3
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtnumber4:
+      fields: RTNUMBER4
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    rtnumber5:
+      fields: RTNUMBER5
+      functions:
+        - function: copy_attribute_functions
+          attributes: [rtename1en]
+    speed: SPEED
+    strunameen:
+      fields: STRUNAMEEN
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    strunamefr:
+      fields: STRUNAMEFR
+      functions:
+        - function: copy_attribute_functions
+          attributes: [strunameen]
+    structid:
+      fields: STRUCTID
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    structtype: STRUCTTYPE
+    trafficdir: TRAFFICDIR
+    unpavsurf: UNPAVSURF
+  strplaname:
+    acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: DATASETNAM
+    accuracy: ACCURACY
+    provider: PROVIDER
+    revdate: REVDATE
+    specvers: SPECVERS
+    dirprefix: DIRPREFIX
+    dirsuffix: DIRSUFFIX
+    muniquad:
+    nid: uuid
+    placename:
+      fields: [PLACE_L, PLACE_R]
+      process_separately: True
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+        - function: split_record
+          field: None
+    placetype:
+    province: "Prince Edward Island"
+    starticle:
+    namebody:
+      fields: NAMEBODY
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    strtypre:
+      fields: STRTYPRE
+      functions:
+        - function: regex_sub
+          pattern_from: "-"
+          pattern_to: ""
+    strtysuf:
+      fields: STRTYSUF
+      functions:
+        - function: copy_attribute_functions
+          attributes: [strtypre]

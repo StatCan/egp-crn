@@ -40,21 +40,11 @@ class Stage:
         # Compile default field values.
         self.defaults = helpers.compile_default_values()
 
-    def compile_tables(self):
-        """Compiles the required GeoPackage layers for validation. Groups the layers by geometry type."""
+    def classify_tables(self):
+        """Groups table names by geometry type."""
 
-        try:
-
-            # Group tables by geometry type.
-            self.df_by_type = dict()
-            self.df_by_type["lines"] = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
-                                        ("ferryseg", "roadseg")}
-            self.df_by_type["points"] = {name: df.copy(deep=True) for name, df in self.dframes.items() if name in
-                                         ("blkpassage", "junction", "tollpoint")}
-
-        except (KeyError, SyntaxError, ValueError):
-            logger.exception("Unable to compile dataframes.")
-            sys.exit(1)
+        self.df_lines = ("ferryseg", "roadseg")
+        self.df_points = ("blkpassage", "junction", "tollpoint")
 
     def export_gpkg(self):
         """Exports the dataframes as GeoPackage layers."""
@@ -79,7 +69,7 @@ class Stage:
         logger.info("Generating flag variables.")
 
         # Create flag dictionary entry for each gpkg dataframe.
-        self.flags = {name: {"modifications": dict(), "errors": dict()} for name in self.dframes.keys()}
+        self.flags = {name: {"modifications": dict(), "errors": dict()} for name in [*self.dframes.keys(), "multiple"]}
 
         # Load flag messages yaml.
         self.flag_messages_yaml = helpers.load_yaml(os.path.abspath("flag_messages.yaml"))
@@ -94,99 +84,98 @@ class Stage:
     def log_messages(self):
         """Logs any errors and modification messages flagged by the attribute validations."""
 
-        logger.info("Compiling modification and error logs.")
+        logger.info("Logging modification and error logs.")
 
-        # Define validation logger.
-        validation_logger = logging.getLogger()
-        validation_logger.setLevel(logging.INFO)
-        handler = logging.FileHandler(os.path.abspath("../../data/interim/stage_{}_{}.log"
-                                                      .format(self.stage, self.source)))
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
-        validation_logger.addHandler(handler)
+        log_path = os.path.abspath("../../data/interim/{}_stage_{}.log".format(self.source, self.stage))
+        with helpers.TempHandlerSwap(logger, log_path):
 
-        # Iterate dataframe flags.
-        for name in self.flags.keys():
+            # Iterate dataframe flags.
+            for name in self.flags.keys():
 
-            # Iterate non-empty flag types.
-            for flag_typ in [typ for typ in ("modifications", "errors") if len(self.flags[name][typ])]:
+                # Iterate non-empty flag types.
+                for flag_typ in [typ for typ in ("modifications", "errors") if self.flags[name][typ]]:
 
-                # Iterate non-empty flag tables (validations).
-                for validation in [val for val, data in self.flags[name][flag_typ].items() if len(data)]:
+                    # Iterate non-empty flag tables (validations).
+                    for validation in [val for val, data in self.flags[name][flag_typ].items() if data]:
 
-                    # Retrieve flags.
-                    flags = self.flags[name][flag_typ][validation]
+                        # Retrieve flags.
+                        flags = self.flags[name][flag_typ][validation]
 
-                    # Log error messages, iteratively if multiple error codes stored in dictionary.
-                    if isinstance(flags, dict):
-                        for code, code_flags in [[k, v] for k, v in flags.items() if len(v)]:
+                        # Log error messages, iteratively if multiple error codes stored in dictionary.
+                        if isinstance(flags, dict):
+                            for code, code_flags in [[k, v] for k, v in flags.items() if v]:
+
+                                # Log messages.
+                                vals = "\n".join(map(str, code_flags))
+                                logger.info(self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
+
+                        else:
 
                             # Log messages.
-                            vals = "\n".join(map(str, code_flags))
-                            validation_logger.info(
-                                self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
-
-                    else:
-
-                        # Log messages.
-                        vals = "\n".join(map(str, flags))
-                        validation_logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
+                            vals = "\n".join(map(str, flags))
+                            logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
 
     def validations(self):
-        """Applies a set of geometry-based validations unique to one or more fields and / or tables."""
+        """Applies a set of validations to one or more dataframes."""
 
-        logger.info("Applying geometry validations.")
+        logger.info("Applying validations.")
 
         try:
 
-            # Iterate standard validations.
-            # Description: validations that apply to any single dataset and only capture errors.
+            # Define functions and parameters.
+            funcs = {
+                "identify_duplicate_lines": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "identify_duplicate_points": {"tables": self.df_points, "iterate": True, "args": ()},
+                "identify_isolated_lines": {"tables": ["roadseg", "ferryseg"], "iterate": False, "args": ()},
+                "validate_deadend_disjoint_proximity":
+                    {"tables": ["junction", "roadseg"], "iterate": False, "args": ()},
+                "validate_ferry_road_connectivity":
+                    {"tables": ["ferryseg", "roadseg", "junction"], "iterate": False, "args": ()},
+                "validate_line_endpoint_clustering": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_line_length": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_line_merging_angle": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_line_proximity": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_point_proximity": {"tables": self.df_points, "iterate": True, "args": ()},
+                "validate_road_structures": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()}
+            }
 
-            funcs_by_type = {"lines": ("identify_duplicate_lines", "validate_line_proximity",
-                                       "validate_line_merging_angle", "validate_line_endpoint_clustering",
-                                       "validate_line_length"),
-                             "points": ("identify_duplicate_points", "validate_point_proximity")}
-
-            for geom_type, funcs in funcs_by_type.items():
-                for func in funcs:
-                    for table, df in self.df_by_type[geom_type].items():
-
-                        logger.info("Applying validation: {}. Target dataframe: {}."
-                                    .format(func.replace("_", " "), table))
-
-                        # Apply function.
-                        args = (df.copy(deep=True),)
-                        self.flags[table]["errors"][func] = eval("validation_functions.{}(*args)".format(func))
-
-            # Iterate non-standard validations.
-            # Description: validations that are (any): dataset-specific, receive multiple parameters,
-            # capture modifications.
-
-            # Iterate non-standard validations - errors only.
-            funcs = {"identify_isolated_lines": {"tables": ["roadseg", "ferryseg"], "kwargs": {}},
-                     "validate_ferry_road_connectivity": {"tables": ["ferryseg", "roadseg", "junction"], "kwargs": {}},
-                     "validate_road_structures": {"tables": ["roadseg", "junction"],
-                                                  "kwargs": {"default": self.defaults["roadseg"]}},
-                     "validate_deadend_disjoint_proximity": {"tables": ["junction", "roadseg"], "kwargs": {}}}
-
+            # Iterate functions and dataframes.
             for func, params in funcs.items():
+                for table in params["tables"]:
+                    logger.info("Applying validation: {}. Target dataframe: {}.".format(func.replace("_", " "), table))
 
-                logger.info("Applying validation: {}. Target dataframe: {}."
-                            .format(func.replace("_", " "), params["tables"][0]))
+                    # Validate required dataframes and compile function args.
+                    if params["iterate"]:
+                        if table not in self.dframes:
+                            logger.warning("Missing required layer: {}. Skipping validation.".format(table))
+                            continue
+                        args = (self.dframes[table].copy(deep=True), *params["args"])
 
-                # Verify dataframe availability.
-                missing = [name for name in params["tables"] if name not in self.dframes]
-                if any(missing):
-                    logger.warning("Missing required layer(s): {}. Skipping validation."
-                                   .format(", ".join(map("\"{}\"".format, missing))))
-                    continue
+                    else:
+                        missing = [name for name in params["tables"] if name not in self.dframes]
+                        if any(missing):
+                            logger.warning("Missing required layer(s): {}. Skipping validation."
+                                           .format(", ".join(map("\"{}\"".format, missing))))
+                            break
+                        args = (*map(deepcopy, itemgetter(*params["tables"])(self.dframes)), *params["args"])
 
-                else:
-                    # Apply function.
-                    args = map(deepcopy, itemgetter(*params["tables"])(self.dframes))
-                    kwargs = params["kwargs"]
-                    self.flags[params["tables"][0]]["errors"][func] = eval("validation_functions.{}(*args, **kwargs)"
-                                                                           .format(func))
+                    # Call function.
+                    results = eval("validation_functions.{}(*args)".format(func))
+
+                    # Store results.
+                    self.flags[table]["errors"][func] = results["errors"]
+                    self.flags[table]["modifications"][func] = results["modifications"]
+                    if "modified_dframes" in results:
+                        mod_dframes = results["modified_dframes"]
+                        mod_dframes = [mod_dframes] if not isinstance(mod_dframes, list) else mod_dframes
+                        for mod_index, mod_table in enumerate(params["tables"]):
+                            self.dframes[mod_table] = mod_dframes[mod_index].copy(deep=True)
+                            if params["iterate"]:
+                                break
+
+                    # Break iteration for non-iterative function.
+                    if not params["iterate"]:
+                        break
 
         except (KeyError, SyntaxError, ValueError):
             logger.exception("Unable to apply validation.")
@@ -197,7 +186,7 @@ class Stage:
 
         self.load_gpkg()
         self.gen_flag_variables()
-        self.compile_tables()
+        self.classify_tables()
         self.validations()
         self.log_messages()
         self.export_gpkg()

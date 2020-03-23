@@ -31,7 +31,7 @@ def identify_duplicate_lines(df):
     # Compile uuids of flagged records.
     errors = df_same_len[mask].index.values
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def identify_duplicate_points(df):
@@ -46,7 +46,7 @@ def identify_duplicate_points(df):
     # Compile uuids of flagged records.
     errors = df[mask].index.values
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def identify_isolated_lines(roadseg, ferryseg):
@@ -76,7 +76,7 @@ def identify_isolated_lines(roadseg, ferryseg):
     # Compile flagged records as errors.
     errors = flag_uuids
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def validate_deadend_disjoint_proximity(junction, roadseg):
@@ -133,7 +133,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
             source_uuid,
             ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
@@ -169,7 +169,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     # Compile uuids of flagged records.
     errors[2] = ferryseg[ferry_multi_intersect].index.values
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def validate_line_endpoint_clustering(df):
@@ -194,7 +194,7 @@ def validate_line_endpoint_clustering(df):
     # Compile uuids of flagged records.
     errors = df_subset[flags].index.values
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def validate_line_length(df):
@@ -210,7 +210,7 @@ def validate_line_length(df):
     # Validation: ensure line segments are >= 2 meters in length.
     errors = df_sub[df_sub.length < 2].index.values
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def validate_line_merging_angle(df):
@@ -294,7 +294,7 @@ def validate_line_merging_angle(df):
         # Compile resulting points as errors.
         errors = list(map(lambda pt: pt.coords[0][:2], flagged_pts["geometry"]))
 
-        return errors
+        return {"errors": errors, "modifications": None}
 
 
 def validate_line_proximity(df):
@@ -375,7 +375,7 @@ def validate_line_proximity(df):
             source_uuid,
             ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
 def validate_point_proximity(df):
@@ -410,16 +410,14 @@ def validate_point_proximity(df):
             source_uuid,
             ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
 
-    return errors
+    return {"errors": errors, "modifications": None}
 
 
-def validate_road_structures(roadseg, junction, default):
-    """
-    Validates the structid and structtype attributes of road segments.
-    Parameter default should be a dictionary with a key for each of structid and structtype for roadseg.
-    """
+def validate_road_structures(roadseg, junction):
+    """Validates the structid and structtype attributes of road segments."""
 
     errors = dict()
+    defaults = helpers.compile_default_values()["roadseg"]
 
     # Validation 1: ensure dead end road segments have structtype = "None" or the default field value.
 
@@ -428,7 +426,7 @@ def validate_road_structures(roadseg, junction, default):
                                      junction[junction["junctype"] == "Dead End"]["geometry"].values])))
 
     # Compile road segments with potentially invalid structtype.
-    roadseg_invalid = roadseg[~roadseg["structtype"].isin(["None", default["structtype"]])]
+    roadseg_invalid = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
 
     # Compile truly invalid road segments.
     roadseg_invalid = roadseg_invalid[roadseg_invalid["geometry"].map(
@@ -444,7 +442,7 @@ def validate_road_structures(roadseg, junction, default):
     structids = roadseg["structid"].unique()
 
     # Remove default value.
-    structids = structids[np.where(structids != default["structid"])]
+    structids = structids[np.where(structids != defaults["structid"])]
 
     if len(structids):
 
@@ -477,7 +475,7 @@ def validate_road_structures(roadseg, junction, default):
     errors[4] = list()
 
     # Compile road segments with valid structtype.
-    segments = roadseg[~roadseg["structtype"].isin(["None", default["structtype"]])]
+    segments = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
 
     # Convert dataframe to networkx graph.
     # Drop all columns except uuid, structid, structtype, and geometry to reduce processing.
@@ -492,7 +490,7 @@ def validate_road_structures(roadseg, junction, default):
 
         # Validation 3.
         structids = set(nx.get_edge_attributes(s, "structid").values())
-        if len(structids) > 1 or default["structid"] in structids:
+        if len(structids) > 1 or defaults["structid"] in structids:
 
             # Compile error properties.
             uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
@@ -508,4 +506,4 @@ def validate_road_structures(roadseg, junction, default):
             errors[4].append("Structure: {}. Structure uuids: {}. Structure types: {}.".format(
                 index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structtypes))))
 
-    return errors
+    return {"errors": errors, "modifications": None}

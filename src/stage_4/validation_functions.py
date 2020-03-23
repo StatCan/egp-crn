@@ -40,7 +40,7 @@ def strip_whitespace(df):
     if len(mods):
         mods = "Fields stripped of whitespace: {}.".format(", ".join(map("\"{}\"".format, mods)))
 
-    return df, mods
+    return {"errors": None, "modifications": mods, "modified_dframes": df}
 
 
 def title_route_text(df, default):
@@ -70,14 +70,12 @@ def title_route_text(df, default):
     return df, mods
 
 
-def validate_dates(df, default):
-    """
-    Applies a set of validations to credate and revdate fields.
-    Parameter default is assumed to be identical for credate and revdate fields.
-    """
+def validate_dates(df):
+    """Applies a set of validations to credate and revdate fields."""
 
     errors = {i: list() for i in range(1, 6+1)}
     mods = list()
+    defaults = helpers.compile_default_values()["roadseg"]
 
     # Get current date.
     today_str = datetime.today().strftime("%Y%m%d")
@@ -140,7 +138,7 @@ def validate_dates(df, default):
     for col in ("credate", "revdate"):
 
         # Subset to non-default values.
-        df_sub = df[df[col] != default]
+        df_sub = df[df[col] != defaults[col]]
 
         if len(df_sub):
 
@@ -171,12 +169,12 @@ def validate_dates(df, default):
             errors[5].extend(results[results == 1].index.values)
 
     # Validation 6: ensure credate <= revdate.
-    df_sub = df[(df["credate"] != default) & (df["revdate"] != default)]
+    df_sub = df[(df["credate"] != defaults["credate"]) & (df["revdate"] != defaults["revdate"])]
     if len(df_sub):
         results = df_sub[["credate", "revdate"]].apply(lambda row: 1 if not int(row[0]) <= int(row[1]) else 0, axis=1)
         errors[6].extend(results[results == 1].index.values)
 
-    return df[["credate", "revdate"]], errors, mods
+    return {"errors": errors, "modifications": mods, "modified_dframes": df}
 
 
 def validate_exitnbr_conflict(df, default):
@@ -222,22 +220,22 @@ def validate_exitnbr_roadclass(df, default):
     return errors
 
 
-def validate_ids(name, df, default):
+def validate_ids(df):
     """
     Applies a set of validations to all id fields.
     Sets all id fields to lowercase.
-    Parameter default should be a dictionary with a key for each of the required fields.
     """
 
     mods = list()
     errors = {1: list(), 2: list(), 3: list(), 4: list()}
-    dtypes = helpers.compile_dtypes()
+    dtypes = helpers.compile_dtypes()["ferryseg" if "ferrysegid" in df.columns else "roadseg"]
+    defaults = helpers.compile_default_values()["ferryseg" if "ferrysegid" in df.columns else "roadseg"]
 
     # Iterate fields ending with "id".
-    for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid" and dtypes[name][fld] == "str"]:
+    for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid" and dtypes[fld] == "str"]:
 
         # Subset dataframe to non-default values.
-        df_subset = df[df[field] != default[field]]
+        df_subset = df[df[field] != defaults[field]]
 
         # Modification: set ids to lowercase.
         if df_subset[field].map(lambda val: val != val.lower()).any():
@@ -263,18 +261,9 @@ def validate_ids(name, df, default):
         mods = "Fields set to lowercase: {}.".format(", ".join(map("\"{}\"".format, mods)))
 
     # Iterate unique id fields.
-    unique_fields = {
-        "addrange": ["nid"],
-        "altnamlink": ["nid"],
-        "blkpassage": ["nid"],
-        "ferryseg": ["ferrysegid"],
-        "junction": ["nid"],
-        "roadseg": ["roadsegid"],
-        "strplaname": ["nid"],
-        "tollpoint": ["nid"]
-    }
+    unique_fields = ["ferrysegid", "nid", "roadsegid"]
 
-    for field in unique_fields[name]:
+    for field in [fld for fld in unique_fields if fld in df.columns]:
 
         # Validation 3: ensure certain id fields are unique.
         # Compile uuids of flagged records.
@@ -284,11 +273,11 @@ def validate_ids(name, df, default):
 
         # Validation 4: ensure unique id fields are not the default field value.
         # Compile uuids of flagged records.
-        flag_uuids = df[df[field] == default[field]].index.values
+        flag_uuids = df[df[field] == defaults[field]].index.values
         for val in flag_uuids:
             errors[4].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
-    return df, errors, mods
+    return {"errors": errors, "modifications": mods, "modified_dframes": df}
 
 
 def validate_nbrlanes(df, default):

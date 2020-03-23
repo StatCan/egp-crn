@@ -20,6 +20,37 @@ from shapely.geometry import LineString, Point
 logger = logging.getLogger()
 
 
+class TempHandlerSwap:
+    """Temporarily swaps all stream handlers with a file handler."""
+
+    def __init__(self, class_logger, log_path):
+        self.logger = class_logger
+        self.log_path = log_path
+
+        # Store stream handlers.
+        self.stream_handlers = [h for h in self.logger.handlers if isinstance(h, logging.StreamHandler)]
+
+        # Define file handler.
+        self.file_handler = logging.FileHandler(self.log_path)
+        self.file_handler.setLevel(logging.INFO)
+        self.file_handler.setFormatter(self.logger.handlers[0].formatter)
+
+    def __enter__(self):
+        """Remove stream handlers and add file handler."""
+        logger.info("Temporarily redirecting stream logging to file: {}.".format(self.log_path))
+        for handler in self.stream_handlers:
+            self.logger.removeHandler(handler)
+        self.logger.addHandler(self.file_handler)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Remove file handler and add stream handlers."""
+        for handler in self.stream_handlers:
+            self.logger.addHandler(handler)
+        self.logger.removeHandler(self.file_handler)
+
+        logger.info("File logging complete; reverted logging to stream.")
+
+
 class Timer:
     """Tracks stage runtime."""
 
