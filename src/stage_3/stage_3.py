@@ -30,6 +30,7 @@ class Stage:
     def __init__(self, source):
         self.stage = 3
         self.source = source.lower()
+        self.dframes_modified = list()
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -51,15 +52,10 @@ class Stage:
 
         logger.info("Exporting dataframes to GeoPackage layers.")
 
-        # Filter dataframe which require exporting.
-        dframes = dict()
-        for name, df in self.dframes.items():
-            if any([len(v) for k, v in self.flags[name]["modifications"].items()]):
-                dframes[name] = df
-
         # Export target dataframes to GeoPackage layers.
-        if len(dframes):
-            helpers.export_gpkg(dframes, self.data_path)
+        if len(self.dframes_modified):
+            export_dframes = {name: self.dframes[name] for name in set(self.dframes_modified)}
+            helpers.export_gpkg(export_dframes, self.data_path)
         else:
             logger.info("Export not required, no dataframe modifications detected.")
 
@@ -84,36 +80,35 @@ class Stage:
     def log_messages(self):
         """Logs any errors and modification messages flagged by the attribute validations."""
 
-        logger.info("Logging modification and error logs.")
+        logger.info("Writing modification and error logs.")
 
         log_path = os.path.abspath("../../data/interim/{}_stage_{}.log".format(self.source, self.stage))
         with helpers.TempHandlerSwap(logger, log_path):
 
             # Iterate dataframe flags.
-            for name in self.flags.keys():
-
-                # Iterate non-empty flag types.
-                for flag_typ in [typ for typ in ("modifications", "errors") if self.flags[name][typ]]:
+            for name in self.flags:
+                for flag_typ in self.flags[name]:
 
                     # Iterate non-empty flag tables (validations).
-                    for validation in [val for val, data in self.flags[name][flag_typ].items() if data]:
+                    for validation in [val for val, data in self.flags[name][flag_typ].items() if data is not None]:
 
                         # Retrieve flags.
                         flags = self.flags[name][flag_typ][validation]
 
                         # Log error messages, iteratively if multiple error codes stored in dictionary.
                         if isinstance(flags, dict):
-                            for code, code_flags in [[k, v] for k, v in flags.items() if v]:
+                            for code, code_flags in [[k, v] for k, v in flags.items() if len(v)]:
 
                                 # Log messages.
                                 vals = "\n".join(map(str, code_flags))
                                 logger.info(self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
 
                         else:
+                            if len(flags):
 
-                            # Log messages.
-                            vals = "\n".join(map(str, flags))
-                            logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
+                                # Log messages.
+                                vals = "\n".join(map(str, flags))
+                                logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
 
     def validations(self):
         """Applies a set of validations to one or more dataframes."""
@@ -139,7 +134,7 @@ class Stage:
                 "validate_road_structures": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()}
             }
 
-            # Iterate functions and dataframes.
+            # Iterate functions and table names.
             for func, params in funcs.items():
                 for table in params["tables"]:
                     logger.info("Applying validation: {}. Target dataframe: {}.".format(func.replace("_", " "), table))
@@ -166,12 +161,14 @@ class Stage:
                     self.flags[table]["errors"][func] = results["errors"]
                     self.flags[table]["modifications"][func] = results["modifications"]
                     if "modified_dframes" in results:
-                        mod_dframes = results["modified_dframes"]
-                        mod_dframes = [mod_dframes] if not isinstance(mod_dframes, list) else mod_dframes
-                        for mod_index, mod_table in enumerate(params["tables"]):
-                            self.dframes[mod_table] = mod_dframes[mod_index].copy(deep=True)
-                            if params["iterate"]:
-                                break
+                        if params["iterate"]:
+                            self.dframes[table] = results["modified_dframes"]
+                            self.dframes_modified.append(table)
+                        else:
+                            for mod_index, mod_table in enumerate(params["tables"]):
+                                if results["modified_dframes"][mod_index] is not None:
+                                    self.dframes[mod_table] = results["modified_dframes"][mod_index]
+                                    self.dframes_modified.append(mod_table)
 
                     # Break iteration for non-iterative function.
                     if not params["iterate"]:

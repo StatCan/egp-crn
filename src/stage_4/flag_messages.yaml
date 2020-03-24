@@ -17,32 +17,40 @@ validate_dates:
     1: |
       Invalid records identified for table "{0}", validation "validate_dates", error 1 (listed by uuid):
       {1}
-      Error 1 details: Invalid length for credate and / or revdate. Length must be 4, 6, or 8.
+      Error 1 details: Invalid content type for credate and / or revdate. Date content must be numeric.
     2: |
       Invalid records identified for table "{0}", validation "validate_dates", error 2 (listed by uuid):
       {1}
-      Error 2 details: Invalid year for credate and / or revdate. Indexes 0:3 must be between 1960 and today, inclusively.
+      Error 2 details: Invalid length for credate and / or revdate. Length must be 4, 6, or 8.
     3: |
       Invalid records identified for table "{0}", validation "validate_dates", error 3 (listed by uuid):
       {1}
-      Error 3 details: Invalid month for credate and / or revdate. Indexes 4:5 must be between 01 and 12, inclusively.
+      Error 3 details: Invalid year for credate and / or revdate. Indexes 0:3 must be between 1960 and today, inclusively.
     4: |
       Invalid records identified for table "{0}", validation "validate_dates", error 4 (listed by uuid):
       {1}
-      Error 4 details: Invalid day for credate and / or revdate. Indexes 6:7 must be a valid zero-padded day of the given month and year.
+      Error 4 details: Invalid month for credate and / or revdate. Indexes 4:5 must be between 01 and 12, inclusively.
     5: |
       Invalid records identified for table "{0}", validation "validate_dates", error 5 (listed by uuid):
       {1}
-      Error 5 details: Future date specified for credate and / or revdate. Date must be <= today.
+      Error 5 details: Invalid day for credate and / or revdate. Indexes 6:7 must be a valid zero-padded day of the given month and year.
     6: |
       Invalid records identified for table "{0}", validation "validate_dates", error 6 (listed by uuid):
       {1}
-      Error 6 details: Invalid combination for credate-revdate. credate must be <= revdate.
+      Error 6 details: Future date specified for credate and / or revdate. Date must be <= today.
+    7: |
+      Invalid records identified for table "{0}", validation "validate_dates", error 7 (listed by uuid):
+      {1}
+      Error 7 details: Invalid combination for credate-revdate. credate must be <= revdate.
   modifications:
     1: |
-      Records modified for table "{0}", validation "validate_dates" (listed by uuid):
+      Records modified for table "{0}", validation "validate_dates", modification 1 (listed by uuid):
       {1}
-      Modification details: Date suffixed with "01" for missing month and / or day values for one or more of credate, revdate.
+      Modification 1 details: Date set to today's date for one or more of credate, revdate.
+    2: |
+      Records modified for table "{0}", validation "validate_dates", modification 2 (listed by uuid):
+      {1}
+      Modification 2 details: Date suffixed with "01" for missing month and / or day values for one or more of credate, revdate.
 
 validate_exitnbr_conflict:
   errors:

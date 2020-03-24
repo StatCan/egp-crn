@@ -18,6 +18,11 @@ import helpers
 logger = logging.getLogger()
 
 
+# Compile default field values and dtypes.
+defaults_all = helpers.compile_default_values()
+dtypes_all = helpers.compile_dtypes()
+
+
 def identify_duplicate_lines(df):
     """Identifies the uuids of duplicate line geometries."""
 
@@ -417,7 +422,7 @@ def validate_road_structures(roadseg, junction):
     """Validates the structid and structtype attributes of road segments."""
 
     errors = dict()
-    defaults = helpers.compile_default_values()["roadseg"]
+    defaults = defaults_all["roadseg"]
 
     # Validation 1: ensure dead end road segments have structtype = "None" or the default field value.
 
