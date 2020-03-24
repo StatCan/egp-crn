@@ -162,13 +162,16 @@ class Stage:
                     self.flags[table]["modifications"][func] = results["modifications"]
                     if "modified_dframes" in results:
                         if params["iterate"]:
-                            self.dframes[table] = results["modified_dframes"]
-                            self.dframes_modified.append(table)
+                            if not self.dframes[table].equals(results["modified_dframes"]):
+                                self.dframes[table] = results["modified_dframes"]
+                                self.dframes_modified.append(table)
                         else:
                             for mod_index, mod_table in enumerate(params["tables"]):
-                                if results["modified_dframes"][mod_index] is not None:
-                                    self.dframes[mod_table] = results["modified_dframes"][mod_index]
-                                    self.dframes_modified.append(mod_table)
+                                mod_dframe = results["modified_dframes"][mod_index]
+                                if mod_dframe is not None:
+                                    if not self.dframes[mod_table].equals(mod_dframe):
+                                        self.dframes[mod_table] = mod_dframe
+                                        self.dframes_modified.append(mod_table)
 
                     # Break iteration for non-iterative function.
                     if not params["iterate"]:

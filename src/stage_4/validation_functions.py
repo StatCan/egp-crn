@@ -280,8 +280,6 @@ def validate_ids(df):
             errors[3].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
     # Validation 4: ensure unique id fields are not the default field value.
-    # Include semi-unique fields.
-    unique_fields.append("nid")
     for field in [fld for fld in unique_fields if fld in df.columns]:
 
         # Compile uuids of flagged records.
