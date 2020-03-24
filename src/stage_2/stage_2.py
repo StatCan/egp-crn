@@ -293,10 +293,15 @@ class Stage:
     def gen_output(self):
         """Generate final dataset."""
 
-        # Set standard field values.
+        # Set additional field values, if possible.
         self.attr_equality["uuid"] = [uuid.uuid4().hex for _ in range(len(self.attr_equality))]
+        self.attr_equality["acqtech"] = "Computed"
+        self.attr_equality["metacover"] = "Complete"
         self.attr_equality["credate"] = datetime.today().strftime("%Y%m%d")
         self.attr_equality["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
+        self.attr_equality["accuracy"] = #TODO - assign the largest accuracy value from associated ferry/road features.
+        self.attr_equality["provider"] = "Federal"
+        self.attr_equality["exitnbr"] = #TODO - assign concatenated exitnbrs from associated road features (excluding default value; there may not be an associated road feature).
         self.dframes["junction"] = self.attr_equality
 
         # Apply field domains.
