@@ -46,6 +46,26 @@ class Stage:
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.dframes, self.data_path)
 
+    def gen_nids_roadseg(self):
+        """Groups roadseg records and assigns nid values."""
+
+        # Compile match fields (fields which must be equal across records).
+        match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
+
+        # Compile match fields via dataframe merges.
+        # Keep only necessary fields.
+        roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid"]].copy(deep=True)
+        addrange = self.dframes["addrange"][["nid", "l_offnanid", "r_offnanid"]].copy(deep=True)
+        strplaname = self.dframes["strplaname"][["nid", *match_fields]].copy(deep=True)
+
+        roadseg = roadseg.merge(
+            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
+            strplaname, how="left", left_on=["l_offnanid", "r_offnanid"], right_on=["nid", "nid"],
+            suffixes=("", "_strplaname"))
+
+        # Group uuids by match fields.
+        grouped_uuids = roadseg.groupby(match_fields)["uuid"].apply(list)
+
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
 
@@ -57,6 +77,7 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
+        self.gen_nids_roadseg()
         self.export_gpkg()
 
 
