@@ -377,9 +377,8 @@ class Stage:
 
             return connected_attribute.copy(deep=True)
 
-        def multipoint_to_point():
-            """Converts junction geometry from multipoint to point."""
-
+        # Convert geometry from multipoint to point.
+        if self.dframes["junction"].geom_type.iloc[0] == "MultiPoint":
             self.dframes["junction"]["geometry"] = self.dframes["junction"]["geometry"].map(lambda geom: geom[0])
 
         # Set additional field values, if possible.
@@ -391,10 +390,6 @@ class Stage:
         self.dframes["junction"]["accuracy"] = compute_connected_attribute(self.dframes["junction"], "accuracy")
         self.dframes["junction"]["provider"] = "Federal"
         self.dframes["junction"]["exitnbr"] = compute_connected_attribute(self.dframes["junction"], "exitnbr")
-
-        # Convert geometry from multipoint to point.
-        if self.dframes["junction"].geom_type.iloc[0] == "MultiPoint":
-            multipoint_to_point()
 
     def export_gpkg(self):
         """Exports the junctions dataframe as a GeoPackage layer."""
