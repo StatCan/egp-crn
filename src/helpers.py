@@ -229,7 +229,7 @@ def gdf_to_postgis(gdf, name, engine, **kwargs):
 
     # Compile geometry attributes
     srid = gdf.crs.to_epsg()
-    geom_type = gdf.geom_type[0].upper()
+    geom_type = gdf.geom_type.iloc[0].upper()
 
     # Store geometry as geom.
     gdf["geom"] = gdf["geometry"].map(lambda geom: WKTElement(geom.wkt, srid=srid))
@@ -393,9 +393,11 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
     prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
 
     # Transform Records.
-    if gdf.geom_type[0] == "LineString":
+    if len(gdf.geom_type.unique()) > 1:
+        raise Exception("Multiple geometry types detected for dataframe.")
+    elif gdf.geom_type.iloc[0] == "LineString":
         gdf["geometry"] = gdf["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
-    elif gdf.geom_type[0] == "Point":
+    elif gdf.geom_type.iloc[0] == "Point":
         gdf["geometry"] = gdf["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0])))
     else:
         raise Exception("Geometry type not supported for EPSG transformation.")

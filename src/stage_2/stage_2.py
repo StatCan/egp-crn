@@ -393,7 +393,7 @@ class Stage:
         self.dframes["junction"]["exitnbr"] = compute_connected_attribute(self.dframes["junction"], "exitnbr")
 
         # Convert geometry from multipoint to point.
-        if self.dframes["junction"].geom_type[0] == "MultiPoint":
+        if self.dframes["junction"].geom_type.iloc[0] == "MultiPoint":
             multipoint_to_point()
 
     def export_gpkg(self):
