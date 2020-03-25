@@ -31,8 +31,6 @@ attributes:
                            AND a.id <> b.id
                            AND a.junctype = 'Intersection');
 
-    UPDATE stage_{0}_junc a SET exitnbr = b.exitnbr FROM stage_{0} b WHERE ST_Intersects(a.geom, b.geom) AND b.exitnbr != 'None' AND b.exitnbr IS NOT NULL;
-
     UPDATE stage_{0}_junc a SET junctype = 'NatProvTer' WHERE a.id IN (SELECT a.id FROM stage_{0}_junc a, adm b WHERE ST_Disjoint(a.geom, b.geom));
 
     ALTER TABLE stage_{0}_junc DROP COLUMN id;
