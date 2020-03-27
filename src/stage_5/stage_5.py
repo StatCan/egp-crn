@@ -8,7 +8,7 @@ import pandas as pd
 import shapely.ops
 import sys
 import uuid
-from itertools import chain
+from itertools import chain, compress
 from operator import itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString, MultiPoint
@@ -115,24 +115,54 @@ class Stage:
         grouped_junction_exploded = grouped_junction.explode("geometry")
         grouped = pd.concat([grouped_no_junction, grouped_junction_exploded], axis=0, ignore_index=True, sort=False)
 
-        # Every row now represents an nid group, with all the constituent geometries dissolved.
-        # Recover now-reduced uuid groupings for each group's geometry.
-        # Compile geometries as coordinate sets for efficiency.
+        # Every row now represents an nid group.
+        # Attributes:
+        # 1) geometry: represents the dissolved geometry of the now-reduced group.
+        # 2) uuids: the original attribute grouping of uuids.
+        # The uuid group now needs to be reduced to match the now-reduced geometry.
 
         grouped = pd.DataFrame({"uuids": grouped["uuid"], "geometry": grouped["geometry"].map(lambda g: set(g.coords))})
 
         # Retrieve roadseg geometries for associated uuids.
         roadseg_geometry = roadseg["geometry"].map(lambda geom: set(itemgetter(0, 1)(geom.coords))).to_dict()
-        grouped["uuids_geometry"] = grouped["uuids"].map(
-            lambda uuids: list(map(set, itemgetter(*uuids)(roadseg_geometry))))
+        grouped["uuids_geometry"] = grouped["uuids"].map(lambda uuids: itemgetter(*uuids)(roadseg_geometry))
+        grouped["uuids_geometry"] = grouped["uuids_geometry"].map(lambda g: g if isinstance(g, tuple) else (g,))
 
-        # Filter associated uuids by spatial query: contains.
-        # Process: subtract the coordinates in the dissolved group geometry from the uuid geometry (set subtraction is
-        # quicker than shapely contains).
+        # Filter associated uuids by coordinate set subtraction.
+        # Process: subtract the coordinate sets in the dissolved group geometry from the uuid geometry.
         grouped_query = pd.Series(np.vectorize(lambda g1, g2: [g1, g2])(grouped["geometry"], grouped["uuids_geometry"]))
         grouped_query = grouped_query.map(lambda row: list(map(lambda uuid_geom: len(uuid_geom - row[0]) == 0, row[1])))
-        # TODO: use itertools.compress to filter the uuids.
-        # TODO: the results show some groups having no matches because the dissolved geometry set lost some coordinates from the dissolve operation. These need to be recovered.
+
+        # Handle exceptions 1.
+        # Identify results without uuid matches. These represents lines which backtrack onto themselves.
+        # These records can be removed from the groupings as their junction-based split was in error.
+        grouped_no_matches = grouped_query[grouped_query.map(lambda matches: not any(matches))]
+        grouped.drop(grouped_no_matches.index, axis=0, inplace=True)
+        grouped_query.drop(grouped_no_matches.index, axis=0, inplace=True)
+        grouped.reset_index(drop=True, inplace=True)
+        grouped_query.reset_index(drop=True, inplace=True)
+
+        # Update grouped uuids to now-reduced list.
+        grouped_query_d = grouped_query.to_dict()
+        grouped = pd.Series([list(compress(uuids, grouped_query_d[index]))
+                             for index, uuids in grouped["uuids"].iteritems()])
+
+        # Assign nid to groups and explode grouped uuids.
+        nid_groups = pd.DataFrame({"uuid": grouped["uuids"], "nid": [uuid.uuid4().hex for _ in range(len(grouped))]})
+        nid_groups = nid_groups.explode("uuid")
+
+        # Handle exceptions 2.
+        # Identify duplicated uuids. These represent previously dissolved grouping which formed loops and where at least
+        # one segment is a straight line (only 2 points), causing uuids to match multiple groups when uuid groups were
+        # reduced via set subtraction.
+        # Remove the instances of these duplicates which have been assigned a non-unique nid.
+        duplicated_uuids = nid_groups["uuid"].duplicated(keep=False)
+        duplicated_nids = nid_groups["nid"].duplicated(keep=False)
+        nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
+
+        # Assign nids to roadseg.
+        nid_groups.index = nid_groups["uuid"]
+        roadseg["nid"] = nid_groups["nid"]
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
