@@ -54,6 +54,8 @@ class Stage:
     def gen_nids_roadseg(self):
         """Groups roadseg records and assigns nid values."""
 
+        logger.info("Generating NIDs for table: roadseg.")
+
         # Compile match fields (fields which must be equal across records).
         match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
 
@@ -68,6 +70,7 @@ class Stage:
             addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
             strplaname, how="left", left_on=["l_offnanid", "r_offnanid"], right_on=["nid", "nid"],
             suffixes=("", "_strplaname"))
+        roadseg.index = roadseg["uuid"]
 
         # Group uuids and geometry by match fields.
         grouped = roadseg.groupby(match_fields)[["uuid", "geometry"]].agg(list)
@@ -148,14 +151,14 @@ class Stage:
                              for index, uuids in grouped["uuids"].iteritems()])
 
         # Assign nid to groups and explode grouped uuids.
-        nid_groups = pd.DataFrame({"uuid": grouped["uuids"], "nid": [uuid.uuid4().hex for _ in range(len(grouped))]})
+        nid_groups = pd.DataFrame({"uuid": grouped, "nid": [uuid.uuid4().hex for _ in range(len(grouped))]})
         nid_groups = nid_groups.explode("uuid")
 
         # Handle exceptions 2.
-        # Identify duplicated uuids. These represent previously dissolved grouping which formed loops and where at least
-        # one segment is a straight line (only 2 points), causing uuids to match multiple groups when uuid groups were
-        # reduced via set subtraction.
-        # Remove the instances of these duplicates which have been assigned a non-unique nid.
+        # Identify duplicated uuids. These represent dissolved groupings of two segments forming a loop, where one
+        # segment is composed of only 2 points. Therefore, all coordinates in the 2 point segment will be found in the
+        # other segment in the dissolved group, creating a duplicate match when filtering associated uuids.
+        # Remove duplicate uuids which have also been assigned a non-unique nid.
         duplicated_uuids = nid_groups["uuid"].duplicated(keep=False)
         duplicated_nids = nid_groups["nid"].duplicated(keep=False)
         nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
@@ -163,6 +166,9 @@ class Stage:
         # Assign nids to roadseg.
         nid_groups.index = nid_groups["uuid"]
         roadseg["nid"] = nid_groups["nid"]
+
+        # Store results.
+        self.dframes["roadseg"] = roadseg.copy(deep=True)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
