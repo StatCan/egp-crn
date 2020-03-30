@@ -13,6 +13,7 @@ import time
 import yaml
 from copy import deepcopy
 from geoalchemy2 import WKTElement, Geometry
+from itertools import compress
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
 
@@ -239,8 +240,12 @@ def gdf_to_postgis(gdf, name, engine, **kwargs):
     gdf.to_sql(name=name, con=engine, dtype={"geom": Geometry(geometry_type=geom_type, srid=srid)}, **kwargs)
 
 
-def load_gpkg(gpkg_path):
-    """Returns a dictionary of geopackage layers loaded into pandas or geopandas (geo)dataframes."""
+def load_gpkg(gpkg_path, find=False):
+    """
+    Returns a dictionary of geopackage layers loaded into pandas or geopandas (geo)dataframes.
+    Parameter find will creating a mapping for geopackage layer names which contain, but do not exactly match the
+    expected NRN layer names.
+    """
 
     dframes = dict()
     distribution_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
@@ -256,7 +261,17 @@ def load_gpkg(gpkg_path):
             # Load gpkg table names.
             cur = con.cursor()
             query = "select name from sqlite_master where type='table';"
-            gpkg_tables = list(zip(*cur.execute(query).fetchall()))[0]
+            layers = list(zip(*cur.execute(query).fetchall()))[0]
+
+            # Create table name mapping.
+            gpkg_tables = dict()
+            if find:
+                for table_name in distribution_format:
+                    results = [name for name in layers if name.lower().find(table_name) >= 0]
+                    if any(results):
+                        gpkg_tables[table_name] = list(compress(layers, results))[0]
+            else:
+                gpkg_tables = {name: name for name in layers}
 
         except sqlite3.Error:
             logger.exception("Unable to connect to GeoPackage: \"{}\".".format(gpkg_path))
@@ -273,14 +288,15 @@ def load_gpkg(gpkg_path):
 
                     # Spatial data.
                     if distribution_format[table_name]["spatial"]:
-                        df = gpd.read_file(gpkg_path, layer=table_name, driver="GPKG")
+                        df = gpd.read_file(gpkg_path, layer=gpkg_tables[table_name], driver="GPKG")
 
                     # Tabular data.
                     else:
-                        df = pd.read_sql_query("select * from {}".format(table_name), con)
+                        df = pd.read_sql_query("select * from {}".format(gpkg_tables[table_name]), con)
 
                     # Set index field: uuid.
-                    df.index = df["uuid"]
+                    if "uuid" in df.columns:
+                        df.index = df["uuid"]
 
                     # Store result.
                     dframes[table_name] = df.copy(deep=True)

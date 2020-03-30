@@ -1,13 +1,17 @@
 import click
 import fiona
 import geopandas as gpd
+import json
 import logging
 import numpy as np
 import os
 import pandas as pd
 import shapely.ops
+import shutil
 import sys
+import urllib.request
 import uuid
+import zipfile
 from itertools import chain, compress
 from operator import itemgetter
 from scipy.spatial import cKDTree
@@ -170,6 +174,70 @@ class Stage:
         # Store results.
         self.dframes["roadseg"] = roadseg.copy(deep=True)
 
+    def get_previous_vintage(self):
+        """Downloads previous NRN vintage and loads data into dataframes."""
+
+        logger.info("Retrieving previous NRN vintage.")
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+
+        # Configuring url for previous NRN vintage.
+        logger.info("Configuring url for previous NRN vintage.")
+        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+
+        try:
+            metadata = urllib.request.urlopen(metadata_url)
+            metadata = json.loads(metadata.read())
+            download_url = metadata["result"]["resources"][0]["url"]
+        except (TimeoutError, urllib.error.URLError) as e:
+            logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
+            logger.exception(e)
+            sys.exit(1)
+
+        # Download previous NRN vintage.
+        logger.info("Downloading previous NRN vintage.")
+
+        try:
+            urllib.request.urlretrieve(download_url, "../../data/interim/previous_nrn.zip")
+        except (TimeoutError, urllib.error.URLError) as e:
+            logger.exception("Unable to download previous NRN vintage: \"{}\".".format(download_url))
+            logger.exception(e)
+            sys.exit(1)
+
+        # Extract zipped data.
+        logger.info("Extracting zipped data for previous NRN vintage.")
+
+        gpkg_path = [f for f in zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r").namelist() if
+                     f.endswith(".gpkg")][0]
+
+        with zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r") as zip:
+            zip.extract(gpkg_path, "../../data/interim/previous_nrn")
+
+        # Load previous NRN vintage into dataframes.
+        logger.info("Loading previous NRN vintage into dataframes.")
+
+        self.dframes_old = helpers.load_gpkg(os.path.join("../../data/interim/previous_nrn", gpkg_path), find=True)
+
+        # Force lowercase field names.
+        for name, dframe in self.dframes_old.items():
+            dframe.columns = map(str.lower, dframe.columns)
+            self.dframes_old = dframe.copy(deep=True)
+
+        # Remove temporary files.
+        logger.info("Removing temporary previous NRN vintage files and directories.")
+
+        for f in os.listdir("../../data/interim"):
+            if os.path.splitext(f)[0] == "previous_nrn":
+                path = os.path.join("../../data/interim", f)
+                try:
+                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
+                except OSError as e:
+                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
+                    logger.warning("OSError: {}.".format(e))
+                    continue
+
+    def recover_nids_roadseg(self):
+        """Recovers roadseg nids from the previous NRN vintage."""
+
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
 
@@ -181,8 +249,13 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
+        self.get_previous_vintage()
         self.gen_nids_roadseg()
-        self.export_gpkg()
+        self.recover_nids_roadseg()
+        # self.export_gpkg()
+        for dframe in self.dframes_old:
+            print(dframe)
+        print(self.dframes_old.keys())
 
 
 @click.command()

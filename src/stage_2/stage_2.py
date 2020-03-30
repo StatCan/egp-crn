@@ -269,7 +269,7 @@ class Stage:
 
         # Download administrative boundary file.
         logger.info("Downloading administrative boundary file.")
-        source = helpers.load_yaml("../boundary_files.yaml")["provinces"]
+        source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
         url, filename = itemgetter("url", "filename")(source)
 
         try:
@@ -309,7 +309,7 @@ class Stage:
         self.dframes["junction"] = self.attr_equality.copy(deep=True)
 
         # Remove temporary files.
-        logger.info("Remove temporary administrative boundary files and directories.")
+        logger.info("Removing temporary administrative boundary files and directories.")
         for f in os.listdir("../../data/interim"):
             if os.path.splitext(f)[0] == "boundaries":
                 path = os.path.join("../../data/interim", f)
