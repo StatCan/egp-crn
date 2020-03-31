@@ -267,7 +267,7 @@ def load_gpkg(gpkg_path, find=False):
             gpkg_tables = dict()
             if find:
                 for table_name in distribution_format:
-                    results = [name for name in layers if name.lower().find(table_name) >= 0]
+                    results = [name.lower().find(table_name) >= 0 for name in layers]
                     if any(results):
                         gpkg_tables[table_name] = list(compress(layers, results))[0]
             else:
