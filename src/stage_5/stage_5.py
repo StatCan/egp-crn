@@ -9,6 +9,7 @@ import pandas as pd
 import shapely.ops
 import shutil
 import sys
+import time
 import urllib.request
 import uuid
 import zipfile
@@ -183,15 +184,33 @@ class Stage:
         # Configuring url for previous NRN vintage.
         logger.info("Configuring url for previous NRN vintage.")
         metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        metadata = None
 
-        try:
-            metadata = urllib.request.urlopen(metadata_url)
-            metadata = json.loads(metadata.read())
-            download_url = metadata["result"]["resources"][0]["url"]
-        except (TimeoutError, urllib.error.URLError) as e:
-            logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
-            logger.exception(e)
-            sys.exit(1)
+        attempt = 1
+        max_attempts = 10
+        while attempt <= max_attempts:
+
+            try:
+
+                # Open metadata url.
+                metadata = urllib.request.urlopen(metadata_url)
+
+            except (TimeoutError, urllib.error.URLError) as e:
+
+                if attempt == max_attempts:
+                    logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
+                    logger.exception(e)
+                    logger.warning("Maximum attempts reached. Exiting program.")
+                    sys.exit(1)
+                else:
+                    logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
+                    attempt += 1
+                    time.sleep(5)
+                    continue
+
+        # Extract url from metadata.
+        metadata = json.loads(metadata.read())
+        download_url = metadata["result"]["resources"][0]["url"]
 
         # Download previous NRN vintage.
         logger.info("Downloading previous NRN vintage.")
