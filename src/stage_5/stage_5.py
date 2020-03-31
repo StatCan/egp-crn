@@ -48,6 +48,9 @@ class Stage:
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
 
+        # Compile match fields (fields which must be equal across records).
+        self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
+
     def export_gpkg(self):
         """Exports the dataframes as GeoPackage layers."""
 
@@ -56,29 +59,138 @@ class Stage:
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.dframes, self.data_path)
 
-    def gen_nids_roadseg(self):
+    def get_previous_vintage(self):
+        """Downloads previous NRN vintage and loads data into dataframes."""
+
+        logger.info("Retrieving previous NRN vintage.")
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+
+        # Configuring url for previous NRN vintage.
+        logger.info("Configuring url for previous NRN vintage.")
+        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        metadata = None
+
+        attempt = 1
+        max_attempts = 10
+        while attempt <= max_attempts:
+
+            try:
+
+                # Open metadata url.
+                metadata = urllib.request.urlopen(metadata_url)
+
+            except (TimeoutError, urllib.error.URLError) as e:
+
+                if attempt == max_attempts:
+                    logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
+                    logger.exception(e)
+                    logger.warning("Maximum attempts reached. Exiting program.")
+                    sys.exit(1)
+                else:
+                    logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
+                    attempt += 1
+                    time.sleep(5)
+                    continue
+
+        # Extract url from metadata.
+        metadata = json.loads(metadata.read())
+        download_url = metadata["result"]["resources"][0]["url"]
+
+        # Download previous NRN vintage.
+        logger.info("Downloading previous NRN vintage.")
+
+        try:
+            urllib.request.urlretrieve(download_url, "../../data/interim/previous_nrn.zip")
+        except (TimeoutError, urllib.error.URLError) as e:
+            logger.exception("Unable to download previous NRN vintage: \"{}\".".format(download_url))
+            logger.exception(e)
+            sys.exit(1)
+
+        # Extract zipped data.
+        logger.info("Extracting zipped data for previous NRN vintage.")
+
+        gpkg_path = [f for f in zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r").namelist() if
+                     f.endswith(".gpkg")][0]
+
+        with zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r") as zip:
+            zip.extract(gpkg_path, "../../data/interim/previous_nrn")
+
+        # Load previous NRN vintage into dataframes.
+        logger.info("Loading previous NRN vintage into dataframes.")
+
+        self.dframes_old = helpers.load_gpkg(os.path.join("../../data/interim/previous_nrn", gpkg_path), find=True)
+
+        # Force lowercase field names.
+        for name, dframe in self.dframes_old.items():
+            dframe.columns = map(str.lower, dframe.columns)
+            self.dframes_old = dframe.copy(deep=True)
+
+        # Remove temporary files.
+        logger.info("Removing temporary previous NRN vintage files and directories.")
+
+        for f in os.listdir("../../data/interim"):
+            if os.path.splitext(f)[0] == "previous_nrn":
+                path = os.path.join("../../data/interim", f)
+                try:
+                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
+                except OSError as e:
+                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
+                    logger.warning("OSError: {}.".format(e))
+                    continue
+
+    def load_gpkg(self):
+        """Loads input GeoPackage layers into dataframes."""
+
+        logger.info("Loading Geopackage layers.")
+
+        self.dframes = helpers.load_gpkg(self.data_path)
+
+    def roadseg_gen_full(self):
+        """
+        Generate the full representation of roadseg with all required fields for both the current and previous vintage.
+        """
+
+        logger.info("Generating full roadseg representation.")
+
+        # roadseg
+
+        # Copy and filter dataframes.
+        roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid", "geometry"]].copy(deep=True)
+        addrange = self.dframes["addrange"][["nid", "l_offnanid", "r_offnanid"]].copy(deep=True)
+        strplaname = self.dframes["strplaname"][["nid", *self.match_fields]].copy(deep=True)
+
+        # Merge dataframes to assemble full roadseg representation.
+        self.roadseg = roadseg.merge(
+            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
+            strplaname, how="left", left_on=["l_offnanid", "r_offnanid"], right_on=["nid", "nid"],
+            suffixes=("", "_strplaname"))
+
+        self.roadseg.index = self.roadseg["uuid"]
+
+        # roadseg - previous vintage
+
+        # Copy and filter dataframes.
+        roadseg = self.dframes_old["roadseg"][["nid", "adrangenid", "geometry"]].copy(deep=True)
+        addrange = self.dframes_old["addrange"][["nid", "l_offnanid", "r_offnanid"]].copy(deep=True)
+        strplaname = self.dframes_old["strplaname"][["nid", *self.match_fields]].copy(deep=True)
+
+        # Merge dataframes to assemble full roadseg representation.
+        self.roadseg_old = roadseg.merge(
+            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
+            strplaname, how="left", left_on=["l_offnanid", "r_offnanid"], right_on=["nid", "nid"],
+            suffixes=("", "_strplaname"))
+
+    def roadseg_gen_nids(self):
         """Groups roadseg records and assigns nid values."""
 
         logger.info("Generating NIDs for table: roadseg.")
 
-        # Compile match fields (fields which must be equal across records).
-        match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
-
-        # Copy dataframes, keeping only necessary fields.
-        roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid", "geometry"]].copy(deep=True)
-        addrange = self.dframes["addrange"][["nid", "l_offnanid", "r_offnanid"]].copy(deep=True)
-        strplaname = self.dframes["strplaname"][["nid", *match_fields]].copy(deep=True)
+        # Copy and filter dataframes.
+        roadseg = self.roadseg[["nid", "geometry"]].copy(deep=True)
         junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
 
-        # Compile match fields via dataframe merges.
-        roadseg = roadseg.merge(
-            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-            strplaname, how="left", left_on=["l_offnanid", "r_offnanid"], right_on=["nid", "nid"],
-            suffixes=("", "_strplaname"))
-        roadseg.index = roadseg["uuid"]
-
         # Group uuids and geometry by match fields.
-        grouped = roadseg.groupby(match_fields)[["uuid", "geometry"]].agg(list)
+        grouped = roadseg.groupby(self.match_fields)[["uuid", "geometry"]].agg(list)
 
         # Dissolve geometries.
         grouped["geometry"] = grouped["geometry"].map(lambda geoms: shapely.ops.linemerge(geoms))
@@ -174,107 +286,77 @@ class Stage:
 
         # Store results.
         self.dframes["roadseg"] = roadseg.copy(deep=True)
+        self.roadseg["nid"] = roadseg["nid"].copy(deep=True)
 
-    def get_previous_vintage(self):
-        """Downloads previous NRN vintage and loads data into dataframes."""
+    def roadseg_recover_classify_nids(self):
+        """
+        1) Recovers roadseg nids from the previous NRN vintage.
+        2) Generates 4 nid classification text files: added, retired, modified, confirmed."""
 
-        logger.info("Retrieving previous NRN vintage.")
-        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+        # Copy and filter dataframes.
+        roadseg = self.roadseg[["nid", "geometry"]].copy(deep=True)
+        roadseg_old = self.roadseg_old[["nid", "geometry"]].copy(deep=True)
 
-        # Configuring url for previous NRN vintage.
-        logger.info("Configuring url for previous NRN vintage.")
-        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
-        metadata = None
+        # Group by nid.
+        roadseg_grouped = roadseg.groupby("nid")["geometry"].apply(list)
+        roadseg_old_grouped = roadseg_old.groupby("nid")["geometry"].apply(list)
 
-        attempt = 1
-        max_attempts = 10
-        while attempt <= max_attempts:
+        # Dissolve grouped geometries.
+        roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
 
-            try:
+        # Convert series to geodataframes.
+        # Restore nid index as column.
+        roadseg_grouped = gpd.GeoDataFrame(roadseg_grouped.reset_index(drop=False))
+        roadseg_old_grouped = gpd.GeoDataFrame(roadseg_old_grouped.reset_index(drop=False))
 
-                # Open metadata url.
-                metadata = urllib.request.urlopen(metadata_url)
+        # Merge current and old dataframes on geometry.
+        merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
+                         indicator=True)
 
-            except (TimeoutError, urllib.error.URLError) as e:
+        # Classify nid groups as: added, retired, modified, confirmed.
+        roadseg_added = merge[merge["_merge"] == "right_only"]
+        roadseg_retired = merge[merge["_merge"] == "left_only"]
+        roadseg_confirmed = merge[merge["_merge"] == "both"]
 
-                if attempt == max_attempts:
-                    logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
-                    logger.exception(e)
-                    logger.warning("Maximum attempts reached. Exiting program.")
-                    sys.exit(1)
-                else:
-                    logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
-                    attempt += 1
-                    time.sleep(5)
-                    continue
+        # Recover old nids for confirmed and modified nid groups via uuid as index.
+        recovery = roadseg_confirmed.merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
+            .drop_duplicates(subset="nid", keep="first")
+        recovery.index = recovery["uuid"]
+        self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+        self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
 
-        # Extract url from metadata.
-        metadata = json.loads(metadata.read())
-        download_url = metadata["result"]["resources"][0]["url"]
+        # Separate modified from confirmed nid groups.
+        # Restore match fields.
+        roadseg_confirmed_new = roadseg_confirmed.merge(roadseg[["nid", *self.match_fields]], how="left", on="nid")\
+            .drop_duplicates(keep="first")
+        roadseg_confirmed_old = roadseg_confirmed.merge(roadseg_old[["nid", *self.match_fields]], how="left",
+                                                        left_on="nid_old", right_on="nid").drop_duplicates(keep="first")
 
-        # Download previous NRN vintage.
-        logger.info("Downloading previous NRN vintage.")
+        # Compare match fields to separate modified nid groups.
+        flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
+        roadseg_modified = roadseg_confirmed[flags.values]
+        roadseg_confirmed = roadseg_confirmed[~flags.values]
 
-        try:
-            urllib.request.urlretrieve(download_url, "../../data/interim/previous_nrn.zip")
-        except (TimeoutError, urllib.error.URLError) as e:
-            logger.exception("Unable to download previous NRN vintage: \"{}\".".format(download_url))
-            logger.exception(e)
-            sys.exit(1)
+        # Filter classified nid dataframes.
+        classified_nids = {"added": pd.DataFrame({"nid": roadseg_added["nid"]}),
+                           "retired": pd.DataFrame({"nid": roadseg_retired["nid_old"]}),
+                           "modified": pd.DataFrame({"nid": roadseg_modified["nid_old"]}),
+                           "confirmed": pd.DataFrame({"nid": roadseg_confirmed["nid"]}),
+        }
 
-        # Extract zipped data.
-        logger.info("Extracting zipped data for previous NRN vintage.")
-
-        gpkg_path = [f for f in zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r").namelist() if
-                     f.endswith(".gpkg")][0]
-
-        with zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r") as zip:
-            zip.extract(gpkg_path, "../../data/interim/previous_nrn")
-
-        # Load previous NRN vintage into dataframes.
-        logger.info("Loading previous NRN vintage into dataframes.")
-
-        self.dframes_old = helpers.load_gpkg(os.path.join("../../data/interim/previous_nrn", gpkg_path), find=True)
-
-        # Force lowercase field names.
-        for name, dframe in self.dframes_old.items():
-            dframe.columns = map(str.lower, dframe.columns)
-            self.dframes_old = dframe.copy(deep=True)
-
-        # Remove temporary files.
-        logger.info("Removing temporary previous NRN vintage files and directories.")
-
-        for f in os.listdir("../../data/interim"):
-            if os.path.splitext(f)[0] == "previous_nrn":
-                path = os.path.join("../../data/interim", f)
-                try:
-                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
-                except OSError as e:
-                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
-                    logger.warning("OSError: {}.".format(e))
-                    continue
-
-    def recover_nids_roadseg(self):
-        """Recovers roadseg nids from the previous NRN vintage."""
-
-    def load_gpkg(self):
-        """Loads input GeoPackage layers into dataframes."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path)
+        # Export classified nid dataframes.
+        # . . . .
 
     def execute(self):
         """Executes an NRN stage."""
 
         self.load_gpkg()
         self.get_previous_vintage()
-        self.gen_nids_roadseg()
-        self.recover_nids_roadseg()
+        self.roadseg_gen_full()
+        self.roadseg_gen_nids()
+        self.roadseg_recover_classify_nids()
         # self.export_gpkg()
-        for dframe in self.dframes_old:
-            print(dframe)
-        print(self.dframes_old.keys())
 
 
 @click.command()
