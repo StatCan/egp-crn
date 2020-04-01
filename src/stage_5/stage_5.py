@@ -397,10 +397,13 @@ class Stage:
             # Generate roadseg kdtree.
             roadseg_tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
 
-            # Compile an index-lookup table for each coordinate associated with each roadseg record.
+            # Compile an index-lookup dict for each coordinate associated with each roadseg record.
             roadseg_pt_indexes = np.concatenate([[index] * count for index, count in
                                                  roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
             roadseg_lookup = pd.Series(roadseg_pt_indexes, index=range(0, roadseg_tree.n)).to_dict()
+
+            # Compile an index-lookup dict for each full roadseg record.
+            roadseg_full_lookup = roadseg["geometry"].to_dict()
 
         # Iterate dataframes, if available.
         for table in tables:
@@ -417,6 +420,11 @@ class Stage:
 
                 # Retrieve associated record indexes for each point index.
                 indexes = indexes.map(lambda idxs: set(itemgetter(*idxs)(roadseg_lookup)))
+
+                # Retrieve associated record geometries for each record index.
+                df["roadsegs"] = indexes.map(lambda idxs: itemgetter(*idxs)(roadseg_full_lookup))
+
+                # TODO: use new roadsegs to apply distance query.
 
                 # # Compile index of nearest neighbor from roadseg.
                 # indexes = df["geometry"].map(lambda geom: roadseg_tree.query(geom, k=1)[1])
