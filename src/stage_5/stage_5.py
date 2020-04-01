@@ -6,6 +6,7 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import pathlib
 import shapely.ops
 import shutil
 import sys
@@ -51,6 +52,9 @@ class Stage:
         # Compile match fields (fields which must be equal across records).
         self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
 
+        # Define dictionary for tracking dataset differences (change logs) between the previous and current vintage.
+        self.change_logs = dict.fromkeys(self.dframes)
+
     def export_gpkg(self):
         """Exports the dataframes as GeoPackage layers."""
 
@@ -58,6 +62,26 @@ class Stage:
 
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.dframes, self.data_path)
+
+    def export_change_logs(self):
+        """Exports the dataset differences as logs."""
+
+        change_logs_dir = os.path.abspath("../../data/processed/{}_change_logs".format(self.source))
+        logger.info("Writing change logs to: \"{}\".".format(change_logs_dir))
+
+        # Create change logs directory.
+        pathlib.Path(change_logs_dir).mkdir(exist_ok=True)
+
+        # Iterate tables and change types.
+        for table in self.change_logs:
+            for change, log in self.change_logs[table].items():
+
+                # Configure log path.
+                log_path = os.path.join(change_logs_dir, "{}_{}_{}.log".format(self.source, table, change))
+
+                # Write log.
+                with helpers.TempHandlerSwap(logger, log_path):
+                    logger.info(log)
 
     def get_previous_vintage(self):
         """Downloads previous NRN vintage and loads data into dataframes."""
@@ -315,38 +339,41 @@ class Stage:
                          indicator=True)
 
         # Classify nid groups as: added, retired, modified, confirmed.
-        roadseg_added = merge[merge["_merge"] == "right_only"]
-        roadseg_retired = merge[merge["_merge"] == "left_only"]
-        roadseg_confirmed = merge[merge["_merge"] == "both"]
+        classified_nids = {
+            "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
+            "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
+            "modified": None,
+            "confirmed": merge[merge["_merge"] == "both"]
+        }
 
-        # Recover old nids for confirmed and modified nid groups via uuid as index.
-        recovery = roadseg_confirmed.merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
+        # Recover old nids for confirmed and modified nid groups via uuid index.
+        # Merge uuids onto recovery dataframe.
+        recovery = classified_nids["confirmed"].merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
             .drop_duplicates(subset="nid", keep="first")
         recovery.index = recovery["uuid"]
+
+        # Recovery old nids. Store results.
         self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
         self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
         # Restore match fields.
-        roadseg_confirmed_new = roadseg_confirmed.merge(roadseg[["nid", *self.match_fields]], how="left", on="nid")\
+        roadseg_confirmed_new = classified_nids["confirmed"]\
+            .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
+        roadseg_confirmed_old = classified_nids["confirmed"]\
+            .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
             .drop_duplicates(keep="first")
-        roadseg_confirmed_old = roadseg_confirmed.merge(roadseg_old[["nid", *self.match_fields]], how="left",
-                                                        left_on="nid_old", right_on="nid").drop_duplicates(keep="first")
 
         # Compare match fields to separate modified nid groups.
+        # Update modified and confirmed nid classifications.
         flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        roadseg_modified = roadseg_confirmed[flags.values]
-        roadseg_confirmed = roadseg_confirmed[~flags.values]
+        classified_nids["modified"] = classified_nids["confirmed"][flags.values].to_list()
+        classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values].to_list()
 
-        # Filter classified nid dataframes.
-        classified_nids = {"added": pd.DataFrame({"nid": roadseg_added["nid"]}),
-                           "retired": pd.DataFrame({"nid": roadseg_retired["nid_old"]}),
-                           "modified": pd.DataFrame({"nid": roadseg_modified["nid_old"]}),
-                           "confirmed": pd.DataFrame({"nid": roadseg_confirmed["nid"]}),
-        }
-
-        # Export classified nid dataframes.
-        # . . . .
+        # Store nid classifications as change logs.
+        self.change_logs["roadseg"] = {
+            change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
+            change, nids in classified_nids.items()}
 
     def execute(self):
         """Executes an NRN stage."""
@@ -356,6 +383,7 @@ class Stage:
         self.roadseg_gen_full()
         self.roadseg_gen_nids()
         self.roadseg_recover_classify_nids()
+        self.export_change_logs()
         # self.export_gpkg()
 
 
