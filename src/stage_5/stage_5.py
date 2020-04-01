@@ -207,7 +207,7 @@ class Stage:
     def roadseg_gen_nids(self):
         """Groups roadseg records and assigns nid values."""
 
-        logger.info("Generating NIDs for table: roadseg.")
+        logger.info("Generating nids for table: roadseg.")
 
         # Copy and filter dataframes.
         roadseg = self.roadseg[["nid", "geometry"]].copy(deep=True)
@@ -317,6 +317,8 @@ class Stage:
         1) Recovers roadseg nids from the previous NRN vintage.
         2) Generates 4 nid classification text files: added, retired, modified, confirmed."""
 
+        logger.info("Recovering old nids and classifying all nids for table: roadseg.")
+
         # Copy and filter dataframes.
         roadseg = self.roadseg[["nid", "geometry"]].copy(deep=True)
         roadseg_old = self.roadseg_old[["nid", "geometry"]].copy(deep=True)
@@ -375,6 +377,55 @@ class Stage:
             change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
             change, nids in classified_nids.items()}
 
+    def roadseg_update_linkages(self):
+        """
+        Updates the nid linkages of roadseg:
+        1) blkpassage.roadnid
+        2) tollpoint.roadnid
+        """
+
+        logger.info("Updating nid linkages for table: roadseg.")
+
+        # Check table existence.
+        tables = [table for table in ("blkpassage", "tollpoint") if table in self.dframes]
+
+        if tables:
+
+            # Filter and copy roadseg.
+            roadseg = self.dframes["roadseg"][["nid", "geometry"]].copy(deep=True)
+
+            # Generate roadseg kdtree.
+            roadseg_tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
+
+            # Compile an index-lookup table for each coordinate associated with each roadseg record.
+            roadseg_pt_indexes = np.concatenate([[index] * count for index, count in
+                                                 roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+            roadseg_lookup = pd.Series(roadseg_pt_indexes, index=range(0, roadseg_tree.n)).to_dict()
+
+        # Iterate dataframes, if available.
+        for table in tables:
+            if table in self.dframes:
+
+                # Copy and filter dataframe.
+                df = self.dframes[table][["roadnid", "geometry"]].copy(deep=True)
+
+                # Identify maximum roadseg length.
+                max_len = roadseg.length.max()
+
+                # Compile indexes of all roadseg features within max_len distance.
+                indexes = df["geometry"].map(lambda geom: roadseg_tree.query_ball_point(geom, r=max_len))
+
+                # Retrieve associated record indexes for each point index.
+                indexes = indexes.map(lambda idxs: set(itemgetter(*idxs)(roadseg_lookup)))
+
+                # # Compile index of nearest neighbor from roadseg.
+                # indexes = df["geometry"].map(lambda geom: roadseg_tree.query(geom, k=1)[1])
+                #
+                # # Retrieve the nid associated with the roadseg index.
+                # # Store results.
+                # self.dframes[table]["roadnid"] = indexes.map(lambda index: itemgetter(index)(roadseg_pts_nid))\
+                #     .copy(deep=True)
+
     def execute(self):
         """Executes an NRN stage."""
 
@@ -383,6 +434,7 @@ class Stage:
         self.roadseg_gen_full()
         self.roadseg_gen_nids()
         self.roadseg_recover_classify_nids()
+        self.roadseg_update_linkages()
         self.export_change_logs()
         # self.export_gpkg()
 
