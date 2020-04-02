@@ -3,6 +3,7 @@ import fiona
 import geopandas as gpd
 import json
 import logging
+import math
 import numpy as np
 import os
 import pandas as pd
@@ -394,6 +395,12 @@ class Stage:
             # Filter and copy roadseg.
             roadseg = self.dframes["roadseg"][["nid", "geometry"]].copy(deep=True)
 
+            # Identify maximum roadseg node distance (length between adjacent nodes on a line).
+            max_len = np.vectorize(lambda geom: max(map(
+                lambda pts: math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]),
+                zip(geom.coords[:-1], geom.coords[1:]))))\
+                (roadseg["geometry"]).max()
+
             # Generate roadseg kdtree.
             roadseg_tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
 
@@ -402,8 +409,9 @@ class Stage:
                                                  roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
             roadseg_lookup = pd.Series(roadseg_pt_indexes, index=range(0, roadseg_tree.n)).to_dict()
 
-            # Compile an index-lookup dict for each full roadseg record.
-            roadseg_full_lookup = roadseg["geometry"].to_dict()
+            # Compile an index-lookup dict for each full roadseg geometry and nid record.
+            roadseg_geometry_lookup = roadseg["geometry"].to_dict()
+            roadseg_nid_lookup = roadseg["nid"].to_dict()
 
         # Iterate dataframes, if available.
         for table in tables:
@@ -412,27 +420,29 @@ class Stage:
                 # Copy and filter dataframe.
                 df = self.dframes[table][["roadnid", "geometry"]].copy(deep=True)
 
-                # Identify maximum roadseg length.
-                max_len = roadseg.length.max()
-
-                # Compile indexes of all roadseg features within max_len distance.
-                indexes = df["geometry"].map(lambda geom: roadseg_tree.query_ball_point(geom, r=max_len))
+                # Compile indexes of all roadseg points within max_len distance.
+                roadseg_pt_indexes = df["geometry"].map(lambda geom: roadseg_tree.query_ball_point(geom, r=max_len))
 
                 # Retrieve associated record indexes for each point index.
-                indexes = indexes.map(lambda idxs: set(itemgetter(*idxs)(roadseg_lookup)))
+                df["roadseg_idxs"] = roadseg_pt_indexes.map(lambda idxs: list(set(itemgetter(*idxs)(roadseg_lookup))))
 
                 # Retrieve associated record geometries for each record index.
-                df["roadsegs"] = indexes.map(lambda idxs: itemgetter(*idxs)(roadseg_full_lookup))
+                df["roadsegs"] = df["roadseg_idxs"].map(lambda idxs: itemgetter(*idxs)(roadseg_geometry_lookup))
 
-                # TODO: use new roadsegs to apply distance query.
+                # Retrieve the local roadsegs index of the nearest roadsegs geometry.
+                df["nearest_local_idx"] = np.vectorize(
+                    lambda pt, roads: min(enumerate(map(lambda road: road.distance(pt), roads)), key=itemgetter(1))[0])\
+                    (df["geometry"], df["roadsegs"])
 
-                # # Compile index of nearest neighbor from roadseg.
-                # indexes = df["geometry"].map(lambda geom: roadseg_tree.query(geom, k=1)[1])
-                #
-                # # Retrieve the nid associated with the roadseg index.
-                # # Store results.
-                # self.dframes[table]["roadnid"] = indexes.map(lambda index: itemgetter(index)(roadseg_pts_nid))\
-                #     .copy(deep=True)
+                # Retrieve the associated roadseg record index from the local index.
+                df["nearest_roadseg_idx"] = np.vectorize(
+                    lambda local_idx, roadseg_idxs: itemgetter(local_idx)(roadseg_idxs))\
+                    (df["nearest_local_idx"], df["roadseg_idxs"])
+
+                # Retrieve the nid associated with the roadseg index.
+                # Store results.
+                self.dframes[table]["roadnid"] = df["nearest_roadseg_idx"].map(
+                    lambda roadseg_idx: itemgetter(roadseg_idx)(roadseg_nid_lookup)).copy(deep=True)
 
     def execute(self):
         """Executes an NRN stage."""
