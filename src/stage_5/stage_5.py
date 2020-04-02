@@ -313,10 +313,10 @@ class Stage:
         self.dframes["roadseg"] = roadseg.copy(deep=True)
         self.roadseg["nid"] = roadseg["nid"].copy(deep=True)
 
-    def roadseg_recover_classify_nids(self):
+    def roadseg_recover_and_classify_nids(self):
         """
         1) Recovers roadseg nids from the previous NRN vintage.
-        2) Generates 4 nid classification text files: added, retired, modified, confirmed."""
+        2) Generates 4 nid classification log files: added, retired, modified, confirmed."""
 
         logger.info("Recovering old nids and classifying all nids for table: roadseg.")
 
@@ -451,7 +451,7 @@ class Stage:
         self.get_previous_vintage()
         self.roadseg_gen_full()
         self.roadseg_gen_nids()
-        self.roadseg_recover_classify_nids()
+        self.roadseg_recover_and_classify_nids()
         self.roadseg_update_linkages()
         self.export_change_logs()
         # self.export_gpkg()
