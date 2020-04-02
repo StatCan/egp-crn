@@ -84,6 +84,54 @@ class Stage:
                 with helpers.TempHandlerSwap(logger, log_path):
                     logger.info(log)
 
+    def ferryseg_recover_and_classify_nids(self):
+        """
+        1) Recovers ferryseg nids from the previous NRN vintage or generates new ones.
+        2) Generates 4 nid classification log files: added, retired, modified, confirmed.
+        """
+
+        if "ferryseg" in self.dframes:
+            logger.info("Generating nids for table: ferryseg.")
+
+            # Copy and filter dataframes.
+            ferryseg = self.dframes[["nid", "uuid", "geometry"]].copy(deep=True)
+            ferryseg_old = self.dframes_old["roadseg"][["nid", "geometry"]].copy(deep=True)
+
+            # Assign nids to current vintage.
+            ferryseg["nid"] = [uuid.uuid4().hex for _ in range(len(ferryseg))]
+
+            logger.info("Recovering old nids and classifying all nids for table: ferryseg.")
+
+            # Merge current and old dataframes on geometry.
+            merge = pd.merge(ferryseg_old, ferryseg, how="outer", on="geometry", suffixes=("_old", ""), indicator=True)
+
+            # Classify nid groups as: added, retired, modified, confirmed.
+            classified_nids = {
+                "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
+                "retired": merge[merge["_merge"] == "left_only"]["nid"].to_list(),
+                "modified": list(),
+                "confirmed": merge[merge["_merge"] == "both"]
+            }
+
+            # Recover old nids for confirmed and modified nid groups via uuid index.
+            # Merge uuids onto recovery dataframe.
+            recovery = classified_nids["confirmed"].merge(ferryseg["nid"], how="left", on="nid")\
+                .drop_duplicates(subset="nid", keep="first")
+            recovery.index = recovery["uuid"]
+
+            # Recover old nids. Store results.
+            ferryseg.loc[ferryseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+            self.dframes["ferryseg"]["nid"] = ferryseg["nid"].copy(deep=True)
+
+            # Update confirmed nid classification.
+            classified_nids["confirmed"] = classified_nids["confirmed"]["nid"].to_list()
+
+            # Store nid classifications as change logs.
+            self.change_logs["ferryseg"] = {
+                change: "\n".join(map(str, ["Records listed by uuid:", *nids])) if len(nids) else "No records." for
+                change, nids in classified_nids.items()
+            }
+
     def get_previous_vintage(self):
         """Downloads previous NRN vintage and loads data into dataframes."""
 
@@ -169,6 +217,16 @@ class Stage:
         logger.info("Loading Geopackage layers.")
 
         self.dframes = helpers.load_gpkg(self.data_path)
+
+    def points_recover_and_classify_nids(self):
+        """
+        1) Recovers point dataset nids from the previous NRN vintage or generates new ones.
+        2) Generates 4 nid classification log files: added, retired, modified, confirmed.
+
+        Current point datasets: blkpassage, junction, tollpoint.
+        """
+
+        # TODO
 
     def roadseg_gen_full(self):
         """
@@ -316,12 +374,13 @@ class Stage:
     def roadseg_recover_and_classify_nids(self):
         """
         1) Recovers roadseg nids from the previous NRN vintage.
-        2) Generates 4 nid classification log files: added, retired, modified, confirmed."""
+        2) Generates 4 nid classification log files: added, retired, modified, confirmed.
+        """
 
         logger.info("Recovering old nids and classifying all nids for table: roadseg.")
 
         # Copy and filter dataframes.
-        roadseg = self.roadseg[["nid", "geometry"]].copy(deep=True)
+        roadseg = self.roadseg[["nid", "uuid", "geometry"]].copy(deep=True)
         roadseg_old = self.roadseg_old[["nid", "geometry"]].copy(deep=True)
 
         # Group by nid.
@@ -355,7 +414,7 @@ class Stage:
             .drop_duplicates(subset="nid", keep="first")
         recovery.index = recovery["uuid"]
 
-        # Recovery old nids. Store results.
+        # Recover old nids. Store results.
         self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
         self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
 
@@ -370,8 +429,8 @@ class Stage:
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
         flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        classified_nids["modified"] = classified_nids["confirmed"][flags.values].to_list()
-        classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values].to_list()
+        classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
+        classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
 
         # Store nid classifications as change logs.
         self.change_logs["roadseg"] = {
@@ -453,6 +512,8 @@ class Stage:
         self.roadseg_gen_nids()
         self.roadseg_recover_and_classify_nids()
         self.roadseg_update_linkages()
+        self.ferryseg_recover_and_classify_nids()
+        self.points_recover_and_classify_nids()
         self.export_change_logs()
         # self.export_gpkg()
 
