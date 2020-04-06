@@ -357,8 +357,8 @@ class Stage:
         logger.info("Retrieving previous NRN vintage.")
         source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
 
-        # Configuring url for previous NRN vintage.
-        logger.info("Configuring url for previous NRN vintage.")
+        # Retrieve metadata for previous NRN vintage.
+        logger.info("Retrieving metadata for previous NRN vintage.")
         metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
         metadata = None
 
@@ -384,7 +384,7 @@ class Stage:
                     time.sleep(5)
                     continue
 
-        # Extract url from metadata.
+        # Extract download url from metadata.
         metadata = json.loads(metadata.read())
         download_url = metadata["result"]["resources"][0]["url"]
 

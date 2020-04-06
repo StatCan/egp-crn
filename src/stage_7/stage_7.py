@@ -1,4 +1,5 @@
 import click
+import json
 import logging
 import multiprocessing
 import numpy as np
@@ -8,7 +9,10 @@ import pathlib
 import re
 import shutil
 import sys
+import time
+import urllib.request
 import zipfile
+from datetime import datetime
 from operator import itemgetter
 from osgeo import ogr
 from queue import Queue
@@ -34,11 +38,11 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, major_version, minor_version):
+    def __init__(self, source):
         self.stage = 7
         self.source = source.lower()
-        self.major_version = major_version
-        self.minor_version = minor_version
+        self.major_version = None
+        self.minor_version = None
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -108,6 +112,52 @@ class Stage:
 
                     except (AttributeError, KeyError, ValueError):
                         logger.exception("Unable to configure field mapping for English-French domains.")
+
+    def configure_release_version(self):
+        """Configures the major and minor release versions for the current NRN vintage."""
+
+        logger.info("Configuring NRN release version.")
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+
+        # Retrieve metadata for previous NRN vintage.
+        logger.info("Retrieving metadata for previous NRN vintage.")
+        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        metadata = None
+
+        attempt = 1
+        max_attempts = 10
+        while attempt <= max_attempts:
+
+            try:
+
+                # Open metadata url.
+                metadata = urllib.request.urlopen(metadata_url)
+
+            except (TimeoutError, urllib.error.URLError) as e:
+
+                if attempt == max_attempts:
+                    logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
+                    logger.exception(e)
+                    logger.warning("Maximum attempts reached. Exiting program.")
+                    sys.exit(1)
+                else:
+                    logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
+                    attempt += 1
+                    time.sleep(5)
+                    continue
+
+        # Extract release year and version numbers from metadata.
+        metadata = json.loads(metadata.read())
+        release_year = int(metadata["result"]["metadata_created"][:4])
+        self.major_version, self.minor_version = list(
+            map(int, re.findall(r"\d+", metadata["result"]["resources"][0]["url"])[-2:]))
+
+        # Conditionally set major and minor version numbers.
+        if release_year == datetime.now().year:
+            self.minor_version += 1
+        else:
+            self.major_version += 1
+            self.minor_version = 0
 
     def define_kml_groups(self):
         """
@@ -460,6 +510,7 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
+        self.configure_release_version()
         self.compile_french_domain_mapping()
         self.gen_french_dataframes()
         self.gen_output_schemas()
@@ -470,15 +521,13 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
-@click.argument("major_version")
-@click.argument("minor_version")
-def main(source, major_version, minor_version):
+def main(source):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source, major_version, minor_version)
+            stage = Stage(source)
             stage.execute()
 
     except KeyboardInterrupt:
