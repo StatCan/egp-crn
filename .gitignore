@@ -151,3 +151,6 @@ static
 
 # VS Code files
 .vscode
+
+# MacOS cache files
+.DS_Store
