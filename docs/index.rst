@@ -10,6 +10,7 @@ Welcome to National Road Network's documentation!
 
    release_notes.rst
    distribution_formats.rst
+   data_product_specs.rst
    nvd_change_management.rst
    nvd_identification_rules.rst
 
