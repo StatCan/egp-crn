@@ -6,9 +6,9 @@ import networkx as nx
 import numpy as np
 import os
 import pandas as pd
+import requests
 import shutil
 import sys
-import urllib.request
 import uuid
 import zipfile
 from datetime import datetime
@@ -270,12 +270,16 @@ class Stage:
         # Download administrative boundary file.
         logger.info("Downloading administrative boundary file.")
         source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
-        url, filename = itemgetter("url", "filename")(source)
+        download_url, filename = itemgetter("url", "filename")(source)
 
         try:
-            urllib.request.urlretrieve(url, "../../data/interim/boundaries.zip")
-        except (TimeoutError, urllib.error.URLError) as e:
-            logger.exception("Unable to download administrative boundary file: \"{}\".".format(url))
+
+            with requests.get(download_url, stream=True) as r:
+                with open("../../data/interim/boundaries.zip", "wb") as f:
+                    shutil.copyfileobj(r.raw, f)
+
+        except (TimeoutError, requests.exceptions.RequestException, shutil.Error) as e:
+            logger.exception("Unable to download administrative boundary file: \"{}\".".format(download_url))
             logger.exception(e)
             sys.exit(1)
 

@@ -6,10 +6,10 @@ import json
 import logging
 import os
 import pandas as pd
+import requests
 import shutil
 import sys
 import time
-import urllib.request
 import uuid
 import zipfile
 from inspect import getmembers, isfunction
@@ -369,9 +369,9 @@ class Stage:
             try:
 
                 # Open metadata url.
-                metadata = urllib.request.urlopen(metadata_url)
+                metadata = requests.get(metadata_url)
 
-            except (TimeoutError, urllib.error.URLError) as e:
+            except (TimeoutError, requests.exceptions.RequestException) as e:
 
                 if attempt == max_attempts:
                     logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
@@ -385,15 +385,19 @@ class Stage:
                     continue
 
         # Extract download url from metadata.
-        metadata = json.loads(metadata.read())
+        metadata = json.loads(metadata.content)
         download_url = metadata["result"]["resources"][0]["url"]
 
         # Download previous NRN vintage.
         logger.info("Downloading previous NRN vintage.")
 
         try:
-            urllib.request.urlretrieve(download_url, "../../data/interim/previous_nrn.zip")
-        except (TimeoutError, urllib.error.URLError) as e:
+
+            with requests.get(download_url, stream=True) as r:
+                with open("../../data/interim/previous_nrn.zip", "wb") as f:
+                    shutil.copyfileobj(r.raw, f)
+
+        except (TimeoutError, requests.exceptions.RequestException, shutil.Error) as e:
             logger.exception("Unable to download previous NRN vintage: \"{}\".".format(download_url))
             logger.exception(e)
             sys.exit(1)

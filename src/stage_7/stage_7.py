@@ -7,10 +7,10 @@ import os
 import pandas as pd
 import pathlib
 import re
+import requests
 import shutil
 import sys
 import time
-import urllib.request
 import zipfile
 from datetime import datetime
 from operator import itemgetter
@@ -131,9 +131,9 @@ class Stage:
             try:
 
                 # Open metadata url.
-                metadata = urllib.request.urlopen(metadata_url)
+                metadata = requests.get(metadata_url)
 
-            except (TimeoutError, urllib.error.URLError) as e:
+            except (TimeoutError, requests.exceptions.RequestException) as e:
 
                 if attempt == max_attempts:
                     logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
@@ -147,7 +147,7 @@ class Stage:
                     continue
 
         # Extract release year and version numbers from metadata.
-        metadata = json.loads(metadata.read())
+        metadata = json.loads(metadata.content)
         release_year = int(metadata["result"]["metadata_created"][:4])
         self.major_version, self.minor_version = list(
             map(int, re.findall(r"\d+", metadata["result"]["resources"][0]["url"])[-2:]))
