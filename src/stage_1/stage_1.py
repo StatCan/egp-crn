@@ -2,11 +2,16 @@ import ast
 import click
 import fiona
 import geopandas as gpd
+import json
 import logging
 import os
 import pandas as pd
+import shutil
 import sys
+import time
+import urllib.request
 import uuid
+import zipfile
 from inspect import getmembers, isfunction
 from operator import itemgetter
 from osgeo import ogr
@@ -343,6 +348,94 @@ class Stage:
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
             sys.exit(1)
 
+    def download_previous_vintage(self):
+        """
+        1) Downloads the previous NRN vintage.
+        2) Standardizes table and field names to match interim data format (instead of exported format).
+        """
+
+        logger.info("Retrieving previous NRN vintage.")
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+
+        # Configuring url for previous NRN vintage.
+        logger.info("Configuring url for previous NRN vintage.")
+        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        metadata = None
+
+        attempt = 1
+        max_attempts = 10
+        while attempt <= max_attempts:
+
+            try:
+
+                # Open metadata url.
+                metadata = urllib.request.urlopen(metadata_url)
+
+            except (TimeoutError, urllib.error.URLError) as e:
+
+                if attempt == max_attempts:
+                    logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
+                    logger.exception(e)
+                    logger.warning("Maximum attempts reached. Exiting program.")
+                    sys.exit(1)
+                else:
+                    logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
+                    attempt += 1
+                    time.sleep(5)
+                    continue
+
+        # Extract url from metadata.
+        metadata = json.loads(metadata.read())
+        download_url = metadata["result"]["resources"][0]["url"]
+
+        # Download previous NRN vintage.
+        logger.info("Downloading previous NRN vintage.")
+
+        try:
+            urllib.request.urlretrieve(download_url, "../../data/interim/previous_nrn.zip")
+        except (TimeoutError, urllib.error.URLError) as e:
+            logger.exception("Unable to download previous NRN vintage: \"{}\".".format(download_url))
+            logger.exception(e)
+            sys.exit(1)
+
+        # Extract zipped data.
+        logger.info("Extracting zipped data for previous NRN vintage.")
+
+        gpkg_path = [f for f in zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r").namelist() if
+                     f.endswith(".gpkg")][0]
+
+        with zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r") as zip:
+            zip.extract(gpkg_path, "../../data/interim/previous_nrn")
+
+        # Remove temporary files.
+        logger.info("Removing temporary previous NRN vintage files and directories.")
+
+        for f in os.listdir("../../data/interim"):
+            if os.path.splitext(f)[0] == "previous_nrn":
+                path = os.path.join("../../data/interim", f)
+                try:
+                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
+                except OSError as e:
+                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
+                    logger.warning("OSError: {}.".format(e))
+                    continue
+
+        # Load previous NRN vintage into dataframes.
+        logger.info("Loading previous NRN vintage into dataframes.")
+
+        self.dframes_old = helpers.load_gpkg(os.path.join("../../data/interim/previous_nrn", gpkg_path), find=True)
+
+        # Standardize table and field names.
+        logger.info("Standardizing previous NRN vintage to match interim format.")
+
+        for name, dframe in self.dframes_old.items():
+            dframe.columns = map(str.lower, dframe.columns)
+            self.dframes_old = dframe.copy(deep=True)
+
+        # Export standardized previous NRN vintage for usage in later stages.
+        logger.info("Exporting previous NRN vintage dataframes to GeoPackage layers.")
+        helpers.export_gpkg(self.dframes_old, "../../data/interim/{}_old.gpkg".format(self.source))
+
     def export_gpkg(self):
         """Exports the target dataframes as GeoPackage layers."""
 
@@ -444,12 +537,31 @@ class Stage:
                 self.target_gdframes[table] = gdf
                 logger.info("Successfully created target dataframe: {}.".format(table))
 
-        logger.info("Creating empty target dataframes for remaining tables.")
-
-        # Retrieve remaining target table names from target attributes.
+        # Log unavailable datasets.
         for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
 
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
+
+    def recover_missing_datasets(self):
+        """Recovers missing NRN datasets in the current vintage from the previous vintage."""
+
+        recovery_tables = [t for t in self.target_attributes if t not in self.target_gdframes and t in self.dframes_old]
+
+        if any(recovery_tables):
+            logger.info("Recovering missing datasets from the previous NRN vintage.")
+
+            # Iterate recovery tables.
+            for table in recovery_tables:
+                logger.info("Recovering dataset: {}.".format(table))
+
+                # Copy dataframe if not empty.
+                if len(self.dframes_old[table]):
+                    self.target_gdframes[table] = self.dframes_old[table].copy(deep=True)
+
+        # Log unavailable datasets.
+        for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
+
+            logger.warning("Previous NRN vintage has no available dataset: {}.".format(table))
 
     def repair_nid_linkages(self):
         """
@@ -510,12 +622,14 @@ class Stage:
     def execute(self):
         """Executes an NRN stage."""
 
+        self.download_previous_vintage()
         self.compile_source_attributes()
         self.compile_target_attributes()
         self.compile_domains()
         self.gen_source_dataframes()
         self.gen_target_dataframes()
         self.apply_field_mapping()
+        self.recover_missing_datasets()
         self.apply_domains()
         self.repair_nid_linkages()
         self.export_gpkg()
