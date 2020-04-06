@@ -105,38 +105,54 @@ class Stage:
 
                 logger.info("Generating nids for table: {}.".format(table))
 
-                # Copy and filter dataframes.
-                df = self.dframes[table][["nid", "uuid", "geometry"]].copy(deep=True)
-                df_old = self.dframes_old[table][["nid", "geometry"]].copy(deep=True)
-
                 # Assign nids to current vintage.
-                df["nid"] = [uuid.uuid4().hex for _ in range(len(df))]
+                self.dframes[table]["nid"] = [uuid.uuid4().hex for _ in range(len(self.dframes[table]))]
 
-                logger.info("Recovering old nids and classifying all nids for table: {}.".format(table))
+                # Recover old nids, if old dataset is available.
+                # Classify nids.
+                if table in self.dframes_old:
 
-                # Merge current and old dataframes on geometry.
-                merge = pd.merge(df_old, df, how="outer", on="geometry", suffixes=("_old", ""), indicator=True)
+                    logger.info("Recovering old nids and classifying all nids for table: {}.".format(table))
 
-                # Classify nid groups as: added, retired, modified, confirmed.
-                classified_nids = {
-                    "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-                    "retired": merge[merge["_merge"] == "left_only"]["nid"].to_list(),
-                    "modified": list(),
-                    "confirmed": merge[merge["_merge"] == "both"]
-                }
+                    # Copy and filter dataframes.
+                    df = self.dframes[table][["nid", "uuid", "geometry"]].copy(deep=True)
+                    df_old = self.dframes_old[table][["nid", "geometry"]].copy(deep=True)
 
-                # Recover old nids for confirmed and modified nid groups via uuid index.
-                # Merge uuids onto recovery dataframe.
-                recovery = classified_nids["confirmed"].merge(df["nid"], how="left", on="nid")\
-                    .drop_duplicates(subset="nid", keep="first")
-                recovery.index = recovery["uuid"]
+                    # Merge current and old dataframes on geometry.
+                    merge = pd.merge(df_old, df, how="outer", on="geometry", suffixes=("_old", ""), indicator=True)
 
-                # Recover old nids. Store results.
-                df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
-                self.dframes[table]["nid"] = df["nid"].copy(deep=True)
+                    # Classify nid groups as: added, retired, modified, confirmed.
+                    classified_nids = {
+                        "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
+                        "retired": merge[merge["_merge"] == "left_only"]["nid"].to_list(),
+                        "modified": list(),
+                        "confirmed": merge[merge["_merge"] == "both"]
+                    }
 
-                # Update confirmed nid classification.
-                classified_nids["confirmed"] = classified_nids["confirmed"]["nid"].to_list()
+                    # Recover old nids for confirmed and modified nid groups via uuid index.
+                    # Merge uuids onto recovery dataframe.
+                    recovery = classified_nids["confirmed"].merge(df["nid"], how="left", on="nid")\
+                        .drop_duplicates(subset="nid", keep="first")
+                    recovery.index = recovery["uuid"]
+
+                    # Recover old nids. Store results.
+                    df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+                    self.dframes[table]["nid"] = df["nid"].copy(deep=True)
+
+                    # Update confirmed nid classification.
+                    classified_nids["confirmed"] = classified_nids["confirmed"]["nid"].to_list()
+
+                # Classify nids.
+                else:
+
+                    logger.info("Classifying all nids for table: {}. No old nid recovery required.".format(table))
+
+                    classified_nids = {
+                        "added": self.dframes[table]["nid"].to_list(),
+                        "retired": list(),
+                        "modified": list(),
+                        "confirmed": list()
+                    }
 
                 # Store nid classifications as change logs.
                 self.change_logs[table] = {
