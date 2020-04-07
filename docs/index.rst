@@ -1,18 +1,19 @@
 .. include:: <isonum.txt>
 
-Welcome to National Road Network's documentation!
-=================================================
+National Road Network's documentation
+=====================================
 
 .. toctree::
    :numbered:
    :maxdepth: 2
    :caption: Contents:
 
-   release_notes.rst
-   distribution_formats.rst
-   data_product_specs.rst
-   nvd_change_management.rst
-   nvd_identification_rules.rst
+   release_notes
+   distribution_formats
+   data_product_specs
+   feature_catalog
+   nvd_change_management
+   nvd_identification_rules
 
 
 Contact Information
