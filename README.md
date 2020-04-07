@@ -1,1 +1,11 @@
-# PLACEHOLDER
+# National Road Network
+
+The National Road Network (NRN) product is distributed in the form of thirteen provincial or territorial datasets and consists of two linear entities (Road Segment and Ferry Connection Segment) and three punctual entities (Junction, Blocked Passage, Toll Point) with which is associated a series of descriptive attributes such as, among others: First House Number, Last House Number, Street Name Body, Place Name, Functional Road Class, Pavement Status, Number Of Lanes, Structure Type, Route Number, Route Name, Exit Number. The development of the NRN was realized by means of individual meetings and national workshops with interested data providers from the federal, provincial, territorial and municipal governments. In 2005, the NRN edition 2.0 was alternately adopted by members from the Inter-Agency Committee on Geomatics (IACG) and the Canadian Council on Geomatics (CCOG). The NRN content largely conforms to the ISO 14825 from ISO/TC 204.
+
+Data is available on the [Canada Open Data Portal](https://open.canada.ca/data/en/dataset/3d282116-e556-400c-9306-ca1a3cada77f)
+
+# Réseau routier national
+
+Le produit Réseau routier national (RRN) est distribué sous forme de treize jeux de données provinciaux ou territoriaux et est composé de deux entités linéaires (Segment routier et Segment de liaison par transbordeur) et de trois entités ponctuelles (Jonction, Passage obstrué et Poste de péage) auxquelles est associée une série d'attributs descriptifs dont, entre autres : Numéro première maison, Numéro dernière maison, Corps nom rue, Nom de lieu, Classification routière fonctionnelle, État revêtement, Nombre de voies, Type de structure, Numéro de route, Nom de route, Numéro de sortie. Le développement de l'édition 2.0 du RRN a été réalisé à l'aide de rencontres individuelles et des ateliers nationaux avec les producteurs de données intéressés des gouvernements fédéraux, provinciaux, territoriaux et municipaux. En 2005, le RRN édition 2.0 a été adopté à tour de rôle par les membres du Comité mixte des organismes intéressés à la géomatique (CMOIG) et les membres du Conseil canadien de géomatique (COCG). Son contenu s'appuie en grande partie sur la norme ISO 14825 de ISO/TC 204.
+
+Les données son disponible dans le reseau des [données ouvertes du gouvernement du Canada](https://open.canada.ca/data/en/dataset/3d282116-e556-400c-9306-ca1a3cada77f)
