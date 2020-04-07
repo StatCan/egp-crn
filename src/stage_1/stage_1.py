@@ -360,29 +360,9 @@ class Stage:
         # Retrieve metadata for previous NRN vintage.
         logger.info("Retrieving metadata for previous NRN vintage.")
         metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
-        metadata = None
 
-        attempt = 1
-        max_attempts = 10
-        while attempt <= max_attempts:
-
-            try:
-
-                # Open metadata url.
-                metadata = requests.get(metadata_url)
-
-            except (TimeoutError, requests.exceptions.RequestException) as e:
-
-                if attempt == max_attempts:
-                    logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
-                    logger.exception(e)
-                    logger.warning("Maximum attempts reached. Exiting program.")
-                    sys.exit(1)
-                else:
-                    logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
-                    attempt += 1
-                    time.sleep(5)
-                    continue
+        # Get metadata from url.
+        metadata = helpers.get_url(metadata_url, timeout=30)
 
         # Extract download url from metadata.
         metadata = json.loads(metadata.content)
@@ -393,11 +373,14 @@ class Stage:
 
         try:
 
-            with requests.get(download_url, stream=True) as r:
-                with open("../../data/interim/previous_nrn.zip", "wb") as f:
-                    shutil.copyfileobj(r.raw, f)
+            # Get raw content stream from download url.
+            download = helpers.get_url(download_url, stream=True, timeout=30)
 
-        except (TimeoutError, requests.exceptions.RequestException, shutil.Error) as e:
+            # Copy download content to file.
+            with open("../../data/interim/previous_nrn.zip", "wb") as f:
+                shutil.copyfileobj(download.raw, f)
+
+        except (requests.exceptions.RequestException, shutil.Error) as e:
             logger.exception("Unable to download previous NRN vintage: \"{}\".".format(download_url))
             logger.exception(e)
             sys.exit(1)

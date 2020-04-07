@@ -274,11 +274,14 @@ class Stage:
 
         try:
 
-            with requests.get(download_url, stream=True) as r:
-                with open("../../data/interim/boundaries.zip", "wb") as f:
-                    shutil.copyfileobj(r.raw, f)
+            # Get raw content stream from download url.
+            download = helpers.get_url(download_url, stream=True, timeout=30)
 
-        except (TimeoutError, requests.exceptions.RequestException, shutil.Error) as e:
+            # Copy download content to file.
+            with open("../../data/interim/boundaries.zip", "wb") as f:
+                shutil.copyfileobj(download.raw, f)
+
+        except (requests.exceptions.RequestException, shutil.Error) as e:
             logger.exception("Unable to download administrative boundary file: \"{}\".".format(download_url))
             logger.exception(e)
             sys.exit(1)

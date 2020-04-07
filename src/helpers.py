@@ -5,6 +5,7 @@ import logging
 import networkx as nx
 import os
 import pandas as pd
+import requests
 import shutil
 import sqlite3
 import subprocess
@@ -238,6 +239,35 @@ def gdf_to_postgis(gdf, name, engine, **kwargs):
 
     # Call GeoPandas.GeoDataFrame.to_sql method.
     gdf.to_sql(name=name, con=engine, dtype={"geom": Geometry(geometry_type=geom_type, srid=srid)}, **kwargs)
+
+
+def get_url(url, max_attempts=10, **kwargs):
+    """Attempts to retrieve a url."""
+
+    attempt = 1
+    while attempt <= max_attempts:
+
+        try:
+
+            logger.info("Connecting to url (attempt {} of {}): {}".format(url, attempt, max_attempts))
+
+            # Get url response.
+            response = requests.get(url, **kwargs)
+
+            return response
+
+        except (TimeoutError, requests.exceptions.RequestException) as e:
+
+            if attempt == max_attempts:
+                logger.warning("Failed to get url response.")
+                logger.exception(e)
+                logger.warning("Maximum attempts exhausted. Exiting program.")
+                sys.exit(1)
+            else:
+                logger.warning("Failed to get url response. Retrying...")
+                attempt += 1
+                time.sleep(5)
+                continue
 
 
 def load_gpkg(gpkg_path, find=False):

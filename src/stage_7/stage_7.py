@@ -7,10 +7,8 @@ import os
 import pandas as pd
 import pathlib
 import re
-import requests
 import shutil
 import sys
-import time
 import zipfile
 from datetime import datetime
 from operator import itemgetter
@@ -122,29 +120,9 @@ class Stage:
         # Retrieve metadata for previous NRN vintage.
         logger.info("Retrieving metadata for previous NRN vintage.")
         metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
-        metadata = None
 
-        attempt = 1
-        max_attempts = 10
-        while attempt <= max_attempts:
-
-            try:
-
-                # Open metadata url.
-                metadata = requests.get(metadata_url)
-
-            except (TimeoutError, requests.exceptions.RequestException) as e:
-
-                if attempt == max_attempts:
-                    logger.exception("Unable to open NRN metadata url: \"{}\".".format(metadata_url))
-                    logger.exception(e)
-                    logger.warning("Maximum attempts reached. Exiting program.")
-                    sys.exit(1)
-                else:
-                    logger.warning("Attempt {} of {} failed. Retrying.".format(attempt, max_attempts))
-                    attempt += 1
-                    time.sleep(5)
-                    continue
+        # Get metadata from url.
+        metadata = helpers.get_url(metadata_url, timeout=30)
 
         # Extract release year and version numbers from metadata.
         metadata = json.loads(metadata.content)
