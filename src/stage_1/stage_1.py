@@ -352,6 +352,7 @@ class Stage:
         """
         1) Downloads the previous NRN vintage.
         2) Standardizes table and field names to match interim data format (instead of exported format).
+        3) Exports previous NRN vintage as <source>_old.gpkg.
         """
 
         logger.info("Retrieving previous NRN vintage.")
@@ -377,7 +378,7 @@ class Stage:
             download = helpers.get_url(download_url, stream=True, timeout=30)
 
             # Copy download content to file.
-            with open("../../data/interim/previous_nrn.zip", "wb") as f:
+            with open("../../data/interim/nrn_old.zip", "wb") as f:
                 shutil.copyfileobj(download.raw, f)
 
         except (requests.exceptions.RequestException, shutil.Error) as e:
@@ -388,40 +389,40 @@ class Stage:
         # Extract zipped data.
         logger.info("Extracting zipped data for previous NRN vintage.")
 
-        gpkg_path = [f for f in zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r").namelist() if
+        gpkg_path = [f for f in zipfile.ZipFile("../../data/interim/nrn_old.zip", "r").namelist() if
                      f.endswith(".gpkg")][0]
 
-        with zipfile.ZipFile("../../data/interim/previous_nrn.zip", "r") as zip:
-            zip.extract(gpkg_path, "../../data/interim/previous_nrn")
-
-        # Remove temporary files.
-        logger.info("Removing temporary previous NRN vintage files and directories.")
-
-        for f in os.listdir("../../data/interim"):
-            if os.path.splitext(f)[0] == "previous_nrn":
-                path = os.path.join("../../data/interim", f)
-                try:
-                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
-                except OSError as e:
-                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
-                    logger.warning("OSError: {}.".format(e))
-                    continue
+        with zipfile.ZipFile("../../data/interim/nrn_old.zip", "r") as zip:
+            with zip.open(gpkg_path) as zsrc, open("../../data/interim/nrn_old.gpkg", "wb") as zdest:
+                shutil.copyfileobj(zsrc, zdest)
 
         # Load previous NRN vintage into dataframes.
         logger.info("Loading previous NRN vintage into dataframes.")
 
-        self.dframes_old = helpers.load_gpkg(os.path.join("../../data/interim/previous_nrn", gpkg_path), find=True)
+        self.dframes_old = helpers.load_gpkg("../../data/interim/nrn_old.gpkg", find=True)
 
         # Standardize table and field names.
         logger.info("Standardizing previous NRN vintage to match interim format.")
 
         for name, dframe in self.dframes_old.items():
             dframe.columns = map(str.lower, dframe.columns)
-            self.dframes_old = dframe.copy(deep=True)
+            self.dframes_old[name] = dframe.copy(deep=True)
 
         # Export standardized previous NRN vintage for usage in later stages.
         logger.info("Exporting previous NRN vintage dataframes to GeoPackage layers.")
         helpers.export_gpkg(self.dframes_old, "../../data/interim/{}_old.gpkg".format(self.source))
+
+        # Remove temporary files.
+        logger.info("Removing temporary previous NRN vintage files and directories.")
+        for f in os.listdir("../../data/interim"):
+            if os.path.splitext(f)[0] == "nrn_old":
+                path = os.path.join("../../data/interim", f)
+                try:
+                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
+                except (OSError, shutil.Error) as e:
+                    logger.warning("Unable to remove directory or file: \"{}\".".format(os.path.abspath(path)))
+                    logger.warning(e)
+                    continue
 
     def export_gpkg(self):
         """Exports the target dataframes as GeoPackage layers."""

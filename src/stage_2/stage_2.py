@@ -288,8 +288,8 @@ class Stage:
 
         # Extract zipped file.
         logger.info("Extracting zipped administrative boundary file.")
-        with zipfile.ZipFile("../../data/interim/boundaries.zip", "r") as f:
-            f.extractall("../../data/interim/boundaries")
+        with zipfile.ZipFile("../../data/interim/boundaries.zip", "r") as zip:
+            zip.extractall("../../data/interim/boundaries")
 
         # Transform administrative boundary file to GeoPackage layer with crs EPSG:4617.
         logger.info("Transforming administrative boundary file.")
@@ -322,9 +322,9 @@ class Stage:
                 path = os.path.join("../../data/interim", f)
                 try:
                     os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
-                except OSError as e:
-                    logger.warning("Unable to remove directory: \"{}\".".format(os.path.abspath(path)))
-                    logger.warning("OSError: {}.".format(e))
+                except (OSError, shutil.Error) as e:
+                    logger.warning("Unable to remove directory or file: \"{}\".".format(os.path.abspath(path)))
+                    logger.warning(e)
                     continue
 
     def gen_output(self):
