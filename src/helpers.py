@@ -249,7 +249,7 @@ def get_url(url, max_attempts=10, **kwargs):
 
         try:
 
-            logger.info("Connecting to url (attempt {} of {}): {}".format(url, attempt, max_attempts))
+            logger.info("Connecting to url (attempt {} of {}): {}".format(attempt, max_attempts, url))
 
             # Get url response.
             response = requests.get(url, **kwargs)
