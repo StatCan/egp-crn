@@ -531,25 +531,30 @@ class Stage:
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
 
     def recover_missing_datasets(self):
-        """Recovers missing NRN datasets in the current vintage from the previous vintage."""
+        """
+        Recovers missing NRN datasets in the current vintage from the previous vintage.
+        Exception: junction.
+        """
 
-        recovery_tables = [t for t in self.target_attributes if t not in self.target_gdframes and t in self.dframes_old]
-
+        # Identify datasets to be recovered.
+        recovery_tables = [t for t in self.target_attributes if t not in self.target_gdframes and t != "junction"]
         if any(recovery_tables):
+
             logger.info("Recovering missing datasets from the previous NRN vintage.")
 
-            # Iterate recovery tables.
+            # Iterate recovery datasets.
             for table in recovery_tables:
-                logger.info("Recovering dataset: {}.".format(table))
 
-                # Copy dataframe if not empty.
-                if len(self.dframes_old[table]):
-                    self.target_gdframes[table] = self.dframes_old[table].copy(deep=True)
+                # Recover dataset if available and not empty.
+                if table in self.dframes_old and len(self.dframes_old[table]):
 
-        # Log unavailable datasets.
-        for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
+                        logger.info("Recovering dataset: {}.".format(table))
+                        self.target_gdframes[table] = self.dframes_old[table].copy(deep=True)
 
-            logger.warning("Previous NRN vintage has no available dataset: {}.".format(table))
+                # Log unrecoverable dataset.
+                else:
+
+                    logger.info("Previous NRN vintage has no recoverable dataset: {}.".format(table))
 
     def repair_nid_linkages(self):
         """
