@@ -330,6 +330,8 @@ class Stage:
     def gen_output(self):
         """Generate final dataset."""
 
+        logger.info("Generating final output dataset.")
+
         def compute_connected_attribute(junction, attribute):
             """
             Computes the given attribute from connected features to the given junction dataframe.
@@ -370,7 +372,7 @@ class Stage:
                     lambda uuid: max(itemgetter(*uuid)(attribute_uuid)) if isinstance(uuid, tuple) else
                     itemgetter(uuid)(attribute_uuid))
 
-            elif attribute == "exitnbr":
+            if attribute == "exitnbr":
                 connected_attribute = connected_uuid.map(
                     lambda uuid: tuple(set(itemgetter(*uuid)(attribute_uuid))) if isinstance(uuid, tuple) else
                     (itemgetter(uuid)(attribute_uuid),))
@@ -379,8 +381,8 @@ class Stage:
                 connected_attribute = connected_attribute.map(
                     lambda vals: ", ".join(sorted([str(val) for val in vals if val != default and not pd.isna(val)])))
 
-            else:
-                connected_attribute = connected_uuid.map(default)
+            # Populate empty results with default.
+            connected_attribute = connected_attribute.map(lambda val: val if len(str(val)) else default)
 
             return connected_attribute.copy(deep=True)
 

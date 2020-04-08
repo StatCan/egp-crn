@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import pandas as pd
+import re
 import requests
 import shutil
 import sys
@@ -13,6 +14,7 @@ import uuid
 import zipfile
 from inspect import getmembers, isfunction
 from operator import itemgetter
+from shapely.wkt import loads
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -547,7 +549,18 @@ class Stage:
                 if table in self.dframes_old and len(self.dframes_old[table]):
 
                         logger.info("Recovering dataset: {}.".format(table))
-                        self.target_gdframes[table] = self.dframes_old[table].copy(deep=True)
+
+                        df = self.dframes_old[table].copy(deep=True)
+
+                        # Add uuid field.
+                        df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
+
+                        # Round coordinates to decimal precision = 6.
+                        df["geometry"] = df["geometry"].map(
+                            lambda g: loads(re.sub(r"\d*\.\d+", lambda m: "{:.6f}".format(float(m.group(0))), g.wkt)))
+
+                        # Store result.
+                        self.target_gdframes[table] = df.copy(deep=True)
 
                 # Log unrecoverable dataset.
                 else:
