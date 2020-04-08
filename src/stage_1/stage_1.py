@@ -9,12 +9,10 @@ import pandas as pd
 import requests
 import shutil
 import sys
-import time
 import uuid
 import zipfile
 from inspect import getmembers, isfunction
 from operator import itemgetter
-from osgeo import ogr
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -475,12 +473,12 @@ class Stage:
                 sys.exit(1)
 
             # Remove temp data source.
-            if source_yaml["data"]["spatial"]:
-                logger.info("Deleting temporary data source output.")
-                if os.path.exists(kwargs["filename"]):
-                    driver = ogr.GetDriverByName("GeoJSON")
-                    driver.DeleteDataSource(kwargs["filename"])
-                    del driver
+            logger.info("Removing temporary data source output.")
+            try:
+                os.remove(kwargs["filename"])
+            except OSError as e:
+                logger.warning("Unable to remove file: \"{}\".".format(kwargs["filename"]))
+                logger.warning(e)
 
             # Force lowercase field names.
             gdf.columns = map(str.lower, gdf.columns)
