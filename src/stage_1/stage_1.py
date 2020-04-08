@@ -605,7 +605,7 @@ class Stage:
                             target_df[col].map(lambda val: val if val == default else nid_changes[val])
 
                 # Generate new uuids.
-                logger.info("Generating new uuids for \"{}\".".format(source))
+                logger.info("Generating new uuids for: {}.".format(source))
                 self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
                                                         range(len(self.target_gdframes[source]))]
                 self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
