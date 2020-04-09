@@ -219,12 +219,12 @@ class Stage:
         if "ferryseg" in self.dframes:
 
             logger.info("Generating junction type: Ferry.")
-            ferryseg = self.dframes["ferryseg"]
+            df = self.dframes["ferryseg"].copy(deep=True)
 
             # Duplicate and concatenate ferryseg records, keeping the first and last points as separate records.
             self.junctions_dframes["ferry"] = gpd.GeoDataFrame(pd.concat([
-                gpd.GeoDataFrame(ferryseg, geometry=ferryseg["geometry"].map(lambda g: Point(g.coords[0]))),
-                gpd.GeoDataFrame(ferryseg, geometry=ferryseg["geometry"].map(lambda g: Point(g.coords[-1])))
+                gpd.GeoDataFrame(df, geometry=df["geometry"].map(lambda g: Point(g.coords[0]))).copy(deep=True),
+                gpd.GeoDataFrame(df, geometry=df["geometry"].map(lambda g: Point(g.coords[-1]))).copy(deep=True)
             ]))
 
             # Populate junctype field.
