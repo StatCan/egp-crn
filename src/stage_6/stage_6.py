@@ -55,6 +55,9 @@ class Stage:
         This is intended to simplify tables and linkages.
         """
 
+        # TODO: After deleting duplicates. Linked fields need to be repaired:
+        #       strplaname.nid = addrange.l_offnanid, r_offnanid, l_altnanid, r_altnanid.
+
         if "altnamlink" not in self.dframes:
 
             logger.info("Filtering duplicates from addrange and strplaname.")
