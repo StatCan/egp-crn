@@ -28,6 +28,7 @@ class Stage:
         self.stage = 6
         self.source = source.lower()
         self.mods = list()
+        self.errors = list()
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -78,6 +79,20 @@ class Stage:
         logger.info("Loading Geopackage layers.")
 
         self.dframes = helpers.load_gpkg(self.data_path)
+
+    def log_errors(self):
+        """Logs nid linkage errors."""
+
+        if len(self.errors):
+
+            logger.info("Writing error logs.")
+
+            log_path = os.path.abspath("../../data/interim/{}_stage_{}.log".format(self.source, self.stage))
+            with helpers.TempHandlerSwap(logger, log_path):
+
+                # Iterate and log errors.
+                for log in self.errors:
+                    logger.warning(log)
 
     def validate_nid_linkages(self):
         """Validate the nid linkages between all required dataframes."""
@@ -131,15 +146,8 @@ class Stage:
 
                         # Compile invalid values and configure error messages.
                         flag_vals = "\n".join(list(set(source_ids) - set(target_ids)))
-                        errors.append("Invalid nid linkage. The following values from {}.{} are not present in "
-                                      "{}.nid: {}.".format(source, col, target, flag_vals))
-
-        # Log error messages.
-        if len(errors):
-            logger.info("Invalid nid linkages identified.")
-
-            for error in errors:
-                logger.info(error)
+                        self.errors.append("Invalid nid linkage. The following values from {}.{} are not present in "
+                                           "{}.nid:\n{}.".format(source, col, target, flag_vals))
 
     def execute(self):
         """Executes an NRN stage."""
@@ -147,6 +155,7 @@ class Stage:
         self.load_gpkg()
         self.filter_duplicates()
         self.validate_nid_linkages()
+        self.log_errors()
         self.export_gpkg()
 
 

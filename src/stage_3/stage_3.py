@@ -101,14 +101,14 @@ class Stage:
 
                                 # Log messages.
                                 vals = "\n".join(map(str, code_flags))
-                                logger.info(self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
+                                logger.warning(self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
 
                         else:
                             if len(flags):
 
                                 # Log messages.
                                 vals = "\n".join(map(str, flags))
-                                logger.info(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
+                                logger.warning(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
 
     def validations(self):
         """Applies a set of validations to one or more dataframes."""
