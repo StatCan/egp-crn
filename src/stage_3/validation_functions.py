@@ -248,7 +248,7 @@ def validate_line_merging_angle(df):
     # Exit function if no shared points exists (b/c therefore no line merges exist).
     if not len(uuids_grouped):
 
-        return list()
+        errors = uuids_grouped
 
     else:
 
@@ -299,7 +299,7 @@ def validate_line_merging_angle(df):
         # Compile resulting points as errors.
         errors = list(map(lambda pt: pt.coords[0][:2], flagged_pts["geometry"]))
 
-        return {"errors": errors, "modifications": None}
+    return {"errors": errors, "modifications": None}
 
 
 def validate_line_proximity(df):
