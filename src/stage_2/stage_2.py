@@ -6,8 +6,10 @@ import networkx as nx
 import numpy as np
 import os
 import pandas as pd
+import psycopg2
 import requests
 import shutil
+import sqlalchemy.exc
 import sys
 import uuid
 import zipfile
@@ -16,8 +18,7 @@ from itertools import chain
 from operator import itemgetter
 from psycopg2 import connect, extensions, sql
 from scipy.spatial import cKDTree
-from shapely.geometry.multipoint import MultiPoint
-from shapely.geometry.point import Point
+from shapely.geometry import MultiPoint, Point
 from sqlalchemy import *
 from sqlalchemy.engine.url import URL
 
@@ -80,6 +81,8 @@ class Stage:
     def create_db(self):
         """Creates the PostGIS database needed for Stage 2."""
 
+        logger.info("Establishing default PostgreSQL database connection.")
+
         # database name which will be used for stage 2
         nrn_db = "nrn"
 
@@ -114,21 +117,27 @@ class Stage:
         cursor = conn.cursor()
 
         # drop the nrn database if it exists, then create it if not
+        logger.info("Creating / replacing database: {}.".format(nrn_db))
+
         try:
-            logger.info("Dropping PostgreSQL database.")
             cursor.execute(sql.SQL("DROP DATABASE IF EXISTS {};").format(sql.Identifier(nrn_db)))
-        except Exception:
-            logger.exception("Could not drop database.")
+        except (psycopg2.Error, sqlalchemy.exc.SQLAlchemyError) as e:
+            logger.exception("Unable to drop database: {}.".format(nrn_db))
+            logger.exception(e)
+            sys.exit(1)
 
         try:
-            logger.info("Creating PostgreSQL database.")
             cursor.execute(sql.SQL("CREATE DATABASE {};").format(sql.Identifier(nrn_db)))
-        except Exception:
-            logger.exception("Failed to create PostgreSQL database.")
+        except (psycopg2.Error, sqlalchemy.exc.SQLAlchemyError) as e:
+            logger.exception("Unable to create database: {}.".format(nrn_db))
+            logger.exception(e)
+            sys.exit(1)
 
-        logger.info("Closing default PostgreSQL connection.")
+        # Close default postgresql connection.
         cursor.close()
         conn.close()
+
+        logger.info("Establishing database connection: {}.".format(nrn_db))
 
         # connection parameters for newly created database
         nrn_conn = connect(
@@ -140,15 +149,17 @@ class Stage:
 
         nrn_conn.set_isolation_level(autocommit)
 
-        # connect to nrn database
+        # create postgis extension.
+        logger.info("Creating PostGIS spatial extension for database: {}.".format(nrn_db))
+
         nrn_cursor = nrn_conn.cursor()
         try:
-            logger.info("Creating spatially enabled PostgreSQL database.")
             nrn_cursor.execute(sql.SQL("CREATE EXTENSION IF NOT EXISTS postgis;"))
-        except Exception:
-            logger.exception("Cannot create PostGIS extension.")
+        except (psycopg2.Error, sqlalchemy.exc.SQLAlchemyError) as e:
+            logger.exception("Unable to create PostGIS extension.")
+            logger.exception(e)
+            sys.exit(1)
 
-        logger.info("Closing NRN PostgreSQL connection.")
         nrn_cursor.close()
         nrn_conn.close()
 
@@ -162,64 +173,67 @@ class Stage:
     def gen_dead_end(self):
         """Generates dead end junctions with NetworkX."""
 
-        logger.info("Convert roadseg geodataframe to NetX graph.")
+        logger.info("Generating junction type: Dead End.")
+
+        # Convert roadseg to networkx graph.
         g = helpers.gdf_to_nx(self.dframes["roadseg"])
 
-        logger.info("Create an empty graph for dead ends junctions.")
+        # Create empty networkx graph.
         dead_ends = nx.Graph()
         dead_ends.graph["crs"] = g.graph["crs"]
 
-        logger.info("Filter for dead end junctions.")
+        # Identify and populate empty graph with dead end nodes.
         dead_ends_filter = [node for node, degree in g.degree() if degree == 1]
-
-        logger.info("Insert filtered dead end junctions into empty graph.")
         dead_ends.add_nodes_from(dead_ends_filter)
 
-        logger.info("Convert dead end graph to geodataframe.")
+        # Convert dead end graph to geodataframe.
         self.junctions_dframes["deadend"] = helpers.nx_to_gdf(dead_ends, nodes=True, edges=False)
 
-        logger.info("Apply dead end junctype to junctions.")
+        # Populate junctype field.
         self.junctions_dframes["deadend"]["junctype"] = "Dead End"
 
     def gen_intersections(self):
         """Generates intersection junction types."""
 
-        logger.info("Importing roadseg geodataframe into PostGIS.")
+        logger.info("Generating junction type: Intersection.")
+
+        # Import roadseg into postgis database.
         helpers.gdf_to_postgis(self.dframes["roadseg"], name="stage_{}".format(self.stage), engine=self.engine,
                                if_exists="replace", index=False)
 
-        logger.info("Loading SQL yaml.")
+        # Load sql yaml.
         self.sql = helpers.load_yaml("sql.yaml")
 
-        # Identify intersection junctions.
-        logger.info("Executing SQL injection for junction intersections.")
+        # Inject sql filter into postgis database to retrieve intersection junctions.
+        # Retrieve results as geodataframe.
         inter_filter = self.sql["intersections"]["query"].format(self.stage)
-
-        logger.info("Creating junction intersection geodataframe.")
         self.junctions_dframes["intersection"] = gpd.GeoDataFrame.from_postgis(inter_filter, self.engine,
                                                                                geom_col="geometry")
 
-        logger.info("Apply intersection junctype to junctions.")
+        # Populate junctype field.
         self.junctions_dframes["intersection"]["junctype"] = "Intersection"
 
     def gen_ferry(self):
-        """Generates ferry junctions with NetworkX."""
+        """Generates ferry junctions."""
 
         if "ferryseg" in self.dframes:
 
-            logger.info("Convert ferryseg geodataframe to NetX graph.")
-            g = helpers.gdf_to_nx(self.dframes["ferryseg"], endpoints_only=True)
+            logger.info("Generating junction type: Ferry.")
+            ferryseg = self.dframes["ferryseg"]
 
-            logger.info("Convert dead end graph to geodataframe.")
-            self.junctions_dframes["ferry"] = helpers.nx_to_gdf(g, nodes=True, edges=False)
+            # Duplicate and concatenate ferryseg records, keeping the first and last points as separate records.
+            self.junctions_dframes["ferry"] = gpd.GeoDataFrame(pd.concat([
+                gpd.GeoDataFrame(ferryseg, geometry=ferryseg["geometry"].map(lambda g: Point(g.coords[0]))),
+                gpd.GeoDataFrame(ferryseg, geometry=ferryseg["geometry"].map(lambda g: Point(g.coords[-1])))
+            ]))
 
-            logger.info("Apply dead end junctype to junctions.")
+            # Populate junctype field.
             self.junctions_dframes["ferry"]["junctype"] = "Ferry"
 
     def compile_target_attributes(self):
         """Compiles the target (distribution format) yaml file into a dictionary."""
 
-        logger.info("Compiling target attribute yaml.")
+        logger.info("Compiling target attributes yaml.")
         table = field = None
 
         # Load yaml.
@@ -239,15 +253,15 @@ class Stage:
 
     def gen_target_junction(self):
 
-        self.junctions = gpd.GeoDataFrame()
+        logger.info("Creating target dataframe.")
 
-        self.junctions = self.junctions.assign(**{field: pd.Series(dtype=dtype) for field, dtype in
-                                                  self.target_attributes["junction"]["fields"].items()})
+        self.junctions = gpd.GeoDataFrame().assign(**{field: pd.Series(dtype=dtype) for field, dtype in
+                                                      self.target_attributes["junction"]["fields"].items()})
 
     def combine(self):
-        """Combine geodataframes."""
+        """Combine geodataframes for all junction types."""
 
-        logger.info("Combining junction types.")
+        logger.info("Combining junction types into a single geodataframe.")
 
         # Combine junction types.
         combine = gpd.GeoDataFrame(pd.concat(self.junctions_dframes, sort=False))
@@ -263,9 +277,13 @@ class Stage:
                                if_exists="replace")
 
     def fix_junctype(self):
-        """Fix junctype of junctions outside of administrative boundaries."""
+        """
+        Fix junctype for:
+        1) NatProvTer: junctions outside of administrative boundaries.
+        2) Self-intersections.
+        """
 
-        logger.info("Adjusting NatProvTer boundary junctions.")
+        logger.info("Classifying NatProvTer and fixing self-intersecting junctions.")
 
         # Download administrative boundary file.
         logger.info("Downloading administrative boundary file.")
@@ -307,8 +325,10 @@ class Stage:
         bound_adm = gpd.read_file("../../data/interim/boundaries.geojson", crs=self.dframes["roadseg"].crs)
         helpers.gdf_to_postgis(bound_adm, name="adm", engine=self.engine, if_exists="replace")
 
-        # Query junctions and update attributes.
-        logger.info("Testing for junction equality and altering attributes.")
+        # Update junctions via postgis sql injection.
+        # Retrieve updated junctions as geodataframe.
+        logger.info("Applying junction updates.")
+
         attr_fix = self.sql["attributes"]["query"].format(self.stage)
 
         self.attr_equality = gpd.GeoDataFrame.from_postgis(attr_fix, self.engine, geom_col="geom")
@@ -337,6 +357,11 @@ class Stage:
             Computes the given attribute from connected features to the given junction dataframe.
             Currently supported attributes: 'accuracy', 'exitnbr'.
             """
+
+            # Validate input attribute.
+            if attribute not in ("accuracy", "exitnbr"):
+                logger.exception("Unsupported attribute provided: {}.".format(attribute))
+                sys.exit(1)
 
             # Compile default field value.
             default = helpers.compile_default_values()["junction"][attribute]
@@ -367,11 +392,13 @@ class Stage:
             # Convert associated uuids to attributes.
             # Return a series of the attribute default if an unsupported attribute was specified.
 
+            # Attribute: accuracy.
             if attribute == "accuracy":
                 connected_attribute = connected_uuid.map(
                     lambda uuid: max(itemgetter(*uuid)(attribute_uuid)) if isinstance(uuid, tuple) else
                     itemgetter(uuid)(attribute_uuid))
 
+            # Attribute: exitnbr.
             if attribute == "exitnbr":
                 connected_attribute = connected_uuid.map(
                     lambda uuid: tuple(set(itemgetter(*uuid)(attribute_uuid))) if isinstance(uuid, tuple) else
