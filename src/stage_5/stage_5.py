@@ -48,16 +48,8 @@ class Stage:
         # Compile match fields (fields which must be equal across records).
         self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
 
-        # Define dictionary for tracking dataset differences (change logs) between the previous and current vintage.
-        self.change_logs = dict.fromkeys(self.dframes)
-
-    def export_gpkg(self):
-        """Exports the dataframes as GeoPackage layers."""
-
-        logger.info("Exporting dataframes to GeoPackage layers.")
-
-        # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.dframes, self.data_path)
+        # Define change logs dictionary.
+        self.change_logs = dict()
 
     def export_change_logs(self):
         """Exports the dataset differences as logs."""
@@ -78,6 +70,14 @@ class Stage:
                 # Write log.
                 with helpers.TempHandlerSwap(logger, log_path):
                     logger.info(log)
+
+    def export_gpkg(self):
+        """Exports the dataframes as GeoPackage layers."""
+
+        logger.info("Exporting dataframes to GeoPackage layers.")
+
+        # Export target dataframes to GeoPackage layers.
+        helpers.export_gpkg(self.dframes, self.data_path)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -124,7 +124,7 @@ class Stage:
                     # Classify nid groups as: added, retired, modified, confirmed.
                     classified_nids = {
                         "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-                        "retired": merge[merge["_merge"] == "left_only"]["nid"].to_list(),
+                        "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
                         "modified": list(),
                         "confirmed": merge[merge["_merge"] == "both"]
                     }
@@ -156,7 +156,7 @@ class Stage:
 
                 # Store nid classifications as change logs.
                 self.change_logs[table] = {
-                    change: "\n".join(map(str, ["Records listed by uuid:", *nids])) if len(nids) else "No records." for
+                    change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
                     change, nids in classified_nids.items()
                 }
 
@@ -201,7 +201,7 @@ class Stage:
         logger.info("Generating nids for table: roadseg.")
 
         # Copy and filter dataframes.
-        roadseg = self.roadseg[["nid", "geometry"]].copy(deep=True)
+        roadseg = self.roadseg[[*self.match_fields, "uuid", "nid", "geometry"]].copy(deep=True)
         junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
 
         # Group uuids and geometry by match fields.
@@ -296,12 +296,10 @@ class Stage:
         nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
 
         # Assign nids to roadseg.
-        nid_groups.index = nid_groups["uuid"]
-        roadseg["nid"] = nid_groups["nid"]
-
         # Store results.
-        self.dframes["roadseg"] = roadseg.copy(deep=True)
-        self.roadseg["nid"] = roadseg["nid"].copy(deep=True)
+        nid_groups.index = nid_groups["uuid"]
+        self.dframes["roadseg"]["nid"] = nid_groups["nid"].copy(deep=True)
+        self.roadseg["nid"] = nid_groups["nid"].copy(deep=True)
 
     def roadseg_recover_and_classify_nids(self):
         """
@@ -312,8 +310,8 @@ class Stage:
         logger.info("Recovering old nids and classifying all nids for table: roadseg.")
 
         # Copy and filter dataframes.
-        roadseg = self.roadseg[["nid", "uuid", "geometry"]].copy(deep=True)
-        roadseg_old = self.roadseg_old[["nid", "geometry"]].copy(deep=True)
+        roadseg = self.roadseg[[*self.match_fields, "nid", "uuid", "geometry"]].copy(deep=True)
+        roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
 
         # Group by nid.
         roadseg_grouped = roadseg.groupby("nid")["geometry"].apply(list)
@@ -336,7 +334,7 @@ class Stage:
         classified_nids = {
             "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
             "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
-            "modified": None,
+            "modified": list(),
             "confirmed": merge[merge["_merge"] == "both"]
         }
 
