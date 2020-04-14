@@ -57,7 +57,7 @@ class Stage:
         self.defaults = helpers.compile_default_values()
         self.dtypes = helpers.compile_dtypes()
 
-        # Store nid field updates for re-linkage post-field mapping.
+        # Store nid changes.
         self.nid_changes = dict()
 
     def apply_domains(self):
@@ -190,14 +190,13 @@ class Stage:
 
                         # Split records if required.
                         if field_mapping_results["split_record"]:
-                            # Split records.
-                            target_gdf, nid_changes = field_map_functions.split_record(target_gdf, target_field)
 
-                            # Store nid changes.
-                            self.nid_changes[target_name] = nid_changes
+                            # Split records and store nid changes.
+                            target_gdf, nid_changes = field_map_functions.split_record(target_gdf, target_field)
+                            self.nid_changes[target_name] = nid_changes.copy(deep=True)
 
                     # Store updated target dataframe.
-                    self.target_gdframes[target_name] = target_gdf
+                    self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
     def apply_functions(self, maps, series, func_list, table_domains, field, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
@@ -432,6 +431,47 @@ class Stage:
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.target_gdframes, self.output_path)
 
+    def filter_linkup_duplicates(self):
+        """
+        Filter duplicate records from addrange and strplaname, only if altnamlink does not exist.
+        This is intended to simplify tables and linkages.
+        """
+
+        self.nid_lookups = dict()
+
+        if "altnamlink" not in self.target_gdframes:
+
+            logger.info("Filtering duplicates from linkup tables.")
+
+            # Iterate linkup tables.
+            for table in ("addrange", "strplaname"):
+
+                logger.info("Filtering duplicates from: {}.".format(table))
+                df = self.target_gdframes[table]
+
+                # Define match fields.
+                fields = df.columns.difference(["uuid", "nid"])
+
+                # Drop duplicates.
+                new_df = df.drop_duplicates(subset=fields, keep="first", inplace=False)
+
+                # Store results only if duplicates were dropped.
+                if len(df) != len(new_df):
+
+                    self.target_gdframes[table] = new_df.copy(deep=True)
+
+                    # Create lookup dictionary to repair nid linkages.
+
+                    # Compile the associated nid which is kept for each duplicate group.
+                    # Process: group nids by match fields, set first result to index, then explode groups.
+                    nid_lookup = df.groupby(list(fields))["nid"].apply(list).reset_index(drop=True)
+                    nid_lookup.index = nid_lookup.map(lambda vals: vals[0])
+                    nid_lookup = nid_lookup.explode()
+
+                    # Invert nid lookup and store results as dict.
+                    nid_lookup = pd.Series(nid_lookup.index.values, index=nid_lookup.values)
+                    self.nid_lookups[table] = nid_lookup.to_dict()
+
     def gen_source_dataframes(self):
         """Loads input data into a geopandas dataframe."""
 
@@ -451,7 +491,7 @@ class Stage:
                 kwargs = {"filename": os.path.abspath("../../data/interim/{}_temp.geojson".format(self.source))}
 
                 # Transform data source crs.
-                logger.info("Transforming data source to EPSG:4617 and rounding coordinates to 6 decimal places.")
+                logger.info("Transforming data source to EPSG:4617 and rounding coordinates to 7 decimal places.")
 
                 helpers.ogr2ogr({
                     "overwrite": "-overwrite",
@@ -459,7 +499,7 @@ class Stage:
                     "dest": "\"{}\"".format(kwargs["filename"]),
                     "src": "\"{}\"".format(source_yaml["data"]["filename"]),
                     "src_layer": source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "",
-                    "lco": "-lco coordinate_precision=6"
+                    "lco": "-lco coordinate_precision=7"
                 })
 
             # Tabular.
@@ -555,9 +595,9 @@ class Stage:
                         # Add uuid field.
                         df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
-                        # Round coordinates to decimal precision = 6.
+                        # Round coordinates to decimal precision = 7.
                         df["geometry"] = df["geometry"].map(
-                            lambda g: loads(re.sub(r"\d*\.\d+", lambda m: "{:.6f}".format(float(m.group(0))), g.wkt)))
+                            lambda g: loads(re.sub(r"\d*\.\d+", lambda m: "{:.7f}".format(float(m.group(0))), g.wkt)))
 
                         # Store result.
                         self.target_gdframes[table] = df.copy(deep=True)
@@ -569,8 +609,8 @@ class Stage:
 
     def repair_nid_linkages(self):
         """
-        Repairs the linkages between dataframes if any nid fields were altered.
-        Additionally, generates new uuids to restore record uniqueness.
+        1) Repairs the linkages between dataframes if the split_records field mapping function was executed.
+        2) Generates new uuids to restore record uniqueness.
         """
 
         if len(self.nid_changes):
@@ -613,12 +653,16 @@ class Stage:
 
                         # Update column with new source nids.
                         logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, col, target))
-                        default = self.defaults[target][col]
-                        self.target_gdframes[target][col] = \
-                            target_df[col].map(lambda val: val if val == default else nid_changes[val])
 
-                # Generate new uuids.
+                        default = self.defaults[target][col]
+                        flags = target_df[col].map(lambda val: val != default)
+
+                        target_df.loc[flags, col] = nid_changes[flags]
+                        self.target_gdframes[target][col] = target_df[col].copy(deep=True)
+
+                # Generate new uuids and update index.
                 logger.info("Generating new uuids for: {}.".format(source))
+
                 self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
                                                         range(len(self.target_gdframes[source]))]
                 self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
@@ -636,6 +680,7 @@ class Stage:
         self.recover_missing_datasets()
         self.apply_domains()
         self.repair_nid_linkages()
+        self.filter_linkup_duplicates()
         self.export_gpkg()
 
 

@@ -288,3 +288,15 @@ Limitation: must be the last function within a function chain.
 ### Explanation
 The possibility of splitting records would create duplicate indexes. This would raise an error once the function chain
 finishes because the target field is now a different-sized pandas series than the source field.
+
+## split_record
+Limitation: must only apply to a tabular dataset.
+
+### Explanation
+pandas.explode is used to split nested field values but geopandas.explode will only work on geometry.
+
+## split_record
+Limitation: must have a 1:1 relationship with linked tables.
+
+### Explanation
+This ensures accurate linkage recovery after the records are split since the linkages are now complexified from a many-to-one to many-to-many relationship. This should not be an issue since the use of split_record implies that the target dataset is being generated from scratch anyways.

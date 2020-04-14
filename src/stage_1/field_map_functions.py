@@ -331,7 +331,7 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
 
 
 def split_record(df, field):
-    """Splits pandas dataframe records on the input field."""
+    """Splits pandas dataframe records on a nested field."""
 
     # Validate column count.
     count = len(df[field][0])
@@ -339,30 +339,13 @@ def split_record(df, field):
         logger.exception("Invalid column count for split_records: {}. Only 2 columns are permitted.".format(count))
         sys.exit(1)
 
-    # Identify records to be split.
-    df_split = df.loc[df[field].map(lambda val: val[0] != val[1])].copy(deep=True)
-
-    if len(df_split):
-
-        # Keep first instance for original records.
-        df[field] = df[field].map(lambda val: val[0])
-
-        # Keep second instance for split records.
-        df_split[field] = df_split[field].map(lambda val: val[1])
-
-        # Append split records to dataframe.
-        df = df.append(df_split, ignore_index=False)
-
-    # Store original nids.
-    nids_orig = df["nid"].values.copy()
+    # Explode dataframe on field.
+    df = df.explode(field).copy(deep=True)
 
     # Assign new nids.
     df["nid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
-    # Compile orig-new nid mapping.
-    nid_changes = dict(zip(nids_orig, df["nid"].values))
-
-    return df, nid_changes
+    return df, df["nid"].copy(deep=True)
 
 
 def validate_dtypes(val_name, val, dtypes):

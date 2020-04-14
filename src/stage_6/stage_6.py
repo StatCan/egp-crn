@@ -27,7 +27,6 @@ class Stage:
     def __init__(self, source):
         self.stage = 6
         self.source = source.lower()
-        self.mods = list()
         self.errors = list()
 
         # Configure and validate input data path.
@@ -35,46 +34,6 @@ class Stage:
         if not os.path.exists(self.data_path):
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
-
-    def export_gpkg(self):
-        """Exports the dataframes as GeoPackage layers."""
-
-        logger.info("Exporting dataframes to GeoPackage layers.")
-
-        # Export target dataframes to GeoPackage layers.
-        dframes = {name: df for name, df in self.dframes.items() if name in self.mods}
-
-        if len(dframes):
-            helpers.export_gpkg(dframes, self.data_path)
-        else:
-            logger.info("Export not required, no dataframe modifications detected.")
-
-    def filter_duplicates(self):
-        """
-        Filter duplicate records from addrange and strplaname, only if altnamlink does not exist.
-        This is intended to simplify tables and linkages.
-        """
-
-        # TODO: After deleting duplicates. Linked fields need to be repaired:
-        #       strplaname.nid = addrange.l_offnanid, r_offnanid, l_altnanid, r_altnanid.
-
-        if "altnamlink" not in self.dframes:
-
-            logger.info("Filtering duplicates from addrange and strplaname.")
-
-            # Filter duplicate records (ignoring uuid and nid columns).
-            for name, df in self.dframes.items():
-
-                if name in ("addrange", "strplaname"):
-
-                    # Drop duplicates.
-                    kwargs = {"subset": df.columns.difference(["uuid", "nid"]), "keep": "first", "inplace": False}
-                    new_df = df.drop_duplicates(**kwargs)
-
-                    # Replace original dataframe only if modifications were made.
-                    if len(df) != len(new_df):
-                        self.dframes[name] = new_df
-                        self.mods.append(name)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -101,7 +60,6 @@ class Stage:
         """Validate the nid linkages between all required dataframes."""
 
         logger.info("Validating nid linkages.")
-        errors = list()
 
         # Define linkages.
         linkages = {
@@ -156,10 +114,8 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
-        self.filter_duplicates()
         self.validate_nid_linkages()
         self.log_errors()
-        self.export_gpkg()
 
 
 @click.command()
