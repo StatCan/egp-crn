@@ -404,34 +404,33 @@ class Stage:
 
         # Iterate dataframes, if available.
         for table in tables:
-            if table in self.dframes:
 
-                # Copy and filter dataframe.
-                df = self.dframes[table][["roadnid", "geometry"]].copy(deep=True)
+            # Copy and filter dataframe.
+            df = self.dframes[table][["roadnid", "geometry"]].copy(deep=True)
 
-                # Compile indexes of all roadseg points within max_len distance.
-                roadseg_pt_indexes = df["geometry"].map(lambda geom: roadseg_tree.query_ball_point(geom, r=max_len))
+            # Compile indexes of all roadseg points within max_len distance.
+            roadseg_pt_indexes = df["geometry"].map(lambda geom: roadseg_tree.query_ball_point(geom, r=max_len))
 
-                # Retrieve associated record indexes for each point index.
-                df["roadseg_idxs"] = roadseg_pt_indexes.map(lambda idxs: list(set(itemgetter(*idxs)(roadseg_lookup))))
+            # Retrieve associated record indexes for each point index.
+            df["roadseg_idxs"] = roadseg_pt_indexes.map(lambda idxs: list(set(itemgetter(*idxs)(roadseg_lookup))))
 
-                # Retrieve associated record geometries for each record index.
-                df["roadsegs"] = df["roadseg_idxs"].map(lambda idxs: itemgetter(*idxs)(roadseg_geometry_lookup))
+            # Retrieve associated record geometries for each record index.
+            df["roadsegs"] = df["roadseg_idxs"].map(lambda idxs: itemgetter(*idxs)(roadseg_geometry_lookup))
 
-                # Retrieve the local roadsegs index of the nearest roadsegs geometry.
-                df["nearest_local_idx"] = np.vectorize(
-                    lambda pt, roads: min(enumerate(map(lambda road: road.distance(pt), roads)), key=itemgetter(1))[0])\
-                    (df["geometry"], df["roadsegs"])
+            # Retrieve the local roadsegs index of the nearest roadsegs geometry.
+            df["nearest_local_idx"] = np.vectorize(
+                lambda pt, roads: min(enumerate(map(lambda road: road.distance(pt), roads)), key=itemgetter(1))[0])\
+                (df["geometry"], df["roadsegs"])
 
-                # Retrieve the associated roadseg record index from the local index.
-                df["nearest_roadseg_idx"] = np.vectorize(
-                    lambda local_idx, roadseg_idxs: itemgetter(local_idx)(roadseg_idxs))\
-                    (df["nearest_local_idx"], df["roadseg_idxs"])
+            # Retrieve the associated roadseg record index from the local index.
+            df["nearest_roadseg_idx"] = np.vectorize(
+                lambda local_idx, roadseg_idxs: itemgetter(local_idx)(roadseg_idxs))\
+                (df["nearest_local_idx"], df["roadseg_idxs"])
 
-                # Retrieve the nid associated with the roadseg index.
-                # Store results.
-                self.dframes[table]["roadnid"] = df["nearest_roadseg_idx"].map(
-                    lambda roadseg_idx: itemgetter(roadseg_idx)(roadseg_nid_lookup)).copy(deep=True)
+            # Retrieve the nid associated with the roadseg index.
+            # Store results.
+            self.dframes[table]["roadnid"] = df["nearest_roadseg_idx"].map(
+                lambda roadseg_idx: itemgetter(roadseg_idx)(roadseg_nid_lookup)).copy(deep=True)
 
     def execute(self):
         """Executes an NRN stage."""

@@ -431,46 +431,48 @@ class Stage:
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.target_gdframes, self.output_path)
 
-    def filter_linkup_duplicates(self):
+    def filter_strplaname_duplicates(self):
         """
-        Filter duplicate records from addrange and strplaname, only if altnamlink does not exist.
+        Filter duplicate records from strplaname, only if altnamlink does not exist.
         This is intended to simplify tables and linkages.
         """
 
-        self.nid_lookups = dict()
+        if "altnamlink" not in self.target_gdframes and "strplaname" in self.target_gdframes:
 
-        if "altnamlink" not in self.target_gdframes:
+            logger.info("Filtering duplicates from strplaname.")
+            df = self.target_gdframes["strplaname"].copy(deep=True)
 
-            logger.info("Filtering duplicates from linkup tables.")
+            # Define match fields.
+            fields = df.columns.difference(["uuid", "nid"])
 
-            # Iterate linkup tables.
-            for table in ("addrange", "strplaname"):
+            # Drop duplicates.
+            new_df = df.drop_duplicates(subset=fields, keep="first", inplace=False)
 
-                logger.info("Filtering duplicates from: {}.".format(table))
-                df = self.target_gdframes[table]
+            # Store results only if duplicates were dropped.
+            if len(df) != len(new_df):
 
-                # Define match fields.
-                fields = df.columns.difference(["uuid", "nid"])
+                self.target_gdframes["strplaname"] = new_df.copy(deep=True)
 
-                # Drop duplicates.
-                new_df = df.drop_duplicates(subset=fields, keep="first", inplace=False)
+                # Create lookup dictionary to repair nid linkages.
+                logger.info("Repairing nid linkages for strplaname.")
 
-                # Store results only if duplicates were dropped.
-                if len(df) != len(new_df):
+                # Compile the associated nid which is kept for each duplicate group.
+                # Process: group nids by match fields, set first result to index, then explode groups.
+                nid_lookup = df.groupby(list(fields))["nid"].apply(list).reset_index(drop=True)
+                nid_lookup.index = nid_lookup.map(lambda vals: vals[0])
+                nid_lookup = nid_lookup.explode()
 
-                    self.target_gdframes[table] = new_df.copy(deep=True)
+                # Invert nid lookup and store results as dict.
+                nid_lookup = pd.Series(nid_lookup.index.values, index=nid_lookup.values).to_dict()
 
-                    # Create lookup dictionary to repair nid linkages.
+                # Update linked nid fields.
+                for col in ("l_offnanid", "r_offnanid", "l_altnanid", "r_altnanid"):
 
-                    # Compile the associated nid which is kept for each duplicate group.
-                    # Process: group nids by match fields, set first result to index, then explode groups.
-                    nid_lookup = df.groupby(list(fields))["nid"].apply(list).reset_index(drop=True)
-                    nid_lookup.index = nid_lookup.map(lambda vals: vals[0])
-                    nid_lookup = nid_lookup.explode()
+                    default = self.defaults["strplaname"][col]
+                    series = self.target_gdframes["strplaname"][col]
 
-                    # Invert nid lookup and store results as dict.
-                    nid_lookup = pd.Series(nid_lookup.index.values, index=nid_lookup.values)
-                    self.nid_lookups[table] = nid_lookup.to_dict()
+                    self.target_gdframes["strplaname"][col] = series.map(
+                        lambda val: val if val == default else nid_lookup[val]).copy(deep=True)
 
     def gen_source_dataframes(self):
         """Loads input data into a geopandas dataframe."""
@@ -680,7 +682,7 @@ class Stage:
         self.recover_missing_datasets()
         self.apply_domains()
         self.repair_nid_linkages()
-        self.filter_linkup_duplicates()
+        self.filter_strplaname_duplicates()
         self.export_gpkg()
 
 
