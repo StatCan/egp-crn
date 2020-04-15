@@ -296,7 +296,7 @@ Limitation: must only apply to a tabular dataset.
 pandas.explode is used to split nested field values but geopandas.explode will only work on geometry.
 
 ## split_record
-Limitation: must have a 1:1 relationship with linked tables.
+Limitation: linked fields must have a 1:1 relationship pre-split.
 
 ### Explanation
 This ensures accurate linkage recovery after the records are split since the linkages are now complexified from a many-to-one to many-to-many relationship. This should not be an issue since the use of split_record implies that the target dataset is being generated from scratch anyways.

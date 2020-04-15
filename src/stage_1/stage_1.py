@@ -612,6 +612,9 @@ class Stage:
     def repair_nid_linkages(self):
         """
         1) Repairs the linkages between dataframes if the split_records field mapping function was executed.
+          i) For l_ / _l field names: assigns every other value, starting from the first value.
+          ii) For r_ / _r field names: assigns every other value, starting from the second value.
+          iii) For any other field name: assigns the entire value series.
         2) Generates new uuids to restore record uniqueness.
         """
 
@@ -650,24 +653,42 @@ class Stage:
                     # Retrieve target dataframe.
                     target_df = self.target_gdframes[target]
 
-                    # Iterate linked columns.
+                    # Iterate linked fields.
                     for col in linkages[source][target]:
 
-                        # Update column with new source nids.
-                        logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, col, target))
+                        # Update linkage for l_ / _l fields.
+                        if col.startswith("l_") or col.endswith("_l"):
+                            # ...
 
-                        default = self.defaults[target][col]
-                        flags = target_df[col].map(lambda val: val != default)
+                        # Update linkage for r_ / _r fields.
+                        elif col.startswith("r_") or col.endswith("_r"):
+                            # ...
 
-                        target_df.loc[flags, col] = nid_changes[flags]
-                        self.target_gdframes[target][col] = target_df[col].copy(deep=True)
+                        # All other fields.
+                        else:
+                            # ...
 
-                # Generate new uuids and update index.
-                logger.info("Generating new uuids for: {}.".format(source))
-
-                self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
-                                                        range(len(self.target_gdframes[source]))]
-                self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
+                #     # Iterate linked columns.
+                #     for col in linkages[source][target]:
+                #
+                #         # Update column with new source nids.
+                #         logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, col, target))
+                #
+                #         default = self.defaults[target][col]
+                #         flags = target_df[col].map(lambda val: val != default)
+                #
+                #         print(target_df.loc[flags, col])
+                #         print(nid_changes[flags])
+                #
+                #         target_df.loc[flags, col] = nid_changes[flags]
+                #         self.target_gdframes[target][col] = target_df[col].copy(deep=True)
+                #
+                # # Generate new uuids and update index.
+                # logger.info("Generating new uuids for: {}.".format(source))
+                #
+                # self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
+                #                                         range(len(self.target_gdframes[source]))]
+                # self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
 
     def execute(self):
         """Executes an NRN stage."""

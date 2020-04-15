@@ -396,17 +396,18 @@ def nx_to_gdf(g, nodes=True, edges=True):
 def ogr2ogr(expression, log=None, max_attempts=5):
     """Runs an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters."""
 
-    attempt = 1
-
+    # Write log.
     if log:
         logger.info(log)
 
+    # Format ogr2ogr command.
+    expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
+
+    # Execute ogr2ogr.
+    attempt = 1
     while attempt <= max_attempts:
 
         try:
-
-            # Format ogr2ogr command.
-            expression = "ogr2ogr {}".format(" ".join(map(str, expression.values())))
 
             # Run subprocess.
             subprocess.run(expression, shell=True, check=True)

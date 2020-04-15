@@ -331,7 +331,10 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
 
 
 def split_record(df, field):
-    """Splits pandas dataframe records on a nested field."""
+    """
+    Splits pandas dataframe records on a nested field.
+    Returns the nid values for post-split record groups (left and right) for the purposes of repairing table linkages.
+    """
 
     # Validate column count.
     count = len(df[field][0])
@@ -345,7 +348,12 @@ def split_record(df, field):
     # Assign new nids.
     df["nid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
-    return df, df["nid"].copy(deep=True)
+    # Compile nids of split groups (left and right).
+    nids_l = df["nid"].iloc[0::2].copy(deep=True).values
+    nids_r = df["nid"].iloc[1::2].copy(deep=True).values
+    nids = {"l": nids_l, "r": nids_r}
+
+    return df, nids
 
 
 def validate_dtypes(val_name, val, dtypes):
