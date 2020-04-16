@@ -12,6 +12,7 @@ import shutil
 import sys
 import uuid
 import zipfile
+from copy import deepcopy
 from inspect import getmembers, isfunction
 from operator import itemgetter
 from shapely.wkt import loads
@@ -58,7 +59,7 @@ class Stage:
         self.dtypes = helpers.compile_dtypes()
 
         # Store nid changes.
-        self.nid_changes = dict()
+        self.nid_lookup = dict()
 
     def apply_domains(self):
         """Applies the field domains to each column in the target dataframes."""
@@ -192,8 +193,8 @@ class Stage:
                         if field_mapping_results["split_record"]:
 
                             # Split records and store nid changes.
-                            target_gdf, nid_changes = field_map_functions.split_record(target_gdf, target_field)
-                            self.nid_changes[target_name] = nid_changes.copy(deep=True)
+                            target_gdf, nid_lookup = field_map_functions.split_record(target_gdf, target_field)
+                            self.nid_lookup[target_name] = deepcopy(nid_lookup)
 
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
@@ -432,47 +433,44 @@ class Stage:
         helpers.export_gpkg(self.target_gdframes, self.output_path)
 
     def filter_strplaname_duplicates(self):
-        """
-        Filter duplicate records from strplaname, only if altnamlink does not exist.
-        This is intended to simplify tables and linkages.
-        """
+        """Filter duplicate records from strplaname. This is intended to simplify tables and linkages."""
 
-        if "altnamlink" not in self.target_gdframes and "strplaname" in self.target_gdframes:
+        logger.info("Filtering duplicates from strplaname.")
+        df = self.target_gdframes["strplaname"].copy(deep=True)
 
-            logger.info("Filtering duplicates from strplaname.")
-            df = self.target_gdframes["strplaname"].copy(deep=True)
+        # Define match fields.
+        fields = df.columns.difference(["uuid", "nid"])
 
-            # Define match fields.
-            fields = df.columns.difference(["uuid", "nid"])
+        # Drop duplicates.
+        new_df = df.drop_duplicates(subset=fields, keep="first", inplace=False)
 
-            # Drop duplicates.
-            new_df = df.drop_duplicates(subset=fields, keep="first", inplace=False)
+        # Store results only if duplicates were dropped.
+        if len(df) != len(new_df):
 
-            # Store results only if duplicates were dropped.
-            if len(df) != len(new_df):
+            self.target_gdframes["strplaname"] = new_df.copy(deep=True)
 
-                self.target_gdframes["strplaname"] = new_df.copy(deep=True)
+            # Create lookup dictionary to repair nid linkages.
+            logger.info("Configuring lookup table for repairing strplaname nid linkages.")
 
-                # Create lookup dictionary to repair nid linkages.
-                logger.info("Repairing nid linkages for strplaname.")
+            # Compile the associated nid which is kept for each duplicate group.
+            # Process: group nids by match fields, set first result to index, then explode groups.
+            nid_lookup = df.groupby(list(fields))["nid"].apply(list).reset_index(drop=True)
+            nid_lookup.index = nid_lookup.map(lambda vals: vals[0])
+            nid_lookup = nid_lookup.explode()
 
-                # Compile the associated nid which is kept for each duplicate group.
-                # Process: group nids by match fields, set first result to index, then explode groups.
-                nid_lookup = df.groupby(list(fields))["nid"].apply(list).reset_index(drop=True)
-                nid_lookup.index = nid_lookup.map(lambda vals: vals[0])
-                nid_lookup = nid_lookup.explode()
+            # Invert nid lookup and store results as dict.
+            nid_lookup = pd.Series(nid_lookup.index.values, index=nid_lookup.values).to_dict()
 
-                # Invert nid lookup and store results as dict.
-                nid_lookup = pd.Series(nid_lookup.index.values, index=nid_lookup.values).to_dict()
+            # Modify nid_lookup class variable.
+            # Actual repairing will occur in separate nid repair function.
+            if "strplaname" in self.nid_lookup:
+                self.nid_lookup["strplaname"] = deepcopy({
+                    "l": {k: nid_lookup[v] for k, v in self.nid_lookup["strplaname"]["l"].items()},
+                    "r": {k: nid_lookup[v] for k, v in self.nid_lookup["strplaname"]["r"].items()}
+                })
 
-                # Update linked nid fields.
-                for col in ("l_offnanid", "r_offnanid", "l_altnanid", "r_altnanid"):
-
-                    default = self.defaults["strplaname"][col]
-                    series = self.target_gdframes["strplaname"][col]
-
-                    self.target_gdframes["strplaname"][col] = series.map(
-                        lambda val: val if val == default else nid_lookup[val]).copy(deep=True)
+            else:
+                self.nid_lookup["strplaname"] = deepcopy({"l": nid_lookup, "r": nid_lookup})
 
     def gen_source_dataframes(self):
         """Loads input data into a geopandas dataframe."""
@@ -611,26 +609,23 @@ class Stage:
 
     def repair_nid_linkages(self):
         """
-        1) Repairs the linkages between dataframes if the split_records field mapping function was executed.
-          i) For l_ / _l field names: assigns every other value, starting from the first value.
-          ii) For r_ / _r field names: assigns every other value, starting from the second value.
-          iii) For any other field name: assigns the entire value series.
-        2) Generates new uuids to restore record uniqueness.
+        1) Repairs the nid linkages between dataframes if the split_records field mapping function was executed.
+          i) For l_ / _l field names: uses a lookup dict with the first (left) nid from each record split.
+          ii) For r_ / _r field names: uses a lookup dict with the second (right) nid from each record split.
+          iii) For any other field name: same as l_ / _l fields.
+        2) Generates new uuids for the split dataframe to restore record uniqueness.
         """
 
-        if len(self.nid_changes):
+        if len(self.nid_lookup):
 
             logger.info("Repairing nid linkages.")
 
             # Define linkages.
+            # Linkages will be repaired in the order given.
             linkages = {
                 "addrange":
                     {
                         "roadseg": ["adrangenid"]
-                    },
-                "altnamlink":
-                    {
-                        "addrange": ["l_altnanid", "r_altnanid"]
                     },
                 "roadseg":
                     {
@@ -641,54 +636,49 @@ class Stage:
                     {
                         "addrange": ["l_offnanid", "r_offnanid"],
                         "altnamlink": ["strnamenid"]
+                    },
+                "altnamlink":
+                    {
+                        "addrange": ["l_altnanid", "r_altnanid"]
                     }
             }
 
-            # Iterate tables with nid linkages.
-            for source, nid_changes in self.nid_changes.items():
+            # Iterate tables with nid linkages that had their nids updated (source).
+            for source in [s for s in linkages if s in self.nid_lookup]:
 
-                # Iterate linked tables (targets).
+                nid_lookup = self.nid_lookup[source]
+
+                # Iterate linked tables for linkage repairs (target).
                 for target in [t for t in linkages[source] if t in self.target_gdframes]:
-
-                    # Retrieve target dataframe.
-                    target_df = self.target_gdframes[target]
 
                     # Iterate linked fields.
                     for col in linkages[source][target]:
 
-                        # Update linkage for l_ / _l fields.
-                        if col.startswith("l_") or col.endswith("_l"):
-                            # ...
+                        logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, target, col))
+
+                        # Retrieve target column.
+                        target_col = self.target_gdframes[target][col]
+
+                        # Retrieve default field value.
+                        default = self.defaults[target][col]
 
                         # Update linkage for r_ / _r fields.
-                        elif col.startswith("r_") or col.endswith("_r"):
-                            # ...
+                        if col.startswith("r_") or col.endswith("_r"):
+                            target_col = target_col.map(lambda val: val if val == default else nid_lookup["r"][val])
 
-                        # All other fields.
+                        # Update linkage for all other fields, including l_ / _l fields.
                         else:
-                            # ...
+                            target_col = target_col.map(lambda val: val if val == default else nid_lookup["l"][val])
 
-                #     # Iterate linked columns.
-                #     for col in linkages[source][target]:
-                #
-                #         # Update column with new source nids.
-                #         logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, col, target))
-                #
-                #         default = self.defaults[target][col]
-                #         flags = target_df[col].map(lambda val: val != default)
-                #
-                #         print(target_df.loc[flags, col])
-                #         print(nid_changes[flags])
-                #
-                #         target_df.loc[flags, col] = nid_changes[flags]
-                #         self.target_gdframes[target][col] = target_df[col].copy(deep=True)
-                #
-                # # Generate new uuids and update index.
-                # logger.info("Generating new uuids for: {}.".format(source))
-                #
-                # self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
-                #                                         range(len(self.target_gdframes[source]))]
-                # self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
+                        # Store results.
+                        self.target_gdframes[target][col] = target_col.copy(deep=True)
+
+                # Generate new uuids and update index.
+                logger.info("Generating new uuids for: {}.".format(source))
+
+                self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
+                                                        range(len(self.target_gdframes[source]))]
+                self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
 
     def execute(self):
         """Executes an NRN stage."""
@@ -702,8 +692,8 @@ class Stage:
         self.apply_field_mapping()
         self.recover_missing_datasets()
         self.apply_domains()
-        self.repair_nid_linkages()
         self.filter_strplaname_duplicates()
+        self.repair_nid_linkages()
         self.export_gpkg()
 
 
