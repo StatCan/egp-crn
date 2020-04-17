@@ -144,13 +144,10 @@ class Stage:
                     # Store results.
                     self.error_logs[table][func] = results["errors"]
                     if "modified_dframes" in results:
-                        if params["iterate"]:
-                            self.dframes[table] = results["modified_dframes"].copy(deep=True)
-                            self.dframes_modified.append(table)
-                        else:
-                            for mod_table, mod_df in results["modified_dframes"].items():
-                                self.dframes[mod_table] = mod_df.copy(deep=True)
-                                self.dframes_modified.append(mod_table)
+                        if not isinstance(results["modified_dframes"], dict):
+                            results["modified_dframes"] = {table: results["modified_dframes"]}
+                        self.dframes.update(results["modified_dframes"])
+                        self.dframes_modified.extend(results["modified_dframes"])
 
                     # Break iteration for non-iterative function.
                     if not params["iterate"]:
