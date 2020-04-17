@@ -28,24 +28,31 @@ dtypes_all = helpers.compile_dtypes()
 def strip_whitespace(df):
     """Strips leading and trailing whitespace from the given value for each dataframe column."""
 
-    mods = list()
+    mod_flag = False
 
     # Compile valid columns, excluding geometry.
     df_valid = df.select_dtypes(include="object")
     if "geometry" in df_valid.columns:
         df_valid.drop("geometry", axis=1, inplace=True)
 
-    # Iterate columns, applying modification.
+    # Iterate columns.
     for col in df_valid:
-        if df[col].map(lambda val: val != val.strip()).any():
-            df[col] = df[col].map(str.strip)
-            mods.append(col)
 
-    # Configure modification message.
-    if len(mods):
-        mods = "Fields stripped of whitespace: {}.".format(", ".join(map("\"{}\"".format, mods)))
+        # Apply modification, if required.
+        col_mod = df[df[col].map(lambda val: val != val.strip())][col]
+        if len(col_mod):
+            df.loc[col_mod.index, col] = col_mod.map(str.strip)
+            mod_flag = True
 
-    return {"errors": None, "modifications": mods, "modified_dframes": df}
+            # Log modifications.
+            logger.warning("Modified {} record(s) in column {}."
+                           "\nModification details: Field values stripped of leading and trailing whitespace."
+                           .format(len(col_mod), col))
+
+    if mod_flag:
+        return {"errors": None, "modified_dframes": df.copy(deep=True)}
+    else:
+        return {"errors": None}
 
 
 def title_route_text(df):
@@ -55,30 +62,36 @@ def title_route_text(df):
         rtename1fr, rtename2fr, rtename3fr, rtename4fr.
     """
 
-    # Set text-based route fields to title case, except default value.
+    mod_flag = False
+
+    # Identify columns to iterate.
     cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
                             "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
 
-    mods = df[cols].copy(deep=True)
-
+    # Iterate validation columns.
     for col in cols:
-        orig_series = df[col].copy(deep=True)
-        df[col] = df[col].map(lambda route: route if route == defaults_all["roadseg"][col] else route.title())
 
-        # Store modifications flag for column.
-        mods[col] = pd.Series(orig_series != df[col])
+        # Apply modification, if required.
+        col_mod = df[df[col].map(lambda route: route != defaults_all["roadseg"][col] and not route.istitle())][col]
+        if len(col_mod):
+            df.loc[col_mod.index, col] = col_mod.map(str.title)
+            mod_flag = True
 
-    # Compile uuids of modified records.
-    mods = mods[mods.any(axis=1)].index.values
+            # Log modifications.
+            logger.warning("Modified {} record(s) in column {}."
+                           "\nModification details: Field values set to title case.".format(len(col_mod), col))
 
-    return {"errors": None, "modifications": mods, "modified_dframes": df}
+    if mod_flag:
+        return {"errors": None, "modified_dframes": df.copy(deep=True)}
+    else:
+        return {"errors": None}
 
 
 def validate_dates(df):
     """Applies a set of validations to credate and revdate fields."""
 
     errors = {i: list() for i in range(1, 7+1)}
-    mods = {i: list() for i in range(1, 2+1)}
+    mod_flag = False
     defaults = helpers.compile_default_values()["roadseg"]
 
     # Get current date.
@@ -86,30 +99,6 @@ def validate_dates(df):
     today = {"year": int(today_str[:4]), "month": int(today_str[4:6]), "day": int(today_str[6:8])}
 
     # Define functions.
-    def modify_date(uuid, date):
-        """Applies a set of modifications to date values."""
-
-        # Modification 1: set non-numeric and non-standard length dates to today's date.
-        if not date.isnumeric():
-            mods[1].append(uuid)
-            return today_str
-
-        if len(date) not in (4, 6, 8):
-            mods[2].append(uuid)
-            return today_str
-
-        # Modification 2: append 01 for missing month and day values.
-        flag = False
-
-        while len(date) in (4, 6):
-            date += "01"
-            flag = True
-
-        if flag:
-            mods[2].append(uuid)
-
-        return date
-
     def validate_day(date):
         """Validate the day value in a date."""
 
@@ -148,11 +137,31 @@ def validate_dates(df):
             results = df_sub[col].map(lambda date: 1 if len(date) not in (4, 6, 8) else 0)
             errors[2].extend(results[results == 1].index.values)
 
-            # Apply modifications.
-            df_sub["uuid_temp"] = df.index
-            df_sub[col] = df_sub[["uuid_temp", col]].apply(lambda row: modify_date(*row), axis=1)
-            df_sub.drop("uuid_temp", axis=1, inplace=True)
-            df[col] = df_sub[col].copy(deep=True)
+            # Modification 1: set non-numeric and non-standard length dates to today's date.
+            # Apply modification, if required.
+            col_mod = df_sub[df_sub[col].map(lambda date: not date.isnumeric() or len(date) not in (4, 6, 8))][col]
+            if len(col_mod):
+                df_sub[col].loc[col_mod.index, col] = today_str
+                df[col].loc[col_mod.index, col] = today_str
+                mod_flag = True
+
+                # Log modifications.
+                logger.warning("Modified {} record(s) in column {}."
+                               "\nModification details: Date set to today's date.".format(len(col_mod), col))
+
+            # Modification 2: set missing month and day values to 01.
+            # Apply modification, if required.
+            col_mod = df_sub[df_sub[col].map(lambda date: len(date) in (4, 6))][col]
+            if len(col_mod):
+                append_vals = {4: "0101", 6: "01"}
+                df_sub[col].loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
+                df[col].loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
+                mod_flag = True
+
+                # Log modifications.
+                logger.warning("Modified {} record(s) in column {}."
+                               "\nModification details: Date suffixed with \"01\" for missing month and / or day values"
+                               .format(len(col_mod), col))
 
             # Validation 3: valid date - year.
             results = df_sub[col].map(lambda date: 1 if not (1960 <= int(date[:4]) <= today["year"]) else 0)
@@ -176,10 +185,10 @@ def validate_dates(df):
         results = df_sub[["credate", "revdate"]].apply(lambda row: 1 if not int(row[0]) <= int(row[1]) else 0, axis=1)
         errors[7].extend(results[results == 1].index.values)
 
-    # Remove potential duplicates from mods.
-    mods = {k: list(set(v)) for k, v in mods.items()}
-
-    return {"errors": errors, "modifications": mods, "modified_dframes": df}
+    if mod_flag:
+        return {"errors": errors, "modified_dframes": df.copy(deep=True)}
+    else:
+        return {"errors": errors}
 
 
 def validate_exitnbr_conflict(df):
@@ -204,7 +213,7 @@ def validate_exitnbr_conflict(df):
             # Compile error properties.
             errors.append("nid: \"{}\", exitnbr values: {}".format(nid, ", ".join(map("\"{}\"".format, vals))))
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_exitnbr_roadclass(df):
@@ -217,7 +226,7 @@ def validate_exitnbr_roadclass(df):
     # Compile uuids of flagged records.
     errors = df_subset[~df_subset["roadclass"].isin(["Ramp", "Service Lane"])].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_ids(df):
@@ -226,8 +235,8 @@ def validate_ids(df):
     Sets all id fields to lowercase.
     """
 
-    mods = list()
     errors = {1: list(), 2: list(), 3: list(), 4: list()}
+    mod_flag = False
 
     # Compile fields ending with "id".
     id_fields = [fld for fld in df.columns if fld.endswith("id") and fld != "uuid"]
@@ -245,49 +254,53 @@ def validate_ids(df):
     for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid" and dtypes[fld] == "str"]:
 
         # Subset dataframe to non-default values.
-        df_subset = df[df[field] != defaults[field]]
+        df_sub = df[df[field] != defaults[field]]
 
         # Modification: set ids to lowercase.
-        if df_subset[field].map(lambda val: val != val.lower()).any():
-            df_subset[field] = df_subset[field].map(str.lower)
-            df.loc[df_subset.index, field] = df_subset[field].copy(deep=True)
-            mods.append(field)
+        # Apply modification, if required.
+        col_mod = df_sub[df_sub[field].map(lambda val: val != val.lower())][field]
+        if len(col_mod):
+            df_sub.loc[col_mod.index, field] = col_mod.map(str.lower)
+            df.loc[col_mod.index, field] = col_mod.map(str.lower)
+            mod_flag = True
+
+            # Log modifications.
+            logger.warning("Modified {} record(s) in column {}."
+                           "\nModification details: Field values set to lower case.".format(len(col_mod), field))
 
         # Validation 1: ensure ids are 32 digits.
         # Compile uuids of flagged records.
-        flag_uuids = df_subset[df_subset[field].map(lambda val: len(val) != 32)].index.values
+        flag_uuids = df_sub[df_sub[field].map(lambda val: len(val) != 32)].index.values
         for val in flag_uuids:
             errors[1].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
         # Validation 2: ensure ids are hexadecimal.
         # Compile uuids of flagged records.
-        flag_uuids = df_subset[df_subset[field].map(
+        flag_uuids = df_sub[df_sub[field].map(
             lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
         for val in flag_uuids:
             errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
-    # Configure modification message.
-    if len(mods):
-        mods = "Fields set to lowercase: {}.".format(", ".join(map("\"{}\"".format, mods)))
-
-    # Validation 3: ensure unique id fields are unique.
+    # Iterate unique id fields.
     unique_fields = ["ferrysegid", "roadsegid"]
     for field in [fld for fld in unique_fields if fld in df.columns]:
 
+        # Validation 3: ensure unique id fields are unique.
         # Compile uuids of flagged records.
         flag_uuids = df[df[field].duplicated(keep=False)].index.values
         for val in flag_uuids:
             errors[3].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
-    # Validation 4: ensure unique id fields are not the default field value.
-    for field in [fld for fld in unique_fields if fld in df.columns]:
-
+        # Validation 4: ensure unique id fields are not the default field value.
         # Compile uuids of flagged records.
         flag_uuids = df[df[field] == defaults[field]].index.values
         for val in flag_uuids:
             errors[4].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
-    return {"errors": errors, "modifications": mods, "modified_dframes": df}
+    if mod_flag:
+        return {"errors": errors, "modified_dframes": df.copy(deep=True)}
+    else:
+        return {"errors": errors}
 
 
 def validate_nbrlanes(df):
@@ -302,7 +315,7 @@ def validate_nbrlanes(df):
     # Compile uuids of flagged records.
     errors = df_subset[flags].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_pavement(df):
@@ -320,7 +333,7 @@ def validate_pavement(df):
     errors[3] = df[(df["pavstatus"] == "Unpaved") & (df["pavsurf"] != "None")].index.values
     errors[4] = df[(df["pavstatus"] == "Unpaved") & (df["unpavsurf"] == "None")].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_roadclass_rtnumber1(df):
@@ -332,7 +345,7 @@ def validate_roadclass_rtnumber1(df):
     errors = df[df["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
                 df["rtnumber1"].map(lambda rtnumber1: rtnumber1 == defaults_all["roadseg"]["rtnumber1"])].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_roadclass_self_intersection(df):
@@ -393,7 +406,7 @@ def validate_roadclass_self_intersection(df):
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
     errors = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_roadclass_structtype(df, return_segments_only=False):
@@ -422,7 +435,7 @@ def validate_roadclass_structtype(df, return_segments_only=False):
     if return_segments_only:
         return flag_segments
     else:
-        return {"errors": errors, "modifications": None}
+        return {"errors": errors}
 
 
 def validate_route_contiguity(roadseg, ferryseg):
@@ -480,7 +493,7 @@ def validate_route_contiguity(roadseg, ferryseg):
                 errors.append("Route name: \"{}\", based on attribute fields: {}."
                               "\nEndpoints:\n{}.".format(route_name, ", ".join(field_group), deadends))
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_speed(df):
@@ -503,4 +516,4 @@ def validate_speed(df):
     # Compile uuids of flagged records.
     errors[2] = df_subset[flags].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}

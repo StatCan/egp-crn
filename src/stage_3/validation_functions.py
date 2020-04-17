@@ -36,7 +36,7 @@ def identify_duplicate_lines(df):
     # Compile uuids of flagged records.
     errors = df_same_len[mask].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def identify_duplicate_points(df):
@@ -51,7 +51,7 @@ def identify_duplicate_points(df):
     # Compile uuids of flagged records.
     errors = df[mask].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def identify_isolated_lines(roadseg, ferryseg):
@@ -81,7 +81,7 @@ def identify_isolated_lines(roadseg, ferryseg):
     # Compile flagged records as errors.
     errors = flag_uuids
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_deadend_disjoint_proximity(junction, roadseg):
@@ -138,7 +138,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
             source_uuid,
             ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
@@ -174,7 +174,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     # Compile uuids of flagged records.
     errors[2] = ferryseg[ferry_multi_intersect].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_line_endpoint_clustering(df):
@@ -199,7 +199,7 @@ def validate_line_endpoint_clustering(df):
     # Compile uuids of flagged records.
     errors = df_subset[flags].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_line_length(df):
@@ -215,7 +215,7 @@ def validate_line_length(df):
     # Validation: ensure line segments are >= 2 meters in length.
     errors = df_sub[df_sub.length < 2].index.values
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_line_merging_angle(df):
@@ -299,7 +299,7 @@ def validate_line_merging_angle(df):
         # Compile resulting points as errors.
         errors = list(map(lambda pt: pt.coords[0][:2], flagged_pts["geometry"]))
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_line_proximity(df):
@@ -380,7 +380,7 @@ def validate_line_proximity(df):
             source_uuid,
             ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_point_proximity(df):
@@ -415,7 +415,7 @@ def validate_point_proximity(df):
             source_uuid,
             ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}
 
 
 def validate_road_structures(roadseg, junction):
@@ -511,4 +511,4 @@ def validate_road_structures(roadseg, junction):
             errors[4].append("Structure: {}. Structure uuids: {}. Structure types: {}.".format(
                 index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structtypes))))
 
-    return {"errors": errors, "modifications": None}
+    return {"errors": errors}

@@ -271,10 +271,8 @@ Example:
 # Limitations
 
 ## Chaining
-Limitation: all field mapping function within a chain must accept the same amount of source fields.
-
-### Explanation
-When specifying multiple source fields in a field mapping, consider the following:
+**Limitation 1:** All field mapping functions within a chain must accept the same amount of source fields.  
+**Explanation 1:** When specifying multiple source fields in a field mapping, consider the following:
 1. Source fields will always be compiled as a single pandas series (each record will be a list if multiple fields are given).
 2. Most functions expect to receive a certain amount of input values for each record.
 
@@ -283,20 +281,8 @@ This results in the following erroneous scenarios:
 2. Only one field being passed to a field mapping function which expects multiple source fields.
 
 ## split_record
-Limitation: must be the last function within a function chain.
+**Limitation 1:** split_record must be the last function within a function chain.  
+**Explanation 1:** The possibility of splitting records would create duplicate indexes. This would raise an error once the function chain finishes because the size of the target and source fields are no longer the same.
 
-### Explanation
-The possibility of splitting records would create duplicate indexes. This would raise an error once the function chain
-finishes because the target field is now a different-sized pandas series than the source field.
-
-## split_record
-Limitation: must only apply to a tabular dataset.
-
-### Explanation
-pandas.explode is used to split nested field values but geopandas.explode will only work on geometry.
-
-## split_record
-Limitation: linked fields must have a 1:1 relationship pre-split.
-
-### Explanation
-This ensures accurate linkage recovery after the records are split since the linkages are now complexified from a many-to-one to many-to-many relationship. This should not be an issue since the use of split_record implies that the target dataset is being generated from scratch anyways.
+**Limitation 2:** split_record must only apply to a tabular dataset (pandas DataFrame).  
+**Explanation 2:** split_record uses pandas.explode to split records on a field of nested values, however geopandas.explode will attempt to explode multipart geometries.

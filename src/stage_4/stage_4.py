@@ -3,6 +3,7 @@ import logging
 import os
 import pandas as pd
 import sys
+from collections import defaultdict
 from copy import deepcopy
 from operator import itemgetter
 
@@ -30,6 +31,7 @@ class Stage:
     def __init__(self, source):
         self.stage = 4
         self.source = source.lower()
+        self.error_logs = defaultdict(dict)
         self.dframes_modified = list()
 
         # Configure and validate input data path.
@@ -40,6 +42,9 @@ class Stage:
 
         # Compile default field values.
         self.defaults = helpers.compile_default_values()
+
+        # Load validation messages yaml.
+        self.validation_messages_yaml = helpers.load_yaml(os.path.abspath("validation_messages.yaml"))
 
     def export_gpkg(self):
         """Exports the dataframes as GeoPackage layers."""
@@ -53,17 +58,6 @@ class Stage:
         else:
             logger.info("Export not required, no dataframe modifications detected.")
 
-    def gen_flag_variables(self):
-        """Generates variables required for storing and logging error and modification flags for records."""
-
-        logger.info("Generating flag variables.")
-
-        # Create flag dictionary entry for each gpkg dataframe.
-        self.flags = {name: {"modifications": dict(), "errors": dict()} for name in [*self.dframes.keys(), "multiple"]}
-
-        # Load flag messages yaml.
-        self.flag_messages_yaml = helpers.load_yaml(os.path.abspath("flag_messages.yaml"))
-
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
 
@@ -71,38 +65,34 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-    def log_messages(self):
-        """Logs any errors and modification messages flagged by the attribute validations."""
+    def log_errors(self):
+        """Templates and outputs error logs returned by validation functions."""
 
-        logger.info("Writing modification and error logs.")
+        logger.info("Writing error logs.")
 
         log_path = os.path.abspath("../../data/interim/{}_stage_{}.log".format(self.source, self.stage))
         with helpers.TempHandlerSwap(logger, log_path):
 
-            # Iterate dataframe flags.
-            for name in self.flags:
-                for flag_typ in self.flags[name]:
+            # Iterate datasets and validations containing error logs.
+            for table in self.error_logs:
+                for validation, logs in self.error_logs[table].items():
 
-                    # Iterate non-empty flag tables (validations).
-                    for validation in [val for val, data in self.flags[name][flag_typ].items() if data is not None]:
+                    # Validate error logs are not empty.
+                    if logs is not None and len(logs):
 
-                        # Retrieve flags.
-                        flags = self.flags[name][flag_typ][validation]
+                        # Iterate error codes.
+                        if isinstance(logs, dict):
+                            for code, code_logs in [[k, v] for k, v in logs.items() if len(v)]:
 
-                        # Log error messages, iteratively if multiple error codes stored in dictionary.
-                        if isinstance(flags, dict):
-                            for code, code_flags in [[k, v] for k, v in flags.items() if len(v)]:
-
-                                # Log messages.
-                                vals = "\n".join(map(str, code_flags))
-                                logger.warning(self.flag_messages_yaml[validation][flag_typ][code].format(name, vals))
+                                # Template and log errors.
+                                vals = "\n".join(map(str, code_logs))
+                                logger.warning(self.validation_messages_yaml[validation][code].format(table, vals))
 
                         else:
-                            if len(flags):
 
-                                # Log messages.
-                                vals = "\n".join(map(str, flags))
-                                logger.warning(self.flag_messages_yaml[validation][flag_typ][1].format(name, vals))
+                            # Template and log errors.
+                            vals = "\n".join(map(str, logs))
+                            logger.warning(self.validation_messages_yaml[validation][1].format(table, vals))
 
     def validations(self):
         """Applies a set of validations to one or more dataframes."""
@@ -128,23 +118,23 @@ class Stage:
                 "validate_speed": {"tables": ["roadseg"], "iterate": True, "args": ()}
             }
 
-            # Iterate functions and table names.
+            # Iterate functions and datasets.
             for func, params in funcs.items():
                 for table in params["tables"]:
-                    logger.info("Applying validation: {}. Target dataframe: {}.".format(func.replace("_", " "), table))
 
-                    # Validate required dataframes and compile function args.
+                    logger.info("Applying validation to target dataset(s): {}.".format(table))
+
+                    # Validate dataset availability and configure function args.
                     if params["iterate"]:
                         if table not in self.dframes:
-                            logger.warning("Missing required layer: {}. Skipping validation.".format(table))
+                            logger.warning("Skipping validation for missing dataset: {}.".format(table))
                             continue
                         args = (self.dframes[table].copy(deep=True), *params["args"])
 
                     else:
-                        missing = [name for name in params["tables"] if name not in self.dframes]
-                        if any(missing):
-                            logger.warning("Missing required layer(s): {}. Skipping validation."
-                                           .format(", ".join(map("\"{}\"".format, missing))))
+                        missing = set(params["tables"]) - set(self.dframes)
+                        if len(missing):
+                            logger.warning("Skipping validation for missing dataset(s): {}.".format(", ".join(missing)))
                             break
                         args = (*map(deepcopy, itemgetter(*params["tables"])(self.dframes)), *params["args"])
 
@@ -152,20 +142,15 @@ class Stage:
                     results = eval("validation_functions.{}(*args)".format(func))
 
                     # Store results.
-                    self.flags[table]["errors"][func] = results["errors"]
-                    self.flags[table]["modifications"][func] = results["modifications"]
+                    self.error_logs[table][func] = results["errors"]
                     if "modified_dframes" in results:
                         if params["iterate"]:
-                            if not self.dframes[table].equals(results["modified_dframes"]):
-                                self.dframes[table] = results["modified_dframes"]
-                                self.dframes_modified.append(table)
+                            self.dframes[table] = results["modified_dframes"].copy(deep=True)
+                            self.dframes_modified.append(table)
                         else:
-                            for mod_index, mod_table in enumerate(params["tables"]):
-                                mod_dframe = results["modified_dframes"][mod_index]
-                                if mod_dframe is not None:
-                                    if not self.dframes[mod_table].equals(mod_dframe):
-                                        self.dframes[mod_table] = mod_dframe
-                                        self.dframes_modified.append(mod_table)
+                            for mod_table, mod_df in results["modified_dframes"].items():
+                                self.dframes[mod_table] = mod_df.copy(deep=True)
+                                self.dframes_modified.append(mod_table)
 
                     # Break iteration for non-iterative function.
                     if not params["iterate"]:
@@ -179,9 +164,8 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
-        self.gen_flag_variables()
         self.validations()
-        self.log_messages()
+        self.log_errors()
         self.export_gpkg()
 
 
