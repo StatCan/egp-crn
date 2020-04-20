@@ -42,7 +42,7 @@ validate_line_length:
   1: |
     Invalid records identified for table "{0}", validation "validate_line_length", error 1 (listed by uuid):
     {1}
-    Error 1 details: Line segment must be < 2 meters in length.
+    Error 1 details: Line segment must be >= 2 meters in length.
 
 validate_line_merging_angle:
   1: |

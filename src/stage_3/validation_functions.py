@@ -240,7 +240,7 @@ def validate_line_merging_angle(df):
                                df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
     # Construct x- and y-coordinate series aligned to the series of points.
-    # Disregard z-values.
+    # Disregard z-coordinates.
     pts_x, pts_y, pts_z = np.concatenate([np.array(geom.coords) for geom in df["geometry"]]).T
 
     # Join the uuids, x-, and y-coordinates.
@@ -338,7 +338,7 @@ def validate_line_proximity(df):
                                      df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
     # Construct x- and y-coordinate series aligned to the series of segment endpoints.
-    # Disregard z-values.
+    # Disregard z-coordinates.
     endpoint_x, endpoint_y, endpoint_z = np.concatenate([itemgetter(0, -1)(geom.coords) for geom in df["geometry"]]).T
 
     # Join the uuids, x-, and y-coordinates.
