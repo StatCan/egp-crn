@@ -122,7 +122,8 @@ class Stage:
             for func, params in funcs.items():
                 for table in params["tables"]:
 
-                    logger.info("Applying validation to target dataset(s): {}.".format(table))
+                    logger.info("Applying validation \"{}\" to target dataset(s): {}."
+                                .format(func.replace("_", " "), table))
 
                     # Validate dataset availability and configure function args.
                     if params["iterate"]:

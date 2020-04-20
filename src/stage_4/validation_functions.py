@@ -141,8 +141,8 @@ def validate_dates(df):
             # Apply modification, if required.
             col_mod = df_sub[df_sub[col].map(lambda date: not date.isnumeric() or len(date) not in (4, 6, 8))][col]
             if len(col_mod):
-                df_sub[col].loc[col_mod.index, col] = today_str
-                df[col].loc[col_mod.index, col] = today_str
+                df_sub.loc[col_mod.index, col] = today_str
+                df.loc[col_mod.index, col] = today_str
                 mod_flag = True
 
                 # Log modifications.
@@ -154,8 +154,8 @@ def validate_dates(df):
             col_mod = df_sub[df_sub[col].map(lambda date: len(date) in (4, 6))][col]
             if len(col_mod):
                 append_vals = {4: "0101", 6: "01"}
-                df_sub[col].loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
-                df[col].loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
+                df_sub.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
+                df.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
                 mod_flag = True
 
                 # Log modifications.
@@ -256,30 +256,32 @@ def validate_ids(df):
         # Subset dataframe to non-default values.
         df_sub = df[df[field] != defaults[field]]
 
-        # Modification: set ids to lowercase.
-        # Apply modification, if required.
-        col_mod = df_sub[df_sub[field].map(lambda val: val != val.lower())][field]
-        if len(col_mod):
-            df_sub.loc[col_mod.index, field] = col_mod.map(str.lower)
-            df.loc[col_mod.index, field] = col_mod.map(str.lower)
-            mod_flag = True
+        if len(df_sub):
 
-            # Log modifications.
-            logger.warning("Modified {} record(s) in column {}."
-                           "\nModification details: Field values set to lower case.".format(len(col_mod), field))
+            # Modification: set ids to lowercase.
+            # Apply modification, if required.
+            col_mod = df_sub[df_sub[field].map(lambda val: val != val.lower())][field]
+            if len(col_mod):
+                df_sub.loc[col_mod.index, field] = col_mod.map(str.lower)
+                df.loc[col_mod.index, field] = col_mod.map(str.lower)
+                mod_flag = True
 
-        # Validation 1: ensure ids are 32 digits.
-        # Compile uuids of flagged records.
-        flag_uuids = df_sub[df_sub[field].map(lambda val: len(val) != 32)].index.values
-        for val in flag_uuids:
-            errors[1].append("uuid: {}, based on attribute field: {}.".format(val, field))
+                # Log modifications.
+                logger.warning("Modified {} record(s) in column {}."
+                               "\nModification details: Field values set to lower case.".format(len(col_mod), field))
 
-        # Validation 2: ensure ids are hexadecimal.
-        # Compile uuids of flagged records.
-        flag_uuids = df_sub[df_sub[field].map(
-            lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
-        for val in flag_uuids:
-            errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
+            # Validation 1: ensure ids are 32 digits.
+            # Compile uuids of flagged records.
+            flag_uuids = df_sub[df_sub[field].map(lambda val: len(val) != 32)].index.values
+            for val in flag_uuids:
+                errors[1].append("uuid: {}, based on attribute field: {}.".format(val, field))
+
+            # Validation 2: ensure ids are hexadecimal.
+            # Compile uuids of flagged records.
+            flag_uuids = df_sub[df_sub[field].map(
+                lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
+            for val in flag_uuids:
+                errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
 
     # Iterate unique id fields.
     unique_fields = ["ferrysegid", "roadsegid"]

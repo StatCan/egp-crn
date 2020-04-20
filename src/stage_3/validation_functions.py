@@ -181,6 +181,7 @@ def validate_line_endpoint_clustering(df):
     """Validates the quantity of points clustered near the endpoints of line segments."""
 
     # Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
+    errors = None
 
     # Transform records to a meter-based crs: EPSG:3348.
     df = helpers.reproject_gdf(df, 4617, 3348)
@@ -188,16 +189,18 @@ def validate_line_endpoint_clustering(df):
     # Filter out records with <= 3 points or length < 83 meters.
     df_subset = df[~df["geometry"].map(lambda geom: len(geom.coords) <= 3 or geom.length < 83)]
 
-    # Identify invalid records.
-    # Process: either of the following must be true:
-    # a) The distance of the 4th point along the linestring is < 83 meters.
-    # b) The total linestring length minus the distance of the 4th-last point along the linestring is < 83 meters.
-    flags = np.vectorize(lambda geom: (geom.project(Point(geom.coords[3])) < 83) or
-                                      ((geom.length - geom.project(Point(geom.coords[-4]))) < 83)
-                         )(df_subset["geometry"])
+    if len(df_subset):
 
-    # Compile uuids of flagged records.
-    errors = df_subset[flags].index.values
+        # Identify invalid records.
+        # Process: either of the following must be true:
+        # a) The distance of the 4th point along the linestring is < 83 meters.
+        # b) The total linestring length minus the distance of the 4th-last point along the linestring is < 83 meters.
+        flags = np.vectorize(lambda geom: (geom.project(Point(geom.coords[3])) < 83) or
+                                          ((geom.length - geom.project(Point(geom.coords[-4]))) < 83)
+                             )(df_subset["geometry"])
+
+        # Compile uuids of flagged records.
+        errors = df_subset[flags].index.values
 
     return {"errors": errors}
 
@@ -205,15 +208,19 @@ def validate_line_endpoint_clustering(df):
 def validate_line_length(df):
     """Validates the minimum feature length of line geometries."""
 
+    errors = None
+
     # Filter records to 0.0002 degrees length (approximately 22.2 meters).
     # Purely intended to reduce processing.
     df_sub = df[df.length <= 0.0002]
 
-    # Transform records to a meter-based crs: EPSG:3348.
-    df_sub = helpers.reproject_gdf(df_sub, 4617, 3348)
+    if len(df_sub):
 
-    # Validation: ensure line segments are >= 2 meters in length.
-    errors = df_sub[df_sub.length < 2].index.values
+        # Transform records to a meter-based crs: EPSG:3348.
+        df_sub = helpers.reproject_gdf(df_sub, 4617, 3348)
+
+        # Validation: ensure line segments are >= 2 meters in length.
+        errors = df_sub[df_sub.length < 2].index.values
 
     return {"errors": errors}
 
