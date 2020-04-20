@@ -447,9 +447,10 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
     if len(gdf.geom_type.unique()) > 1:
         raise Exception("Multiple geometry types detected for dataframe.")
     elif gdf.geom_type.iloc[0] == "LineString":
-        gdf["geometry"] = gdf["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(geom.coords)))
+        gdf["geometry"] = gdf["geometry"].map(lambda geom: LineString(prj_transformer.TransformPoints(
+            list(map(lambda coord: coord[::-1], geom.coords)))))
     elif gdf.geom_type.iloc[0] == "Point":
-        gdf["geometry"] = gdf["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0])))
+        gdf["geometry"] = gdf["geometry"].map(lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0][::-1])))
     else:
         raise Exception("Geometry type not supported for EPSG transformation.")
 
