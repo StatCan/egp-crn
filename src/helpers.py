@@ -439,22 +439,24 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
 
     # Define transformation.
     prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
+    prj_source.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    prj_target.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     prj_source.ImportFromEPSG(epsg_source)
     prj_target.ImportFromEPSG(epsg_target)
     prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
 
     # Transform Records.
-    # Process: pass reversed coordinates to proj transformer, load result as shapely geometry.
+    # Process: pass reversed xy coordinates to proj transformer, load result as shapely geometry.
     if len(gdf.geom_type.unique()) > 1:
         raise Exception("Multiple geometry types detected for dataframe.")
 
     elif gdf.geom_type.iloc[0] == "LineString":
-        gdf["geometry"] = gdf["geometry"].map(lambda geom: LineString(
-            prj_transformer.TransformPoints(list(map(lambda coord: coord[:-3:-1], geom.coords)))))
+        gdf["geometry"] = gdf["geometry"].map(
+            lambda geom: LineString(prj_transformer.TransformPoints(list(zip(*geom.coords.xy)))))
 
     elif gdf.geom_type.iloc[0] == "Point":
         gdf["geometry"] = gdf["geometry"].map(
-            lambda geom: Point(prj_transformer.TransformPoint(*geom.coords[0][:-3:-1])))
+            lambda geom: Point(prj_transformer.TransformPoint(*list(zip(*geom.coords.xy))[0])))
 
     else:
         raise Exception("Geometry type not supported for EPSG transformation.")

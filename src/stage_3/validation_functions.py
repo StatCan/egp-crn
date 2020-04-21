@@ -255,7 +255,7 @@ def validate_line_merging_angle(df):
     # Exit function if no shared points exists (b/c therefore no line merges exist).
     if not len(uuids_grouped):
 
-        errors = uuids_grouped
+        errors = None
 
     else:
 
@@ -266,11 +266,42 @@ def validate_line_merging_angle(df):
         for uuid, geom in df["geometry"].iteritems():
             pts_uuid[uuid] = list(map(lambda coord: coord[:2], itemgetter(0, 1, -2, -1)(geom.coords)))
 
-        # Retrieve the next point for each grouped uuid associated with each point.
-        pts_grouped = pd.Series(np.vectorize(lambda uuids, index: map(
-            lambda uuid: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2], uuids))(
-            uuids_grouped, uuids_grouped.index))\
-            .map(lambda vals: list(vals))
+        # Explode grouped uuids. Maintain index point as both index and column.
+        uuids_grouped_ex = uuids_grouped.explode().reset_index(drop=False).set_index(["x", "y"], drop=False)
+
+        # Compile next-to-endpoint points.
+        # Process: Flag uuids according to duplication status within their group. For unique uuids, configure the
+        # next-to-endpoint point based on whichever endpoint matches the common group point. For duplicated uuids
+        # (which represent self-loops), the first duplicate takes the second point, the second duplicate takes the
+        # second-last point - thereby avoiding the same next-to-point being taken twice for self-loop intersections.
+        dup_flags = {
+            "dup_none": ~uuids_grouped_ex.duplicated(keep=False),
+            "dup_first": uuids_grouped_ex.duplicated(keep="first"),
+            "dup_last": uuids_grouped_ex.duplicated(keep="last")
+        }
+        dup_results = {
+            "dup_none": pd.Series(np.vectorize(
+                lambda uuid, index: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2],
+                otypes=[tuple])(uuids_grouped_ex[dup_flags["dup_none"]]["uuid"],
+                                uuids_grouped_ex[dup_flags["dup_none"]].index)).values,
+            "dup_first": pd.Series(np.vectorize(
+                lambda uuid, index: pts_uuid[uuid][1],
+                otypes=[tuple])(uuids_grouped_ex[dup_flags["dup_first"]]["uuid"],
+                                uuids_grouped_ex[dup_flags["dup_first"]].index)).values,
+            "dup_last": pd.Series(np.vectorize(
+                lambda uuid, index: pts_uuid[uuid][-2],
+                otypes=[tuple])(uuids_grouped_ex[dup_flags["dup_last"]]["uuid"],
+                                uuids_grouped_ex[dup_flags["dup_last"]].index)).values
+        }
+
+        uuids_grouped_ex["pt"] = None
+        uuids_grouped_ex.loc[dup_flags["dup_none"], "pt"] = dup_results["dup_none"]
+        uuids_grouped_ex.loc[dup_flags["dup_first"], "pt"] = dup_results["dup_first"]
+        uuids_grouped_ex.loc[dup_flags["dup_last"], "pt"] = dup_results["dup_last"]
+
+        # Aggregate exploded groups.
+        uuids_grouped_ex.reset_index(drop=True, inplace=True)
+        pts_grouped = uuids_grouped_ex.groupby(["x", "y"])["pt"].agg(list)
 
         # Compile the permutations of points for each point group.
         # Recover source point as index.
@@ -293,18 +324,8 @@ def validate_line_merging_angle(df):
             lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
             pts_grouped, pts_grouped.index)
 
-        # Compile the original crs coordinates of all flagged intersections.
-
-        # Filter flagged intersection points (stored as index).
-        flagged_pts = pts_grouped[flags].index.values
-
-        # Revert to original crs: EPSG:4617.
-        flagged_pts = gpd.GeoDataFrame(geometry=gpd.GeoSeries(map(Point, flagged_pts)))
-        flagged_pts.crs = dict()
-        flagged_pts = helpers.reproject_gdf(flagged_pts, 3348, 4617)
-
-        # Compile resulting points as errors.
-        errors = list(map(lambda pt: pt.coords[0][:2], flagged_pts["geometry"]))
+        # Compile the uuid groups as errors.
+        errors = uuids_grouped[flags].values
 
     return {"errors": errors}
 

@@ -46,7 +46,7 @@ validate_line_length:
 
 validate_line_merging_angle:
   1: |
-    Invalid records identified for table "{0}", validation "validate_line_merging_angle", error 1. Review the following intersection points:
+    Invalid records identified for table "{0}", validation "validate_line_merging_angle", error 1. Review the following intersections (listed by uuid):
     {1}
     Error 1 details: Line segments must only merge at angles >= 40 degrees.
 
