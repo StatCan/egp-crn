@@ -48,9 +48,10 @@ class Stage:
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
 
-        # Configure and validate output data path.
+        # Configure and validate output data path. Only one directory source_change_logs can pre-exist in out dir.
         self.output_path = os.path.abspath("../../data/processed/{}".format(self.source))
-        if os.path.exists(self.output_path) and len(os.listdir(self.output_path)) != 0:
+        if os.path.exists(self.output_path) and \
+                "".join(os.listdir(self.output_path)) != "{}_change_logs".format(self.source):
             logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
 

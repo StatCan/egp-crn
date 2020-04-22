@@ -54,11 +54,11 @@ class Stage:
     def export_change_logs(self):
         """Exports the dataset differences as logs."""
 
-        change_logs_dir = os.path.abspath("../../data/processed/{}_change_logs".format(self.source))
+        change_logs_dir = os.path.abspath("../../data/processed/{0}/{0}_change_logs".format(self.source))
         logger.info("Writing change logs to: \"{}\".".format(change_logs_dir))
 
         # Create change logs directory.
-        pathlib.Path(change_logs_dir).mkdir(exist_ok=True)
+        pathlib.Path(change_logs_dir).mkdir(parents=True, exist_ok=True)
 
         # Iterate tables and change types.
         for table in self.change_logs:
