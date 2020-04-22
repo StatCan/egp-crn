@@ -455,7 +455,7 @@ class Stage:
 
             try:
 
-                with zipfile.ZipFile("{}.zip".format(data_dir), "w") as zip:
+                with zipfile.ZipFile("{}.zip".format(data_dir), "w") as zip_f:
                     for dir, subdirs, files in os.walk(data_dir):
                         for file in files:
 
@@ -466,7 +466,7 @@ class Stage:
                             arcname = os.path.join(os.path.basename(data_dir), os.path.relpath(path, data_dir))
 
                             # Write to .zip file.
-                            zip.write(path, arcname)
+                            zip_f.write(path, arcname)
 
             except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
                 logger.exception("Unable to compress directory.")
