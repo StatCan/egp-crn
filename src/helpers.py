@@ -270,11 +270,12 @@ def get_url(url, max_attempts=10, **kwargs):
                 continue
 
 
-def load_gpkg(gpkg_path, find=False):
+def load_gpkg(gpkg_path, find=False, layers=None):
     """
     Returns a dictionary of geopackage layers loaded into pandas or geopandas (geo)dataframes.
     Parameter find will creating a mapping for geopackage layer names which contain, but do not exactly match the
     expected NRN layer names.
+    Parameter layers accepts a list of table names to load instead of loading all GeoPackage layers.
     """
 
     dframes = dict()
@@ -282,6 +283,10 @@ def load_gpkg(gpkg_path, find=False):
     missing_flag = False
 
     if os.path.exists(gpkg_path):
+
+        # Filter layers to load.
+        if layers:
+            distribution_format = {k: v for k, v in distribution_format.items() if k in layers}
 
         try:
 

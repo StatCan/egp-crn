@@ -177,110 +177,80 @@ class Stage:
         """Generates a junction GeoDataFrame for all junctypes: Dead End, Ferry, Intersection, and NatProvTer."""
 
         logger.info("Generating junctions.")
+        df = self.dframes["roadseg"].copy(deep=True)
 
-        # Concatenate ferryseg and roadseg, if possible.
-        if "ferryseg" in self.dframes:
-            df = gpd.GeoDataFrame(pd.concat(itemgetter("ferryseg", "roadseg")(self.dframes),
-                                            ignore_index=False, sort=False))
-        else:
-            df = self.dframes["roadseg"].copy(deep=True)
+        # Separate unique and non-unique points.
+        logger.info("Separating unique and non-unique points.")
 
-        # Compile uuid groups for all endpoints.
-        logger.info("Grouping uuids by shared endpoints.")
+        # Construct a uuid series aligned to the series of endpoints.
+        pts_uuid = np.concatenate([[uuid] * count for uuid, count in df["geometry"].map(
+            lambda geom: len(geom.coords)).iteritems()])
 
-        # TEST
-        pts_uuid = np.concatenate([[uuid] * count for uuid, count in df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+        # Construct x- and y-coordinate series aligned to the series of points.
         pts_x, pts_y = np.concatenate([np.array(geom.coords) for geom in df["geometry"]]).T
+
+        # Join the uuids, x-, and y-coordinates.
         pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
 
+        # Query unique points (all) and endpoints.
         pts_unique = pts_df[~pts_df[["x", "y"]].duplicated(keep=False)][["x", "y"]].values
-        endpoints_unique = np.unique(np.concatenate([np.array(itemgetter(0, -1)(geom.coords)) for geom in df["geometry"]]), axis=0)
-        deadend = np.array(list(set(map(tuple, pts_unique)).intersection(set(map(tuple, endpoints_unique)))))
+        endpoints_unique = np.unique(np.concatenate([np.array(itemgetter(0, -1)(geom.coords)) for geom in
+                                                     df["geometry"]]), axis=0)
 
+        # Query non-unique points (all), keep only the first duplicated point from self-loops.
         pts_dup = pts_df[(pts_df[["x", "y"]].duplicated(keep=False)) & (~pts_df.duplicated(keep="first"))]
+
+        # Query junctypes.
+
+        # junctype: Dead End.
+        # Process: Query unique points which also exist in unique endpoints.
+        logger.info("Configuring junctype: Dead End.")
+        deadend = set(map(tuple, pts_unique)).intersection(set(map(tuple, endpoints_unique)))
+
+        # junctype: Intersection.
+        # Process: Query non-unique points with >= 3 instances.
+        logger.info("Configuring junctype: Intersection.")
         counts = Counter(map(tuple, pts_dup[["x", "y"]].values))
-        intersection = np.array([pt for pt, count in counts.items() if count >= 3])
+        intersection = {pt for pt, count in counts.items() if count >= 3}
 
-        ferry = np.array([])
+        # junctype: Ferry.
+        # Process: Compile all unique ferryseg endpoints. Remove conflicting points from other junctypes.
+        logger.info("Configuring junctype: Ferry.")
+
+        ferry = set()
         if "ferryseg" in self.dframes:
-            ferry = np.concatenate([np.array(itemgetter(0, -1)(geom.coords)) for geom in self.dframes["ferryseg"]["geometry"]])
-            deadend = np.array(list(set(map(tuple, deadend)).difference(set(map(tuple, ferry)))))
-            intersection = np.array(list(set(map(tuple, intersection)).difference(set(map(tuple, ferry)))))
+            ferry = set(chain.from_iterable(itemgetter(0, -1)(g.coords) for g in self.dframes["ferryseg"]["geometry"]))
+            deadend = deadend.difference(ferry)
+            intersection = intersection.difference(ferry)
 
-        merged = np.concatenate([deadend, ferry, intersection])
+        # junctype: NatProvTer.
+        # Process: Query, from compiled junctypes, points not within the administrative boundary. Remove conflicting
+        # points from other junctypes.
+        logger.info("Configuring junctype: NatProvTer.")
+
+        merged = np.array(list(chain.from_iterable([deadend, ferry, intersection])))
         natprovter_flag = list(map(lambda pt: not Point(pt).within(self.boundary), merged))
-        natprovter = merged[natprovter_flag]
-        deadend = np.array(list(set(map(tuple, deadend)).difference(set(map(tuple, natprovter)))))
-        ferry = np.array(list(set(map(tuple, ferry)).difference(set(map(tuple, natprovter)))))
-        intersection = np.array(list(set(map(tuple, intersection)).difference(set(map(tuple, natprovter)))))
+        natprovter = set(map(tuple, merged[natprovter_flag]))
 
-        junctions = [gpd.GeoDataFrame({'junctype': junctype, "uuid": [uuid.uuid4().hex for _ in range(len(pts))]},
-                                      geometry=pd.Series(map(Point, pts))) for junctype, pts in
-                     {"ferry": ferry, "natprovter": natprovter, "intersection": intersection,
-                      "deadend": deadend}.items() if len(pts)]
+        deadend = deadend.difference(natprovter)
+        ferry = ferry.difference(natprovter)
+        intersection = intersection.difference(natprovter)
 
-        # TEST
+        # Load junctions into target dataset.
+        logger.info("Loading junctions into target dataset.")
 
-        # # Construct a uuid series aligned to the series of endpoints.
-        # pts_uuid = df["uuid"].values.repeat(2)
-        #
-        # # Construct x- and y-coordinate series aligned to the series of points.
-        # pts_x, pts_y = np.concatenate([np.array(itemgetter(0, -1)(geom.coords)) for geom in df["geometry"]]).T
-        #
-        # # Join the uuids, x-, and y-coordinates.
-        # pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
-        #
-        # # Group uuids according to x- and y-coordinates.
-        # uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
-        #
-        # # Configure junctypes.
-        # logger.info("Configuring junctypes.")
-        # junctypes = dict()
-        #
-        # # junctype: NatProvTer.
-        # logger.info("Configuring junctype: NatProvTer.")
-        #
-        # # Process: Query indexes (points) not within adm boundaries, store indexes, drop results from dataframe.
-        # junctypes["NatProvTer"] = uuids_grouped[~np.vectorize(
-        #     lambda coords: Point(coords).within(self.boundary))(uuids_grouped.index)].index.values
-        # uuids_grouped.drop(junctypes["NatProvTer"], inplace=True)
-        #
-        # # junctype: Ferry.
-        # logger.info("Configuring junctype: Ferry.")
-        #
-        # # Process: If ferryseg exists, query indexes (points) where the uuid group contains a ferryseg uuid (via set
-        # # subtraction), store indexes, drop results from dataframe.
-        # if "ferryseg" in self.dframes:
-        #
-        #     ferryseg_uuids = set(self.dframes["ferryseg"]["uuid"].values)
-        #     junctypes["Ferry"] = uuids_grouped[uuids_grouped.map(
-        #         lambda uuids: len(set(uuids) - ferryseg_uuids) < len(set(uuids)))].index.values
-        #     uuids_grouped.drop(junctypes["Ferry"], inplace=True)
-        #
-        # # junctype: Dead End.
-        # logger.info("Configuring junctype: Dead End.")
-        #
-        # # Process: Query indexes (points) with a uuid group of only 1 uuid, store indexes, no need to drop results.
-        # junctypes["Dead End"] = uuids_grouped[uuids_grouped.map(len) == 1].index.values
-        #
-        # # junctype: Intersection.
-        # logger.info("Configuring junctype: Intersection.")
-        #
-        # # Process: Query indexes (points) with a uuid group >= 3 unique uuids, store indexes, no need to drop results.
-        # junctypes["Intersection"] = uuids_grouped[uuids_grouped.map(lambda uuids: len(set(uuids)) >= 3)].index.values
-        #
-        # # Compile junctypes as GeoDataFrames.
-        # junctions = [gpd.GeoDataFrame({"junctype": junctype, "uuid": [uuid.uuid4().hex for _ in range(len(pts))]},
-        #                               geometry=pd.Series(map(Point, pts)))
-        #              for junctype, pts in junctypes.items() if len(pts)]
+        # Compile junctypes as GeoDataFrames.
+        junctions = [gpd.GeoDataFrame(
+            {'junctype': junctype, "uuid": [uuid.uuid4().hex for _ in range(len(pts))]},
+            geometry=pd.Series(map(Point, pts))) for junctype, pts in
+            {"Dead End": deadend, "Ferry": ferry, "Intersection": intersection, "NatProvTer": natprovter}.items() if
+            len(pts)]
 
         # Concatenate junctions with target dataset and set uuid as index.
-        self.junction = gpd.GeoDataFrame(pd.concat([self.junction, *junctions], ignore_index=True, sort=False),
-                                         crs=self.dframes["roadseg"].crs)
-        self.junction.index = self.junction["uuid"]
-
-        # Store results.
-        self.dframes["junction"] = self.junction.copy(deep=True)
+        self.dframes["junction"] = gpd.GeoDataFrame(
+            pd.concat([self.junction, *junctions], ignore_index=True, sort=False), crs=self.dframes["roadseg"].crs)\
+            .copy(deep=True)
+        self.dframes["junction"].index = self.dframes["junction"]["uuid"]
 
     def gen_target_dataframe(self):
         """Creates empty junction dataframe."""
@@ -352,7 +322,7 @@ class Stage:
 
         logger.info("Loading Geopackage layers.")
 
-        self.dframes = helpers.load_gpkg(self.data_path)
+        self.dframes = helpers.load_gpkg(self.data_path, layers=["ferryseg", "roadseg"])
 
     def execute(self):
         """Executes an NRN stage."""
