@@ -108,20 +108,34 @@ class Stage:
         try:
 
             # Define functions and parameters.
+            # Note: List functions in order if execution order matters.
             funcs = {
+                "strip_whitespace": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
+                "title_route_text": {"tables": ["roadseg", "ferryseg"], "iterate": True, "args": ()},
                 "identify_duplicate_lines": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "identify_duplicate_points": {"tables": self.df_points, "iterate": True, "args": ()},
                 "identify_isolated_lines": {"tables": ["roadseg", "ferryseg"], "iterate": False, "args": ()},
+                "validate_dates": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
                 "validate_deadend_disjoint_proximity":
                     {"tables": ["junction", "roadseg"], "iterate": False, "args": ()},
+                "validate_exitnbr_conflict": {"tables": ["roadseg"], "iterate": True, "args": ()},
+                "validate_exitnbr_roadclass": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "validate_ferry_road_connectivity":
                     {"tables": ["ferryseg", "roadseg", "junction"], "iterate": False, "args": ()},
+                "validate_ids": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
                 "validate_line_endpoint_clustering": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "validate_line_length": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "validate_line_merging_angle": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "validate_line_proximity": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_nbrlanes": {"tables": ["roadseg"], "iterate": True, "args": ()},
+                "validate_pavement": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "validate_point_proximity": {"tables": self.df_points, "iterate": True, "args": ()},
-                "validate_road_structures": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()}
+                "validate_road_structures": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()},
+                "validate_roadclass_rtnumber1": {"tables": ["ferryseg", "roadseg"], "iterate": True, "args": ()},
+                "validate_roadclass_self_intersection": {"tables": ["roadseg"], "iterate": True, "args": ()},
+                "validate_roadclass_structtype": {"tables": ["roadseg"], "iterate": True, "args": ()},
+                "validate_route_contiguity": {"tables": ["roadseg", "ferryseg"], "iterate": False, "args": ()},
+                "validate_speed": {"tables": ["roadseg"], "iterate": True, "args": ()}
             }
 
             # Iterate functions and datasets.

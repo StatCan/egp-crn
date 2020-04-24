@@ -171,14 +171,13 @@ class Stage:
 
         # Copy and filter dataframes.
         roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid", "geometry"]].copy(deep=True)
-        addrange = self.dframes["addrange"][["nid", "l_offnanid", "r_offnanid"]].copy(deep=True)
+        addrange = self.dframes["addrange"][["nid", "r_offnanid"]].copy(deep=True)
         strplaname = self.dframes["strplaname"][["nid", *self.match_fields]].copy(deep=True)
 
         # Merge dataframes to assemble full roadseg representation.
         self.roadseg = roadseg.merge(
             addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-            strplaname, how="left", left_on=["l_offnanid", "r_offnanid"], right_on=["nid", "nid"],
-            suffixes=("", "_strplaname"))
+            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
 
         self.roadseg.index = self.roadseg["uuid"]
 
@@ -186,14 +185,13 @@ class Stage:
 
         # Copy and filter dataframes.
         roadseg = self.dframes_old["roadseg"][["nid", "adrangenid", "geometry"]].copy(deep=True)
-        addrange = self.dframes_old["addrange"][["nid", "l_offnanid", "r_offnanid"]].copy(deep=True)
+        addrange = self.dframes_old["addrange"][["nid", "r_offnanid"]].copy(deep=True)
         strplaname = self.dframes_old["strplaname"][["nid", *self.match_fields]].copy(deep=True)
 
         # Merge dataframes to assemble full roadseg representation.
         self.roadseg_old = roadseg.merge(
             addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-            strplaname, how="left", left_on=["l_offnanid", "r_offnanid"], right_on=["nid", "nid"],
-            suffixes=("", "_strplaname"))
+            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
 
     def roadseg_gen_nids(self):
         """Groups roadseg records and assigns nid values."""
