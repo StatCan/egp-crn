@@ -1,19 +1,20 @@
 import click
-import fiona
-import geopandas as gpd
+import json
 import logging
-import math
+import multiprocessing
 import numpy as np
 import os
 import pandas as pd
 import pathlib
-import shapely.ops
+import re
+import shutil
 import sys
-import uuid
-from itertools import chain, compress
+import zipfile
+from datetime import datetime
 from operator import itemgetter
-from scipy.spatial import cKDTree
-from shapely.geometry import LineString, MultiPoint
+from osgeo import ogr
+from queue import Queue
+from threading import Thread
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -38,6 +39,8 @@ class Stage:
     def __init__(self, source):
         self.stage = 5
         self.source = source.lower()
+        self.major_version = None
+        self.minor_version = None
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -45,39 +48,380 @@ class Stage:
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
 
-        # Compile match fields (fields which must be equal across records).
-        self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
+        # Configure and validate output data path. Only one directory source_change_logs can pre-exist in out dir.
+        self.output_path = os.path.abspath("../../data/processed/{}".format(self.source))
+        if os.path.exists(self.output_path) and \
+                "".join(os.listdir(self.output_path)) != "{}_change_logs".format(self.source):
+            logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
+            sys.exit(1)
 
-        # Define change logs dictionary.
-        self.change_logs = dict()
+        # Compile output formats.
+        self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
 
-    def export_change_logs(self):
-        """Exports the dataset differences as logs."""
+    def compile_french_domain_mapping(self):
+        """Compiles French field domains mapped to their English equivalents for all dataframes."""
 
-        change_logs_dir = os.path.abspath("../../data/processed/{0}/{0}_change_logs".format(self.source))
-        logger.info("Writing change logs to: \"{}\".".format(change_logs_dir))
+        logger.info("Compiling French field domain mapping.")
+        defaults_en = helpers.compile_default_values(lang="en")
+        defaults_fr = helpers.compile_default_values(lang="fr")
+        distribution_format = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        self.domains_map = dict()
 
-        # Create change logs directory.
-        pathlib.Path(change_logs_dir).mkdir(parents=True, exist_ok=True)
+        for suffix in ("en", "fr"):
 
-        # Iterate tables and change types.
-        for table in self.change_logs:
-            for change, log in self.change_logs[table].items():
+            # Load yaml.
+            domains_yaml = helpers.load_yaml(os.path.abspath("../field_domains_{}.yaml".format(suffix)))
 
-                # Configure log path.
-                log_path = os.path.join(change_logs_dir, "{}_{}_{}.log".format(self.source, table, change))
+            # Compile domain values.
+            # Iterate tables.
+            for table in distribution_format:
+                # Register table.
+                if table not in self.domains_map.keys():
+                    self.domains_map[table] = dict()
 
-                # Write log.
-                with helpers.TempHandlerSwap(logger, log_path):
-                    logger.info(log)
+                # Iterate fields and values.
+                for field, vals in domains_yaml["tables"][table].items():
+                    # Register field.
+                    if field not in self.domains_map[table].keys():
+                        self.domains_map[table][field] = list()
 
-    def export_gpkg(self):
-        """Exports the dataframes as GeoPackage layers."""
+                    try:
 
-        logger.info("Exporting dataframes to GeoPackage layers.")
+                        # Configure reference domain.
+                        while isinstance(vals, str):
+                            table_ref, field_ref = vals.split(";") if vals.find(";") > 0 else [table, vals]
+                            vals = domains_yaml["tables"][table_ref][field_ref]
 
-        # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.dframes, self.data_path)
+                        # Configure mapping as dict. Format: {English: French}.
+                        if vals:
+
+                            vals = vals.values() if isinstance(vals, dict) else vals
+
+                            if suffix == "en":
+                                self.domains_map[table][field] = vals
+                            else:
+                                # Compile mapping.
+                                self.domains_map[table][field] = dict(zip(self.domains_map[table][field], vals))
+
+                                # Add default field value.
+                                self.domains_map[table][field][defaults_en[table][field]] = defaults_fr[table][field]
+
+                        else:
+                            del self.domains_map[table][field]
+
+                    except (AttributeError, KeyError, ValueError):
+                        logger.exception("Unable to configure field mapping for English-French domains.")
+
+    def configure_release_version(self):
+        """Configures the major and minor release versions for the current NRN vintage."""
+
+        logger.info("Configuring NRN release version.")
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+
+        # Retrieve metadata for previous NRN vintage.
+        logger.info("Retrieving metadata for previous NRN vintage.")
+        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+
+        # Get metadata from url.
+        metadata = helpers.get_url(metadata_url, timeout=30)
+
+        # Extract release year and version numbers from metadata.
+        metadata = json.loads(metadata.content)
+        release_year = int(metadata["result"]["metadata_created"][:4])
+        self.major_version, self.minor_version = list(
+            map(int, re.findall(r"\d+", metadata["result"]["resources"][0]["url"])[-2:]))
+
+        # Conditionally set major and minor version numbers.
+        if release_year == datetime.now().year:
+            self.minor_version += 1
+        else:
+            self.major_version += 1
+            self.minor_version = 0
+
+    def define_kml_groups(self):
+        """
+        Defines groups by which to segregate the kml-bound input GeoDataFrame.
+        This is required due to the low feature and size limitations of kml.
+        """
+
+        logger.info("Defining KML groups.")
+        self.kml_groups = dict()
+        placenames, placenames_exceeded = None, None
+
+        # Iterate languages.
+        for lang in ("en", "fr"):
+
+            logger.info("Defining KML groups for language: \"{}\".".format(lang))
+
+            # Determine language-specific field names.
+            l_placenam, r_placenam = itemgetter("l_placenam", "r_placenam")(
+                helpers.load_yaml("distribution_formats/{}/kml.yaml".format(lang))["conform"]["roadseg"]["fields"])
+
+            # Retrieve source dataframe.
+            df = self.dframes["kml"][lang]["roadseg"].copy(deep=True)
+
+            # Compile placenames.
+            if placenames is None:
+                placenames = sorted(set(np.append(df[l_placenam].unique(), df[r_placenam].unique())))
+                placenames = pd.Series(placenames)
+
+            # Generate placenames dataframe.
+            # names: Conform placenames to valid file names.
+            # queries: Configure ogr2ogr -where query.
+            placenames_df = pd.DataFrame({
+                "names": map(lambda name: re.sub("[\W_]+", "_", name), placenames),
+                "queries": placenames.map(lambda name: "-where \"\\\"{0}\\\"='{2}' or \\\"{1}\\\"='{2}'\""
+                                          .format(l_placenam, r_placenam, name.replace("'", "''")))
+            })
+
+            # Identify placenames exceeding feature limit.
+            if placenames_exceeded is None:
+                logger.info("Identifying placenames with excessive feature totals.")
+
+                limit = 1000
+                flags = np.vectorize(
+                    lambda name: len(df[(df[l_placenam] == name) | (df[r_placenam] == name)]) > limit)(
+                    placenames_df["names"])
+                placenames_exceeded = placenames_df[flags]["names"]
+
+            # Remove exceeding placenames from placenames dataframe.
+            placenames_df = placenames_df[~placenames_df["names"].isin(placenames_exceeded)]
+
+            # Add rowid field to simulate SQLite column.
+            df["ROWID"] = range(1, len(df) + 1)
+
+            # Compile limit-sized rowid ranges for each exceeding placename.
+            for placename in placenames_exceeded:
+
+                logger.info("Separating features for limit-exceeding placename: \"{}\".".format(placename))
+
+                # Compile rowids for placename.
+                rowids = df[(df[l_placenam] == placename) | (df[r_placenam] == placename)]["ROWID"].values
+
+                # Compile feature index bounds based on feature limit.
+                bounds = list(itemgetter([i*limit for i in range(0, int(len(rowids) / limit) +
+                                                                 (0 if (len(rowids) % limit == 0) else 1))])(rowids))
+                bounds.append(rowids[-1] + 1)
+
+                # Configure placename sql statements for each feature bounds.
+                sql_statements = list(map(
+                    lambda vals: "(ROWID >= {0} and ROWID < {1}) and ({2} = '{4}' or {3} = '{4}')"
+                        .format(vals[1], bounds[vals[0] + 1], l_placenam, r_placenam, placename.replace("'", "''")),
+                    enumerate(bounds[:-1])
+                ))
+
+                # Add sql statements to placenames dataframe.
+                rows = pd.DataFrame({
+                    "names": map(lambda i: "{}_{}".format(placename, i), range(1, len(sql_statements) + 1)),
+                    "queries": map("-sql \"select * from roadseg where {}\" -dialect SQLITE".format, sql_statements)
+                })
+
+                # Append new rows to placenames dataframe.
+                placenames_df = placenames_df.append(rows).reset_index(drop=True)
+
+            # Store results.
+            self.kml_groups[lang] = placenames_df
+
+    def export_data(self):
+        """Exports and packages all data."""
+
+        logger.info("Exporting data.")
+
+        # Iterate formats and languages.
+        for frmt in self.dframes:
+            for lang in self.dframes[frmt]:
+
+                # Retrieve export specifications.
+                export_specs = helpers.load_yaml("distribution_formats/{}/{}.yaml".format(lang, frmt))
+                driver_long_name = ogr.GetDriverByName(export_specs["data"]["driver"]).GetMetadata()["DMD_LONGNAME"]
+
+                logger.info("Exporting format: \"{}\", language: \"{}\".".format(driver_long_name, lang))
+
+                # Configure and format export paths and table names.
+                export_dir = os.path.join(self.output_path, self.format_path(export_specs["data"]["dir"]))
+                export_file = self.format_path(export_specs["data"]["file"]) if export_specs["data"]["file"] else None
+                export_tables = {table: self.format_path(export_specs["conform"][table]["name"]) for table in
+                                 self.dframes[frmt][lang]}
+
+                # Generate directory structure.
+                logger.info("Generating directory structure: \"{}\".".format(export_dir))
+                pathlib.Path(export_dir).mkdir(parents=True, exist_ok=True)
+
+                # Export data to temporary file.
+                temp_path = os.path.join(os.path.dirname(self.data_path), "{}_temp.gpkg".format(self.source))
+                logger.info("Exporting temporary GeoPackage: \"{}\".".format(temp_path))
+                helpers.export_gpkg(self.dframes[frmt][lang], temp_path)
+
+                # Export data.
+                logger.info("Transforming data format from GeoPackage to {}.".format(driver_long_name))
+
+                # Iterate tables.
+                for table in export_tables:
+
+                    # Configure ogr2ogr inputs.
+                    kwargs = {
+                        "driver": "-f \"{}\"".format(export_specs["data"]["driver"]),
+                        "append": "-append",
+                        "pre_args": "",
+                        "dest": "\"{}\""
+                            .format(os.path.join(export_dir, export_file if export_file else export_tables[table])),
+                        "src": "\"{}\"".format(temp_path),
+                        "src_layer": table,
+                        "nln": "-nln {}".format(export_tables[table]) if export_file else ""
+                    }
+
+                    # Iterate kml groups.
+                    if frmt == "kml":
+
+                        kml_groups = self.kml_groups[lang]
+                        total = len(kml_groups)
+                        tasks = Queue(maxsize=0)
+
+                        # Configure ogr2ogr tasks.
+                        for index, task in kml_groups.iterrows():
+                            index += 1
+
+                            # Configure logging message.
+                            log = "Transforming table: \"{}\" ({} of {}: \"{}\").".format(table, index, total, task[0])
+
+                            # Add kml group name and query to ogr2ogr parameters.
+                            path, ext = os.path.splitext(kwargs["dest"])
+                            kwargs["dest"] = os.path.join(os.path.dirname(path), task[0]) + ext
+                            kwargs["pre_args"] = task[1]
+
+                            # Store task.
+                            tasks.put((kwargs.copy(), log))
+
+                        # Execute tasks.
+                        for t in range(multiprocessing.cpu_count()):
+                            worker = Thread(target=self.thread_ogr2ogr, args=(tasks,))
+                            worker.setDaemon(True)
+                            worker.start()
+                        tasks.join()
+
+                    else:
+
+                        logger.info("Transforming table: \"{}\".".format(table))
+
+                        # Run ogr2ogr subprocess.
+                        helpers.ogr2ogr(kwargs)
+
+                # Delete temporary file.
+                logger.info("Deleting temporary GeoPackage: \"{}\".".format(temp_path))
+                if os.path.exists(temp_path):
+                    driver = ogr.GetDriverByName("GPKG")
+                    driver.DeleteDataSource(temp_path)
+                    del driver
+
+    def format_path(self, path):
+        """Formats a path with class variables: source, major_version, minor_version."""
+
+        upper = True if os.path.basename(path)[0].isupper() else False
+
+        for key in ("source", "major_version", "minor_version"):
+            val = str(eval("self.{}".format(key)))
+            val = val.upper() if upper else val.lower()
+            path = path.replace("<{}>".format(key), val)
+
+        return path
+
+    def gen_french_dataframes(self):
+        """
+        Generate French equivalents of all dataframes.
+        Note: Only the data values are updated, not the column names.
+        """
+
+        logger.info("Generating French dataframes.")
+
+        # Reconfigure dataframes dict to hold English and French data.
+        dframes = {"en": dict(), "fr": dict()}
+        for lang in ("en", "fr"):
+            for table, df in self.dframes.items():
+                dframes[lang][table] = df.copy(deep=True)
+
+        # Apply data mapping.
+        defaults_en = helpers.compile_default_values(lang="en")
+        defaults_fr = helpers.compile_default_values(lang="fr")
+        table, field = None, None
+
+        try:
+
+            # Iterate dataframes.
+            for table, df in dframes["fr"].items():
+
+                logger.info("Applying French data mapping to \"{}\".".format(table))
+
+                # Iterate fields.
+                for field in defaults_en[table]:
+
+                    logger.info("Target field: \"{}\".".format(field))
+
+                    # Apply both field domains and defaults mapping.
+                    if field in self.domains_map[table]:
+                        df[field] = df[field].map(self.domains_map[table][field])
+
+                    # Apply only field defaults mapping.
+                    else:
+                        df.loc[df[field] == defaults_en[table][field], field] = defaults_fr[table][field]
+
+                # Store resulting dataframe.
+                dframes["fr"][table] = df
+
+            # Store results.
+            self.dframes = dframes
+
+        except (AttributeError, KeyError, ValueError):
+            logger.exception("Unable to apply French data mapping for table: {}, field: {}.".format(table, field))
+            sys.exit(1)
+
+    def gen_output_schemas(self):
+        """Generate the output schema required for each dataframe and each output format."""
+
+        logger.info("Generating output schemas.")
+        frmt, lang, table = None, None, None
+
+        # Reconfigure dataframes dict to hold all formats and languages.
+        dframes = {frmt: {"en": dict(), "fr": dict()} for frmt in self.formats}
+
+        try:
+
+            # Iterate formats.
+            for frmt in dframes:
+                # Iterate languages.
+                for lang in dframes[frmt]:
+
+                    # Retrieve schemas.
+                    schemas = helpers.load_yaml("distribution_formats/{}/{}.yaml".format(lang, frmt))["conform"]
+
+                    # Iterate tables.
+                    for table in [t for t in schemas if t in self.dframes[lang]]:
+
+                        logger.info("Generating output schema for format: \"{}\", language: \"{}\", table: \"{}\"."
+                                    .format(frmt, lang, table))
+
+                        # Conform dataframe to output schema.
+
+                        # Retrieve dataframe.
+                        df = self.dframes[lang][table].copy(deep=True)
+
+                        # Drop non-required columns.
+                        drop_columns = df.columns.difference([*schemas[table]["fields"], "geometry"])
+                        df.drop(drop_columns, axis=1, inplace=True)
+
+                        # Conform column names.
+                        df.columns = map(lambda col: "geometry" if col == "geometry" else schemas[table]["fields"][col],
+                                         df.columns)
+
+                        # Store results.
+                        dframes[frmt][lang][table] = df
+
+            # Store result.
+            self.dframes = dframes
+
+        except (AttributeError, KeyError, ValueError):
+            logger.exception("Unable to apply output schema for format: {}, language: {}, table: {}."
+                             .format(frmt, lang, table))
+            sys.exit(1)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -86,365 +430,76 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-        logger.info("Loading Geopackage layers - previous vintage.")
+    def thread_ogr2ogr(self, tasks):
+        """Calls helpers.ogr2ogr via threads."""
 
-        self.dframes_old = helpers.load_gpkg("../../data/interim/{}_old.gpkg".format(self.source))
+        while not tasks.empty():
 
-    def recover_and_classify_nids(self):
-        """
-        For all spatial datasets, excluding roadseg:
-        1) Recovers nids from the previous NRN vintage or generates new ones.
-        2) Generates 4 nid classification log files: added, retired, modified, confirmed.
-        """
+            task = tasks.get()
+            helpers.ogr2ogr(*task)
+            tasks.task_done()
 
-        # Iterate datasets.
-        for table in ("blkpassage", "ferryseg", "junction", "tollpoint"):
+    def zip_data(self):
+        """Compresses all exported data directories to .zip format."""
 
-            # Check dataset existence.
-            if table in self.dframes:
+        logger.info("Apply .zip compression to output data directories.")
 
-                logger.info("Generating nids for table: {}.".format(table))
+        # Iterate output directories.
+        root = os.path.abspath("../../data/processed/{}".format(self.source))
+        for data_dir in os.listdir(root):
 
-                # Assign nids to current vintage.
-                self.dframes[table]["nid"] = [uuid.uuid4().hex for _ in range(len(self.dframes[table]))]
+            data_dir = os.path.join(root, data_dir)
 
-                # Recover old nids, if old dataset is available.
-                # Classify nids.
-                if table in self.dframes_old:
+            # Walk directory and zip contents.
+            logger.info("Applying .zip compression to directory \"{}\".".format(data_dir))
 
-                    logger.info("Recovering old nids and classifying all nids for table: {}.".format(table))
+            try:
 
-                    # Copy and filter dataframes.
-                    df = self.dframes[table][["nid", "uuid", "geometry"]].copy(deep=True)
-                    df_old = self.dframes_old[table][["nid", "geometry"]].copy(deep=True)
+                with zipfile.ZipFile("{}.zip".format(data_dir), "w") as zip_f:
+                    for dir, subdirs, files in os.walk(data_dir):
+                        for file in files:
 
-                    # Merge current and old dataframes on geometry.
-                    merge = pd.merge(df_old, df, how="outer", on="geometry", suffixes=("_old", ""), indicator=True)
+                            # Configure path.
+                            path = os.path.join(dir, file)
 
-                    # Classify nid groups as: added, retired, modified, confirmed.
-                    classified_nids = {
-                        "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-                        "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
-                        "modified": list(),
-                        "confirmed": merge[merge["_merge"] == "both"]
-                    }
+                            # Configure new relative path inside .zip file.
+                            arcname = os.path.join(os.path.basename(data_dir), os.path.relpath(path, data_dir))
 
-                    # Recover old nids for confirmed and modified nid groups via uuid index.
-                    # Merge uuids onto recovery dataframe.
-                    recovery = classified_nids["confirmed"].merge(df["nid"], how="left", on="nid")\
-                        .drop_duplicates(subset="nid", keep="first")
-                    recovery.index = recovery["uuid"]
+                            # Write to .zip file.
+                            zip_f.write(path, arcname)
 
-                    # Recover old nids. Store results.
-                    df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
-                    self.dframes[table]["nid"] = df["nid"].copy(deep=True)
+            except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
+                logger.exception("Unable to compress directory.")
+                logger.exception("zipfile error: {}".format(e))
+                sys.exit(1)
 
-                    # Update confirmed nid classification.
-                    classified_nids["confirmed"] = classified_nids["confirmed"]["nid"].to_list()
+            # Remove original directory.
+            logger.info("Removing original directory: \"{}\".".format(data_dir))
 
-                # Classify nids.
-                else:
-
-                    logger.info("Classifying all nids for table: {}. No old nid recovery required.".format(table))
+            try:
 
-                    classified_nids = {
-                        "added": self.dframes[table]["nid"].to_list(),
-                        "retired": list(),
-                        "modified": list(),
-                        "confirmed": list()
-                    }
-
-                # Store nid classifications as change logs.
-                self.change_logs[table] = {
-                    change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
-                    change, nids in classified_nids.items()
-                }
-
-    def roadseg_gen_full(self):
-        """
-        Generate the full representation of roadseg with all required fields for both the current and previous vintage.
-        """
-
-        logger.info("Generating full roadseg representation.")
+                shutil.rmtree(data_dir)
 
-        # roadseg
-
-        # Copy and filter dataframes.
-        roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid", "geometry"]].copy(deep=True)
-        addrange = self.dframes["addrange"][["nid", "r_offnanid"]].copy(deep=True)
-        strplaname = self.dframes["strplaname"][["nid", *self.match_fields]].copy(deep=True)
-
-        # Merge dataframes to assemble full roadseg representation.
-        self.roadseg = roadseg.merge(
-            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
-
-        self.roadseg.index = self.roadseg["uuid"]
-
-        # roadseg - previous vintage
-
-        # Copy and filter dataframes.
-        roadseg = self.dframes_old["roadseg"][["nid", "adrangenid", "geometry"]].copy(deep=True)
-        addrange = self.dframes_old["addrange"][["nid", "r_offnanid"]].copy(deep=True)
-        strplaname = self.dframes_old["strplaname"][["nid", *self.match_fields]].copy(deep=True)
-
-        # Merge dataframes to assemble full roadseg representation.
-        self.roadseg_old = roadseg.merge(
-            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
-
-    def roadseg_gen_nids(self):
-        """Groups roadseg records and assigns nid values."""
-
-        logger.info("Generating nids for table: roadseg.")
-
-        # Copy and filter dataframes.
-        roadseg = self.roadseg[[*self.match_fields, "uuid", "nid", "geometry"]].copy(deep=True)
-        junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
-
-        # Group uuids and geometry by match fields.
-        grouped = roadseg.groupby(self.match_fields)[["uuid", "geometry"]].agg(list)
-
-        # Dissolve geometries.
-        grouped["geometry"] = grouped["geometry"].map(lambda geoms: shapely.ops.linemerge(geoms))
-
-        # Split multilinestrings into multiple linestring records.
-        # Process: query and explode multilinestring records, then concatenate to linestring records.
-        grouped_single = grouped[~grouped["geometry"].map(lambda geom: geom.type == "MultiLineString")]
-        grouped_multi = grouped[grouped["geometry"].map(lambda geom: geom.type) == "MultiLineString"]
-
-        grouped_multi_exploded = grouped_multi.explode("geometry")
-        grouped = pd.concat([grouped_single, grouped_multi_exploded], axis=0, ignore_index=False, sort=False)
-
-        # Compile associated junction indexes for each linestring.
-        # Process: use cKDTree to compile indexes of coincident junctions to each linestring point, excluding endpoints.
-        junction_tree = cKDTree(np.concatenate([geom.coords for geom in junction["geometry"]]))
-        grouped["junction"] = grouped["geometry"].map(
-            lambda geom: list(chain(*junction_tree.query_ball_point(geom.coords[1: -1], r=0))) if len(geom.coords) > 2
-            else [])
-
-        # Convert associated junction indexes to junction geometries.
-        # Process: retrieve junction geometries for associated indexes and convert to multipoint.
-        grouped_no_junction = grouped[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
-        grouped_junction = grouped[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
-
-        junction_geometry = junction["geometry"].reset_index(drop=True).to_dict()
-        grouped_junction["junction"] = grouped_junction["junction"].map(
-            lambda indexes: itemgetter(*indexes)(junction_geometry)).copy(deep=True)
-        grouped_junction["junction"] = grouped_junction["junction"].map(
-            lambda pts: MultiPoint(pts) if isinstance(pts, tuple) else pts)
-
-        # Split linestrings on junctions.
-        grouped_junction["geometry"] = np.vectorize(
-            lambda line, pts: shapely.ops.split(line, pts), otypes=[LineString])(
-            grouped_junction["geometry"], grouped_junction["junction"])
-
-        # Split multilinestrings into multiple linestring records, concatenate all split records to non-split records.
-        # Process: reset indexes, explode multilinestring records from split results, then concatenate all split and
-        # non-split results.
-        grouped_junction.reset_index(drop=True, inplace=True)
-        grouped_no_junction.reset_index(drop=True, inplace=True)
-
-        grouped_junction_exploded = grouped_junction.explode("geometry")
-        grouped = pd.concat([grouped_no_junction, grouped_junction_exploded], axis=0, ignore_index=True, sort=False)
-
-        # Every row now represents an nid group.
-        # Attributes:
-        # 1) geometry: represents the dissolved geometry of the now-reduced group.
-        # 2) uuids: the original attribute grouping of uuids.
-        # The uuid group now needs to be reduced to match the now-reduced geometry.
-
-        grouped = pd.DataFrame({"uuids": grouped["uuid"], "geometry": grouped["geometry"].map(lambda g: set(g.coords))})
-
-        # Retrieve roadseg geometries for associated uuids.
-        roadseg_geometry = roadseg["geometry"].map(lambda geom: set(itemgetter(0, 1)(geom.coords))).to_dict()
-        grouped["uuids_geometry"] = grouped["uuids"].map(lambda uuids: itemgetter(*uuids)(roadseg_geometry))
-        grouped["uuids_geometry"] = grouped["uuids_geometry"].map(lambda g: g if isinstance(g, tuple) else (g,))
-
-        # Filter associated uuids by coordinate set subtraction.
-        # Process: subtract the coordinate sets in the dissolved group geometry from the uuid geometry.
-        grouped_query = pd.Series(np.vectorize(lambda g1, g2: [g1, g2])(grouped["geometry"], grouped["uuids_geometry"]))
-        grouped_query = grouped_query.map(lambda row: list(map(lambda uuid_geom: len(uuid_geom - row[0]) == 0, row[1])))
-
-        # Handle exceptions 1.
-        # Identify results without uuid matches. These represents lines which backtrack onto themselves.
-        # These records can be removed from the groupings as their junction-based split was in error.
-        grouped_no_matches = grouped_query[grouped_query.map(lambda matches: not any(matches))]
-        grouped.drop(grouped_no_matches.index, axis=0, inplace=True)
-        grouped_query.drop(grouped_no_matches.index, axis=0, inplace=True)
-        grouped.reset_index(drop=True, inplace=True)
-        grouped_query.reset_index(drop=True, inplace=True)
-
-        # Update grouped uuids to now-reduced list.
-        grouped_query_d = grouped_query.to_dict()
-        grouped = pd.Series([list(compress(uuids, grouped_query_d[index]))
-                             for index, uuids in grouped["uuids"].iteritems()])
-
-        # Assign nid to groups and explode grouped uuids.
-        nid_groups = pd.DataFrame({"uuid": grouped, "nid": [uuid.uuid4().hex for _ in range(len(grouped))]})
-        nid_groups = nid_groups.explode("uuid")
-
-        # Handle exceptions 2.
-        # Identify duplicated uuids. These represent dissolved groupings of two segments forming a loop, where one
-        # segment is composed of only 2 points. Therefore, all coordinates in the 2 point segment will be found in the
-        # other segment in the dissolved group, creating a duplicate match when filtering associated uuids.
-        # Remove duplicate uuids which have also been assigned a non-unique nid.
-        duplicated_uuids = nid_groups["uuid"].duplicated(keep=False)
-        duplicated_nids = nid_groups["nid"].duplicated(keep=False)
-        nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
-
-        # Assign nids to roadseg.
-        # Store results.
-        nid_groups.index = nid_groups["uuid"]
-        self.dframes["roadseg"]["nid"] = nid_groups["nid"].copy(deep=True)
-        self.roadseg["nid"] = nid_groups["nid"].copy(deep=True)
-
-    def roadseg_recover_and_classify_nids(self):
-        """
-        1) Recovers roadseg nids from the previous NRN vintage.
-        2) Generates 4 nid classification log files: added, retired, modified, confirmed.
-        """
-
-        logger.info("Recovering old nids and classifying all nids for table: roadseg.")
-
-        # Copy and filter dataframes.
-        roadseg = self.roadseg[[*self.match_fields, "nid", "uuid", "geometry"]].copy(deep=True)
-        roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
-
-        # Group by nid.
-        roadseg_grouped = roadseg.groupby("nid")["geometry"].apply(list)
-        roadseg_old_grouped = roadseg_old.groupby("nid")["geometry"].apply(list)
-
-        # Dissolve grouped geometries.
-        roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
-        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
-
-        # Convert series to geodataframes.
-        # Restore nid index as column.
-        roadseg_grouped = gpd.GeoDataFrame(roadseg_grouped.reset_index(drop=False))
-        roadseg_old_grouped = gpd.GeoDataFrame(roadseg_old_grouped.reset_index(drop=False))
-
-        # Merge current and old dataframes on geometry.
-        merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
-                         indicator=True)
-
-        # Classify nid groups as: added, retired, modified, confirmed.
-        classified_nids = {
-            "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-            "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
-            "modified": list(),
-            "confirmed": merge[merge["_merge"] == "both"]
-        }
-
-        # Recover old nids for confirmed and modified nid groups via uuid index.
-        # Merge uuids onto recovery dataframe.
-        recovery = classified_nids["confirmed"].merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
-            .drop_duplicates(subset="nid", keep="first")
-        recovery.index = recovery["uuid"]
-
-        # Recover old nids. Store results.
-        self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
-        self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
-
-        # Separate modified from confirmed nid groups.
-        # Restore match fields.
-        roadseg_confirmed_new = classified_nids["confirmed"]\
-            .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
-        roadseg_confirmed_old = classified_nids["confirmed"]\
-            .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
-            .drop_duplicates(keep="first")
-
-        # Compare match fields to separate modified nid groups.
-        # Update modified and confirmed nid classifications.
-        flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
-        classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
-
-        # Store nid classifications as change logs.
-        self.change_logs["roadseg"] = {
-            change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
-            change, nids in classified_nids.items()}
-
-    def roadseg_update_linkages(self):
-        """
-        Updates the nid linkages of roadseg:
-        1) blkpassage.roadnid
-        2) tollpoint.roadnid
-        """
-
-        logger.info("Updating nid linkages for table: roadseg.")
-
-        # Check table existence.
-        tables = [table for table in ("blkpassage", "tollpoint") if table in self.dframes]
-
-        if tables:
-
-            # Filter and copy roadseg.
-            roadseg = self.dframes["roadseg"][["nid", "geometry"]].copy(deep=True)
-
-            # Identify maximum roadseg node distance (length between adjacent nodes on a line).
-            max_len = np.vectorize(lambda geom: max(map(
-                lambda pts: math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]),
-                zip(geom.coords[:-1], geom.coords[1:]))))\
-                (roadseg["geometry"]).max()
-
-            # Generate roadseg kdtree.
-            roadseg_tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
-
-            # Compile an index-lookup dict for each coordinate associated with each roadseg record.
-            roadseg_pt_indexes = np.concatenate([[index] * count for index, count in
-                                                 roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
-            roadseg_lookup = pd.Series(roadseg_pt_indexes, index=range(0, roadseg_tree.n)).to_dict()
-
-            # Compile an index-lookup dict for each full roadseg geometry and nid record.
-            roadseg_geometry_lookup = roadseg["geometry"].to_dict()
-            roadseg_nid_lookup = roadseg["nid"].to_dict()
-
-        # Iterate dataframes, if available.
-        for table in tables:
-
-            # Copy and filter dataframe.
-            df = self.dframes[table][["roadnid", "geometry"]].copy(deep=True)
-
-            # Compile indexes of all roadseg points within max_len distance.
-            roadseg_pt_indexes = df["geometry"].map(lambda geom: roadseg_tree.query_ball_point(geom, r=max_len))
-
-            # Retrieve associated record indexes for each point index.
-            df["roadseg_idxs"] = roadseg_pt_indexes.map(lambda idxs: list(set(itemgetter(*idxs)(roadseg_lookup))))
-
-            # Retrieve associated record geometries for each record index.
-            df["roadsegs"] = df["roadseg_idxs"].map(lambda idxs: itemgetter(*idxs)(roadseg_geometry_lookup))
-
-            # Retrieve the local roadsegs index of the nearest roadsegs geometry.
-            df["nearest_local_idx"] = np.vectorize(
-                lambda pt, roads: min(enumerate(map(lambda road: road.distance(pt), roads)), key=itemgetter(1))[0])\
-                (df["geometry"], df["roadsegs"])
-
-            # Retrieve the associated roadseg record index from the local index.
-            df["nearest_roadseg_idx"] = np.vectorize(
-                lambda local_idx, roadseg_idxs: itemgetter(local_idx)(roadseg_idxs))\
-                (df["nearest_local_idx"], df["roadseg_idxs"])
-
-            # Retrieve the nid associated with the roadseg index.
-            # Store results.
-            self.dframes[table]["roadnid"] = df["nearest_roadseg_idx"].map(
-                lambda roadseg_idx: itemgetter(roadseg_idx)(roadseg_nid_lookup)).copy(deep=True)
+            except (OSError, shutil.Error) as e:
+                logger.exception("Unable to remove directory.")
+                logger.exception("shutil error: {}".format(e))
+                sys.exit(1)
 
     def execute(self):
         """Executes an NRN stage."""
 
         self.load_gpkg()
-        self.roadseg_gen_full()
-        self.roadseg_gen_nids()
-        self.roadseg_recover_and_classify_nids()
-        self.roadseg_update_linkages()
-        self.recover_and_classify_nids()
-        self.export_change_logs()
-        self.export_gpkg()
+        self.configure_release_version()
+        self.compile_french_domain_mapping()
+        self.gen_french_dataframes()
+        self.gen_output_schemas()
+        self.define_kml_groups()
+        self.export_data()
+        self.zip_data()
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
+@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 def main(source):
     """Executes an NRN stage."""
 

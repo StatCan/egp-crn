@@ -46,6 +46,12 @@ class Stage:
         # Load validation messages yaml.
         self.validation_messages_yaml = helpers.load_yaml(os.path.abspath("validation_messages.yaml"))
 
+    def classify_tables(self):
+        """Groups table names by geometry type."""
+
+        self.df_lines = ("ferryseg", "roadseg")
+        self.df_points = ("blkpassage", "junction", "tollpoint")
+
     def export_gpkg(self):
         """Exports the dataframes as GeoPackage layers."""
 
@@ -70,7 +76,7 @@ class Stage:
 
         logger.info("Writing error logs.")
 
-        log_path = os.path.abspath("../../data/interim/{}_stage_{}.log".format(self.source, self.stage))
+        log_path = os.path.abspath("../../data/interim/{}_validation_errors.log".format(self.source))
         with helpers.TempHandlerSwap(logger, log_path):
 
             # Iterate datasets and validations containing error logs.
@@ -102,15 +108,31 @@ class Stage:
         try:
 
             # Define functions and parameters.
+            # Note: List functions in order if execution order matters.
             funcs = {
                 "strip_whitespace": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
                 "title_route_text": {"tables": ["roadseg", "ferryseg"], "iterate": True, "args": ()},
+                "identify_duplicate_lines": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "identify_duplicate_points": {"tables": self.df_points, "iterate": True, "args": ()},
+                "identify_isolated_lines": {"tables": ["roadseg", "ferryseg"], "iterate": False, "args": ()},
                 "validate_dates": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
+                "validate_deadend_disjoint_proximity":
+                    {"tables": ["junction", "roadseg"], "iterate": False, "args": ()},
                 "validate_exitnbr_conflict": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "validate_exitnbr_roadclass": {"tables": ["roadseg"], "iterate": True, "args": ()},
+                "validate_ferry_road_connectivity":
+                    {"tables": ["ferryseg", "roadseg", "junction"], "iterate": False, "args": ()},
                 "validate_ids": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
+                "validate_line_endpoint_clustering": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_line_length": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_line_merging_angle": {"tables": self.df_lines, "iterate": True, "args": ()},
+                "validate_line_proximity": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "validate_nbrlanes": {"tables": ["roadseg"], "iterate": True, "args": ()},
+                "validate_nid_linkages":
+                    {"tables": self.dframes.keys(), "iterate": True, "args": (self.dframes,)},
                 "validate_pavement": {"tables": ["roadseg"], "iterate": True, "args": ()},
+                "validate_point_proximity": {"tables": self.df_points, "iterate": True, "args": ()},
+                "validate_road_structures": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()},
                 "validate_roadclass_rtnumber1": {"tables": ["ferryseg", "roadseg"], "iterate": True, "args": ()},
                 "validate_roadclass_self_intersection": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "validate_roadclass_structtype": {"tables": ["roadseg"], "iterate": True, "args": ()},
@@ -162,13 +184,14 @@ class Stage:
         """Executes an NRN stage."""
 
         self.load_gpkg()
+        self.classify_tables()
         self.validations()
         self.log_errors()
         self.export_gpkg()
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
+@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 def main(source):
     """Executes an NRN stage."""
 

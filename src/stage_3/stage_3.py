@@ -1,14 +1,21 @@
 import click
+import fiona
+import geopandas as gpd
 import logging
+import math
+import numpy as np
 import os
 import pandas as pd
+import pathlib
+import shapely.ops
 import sys
-from collections import defaultdict
-from copy import deepcopy
+import uuid
+from itertools import chain, compress
 from operator import itemgetter
+from scipy.spatial import cKDTree
+from shapely.geometry import LineString, MultiPoint
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
-import validation_functions
 import helpers
 
 
@@ -31,8 +38,6 @@ class Stage:
     def __init__(self, source):
         self.stage = 3
         self.source = source.lower()
-        self.error_logs = defaultdict(dict)
-        self.dframes_modified = list()
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -40,17 +45,31 @@ class Stage:
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
 
-        # Compile default field values.
-        self.defaults = helpers.compile_default_values()
+        # Compile match fields (fields which must be equal across records).
+        self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
 
-        # Load validation messages yaml.
-        self.validation_messages_yaml = helpers.load_yaml(os.path.abspath("validation_messages.yaml"))
+        # Define change logs dictionary.
+        self.change_logs = dict()
 
-    def classify_tables(self):
-        """Groups table names by geometry type."""
+    def export_change_logs(self):
+        """Exports the dataset differences as logs."""
 
-        self.df_lines = ("ferryseg", "roadseg")
-        self.df_points = ("blkpassage", "junction", "tollpoint")
+        change_logs_dir = os.path.abspath("../../data/processed/{0}/{0}_change_logs".format(self.source))
+        logger.info("Writing change logs to: \"{}\".".format(change_logs_dir))
+
+        # Create change logs directory.
+        pathlib.Path(change_logs_dir).mkdir(parents=True, exist_ok=True)
+
+        # Iterate tables and change types.
+        for table in self.change_logs:
+            for change, log in self.change_logs[table].items():
+
+                # Configure log path.
+                log_path = os.path.join(change_logs_dir, "{}_{}_{}.log".format(self.source, table, change))
+
+                # Write log.
+                with helpers.TempHandlerSwap(logger, log_path):
+                    logger.info(log)
 
     def export_gpkg(self):
         """Exports the dataframes as GeoPackage layers."""
@@ -58,11 +77,7 @@ class Stage:
         logger.info("Exporting dataframes to GeoPackage layers.")
 
         # Export target dataframes to GeoPackage layers.
-        if len(self.dframes_modified):
-            export_dframes = {name: self.dframes[name] for name in set(self.dframes_modified)}
-            helpers.export_gpkg(export_dframes, self.data_path)
-        else:
-            logger.info("Export not required, no dataframe modifications detected.")
+        helpers.export_gpkg(self.dframes, self.data_path)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -71,125 +86,365 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-    def log_errors(self):
-        """Templates and outputs error logs returned by validation functions."""
+        logger.info("Loading Geopackage layers - previous vintage.")
 
-        logger.info("Writing error logs.")
+        self.dframes_old = helpers.load_gpkg("../../data/interim/{}_old.gpkg".format(self.source))
 
-        log_path = os.path.abspath("../../data/interim/{}_stage_{}.log".format(self.source, self.stage))
-        with helpers.TempHandlerSwap(logger, log_path):
+    def recover_and_classify_nids(self):
+        """
+        For all spatial datasets, excluding roadseg:
+        1) Recovers nids from the previous NRN vintage or generates new ones.
+        2) Generates 4 nid classification log files: added, retired, modified, confirmed.
+        """
 
-            # Iterate datasets and validations containing error logs.
-            for table in self.error_logs:
-                for validation, logs in self.error_logs[table].items():
+        # Iterate datasets.
+        for table in ("blkpassage", "ferryseg", "junction", "tollpoint"):
 
-                    # Validate error logs are not empty.
-                    if logs is not None and len(logs):
+            # Check dataset existence.
+            if table in self.dframes:
 
-                        # Iterate error codes.
-                        if isinstance(logs, dict):
-                            for code, code_logs in [[k, v] for k, v in logs.items() if len(v)]:
+                logger.info("Generating nids for table: {}.".format(table))
 
-                                # Template and log errors.
-                                vals = "\n".join(map(str, code_logs))
-                                logger.warning(self.validation_messages_yaml[validation][code].format(table, vals))
+                # Assign nids to current vintage.
+                self.dframes[table]["nid"] = [uuid.uuid4().hex for _ in range(len(self.dframes[table]))]
 
-                        else:
+                # Recover old nids, if old dataset is available.
+                # Classify nids.
+                if table in self.dframes_old:
 
-                            # Template and log errors.
-                            vals = "\n".join(map(str, logs))
-                            logger.warning(self.validation_messages_yaml[validation][1].format(table, vals))
+                    logger.info("Recovering old nids and classifying all nids for table: {}.".format(table))
 
-    def validations(self):
-        """Applies a set of validations to one or more dataframes."""
+                    # Copy and filter dataframes.
+                    df = self.dframes[table][["nid", "uuid", "geometry"]].copy(deep=True)
+                    df_old = self.dframes_old[table][["nid", "geometry"]].copy(deep=True)
 
-        logger.info("Applying validations.")
+                    # Merge current and old dataframes on geometry.
+                    merge = pd.merge(df_old, df, how="outer", on="geometry", suffixes=("_old", ""), indicator=True)
 
-        try:
+                    # Classify nid groups as: added, retired, modified, confirmed.
+                    classified_nids = {
+                        "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
+                        "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
+                        "modified": list(),
+                        "confirmed": merge[merge["_merge"] == "both"]
+                    }
 
-            # Define functions and parameters.
-            # Note: List functions in order if execution order matters.
-            funcs = {
-                "strip_whitespace": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
-                "title_route_text": {"tables": ["roadseg", "ferryseg"], "iterate": True, "args": ()},
-                "identify_duplicate_lines": {"tables": self.df_lines, "iterate": True, "args": ()},
-                "identify_duplicate_points": {"tables": self.df_points, "iterate": True, "args": ()},
-                "identify_isolated_lines": {"tables": ["roadseg", "ferryseg"], "iterate": False, "args": ()},
-                "validate_dates": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
-                "validate_deadend_disjoint_proximity":
-                    {"tables": ["junction", "roadseg"], "iterate": False, "args": ()},
-                "validate_exitnbr_conflict": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "validate_exitnbr_roadclass": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "validate_ferry_road_connectivity":
-                    {"tables": ["ferryseg", "roadseg", "junction"], "iterate": False, "args": ()},
-                "validate_ids": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
-                "validate_line_endpoint_clustering": {"tables": self.df_lines, "iterate": True, "args": ()},
-                "validate_line_length": {"tables": self.df_lines, "iterate": True, "args": ()},
-                "validate_line_merging_angle": {"tables": self.df_lines, "iterate": True, "args": ()},
-                "validate_line_proximity": {"tables": self.df_lines, "iterate": True, "args": ()},
-                "validate_nbrlanes": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "validate_pavement": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "validate_point_proximity": {"tables": self.df_points, "iterate": True, "args": ()},
-                "validate_road_structures": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()},
-                "validate_roadclass_rtnumber1": {"tables": ["ferryseg", "roadseg"], "iterate": True, "args": ()},
-                "validate_roadclass_self_intersection": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "validate_roadclass_structtype": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "validate_route_contiguity": {"tables": ["roadseg", "ferryseg"], "iterate": False, "args": ()},
-                "validate_speed": {"tables": ["roadseg"], "iterate": True, "args": ()}
-            }
+                    # Recover old nids for confirmed and modified nid groups via uuid index.
+                    # Merge uuids onto recovery dataframe.
+                    recovery = classified_nids["confirmed"].merge(df["nid"], how="left", on="nid")\
+                        .drop_duplicates(subset="nid", keep="first")
+                    recovery.index = recovery["uuid"]
 
-            # Iterate functions and datasets.
-            for func, params in funcs.items():
-                for table in params["tables"]:
+                    # Recover old nids. Store results.
+                    df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+                    self.dframes[table]["nid"] = df["nid"].copy(deep=True)
 
-                    logger.info("Applying validation \"{}\" to target dataset(s): {}."
-                                .format(func.replace("_", " "), table))
+                    # Update confirmed nid classification.
+                    classified_nids["confirmed"] = classified_nids["confirmed"]["nid"].to_list()
 
-                    # Validate dataset availability and configure function args.
-                    if params["iterate"]:
-                        if table not in self.dframes:
-                            logger.warning("Skipping validation for missing dataset: {}.".format(table))
-                            continue
-                        args = (self.dframes[table].copy(deep=True), *params["args"])
+                # Classify nids.
+                else:
 
-                    else:
-                        missing = set(params["tables"]) - set(self.dframes)
-                        if len(missing):
-                            logger.warning("Skipping validation for missing dataset(s): {}.".format(", ".join(missing)))
-                            break
-                        args = (*map(deepcopy, itemgetter(*params["tables"])(self.dframes)), *params["args"])
+                    logger.info("Classifying all nids for table: {}. No old nid recovery required.".format(table))
 
-                    # Call function.
-                    results = eval("validation_functions.{}(*args)".format(func))
+                    classified_nids = {
+                        "added": self.dframes[table]["nid"].to_list(),
+                        "retired": list(),
+                        "modified": list(),
+                        "confirmed": list()
+                    }
 
-                    # Store results.
-                    self.error_logs[table][func] = results["errors"]
-                    if "modified_dframes" in results:
-                        if not isinstance(results["modified_dframes"], dict):
-                            results["modified_dframes"] = {table: results["modified_dframes"]}
-                        self.dframes.update(results["modified_dframes"])
-                        self.dframes_modified.extend(results["modified_dframes"])
+                # Store nid classifications as change logs.
+                self.change_logs[table] = {
+                    change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
+                    change, nids in classified_nids.items()
+                }
 
-                    # Break iteration for non-iterative function.
-                    if not params["iterate"]:
-                        break
+    def roadseg_gen_full(self):
+        """
+        Generate the full representation of roadseg with all required fields for both the current and previous vintage.
+        """
 
-        except (KeyError, SyntaxError, ValueError):
-            logger.exception("Unable to apply validation.")
-            sys.exit(1)
+        logger.info("Generating full roadseg representation.")
+
+        # roadseg
+
+        # Copy and filter dataframes.
+        roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid", "geometry"]].copy(deep=True)
+        addrange = self.dframes["addrange"][["nid", "r_offnanid"]].copy(deep=True)
+        strplaname = self.dframes["strplaname"][["nid", *self.match_fields]].copy(deep=True)
+
+        # Merge dataframes to assemble full roadseg representation.
+        self.roadseg = roadseg.merge(
+            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
+            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
+
+        self.roadseg.index = self.roadseg["uuid"]
+
+        # roadseg - previous vintage
+
+        # Copy and filter dataframes.
+        roadseg = self.dframes_old["roadseg"][["nid", "adrangenid", "geometry"]].copy(deep=True)
+        addrange = self.dframes_old["addrange"][["nid", "r_offnanid"]].copy(deep=True)
+        strplaname = self.dframes_old["strplaname"][["nid", *self.match_fields]].copy(deep=True)
+
+        # Merge dataframes to assemble full roadseg representation.
+        self.roadseg_old = roadseg.merge(
+            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
+            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
+
+    def roadseg_gen_nids(self):
+        """Groups roadseg records and assigns nid values."""
+
+        logger.info("Generating nids for table: roadseg.")
+
+        # Copy and filter dataframes.
+        roadseg = self.roadseg[[*self.match_fields, "uuid", "nid", "geometry"]].copy(deep=True)
+        junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
+
+        # Group uuids and geometry by match fields.
+        grouped = roadseg.groupby(self.match_fields)[["uuid", "geometry"]].agg(list)
+
+        # Dissolve geometries.
+        grouped["geometry"] = grouped["geometry"].map(lambda geoms: shapely.ops.linemerge(geoms))
+
+        # Split multilinestrings into multiple linestring records.
+        # Process: query and explode multilinestring records, then concatenate to linestring records.
+        grouped_single = grouped[~grouped["geometry"].map(lambda geom: geom.type == "MultiLineString")]
+        grouped_multi = grouped[grouped["geometry"].map(lambda geom: geom.type) == "MultiLineString"]
+
+        grouped_multi_exploded = grouped_multi.explode("geometry")
+        grouped = pd.concat([grouped_single, grouped_multi_exploded], axis=0, ignore_index=False, sort=False)
+
+        # Compile associated junction indexes for each linestring.
+        # Process: use cKDTree to compile indexes of coincident junctions to each linestring point, excluding endpoints.
+        junction_tree = cKDTree(np.concatenate([geom.coords for geom in junction["geometry"]]))
+        grouped["junction"] = grouped["geometry"].map(
+            lambda geom: list(chain(*junction_tree.query_ball_point(geom.coords[1: -1], r=0))) if len(geom.coords) > 2
+            else [])
+
+        # Convert associated junction indexes to junction geometries.
+        # Process: retrieve junction geometries for associated indexes and convert to multipoint.
+        grouped_no_junction = grouped[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+        grouped_junction = grouped[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+
+        junction_geometry = junction["geometry"].reset_index(drop=True).to_dict()
+        grouped_junction["junction"] = grouped_junction["junction"].map(
+            lambda indexes: itemgetter(*indexes)(junction_geometry)).copy(deep=True)
+        grouped_junction["junction"] = grouped_junction["junction"].map(
+            lambda pts: MultiPoint(pts) if isinstance(pts, tuple) else pts)
+
+        # Split linestrings on junctions.
+        grouped_junction["geometry"] = np.vectorize(
+            lambda line, pts: shapely.ops.split(line, pts), otypes=[LineString])(
+            grouped_junction["geometry"], grouped_junction["junction"])
+
+        # Split multilinestrings into multiple linestring records, concatenate all split records to non-split records.
+        # Process: reset indexes, explode multilinestring records from split results, then concatenate all split and
+        # non-split results.
+        grouped_junction.reset_index(drop=True, inplace=True)
+        grouped_no_junction.reset_index(drop=True, inplace=True)
+
+        grouped_junction_exploded = grouped_junction.explode("geometry")
+        grouped = pd.concat([grouped_no_junction, grouped_junction_exploded], axis=0, ignore_index=True, sort=False)
+
+        # Every row now represents an nid group.
+        # Attributes:
+        # 1) geometry: represents the dissolved geometry of the now-reduced group.
+        # 2) uuids: the original attribute grouping of uuids.
+        # The uuid group now needs to be reduced to match the now-reduced geometry.
+
+        grouped = pd.DataFrame({"uuids": grouped["uuid"], "geometry": grouped["geometry"].map(lambda g: set(g.coords))})
+
+        # Retrieve roadseg geometries for associated uuids.
+        roadseg_geometry = roadseg["geometry"].map(lambda geom: set(itemgetter(0, 1)(geom.coords))).to_dict()
+        grouped["uuids_geometry"] = grouped["uuids"].map(lambda uuids: itemgetter(*uuids)(roadseg_geometry))
+        grouped["uuids_geometry"] = grouped["uuids_geometry"].map(lambda g: g if isinstance(g, tuple) else (g,))
+
+        # Filter associated uuids by coordinate set subtraction.
+        # Process: subtract the coordinate sets in the dissolved group geometry from the uuid geometry.
+        grouped_query = pd.Series(np.vectorize(lambda g1, g2: [g1, g2])(grouped["geometry"], grouped["uuids_geometry"]))
+        grouped_query = grouped_query.map(lambda row: list(map(lambda uuid_geom: len(uuid_geom - row[0]) == 0, row[1])))
+
+        # Handle exceptions 1.
+        # Identify results without uuid matches. These represents lines which backtrack onto themselves.
+        # These records can be removed from the groupings as their junction-based split was in error.
+        grouped_no_matches = grouped_query[grouped_query.map(lambda matches: not any(matches))]
+        grouped.drop(grouped_no_matches.index, axis=0, inplace=True)
+        grouped_query.drop(grouped_no_matches.index, axis=0, inplace=True)
+        grouped.reset_index(drop=True, inplace=True)
+        grouped_query.reset_index(drop=True, inplace=True)
+
+        # Update grouped uuids to now-reduced list.
+        grouped_query_d = grouped_query.to_dict()
+        grouped = pd.Series([list(compress(uuids, grouped_query_d[index]))
+                             for index, uuids in grouped["uuids"].iteritems()])
+
+        # Assign nid to groups and explode grouped uuids.
+        nid_groups = pd.DataFrame({"uuid": grouped, "nid": [uuid.uuid4().hex for _ in range(len(grouped))]})
+        nid_groups = nid_groups.explode("uuid")
+
+        # Handle exceptions 2.
+        # Identify duplicated uuids. These represent dissolved groupings of two segments forming a loop, where one
+        # segment is composed of only 2 points. Therefore, all coordinates in the 2 point segment will be found in the
+        # other segment in the dissolved group, creating a duplicate match when filtering associated uuids.
+        # Remove duplicate uuids which have also been assigned a non-unique nid.
+        duplicated_uuids = nid_groups["uuid"].duplicated(keep=False)
+        duplicated_nids = nid_groups["nid"].duplicated(keep=False)
+        nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
+
+        # Assign nids to roadseg.
+        # Store results.
+        nid_groups.index = nid_groups["uuid"]
+        self.dframes["roadseg"]["nid"] = nid_groups["nid"].copy(deep=True)
+        self.roadseg["nid"] = nid_groups["nid"].copy(deep=True)
+
+    def roadseg_recover_and_classify_nids(self):
+        """
+        1) Recovers roadseg nids from the previous NRN vintage.
+        2) Generates 4 nid classification log files: added, retired, modified, confirmed.
+        """
+
+        logger.info("Recovering old nids and classifying all nids for table: roadseg.")
+
+        # Copy and filter dataframes.
+        roadseg = self.roadseg[[*self.match_fields, "nid", "uuid", "geometry"]].copy(deep=True)
+        roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
+
+        # Group by nid.
+        roadseg_grouped = roadseg.groupby("nid")["geometry"].apply(list)
+        roadseg_old_grouped = roadseg_old.groupby("nid")["geometry"].apply(list)
+
+        # Dissolve grouped geometries.
+        roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+
+        # Convert series to geodataframes.
+        # Restore nid index as column.
+        roadseg_grouped = gpd.GeoDataFrame(roadseg_grouped.reset_index(drop=False))
+        roadseg_old_grouped = gpd.GeoDataFrame(roadseg_old_grouped.reset_index(drop=False))
+
+        # Merge current and old dataframes on geometry.
+        merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
+                         indicator=True)
+
+        # Classify nid groups as: added, retired, modified, confirmed.
+        classified_nids = {
+            "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
+            "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
+            "modified": list(),
+            "confirmed": merge[merge["_merge"] == "both"]
+        }
+
+        # Recover old nids for confirmed and modified nid groups via uuid index.
+        # Merge uuids onto recovery dataframe.
+        recovery = classified_nids["confirmed"].merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
+            .drop_duplicates(subset="nid", keep="first")
+        recovery.index = recovery["uuid"]
+
+        # Recover old nids. Store results.
+        self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+        self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
+
+        # Separate modified from confirmed nid groups.
+        # Restore match fields.
+        roadseg_confirmed_new = classified_nids["confirmed"]\
+            .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
+        roadseg_confirmed_old = classified_nids["confirmed"]\
+            .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
+            .drop_duplicates(keep="first")
+
+        # Compare match fields to separate modified nid groups.
+        # Update modified and confirmed nid classifications.
+        flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
+        classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
+        classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
+
+        # Store nid classifications as change logs.
+        self.change_logs["roadseg"] = {
+            change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
+            change, nids in classified_nids.items()}
+
+    def roadseg_update_linkages(self):
+        """
+        Updates the nid linkages of roadseg:
+        1) blkpassage.roadnid
+        2) tollpoint.roadnid
+        """
+
+        logger.info("Updating nid linkages for table: roadseg.")
+
+        # Check table existence.
+        tables = [table for table in ("blkpassage", "tollpoint") if table in self.dframes]
+
+        if tables:
+
+            # Filter and copy roadseg.
+            roadseg = self.dframes["roadseg"][["nid", "geometry"]].copy(deep=True)
+
+            # Identify maximum roadseg node distance (length between adjacent nodes on a line).
+            max_len = np.vectorize(lambda geom: max(map(
+                lambda pts: math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]),
+                zip(geom.coords[:-1], geom.coords[1:]))))\
+                (roadseg["geometry"]).max()
+
+            # Generate roadseg kdtree.
+            roadseg_tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
+
+            # Compile an index-lookup dict for each coordinate associated with each roadseg record.
+            roadseg_pt_indexes = np.concatenate([[index] * count for index, count in
+                                                 roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+            roadseg_lookup = pd.Series(roadseg_pt_indexes, index=range(0, roadseg_tree.n)).to_dict()
+
+            # Compile an index-lookup dict for each full roadseg geometry and nid record.
+            roadseg_geometry_lookup = roadseg["geometry"].to_dict()
+            roadseg_nid_lookup = roadseg["nid"].to_dict()
+
+        # Iterate dataframes, if available.
+        for table in tables:
+
+            # Copy and filter dataframe.
+            df = self.dframes[table][["roadnid", "geometry"]].copy(deep=True)
+
+            # Compile indexes of all roadseg points within max_len distance.
+            roadseg_pt_indexes = df["geometry"].map(lambda geom: roadseg_tree.query_ball_point(geom, r=max_len))
+
+            # Retrieve associated record indexes for each point index.
+            df["roadseg_idxs"] = roadseg_pt_indexes.map(lambda idxs: list(set(itemgetter(*idxs)(roadseg_lookup))))
+
+            # Retrieve associated record geometries for each record index.
+            df["roadsegs"] = df["roadseg_idxs"].map(lambda idxs: itemgetter(*idxs)(roadseg_geometry_lookup))
+
+            # Retrieve the local roadsegs index of the nearest roadsegs geometry.
+            df["nearest_local_idx"] = np.vectorize(
+                lambda pt, roads: min(enumerate(map(lambda road: road.distance(pt), roads)), key=itemgetter(1))[0])\
+                (df["geometry"], df["roadsegs"])
+
+            # Retrieve the associated roadseg record index from the local index.
+            df["nearest_roadseg_idx"] = np.vectorize(
+                lambda local_idx, roadseg_idxs: itemgetter(local_idx)(roadseg_idxs))\
+                (df["nearest_local_idx"], df["roadseg_idxs"])
+
+            # Retrieve the nid associated with the roadseg index.
+            # Store results.
+            self.dframes[table]["roadnid"] = df["nearest_roadseg_idx"].map(
+                lambda roadseg_idx: itemgetter(roadseg_idx)(roadseg_nid_lookup)).copy(deep=True)
 
     def execute(self):
         """Executes an NRN stage."""
 
         self.load_gpkg()
-        self.classify_tables()
-        self.validations()
-        self.log_errors()
+        self.roadseg_gen_full()
+        self.roadseg_gen_nids()
+        self.roadseg_recover_and_classify_nids()
+        self.roadseg_update_linkages()
+        self.recover_and_classify_nids()
+        self.export_change_logs()
         self.export_gpkg()
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
+@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 def main(source):
     """Executes an NRN stage."""
 

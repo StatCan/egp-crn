@@ -1,3 +1,21 @@
+identify_duplicate_lines:
+  1: |
+    Invalid records identified for table "{0}", validation "identify_duplicate_lines", error 1 (listed by uuid):
+    {1}
+    Error 1 details: Duplicate geometry detected.
+
+identify_duplicate_points:
+  1: |
+    Invalid records identified for table "{0}", validation "identify_duplicate_points", error 1 (listed by uuid):
+    {1}
+    Error 1 details: Duplicate geometry detected.
+
+identify_isolated_lines:
+  1: |
+    Invalid records identified for table "{0}", validation "identify_isolated_lines", error 1 (listed by uuid):
+    {1}
+    Error 1 details: Isolated line segment detected.
+
 strip_whitespace:
 
 title_route_text:
@@ -32,6 +50,12 @@ validate_dates:
     {1}
     Error 7 details: Invalid combination for credate-revdate. credate must be <= revdate.
 
+validate_deadend_disjoint_proximity:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_deadend_disjoint_proximity", error 1:
+    {1}
+    Error 1 details: Dead end junctions must be >= 5 meters from disjoint / non-connected road segments.
+
 validate_exitnbr_conflict:
   1: |
     Invalid records identified for table "{0}", validation "validate_exitnbr_conflict", error 1:
@@ -43,6 +67,16 @@ validate_exitnbr_roadclass:
     Invalid records identified for table "{0}", validation "validate_exitnbr_roadclass", error 1 (listed by uuid):
     {1}
     Error 1 details: Invalid exitnbr-roadclass combination. When exitnbr is not the default field value, roadclass must be "Ramp" or "Service Lane".
+
+validate_ferry_road_connectivity:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_ferry_road_connectivity", error 1 (listed by uuid):
+    {1}
+    Error 1 details: Ferry segment must be connected to a road segment at at least one endpoint.
+  2: |
+    Invalid records identified for table "{0}", validation "validate_ferry_road_connectivity", error 2 (listed by uuid):
+    {1}
+    Error 2 details: Ferry segment cannot be connected to multiple road segments at the same endpoint.
 
 validate_ids:
   1: |
@@ -62,11 +96,41 @@ validate_ids:
     {1}
     Error 4 details: Unique ID fields must not be the default field value.
 
+validate_line_endpoint_clustering:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_line_endpoint_clustering", error 1 (listed by uuid):
+    {1}
+    Error 1 details: Line segments must have <= 3 points within 83 meters of either endpoint, inclusively.
+
+validate_line_length:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_line_length", error 1 (listed by uuid):
+    {1}
+    Error 1 details: Line segment must be >= 2 meters in length.
+
+validate_line_merging_angle:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_line_merging_angle", error 1. Review the following intersections (listed by uuid):
+    {1}
+    Error 1 details: Line segments must only merge at angles >= 40 degrees.
+
+validate_line_proximity:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_line_proximity", error 1:
+    {1}
+    Error 1 details: Line segments must be >= 3 meters from each other, excluding connected segments.
+
 validate_nbrlanes:
   1: |
     Invalid records identified for table "{0}", validation "validate_nbrlanes", error 1 (listed by uuid):
     {1}
     Error 1 details: nbrlanes must be between 1 and 8.
+
+validate_nid_linkages:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_nid_linkages", error 1:
+    {1}
+    Error 1 details: ID field value is not present in the linked dataset's nid field.
 
 validate_pavement:
   1: |
@@ -85,6 +149,30 @@ validate_pavement:
     Invalid records identified for table "{0}", validation "validate_pavement", error 4 (listed by uuid):
     {1}
     Error 4 details: Invalid pavstatus-unpavsurf combination. When pavstatus = "Unpaved", unpavsurf cannot be "None".
+
+validate_point_proximity:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_point_proximity", error 1:
+    {1}
+    Error 1 details: Points must be >= 3 meters from each other.
+
+validate_road_structures:
+  1: |
+    Invalid records identified for table "{0}", validation "validate_road_structures", error 1 (listed by uuid):
+    {1}
+    Error 1 details: Dead end road segment must have structtype = "None" or the default field value.
+  2: |
+    Invalid records identified for table "{0}", validation "validate_road_structures", error 2:
+    {1}
+    Error 2 details: Structure must be contiguous. Review contiguity at the provided endpoints.
+  3: |
+    Invalid records identified for table "{0}", validation "validate_road_structures", error 3:
+    {1}
+    Error 3 details: Structure structid must be universal and not the default field value for all constituent road segments.
+  4: |
+    Invalid records identified for table "{0}", validation "validate_road_structures", error 4:
+    {1}
+    Error 4 details: Structure structtype must be universal and not the default field value for all constituent road segments.
 
 validate_roadclass_rtnumber1:
   1: |

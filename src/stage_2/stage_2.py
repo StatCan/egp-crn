@@ -338,7 +338,7 @@ class Stage:
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt parks_canada".split(), False))
+@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 def main(source):
     """Executes an NRN stage."""
 
