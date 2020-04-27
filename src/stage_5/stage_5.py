@@ -273,10 +273,10 @@ class Stage:
                     # Iterate kml groups.
                     if frmt == "kml":
 
-                        # Remove ogr2ogr nln parameter since kml uses -sql.
+                        # Remove ogr2ogr src layer parameter since kml exporting uses -sql.
                         # This is purely to avoid an ogr2ogr warning.
-                        if "nln" in kwargs:
-                            del kwargs["nln"]
+                        if "src_layer" in kwargs:
+                            del kwargs["src_layer"]
 
                         # Compile kml groups and initialize tasks queue.
                         kml_groups = self.kml_groups[lang]
