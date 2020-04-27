@@ -11,6 +11,7 @@ import shutil
 import sys
 import zipfile
 from datetime import datetime
+from multiprocessing import Process
 from operator import itemgetter
 from osgeo import ogr
 from queue import Queue
@@ -50,10 +51,11 @@ class Stage:
 
         # Configure and validate output data path. Only one directory source_change_logs can pre-exist in out dir.
         self.output_path = os.path.abspath("../../data/processed/{}".format(self.source))
-        if os.path.exists(self.output_path) and \
-                "".join(os.listdir(self.output_path)) != "{}_change_logs".format(self.source):
-            logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
-            sys.exit(1)
+        if os.path.exists(self.output_path):
+            if not set(os.listdir(self.output_path)).issubset(
+                    {"{}_change_logs".format(self.source), "{}_change_logs".format(self.source)}):
+                logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
+                sys.exit(1)
 
         # Compile output formats.
         self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
@@ -231,6 +233,9 @@ class Stage:
         for frmt in self.dframes:
             for lang in self.dframes[frmt]:
 
+                # Configure temporary data path.
+                temp_path = os.path.abspath("../../data/interim/{}_{}_{}_temp.gpkg".format(self.source, frmt, lang))
+
                 # Retrieve export specifications.
                 export_specs = helpers.load_yaml("distribution_formats/{}/{}.yaml".format(lang, frmt))
                 driver_long_name = ogr.GetDriverByName(export_specs["data"]["driver"]).GetMetadata()["DMD_LONGNAME"]
@@ -247,11 +252,6 @@ class Stage:
                 logger.info("Generating directory structure: \"{}\".".format(export_dir))
                 pathlib.Path(export_dir).mkdir(parents=True, exist_ok=True)
 
-                # Export data to temporary file.
-                temp_path = os.path.join(os.path.dirname(self.data_path), "{}_temp.gpkg".format(self.source))
-                logger.info("Exporting temporary GeoPackage: \"{}\".".format(temp_path))
-                helpers.export_gpkg(self.dframes[frmt][lang], temp_path)
-
                 # Export data.
                 logger.info("Transforming data format from GeoPackage to {}.".format(driver_long_name))
 
@@ -263,8 +263,8 @@ class Stage:
                         "driver": "-f \"{}\"".format(export_specs["data"]["driver"]),
                         "append": "-append",
                         "pre_args": "",
-                        "dest": "\"{}\""
-                            .format(os.path.join(export_dir, export_file if export_file else export_tables[table])),
+                        "dest": "\"{}\"".format(
+                            os.path.join(export_dir, export_file if export_file else export_tables[table])),
                         "src": "\"{}\"".format(temp_path),
                         "src_layer": table,
                         "nln": "-nln {}".format(export_tables[table]) if export_file else ""
@@ -273,6 +273,12 @@ class Stage:
                     # Iterate kml groups.
                     if frmt == "kml":
 
+                        # Remove ogr2ogr nln parameter since kml uses -sql.
+                        # This is purely to avoid an ogr2ogr warning.
+                        if "nln" in kwargs:
+                            del kwargs["nln"]
+
+                        # Compile kml groups and initialize tasks queue.
                         kml_groups = self.kml_groups[lang]
                         total = len(kml_groups)
                         tasks = Queue(maxsize=0)
@@ -312,6 +318,28 @@ class Stage:
                     driver = ogr.GetDriverByName("GPKG")
                     driver.DeleteDataSource(temp_path)
                     del driver
+
+    def export_temp_data(self):
+        """
+        Exports temporary data as GeoPackages.
+        Temporary file is required since ogr2ogr, which is used for data transformation, is file based.
+        """
+
+        # Export temporary files.
+        logger.info("Exporting temporary GeoPackages.")
+
+        # Configure and store tasks.
+        tasks = multiprocessing.Queue(maxsize=0)
+        for frmt in self.dframes:
+            for lang in self.dframes[frmt]:
+                temp_path = os.path.abspath("../../data/interim/{}_{}_{}_temp.gpkg".format(self.source, frmt, lang))
+                tasks.put((self.dframes[frmt][lang], temp_path))
+
+        # Execute tasks.
+        for t in range(multiprocessing.cpu_count()):
+            worker = Process(target=self.multiprocess_export_gpkg, args=(tasks,))
+            worker.daemon = True
+            worker.start()
 
     def format_path(self, path):
         """Formats a path with class variables: source, major_version, minor_version."""
@@ -430,6 +458,14 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
+    def multiprocess_export_gpkg(self, tasks):
+        """Calls helpers.export_gpkg via multiprocessing."""
+
+        while not tasks.empty():
+
+            task = tasks.get()
+            helpers.export_gpkg(*task)
+
     def thread_ogr2ogr(self, tasks):
         """Calls helpers.ogr2ogr via threads."""
 
@@ -494,6 +530,7 @@ class Stage:
         self.gen_french_dataframes()
         self.gen_output_schemas()
         self.define_kml_groups()
+        self.export_temp_data()
         self.export_data()
         self.zip_data()
 
