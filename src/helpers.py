@@ -13,7 +13,6 @@ import sys
 import time
 import yaml
 from copy import deepcopy
-from geoalchemy2 import WKTElement, Geometry
 from itertools import compress
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
@@ -216,29 +215,6 @@ def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
     logger.info("Successfully loaded GeoPandas GeoDataFrame into NetworkX graph.")
 
     return g
-
-
-def gdf_to_postgis(gdf, name, engine, **kwargs):
-    """
-    Converts a GeoPandas GeoDataFrame to a PostGIS database table.
-    **kwargs: Keyword args for GeoPandas.GeoDataFrame.to_sql method.
-    """
-
-    logger.info("Loading GeoDataFrame into PostGIS via SQLAlchemy engine url: \"{}\".".format(repr(engine.url)))
-
-    # Copy input GeoDataFrame.
-    gdf = gdf.copy(deep=True)
-
-    # Compile geometry attributes
-    srid = gdf.crs.to_epsg()
-    geom_type = gdf.geom_type.iloc[0].upper()
-
-    # Store geometry as geom.
-    gdf["geom"] = gdf["geometry"].map(lambda geom: WKTElement(geom.wkt, srid=srid))
-    gdf.drop("geometry", axis=1, inplace=True)
-
-    # Call GeoPandas.GeoDataFrame.to_sql method.
-    gdf.to_sql(name=name, con=engine, dtype={"geom": Geometry(geometry_type=geom_type, srid=srid)}, **kwargs)
 
 
 def get_url(url, max_attempts=10, **kwargs):
