@@ -15,7 +15,7 @@ from datetime import datetime
 from itertools import chain
 from operator import itemgetter
 from scipy.spatial import cKDTree
-from shapely.geometry import Point
+from shapely.geometry import box, Point, Polygon, MultiPolygon, GeometryCollection
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -90,6 +90,48 @@ class Stage:
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
             sys.exit(1)
 
+    def divide_polygon(self, poly, threshold, count=0):
+        """Divides a polygon into 2 parts until the size <= threshold or the max recursions is reached."""
+
+        bounds = poly.bounds
+        width = bounds[2] - bounds[0]
+        height = bounds[3] - bounds[1]
+
+        # Exit recursion once limits are reached.
+        if max(width, height) <= threshold or count == 250:
+            return [poly]
+
+        # Conditionally split polygon by height or width.
+        if height >= width:
+            a = box(bounds[0], bounds[1], bounds[2], bounds[1] + (height / 2))
+            b = box(bounds[0], bounds[1] + (height / 2), bounds[2], bounds[3])
+        else:
+            a = box(bounds[0], bounds[1], bounds[0] + (width / 2), bounds[3])
+            b = box(bounds[0] + (width / 2), bounds[1], bounds[2], bounds[3])
+        result = []
+
+        # Compile split results, further recurse.
+        for d in (a, b,):
+            c = poly.intersection(d)
+            if not isinstance(c, GeometryCollection):
+                c = [c]
+            for e in c:
+                if isinstance(e, (Polygon, MultiPolygon)):
+                    result.extend(self.divide_polygon(e, threshold, count + 1))
+
+        if count > 0:
+            return result
+
+        # Compile final result as a single-part polygon.
+        final_result = []
+        for g in result:
+            if isinstance(g, MultiPolygon):
+                final_result.extend(g)
+            else:
+                final_result.append(g)
+
+        return final_result
+
     def export_gpkg(self):
         """Exports the junctions dataframe as a GeoPackage layer."""
 
@@ -118,6 +160,7 @@ class Stage:
             default = helpers.compile_default_values()["junction"][attribute]
 
             # Concatenate ferryseg and roadseg, if possible.
+            logger.info("test - join roadseg and ferryseg")
             if "ferryseg" in self.dframes:
                 df = gpd.GeoDataFrame(pd.concat(itemgetter("ferryseg", "roadseg")(self.dframes), ignore_index=False,
                                                 sort=False))
@@ -125,19 +168,24 @@ class Stage:
                 df = self.dframes["roadseg"].copy(deep=True)
 
             # Generate kdtree.
+            logger.info("test - load ckdtree")
             tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
 
             # Compile indexes of segments at 0 meters distance from each junction. These represent connected segments.
+            logger.info("test - query ball point")
             connected_idx = junction["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=0))))
 
             # Construct a uuid series aligned to the series of segment points.
+            logger.info("test - pts_uuid")
             pts_uuid = np.concatenate([[uuid] * count for uuid, count in
                                        df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
             # Retrieve the uuid associated with the connected indexes.
+            logger.info("test - connected_uuids")
             connected_uuid = connected_idx.map(lambda index: itemgetter(*index)(pts_uuid))
 
             # Compile the attribute for all segment uuids.
+            logger.info("test - to_dict")
             attribute_uuid = df[attribute].to_dict()
 
             # Convert associated uuids to attributes.
@@ -145,21 +193,25 @@ class Stage:
 
             # Attribute: accuracy.
             if attribute == "accuracy":
+                logger.info("test - accuracy - connected attributes")
                 connected_attribute = connected_uuid.map(
                     lambda uuid: max(itemgetter(*uuid)(attribute_uuid)) if isinstance(uuid, tuple) else
                     itemgetter(uuid)(attribute_uuid))
 
             # Attribute: exitnbr.
             if attribute == "exitnbr":
+                logger.info("test - exitnbr - connected attributes")
                 connected_attribute = connected_uuid.map(
                     lambda uuid: tuple(set(itemgetter(*uuid)(attribute_uuid))) if isinstance(uuid, tuple) else
                     (itemgetter(uuid)(attribute_uuid),))
 
                 # Concatenate, sort, and remove invalid attribute tuples.
+                logger.info("test - exitnbr - connected attributes join")
                 connected_attribute = connected_attribute.map(
                     lambda vals: ", ".join(sorted([str(val) for val in vals if val != default and not pd.isna(val)])))
 
             # Populate empty results with default.
+            logger.info("test - empty results set to default")
             connected_attribute = connected_attribute.map(lambda val: val if len(str(val)) else default)
 
             return connected_attribute.copy(deep=True)
@@ -169,8 +221,10 @@ class Stage:
         self.dframes["junction"]["metacover"] = "Complete"
         self.dframes["junction"]["credate"] = datetime.today().strftime("%Y%m%d")
         self.dframes["junction"]["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
+        logger.info("accuracy")
         self.dframes["junction"]["accuracy"] = compute_connected_attribute(self.dframes["junction"], "accuracy")
         self.dframes["junction"]["provider"] = "Federal"
+        logger.info("exitnbr")
         self.dframes["junction"]["exitnbr"] = compute_connected_attribute(self.dframes["junction"], "exitnbr")
 
     def gen_junctions(self):
@@ -228,10 +282,23 @@ class Stage:
         # points from other junctypes.
         logger.info("Configuring junctype: NatProvTer.")
 
-        merged = np.array(list(chain.from_iterable([deadend, ferry, intersection])))
-        natprovter_flag = list(map(lambda pt: not Point(pt).within(self.boundary), merged))
-        natprovter = set(map(tuple, merged[natprovter_flag]))
+        # Split administrative boundary into smaller polygons.
+        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1))
 
+        # Compile all junctions as Point geometries.
+        merged_pts = gpd.GeoSeries(map(Point, chain.from_iterable([deadend, ferry, intersection])))
+
+        # Use the junctions' spatial indexes to query points within the split boundary polygons.
+        pts_sindex = merged_pts.sindex
+        pts_within = boundary_polys.map(
+            lambda poly: merged_pts.iloc[list(pts_sindex.intersection(poly.bounds))].within(poly))
+        pts_within = pts_within.map(lambda series: series.index[series].values)
+        pts_within = set(chain.from_iterable(pts_within.to_list()))
+
+        # Invert query and compile resulting points as NatProvTer.
+        natprovter = set(merged_pts[~merged_pts.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
+
+        # Remove conflicting points from other junctypes.
         deadend = deadend.difference(natprovter)
         ferry = ferry.difference(natprovter)
         intersection = intersection.difference(natprovter)
