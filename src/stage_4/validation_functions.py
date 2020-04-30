@@ -11,7 +11,7 @@ import string
 import sys
 from datetime import datetime
 from itertools import chain, permutations
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
 
@@ -267,7 +267,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     roadseg = helpers.reproject_gdf(roadseg, 4617, 3348)
 
     # Generate kdtree.
-    tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
+    tree = cKDTree(np.concatenate(roadseg["geometry"].map(attrgetter("coords")).to_numpy()))
 
     # Compile indexes of road segments within 5 meters distance of each deadend.
     proxi_idx_all = deadends["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=5))))
@@ -525,7 +525,7 @@ def validate_line_merging_angle(df):
 
     # Construct x- and y-coordinate series aligned to the series of points.
     # Disregard z-coordinates.
-    pts_x, pts_y, pts_z = np.concatenate([np.array(geom.coords) for geom in df["geometry"]]).T
+    pts_x, pts_y, pts_z = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
 
     # Join the uuids, x-, and y-coordinates.
     pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
@@ -623,7 +623,7 @@ def validate_line_proximity(df):
     df = helpers.reproject_gdf(df, 4617, 3348)
 
     # Generate kdtree.
-    tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
+    tree = cKDTree(np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()))
 
     # Compile indexes of line segments with points within 3 meters distance.
     proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=3))))
@@ -644,7 +644,8 @@ def validate_line_proximity(df):
 
     # Construct x- and y-coordinate series aligned to the series of segment endpoints.
     # Disregard z-coordinates.
-    endpoint_x, endpoint_y, endpoint_z = np.concatenate([itemgetter(0, -1)(geom.coords) for geom in df["geometry"]]).T
+    endpoint_x, endpoint_y, endpoint_z = np.concatenate(
+        df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()).T
 
     # Join the uuids, x-, and y-coordinates.
     endpoint_df = pd.DataFrame({"x": endpoint_x, "y": endpoint_y, "uuid": endpoint_uuids})
@@ -805,7 +806,7 @@ def validate_point_proximity(df):
     df = helpers.reproject_gdf(df, 4617, 3348)
 
     # Generate kdtree.
-    tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
+    tree = cKDTree(np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()))
 
     # Compile indexes of points with other points within 3 meters distance.
     proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=3))))

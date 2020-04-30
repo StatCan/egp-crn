@@ -11,7 +11,7 @@ import shapely.ops
 import sys
 import uuid
 from itertools import chain, compress
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString, MultiPoint
 
@@ -218,7 +218,7 @@ class Stage:
 
         # Compile associated junction indexes for each linestring.
         # Process: use cKDTree to compile indexes of coincident junctions to each linestring point, excluding endpoints.
-        junction_tree = cKDTree(np.concatenate([geom.coords for geom in junction["geometry"]]))
+        junction_tree = cKDTree(np.concatenate(junction["geometry"].map(attrgetter("coords")).to_numpy()))
         grouped["junction"] = grouped["geometry"].map(
             lambda geom: list(chain(*junction_tree.query_ball_point(geom.coords[1: -1], r=0))) if len(geom.coords) > 2
             else [])
@@ -389,7 +389,7 @@ class Stage:
                 (roadseg["geometry"]).max()
 
             # Generate roadseg kdtree.
-            roadseg_tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in roadseg["geometry"]]))
+            roadseg_tree = cKDTree(np.concatenate(roadseg["geometry"].map(attrgetter("coords")).to_numpy()))
 
             # Compile an index-lookup dict for each coordinate associated with each roadseg record.
             roadseg_pt_indexes = np.concatenate([[index] * count for index, count in

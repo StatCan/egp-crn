@@ -13,7 +13,7 @@ import zipfile
 from collections import Counter
 from datetime import datetime
 from itertools import chain
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import box, Point, Polygon, MultiPolygon, GeometryCollection
 
@@ -145,31 +145,30 @@ class Stage:
 
         logger.info("Generating remaining dataset attributes.")
 
-        def compute_connected_attribute(junction, attribute):
+        def compute_connected_attributes(attributes):
             """
-            Computes the given attribute from connected features to the given junction dataframe.
+            Computes the given attributes from connected features to the junction dataframe.
             Currently supported attributes: 'accuracy', 'exitnbr'.
             """
 
-            # Validate input attribute.
-            if attribute not in ("accuracy", "exitnbr"):
-                logger.exception("Unsupported attribute provided: {}.".format(attribute))
-                sys.exit(1)
+            junction = self.dframes["junction"].copy(deep=True)
 
-            # Compile default field value.
-            default = helpers.compile_default_values()["junction"][attribute]
+            # Validate input attributes.
+            if not set(attributes).issubset({"accuracy", "exitnbr"}):
+                logger.exception("One or more unsupported attributes provided: {}.".format(", ".join(attributes)))
+                sys.exit(1)
 
             # Concatenate ferryseg and roadseg, if possible.
             logger.info("test - join roadseg and ferryseg")
             if "ferryseg" in self.dframes:
-                df = gpd.GeoDataFrame(pd.concat(itemgetter("ferryseg", "roadseg")(self.dframes), ignore_index=False,
-                                                sort=False))
+                df = gpd.GeoDataFrame(
+                    pd.concat(itemgetter("ferryseg", "roadseg")(self.dframes), ignore_index=False, sort=False))
             else:
                 df = self.dframes["roadseg"].copy(deep=True)
 
             # Generate kdtree.
             logger.info("test - load ckdtree")
-            tree = cKDTree(np.concatenate([np.array(geom.coords) for geom in df["geometry"]]))
+            tree = cKDTree(np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()))
 
             # Compile indexes of segments at 0 meters distance from each junction. These represent connected segments.
             logger.info("test - query ball point")
@@ -184,48 +183,55 @@ class Stage:
             logger.info("test - connected_uuids")
             connected_uuid = connected_idx.map(lambda index: itemgetter(*index)(pts_uuid))
 
-            # Compile the attribute for all segment uuids.
+            # Compile the attributes for all segment uuids.
             logger.info("test - to_dict")
-            attribute_uuid = df[attribute].to_dict()
+            attributes_uuid = df[attributes].to_dict()
 
             # Convert associated uuids to attributes.
-            # Return a series of the attribute default if an unsupported attribute was specified.
+            # Convert invalid attribute values to the default field value.
+            results = dict.fromkeys(attributes)
 
-            # Attribute: accuracy.
-            if attribute == "accuracy":
-                logger.info("test - accuracy - connected attributes")
-                connected_attribute = connected_uuid.map(
-                    lambda uuid: max(itemgetter(*uuid)(attribute_uuid)) if isinstance(uuid, tuple) else
-                    itemgetter(uuid)(attribute_uuid))
+            for attribute in attributes:
+                attribute_uuid = attributes_uuid[attribute]
+                default = helpers.compile_default_values()["junction"][attribute]
 
-            # Attribute: exitnbr.
-            if attribute == "exitnbr":
-                logger.info("test - exitnbr - connected attributes")
-                connected_attribute = connected_uuid.map(
-                    lambda uuid: tuple(set(itemgetter(*uuid)(attribute_uuid))) if isinstance(uuid, tuple) else
-                    (itemgetter(uuid)(attribute_uuid),))
+                # Attribute: accuracy.
+                if attribute == "accuracy":
+                    logger.info("test - accuracy - connected attributes")
+                    connected_attribute = connected_uuid.map(
+                        lambda uuid: max(itemgetter(*uuid)(attribute_uuid)) if isinstance(uuid, tuple) else
+                        itemgetter(uuid)(attribute_uuid))
 
-                # Concatenate, sort, and remove invalid attribute tuples.
-                logger.info("test - exitnbr - connected attributes join")
-                connected_attribute = connected_attribute.map(
-                    lambda vals: ", ".join(sorted([str(val) for val in vals if val != default and not pd.isna(val)])))
+                # Attribute: exitnbr.
+                if attribute == "exitnbr":
+                    logger.info("test - exitnbr - connected attributes")
+                    connected_attribute = connected_uuid.map(
+                        lambda uuid: tuple(set(itemgetter(*uuid)(attribute_uuid))) if isinstance(uuid, tuple) else
+                        (itemgetter(uuid)(attribute_uuid),))
 
-            # Populate empty results with default.
-            logger.info("test - empty results set to default")
-            connected_attribute = connected_attribute.map(lambda val: val if len(str(val)) else default)
+                    # Concatenate, sort, and remove invalid attribute tuples.
+                    logger.info("test - exitnbr - connected attributes join")
+                    connected_attribute = connected_attribute.map(
+                        lambda vals: ", ".join(sorted([str(v) for v in vals if v != default and not pd.isna(v)])))
 
-            return connected_attribute.copy(deep=True)
+                # Populate empty results with default.
+                logger.info("test - empty results set to default")
+                connected_attribute = connected_attribute.map(lambda v: v if len(str(v)) else default)
+
+                # Store results.
+                results[attribute] = connected_attribute.copy(deep=True)
+
+            return results
 
         # Set remaining attributes, where possible.
         self.dframes["junction"]["acqtech"] = "Computed"
         self.dframes["junction"]["metacover"] = "Complete"
         self.dframes["junction"]["credate"] = datetime.today().strftime("%Y%m%d")
         self.dframes["junction"]["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
-        logger.info("accuracy")
-        self.dframes["junction"]["accuracy"] = compute_connected_attribute(self.dframes["junction"], "accuracy")
         self.dframes["junction"]["provider"] = "Federal"
-        logger.info("exitnbr")
-        self.dframes["junction"]["exitnbr"] = compute_connected_attribute(self.dframes["junction"], "exitnbr")
+        connected_attributes = compute_connected_attributes(["accuracy", "exitnbr"])
+        self.dframes["junction"]["accuracy"] = connected_attributes["accuracy"]
+        self.dframes["junction"]["exitnbr"] = connected_attributes["exitnbr"]
 
     def gen_junctions(self):
         """Generates a junction GeoDataFrame for all junctypes: Dead End, Ferry, Intersection, and NatProvTer."""
@@ -241,15 +247,15 @@ class Stage:
             lambda geom: len(geom.coords)).iteritems()])
 
         # Construct x- and y-coordinate series aligned to the series of points.
-        pts_x, pts_y = np.concatenate([np.array(geom.coords) for geom in df["geometry"]]).T
+        pts_x, pts_y = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
 
         # Join the uuids, x-, and y-coordinates.
         pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
 
         # Query unique points (all) and endpoints.
         pts_unique = pts_df[~pts_df[["x", "y"]].duplicated(keep=False)][["x", "y"]].values
-        endpoints_unique = np.unique(np.concatenate([np.array(itemgetter(0, -1)(geom.coords)) for geom in
-                                                     df["geometry"]]), axis=0)
+        endpoints_unique = np.unique(np.concatenate(
+            df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)
 
         # Query non-unique points (all), keep only the first duplicated point from self-loops.
         pts_dup = pts_df[(pts_df[["x", "y"]].duplicated(keep=False)) & (~pts_df.duplicated(keep="first"))]
