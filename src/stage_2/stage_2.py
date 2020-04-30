@@ -159,7 +159,6 @@ class Stage:
                 sys.exit(1)
 
             # Concatenate ferryseg and roadseg, if possible.
-            logger.info("test - join roadseg and ferryseg")
             if "ferryseg" in self.dframes:
                 df = gpd.GeoDataFrame(
                     pd.concat(itemgetter("ferryseg", "roadseg")(self.dframes), ignore_index=False, sort=False))
@@ -167,24 +166,19 @@ class Stage:
                 df = self.dframes["roadseg"].copy(deep=True)
 
             # Generate kdtree.
-            logger.info("test - load ckdtree")
             tree = cKDTree(np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()))
 
             # Compile indexes of segments at 0 meters distance from each junction. These represent connected segments.
-            logger.info("test - query ball point")
             connected_idx = junction["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=0))))
 
             # Construct a uuid series aligned to the series of segment points.
-            logger.info("test - pts_uuid")
             pts_uuid = np.concatenate([[uuid] * count for uuid, count in
                                        df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
             # Retrieve the uuid associated with the connected indexes.
-            logger.info("test - connected_uuids")
             connected_uuid = connected_idx.map(lambda index: itemgetter(*index)(pts_uuid))
 
             # Compile the attributes for all segment uuids.
-            logger.info("test - to_dict")
             attributes_uuid = df[attributes].to_dict()
 
             # Convert associated uuids to attributes.
@@ -197,25 +191,21 @@ class Stage:
 
                 # Attribute: accuracy.
                 if attribute == "accuracy":
-                    logger.info("test - accuracy - connected attributes")
                     connected_attribute = connected_uuid.map(
                         lambda uuid: max(itemgetter(*uuid)(attribute_uuid)) if isinstance(uuid, tuple) else
                         itemgetter(uuid)(attribute_uuid))
 
                 # Attribute: exitnbr.
                 if attribute == "exitnbr":
-                    logger.info("test - exitnbr - connected attributes")
                     connected_attribute = connected_uuid.map(
                         lambda uuid: tuple(set(itemgetter(*uuid)(attribute_uuid))) if isinstance(uuid, tuple) else
                         (itemgetter(uuid)(attribute_uuid),))
 
                     # Concatenate, sort, and remove invalid attribute tuples.
-                    logger.info("test - exitnbr - connected attributes join")
                     connected_attribute = connected_attribute.map(
                         lambda vals: ", ".join(sorted([str(v) for v in vals if v != default and not pd.isna(v)])))
 
                 # Populate empty results with default.
-                logger.info("test - empty results set to default")
                 connected_attribute = connected_attribute.map(lambda v: v if len(str(v)) else default)
 
                 # Store results.

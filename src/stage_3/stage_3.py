@@ -184,9 +184,12 @@ class Stage:
         # roadseg - previous vintage
 
         # Copy and filter dataframes.
+        # Filter duplicates (may exist due to differences between previous and current generation process).
         roadseg = self.dframes_old["roadseg"][["nid", "adrangenid", "geometry"]].copy(deep=True)
         addrange = self.dframes_old["addrange"][["nid", "r_offnanid"]].copy(deep=True)
+        addrange = addrange[~addrange.duplicated(keep="first")]
         strplaname = self.dframes_old["strplaname"][["nid", *self.match_fields]].copy(deep=True)
+        strplaname = strplaname[~strplaname.duplicated(keep="first")]
 
         # Merge dataframes to assemble full roadseg representation.
         self.roadseg_old = roadseg.merge(
@@ -199,42 +202,64 @@ class Stage:
         logger.info("Generating nids for table: roadseg.")
 
         # Copy and filter dataframes.
+        logger.info("test - copy and filter dfs")
         roadseg = self.roadseg[[*self.match_fields, "uuid", "nid", "geometry"]].copy(deep=True)
         junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
 
         # Group uuids and geometry by match fields.
-        grouped = roadseg.groupby(self.match_fields)[["uuid", "geometry"]].agg(list)
+        # To reduce processing, only duplicated records are grouped.
+        logger.info("test - groupby")
+        grouped = roadseg[roadseg[self.match_fields].duplicated(keep=False)]\
+            .groupby(self.match_fields)[["uuid", "geometry"]].agg(list)
 
         # Dissolve geometries.
-        grouped["geometry"] = grouped["geometry"].map(lambda geoms: shapely.ops.linemerge(geoms))
+        logger.info("test - dissolve")
+        grouped["geometry"] = np.vectorize(
+            lambda geoms: shapely.ops.linemerge(geoms), otypes=[LineString])(grouped["geometry"])
+
+        # Concatenate non-grouped groups (single uuid groups) to groups.
+        non_grouped = roadseg[~roadseg[self.match_fields].duplicated(keep=False)][["uuid", "geometry"]]
+        non_grouped["uuid"] = non_grouped["uuid"].map(lambda uuid: [uuid])
+        grouped = pd.concat([grouped.reset_index(drop=True), non_grouped], axis=0, ignore_index=True, sort=False)
 
         # Split multilinestrings into multiple linestring records.
         # Process: query and explode multilinestring records, then concatenate to linestring records.
+        logger.info("test - separate single and multi linestrings")
         grouped_single = grouped[~grouped["geometry"].map(lambda geom: geom.type == "MultiLineString")]
         grouped_multi = grouped[grouped["geometry"].map(lambda geom: geom.type) == "MultiLineString"]
 
+        logger.info("test - explode multilinestrings")
         grouped_multi_exploded = grouped_multi.explode("geometry")
+        logger.info("test - concat single and exploded multi linestrings")
         grouped = pd.concat([grouped_single, grouped_multi_exploded], axis=0, ignore_index=False, sort=False)
 
         # Compile associated junction indexes for each linestring.
         # Process: use cKDTree to compile indexes of coincident junctions to each linestring point, excluding endpoints.
+        logger.info("test - gen ckdtree")
         junction_tree = cKDTree(np.concatenate(junction["geometry"].map(attrgetter("coords")).to_numpy()))
+        logger.info("test - query ball point")
         grouped["junction"] = grouped["geometry"].map(
             lambda geom: list(chain(*junction_tree.query_ball_point(geom.coords[1: -1], r=0))) if len(geom.coords) > 2
             else [])
 
         # Convert associated junction indexes to junction geometries.
         # Process: retrieve junction geometries for associated indexes and convert to multipoint.
+        logger.info("test - detect no junctions")
         grouped_no_junction = grouped[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+        logger.info("test - detect junctions")
         grouped_junction = grouped[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
 
+        logger.info("test - export dict")
         junction_geometry = junction["geometry"].reset_index(drop=True).to_dict()
+        logger.info("test - get junction from indexes")
         grouped_junction["junction"] = grouped_junction["junction"].map(
             lambda indexes: itemgetter(*indexes)(junction_geometry)).copy(deep=True)
+        logger.info("test - convert junction to point from tuple")
         grouped_junction["junction"] = grouped_junction["junction"].map(
             lambda pts: MultiPoint(pts) if isinstance(pts, tuple) else pts)
 
         # Split linestrings on junctions.
+        logger.info("test - split linestrings on junctions")
         grouped_junction["geometry"] = np.vectorize(
             lambda line, pts: shapely.ops.split(line, pts), otypes=[LineString])(
             grouped_junction["geometry"], grouped_junction["junction"])
@@ -242,10 +267,13 @@ class Stage:
         # Split multilinestrings into multiple linestring records, concatenate all split records to non-split records.
         # Process: reset indexes, explode multilinestring records from split results, then concatenate all split and
         # non-split results.
+        logger.info("test - reset junction indexes")
         grouped_junction.reset_index(drop=True, inplace=True)
         grouped_no_junction.reset_index(drop=True, inplace=True)
 
+        logger.info("test - explode groups post-junction split")
         grouped_junction_exploded = grouped_junction.explode("geometry")
+        logger.info("test - concat exploded groups post-junction split")
         grouped = pd.concat([grouped_no_junction, grouped_junction_exploded], axis=0, ignore_index=True, sort=False)
 
         # Every row now represents an nid group.
@@ -254,21 +282,28 @@ class Stage:
         # 2) uuids: the original attribute grouping of uuids.
         # The uuid group now needs to be reduced to match the now-reduced geometry.
 
+        logger.info("test - gen df")
         grouped = pd.DataFrame({"uuids": grouped["uuid"], "geometry": grouped["geometry"].map(lambda g: set(g.coords))})
 
         # Retrieve roadseg geometries for associated uuids.
+        logger.info("test - export geometries to dict")
         roadseg_geometry = roadseg["geometry"].map(lambda geom: set(itemgetter(0, 1)(geom.coords))).to_dict()
+        logger.info("test - retrieve associated uuids")
         grouped["uuids_geometry"] = grouped["uuids"].map(lambda uuids: itemgetter(*uuids)(roadseg_geometry))
+        logger.info("test - unpack tuples")
         grouped["uuids_geometry"] = grouped["uuids_geometry"].map(lambda g: g if isinstance(g, tuple) else (g,))
 
         # Filter associated uuids by coordinate set subtraction.
         # Process: subtract the coordinate sets in the dissolved group geometry from the uuid geometry.
+        logger.info("test - filter uuids")
         grouped_query = pd.Series(np.vectorize(lambda g1, g2: [g1, g2])(grouped["geometry"], grouped["uuids_geometry"]))
+        logger.info("test - filter uuids 2")
         grouped_query = grouped_query.map(lambda row: list(map(lambda uuid_geom: len(uuid_geom - row[0]) == 0, row[1])))
 
         # Handle exceptions 1.
         # Identify results without uuid matches. These represents lines which backtrack onto themselves.
         # These records can be removed from the groupings as their junction-based split was in error.
+        logger.info("test - exceptions 1")
         grouped_no_matches = grouped_query[grouped_query.map(lambda matches: not any(matches))]
         grouped.drop(grouped_no_matches.index, axis=0, inplace=True)
         grouped_query.drop(grouped_no_matches.index, axis=0, inplace=True)
@@ -276,12 +311,15 @@ class Stage:
         grouped_query.reset_index(drop=True, inplace=True)
 
         # Update grouped uuids to now-reduced list.
+        logger.info("test - update post-exception 1")
         grouped_query_d = grouped_query.to_dict()
         grouped = pd.Series([list(compress(uuids, grouped_query_d[index]))
                              for index, uuids in grouped["uuids"].iteritems()])
 
         # Assign nid to groups and explode grouped uuids.
+        logger.info("test - assign nids")
         nid_groups = pd.DataFrame({"uuid": grouped, "nid": [uuid.uuid4().hex for _ in range(len(grouped))]})
+        logger.info("test - explode post-nid assignment")
         nid_groups = nid_groups.explode("uuid")
 
         # Handle exceptions 2.
@@ -289,12 +327,15 @@ class Stage:
         # segment is composed of only 2 points. Therefore, all coordinates in the 2 point segment will be found in the
         # other segment in the dissolved group, creating a duplicate match when filtering associated uuids.
         # Remove duplicate uuids which have also been assigned a non-unique nid.
+        logger.info("test - exceptions 2")
         duplicated_uuids = nid_groups["uuid"].duplicated(keep=False)
         duplicated_nids = nid_groups["nid"].duplicated(keep=False)
         nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
 
         # Assign nids to roadseg.
         # Store results.
+        logger.info("test - store results")
+        sys.exit(1)
         nid_groups.index = nid_groups["uuid"]
         self.dframes["roadseg"]["nid"] = nid_groups["nid"].copy(deep=True)
         self.roadseg["nid"] = nid_groups["nid"].copy(deep=True)
