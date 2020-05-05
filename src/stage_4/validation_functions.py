@@ -154,12 +154,11 @@ def validate_dates(df):
     """Applies a set of validations to credate and revdate fields."""
 
     errors = {i: list() for i in range(1, 7+1)}
-    mod_flag = False
     defaults = helpers.compile_default_values()["roadseg"]
 
     # Get current date.
-    today_str = datetime.today().strftime("%Y%m%d")
-    today = {"year": int(today_str[:4]), "month": int(today_str[4:6]), "day": int(today_str[6:8])}
+    today = datetime.today().strftime("%Y%m%d")
+    today = {"year": int(today[:4]), "month": int(today[4:6]), "day": int(today[6:8]), "full": int(today)}
 
     # Define functions.
     def validate_day(date):
@@ -169,20 +168,9 @@ def validate_dates(df):
 
         if not 1 <= day <= calendar.mdays[month]:
             if not all([day == 29, month == 2, calendar.isleap(year)]):
-                return 1
+                return True
 
-        return 0
-
-    def validate_date_vs_today(date):
-        """Validate the date relative to today's date."""
-
-        year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
-
-        if year == today["year"]:
-            if not all([month <= today["month"], day <= today["day"]]):
-                return 1
-
-        return 0
+        return False
 
     # Iterate credate and revdate, applying validations.
     for col in ("credate", "revdate"):
@@ -193,65 +181,50 @@ def validate_dates(df):
         if len(df_sub):
 
             # Validation 1: date content must be numeric.
-            results = df_sub[col].map(lambda date: 1 if not date.isnumeric() else 0)
-            errors[1].extend(results[results == 1].index.values)
+            results = df_sub[~df_sub[col].map(str.isnumeric)].index.values
+            errors[1].extend(results)
 
             # Validation 2: length must be 4, 6, or 8.
-            results = df_sub[col].map(lambda date: 1 if len(date) not in (4, 6, 8) else 0)
-            errors[2].extend(results[results == 1].index.values)
+            results = df_sub[df_sub[col].map(lambda date: len(date) not in (4, 6, 8))].index.values
+            errors[2].extend(results)
 
-            # Modification 1: set non-numeric and non-standard length dates to today's date.
-            # Apply modification, if required.
-            col_mod = df_sub[df_sub[col].map(lambda date: not date.isnumeric() or len(date) not in (4, 6, 8))][col]
-            if len(col_mod):
-                df_sub.loc[col_mod.index, col] = today_str
-                df.loc[col_mod.index, col] = today_str
-                mod_flag = True
+            # Subset to valid records only for remaining validations.
+            df_sub2 = df_sub[~df_sub.index.isin(list(set(chain.from_iterable(errors.values()))))]
 
-                # Log modifications.
-                logger.warning("Modified {} record(s) in column {}."
-                               "\nModification details: Date set to today's date.".format(len(col_mod), col))
+            if len(df_sub2):
 
-            # Modification 2: set missing month and day values to 01.
-            # Apply modification, if required.
-            col_mod = df_sub[df_sub[col].map(lambda date: len(date) in (4, 6))][col]
-            if len(col_mod):
-                append_vals = {4: "0101", 6: "01"}
-                df_sub.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
-                df.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
-                mod_flag = True
+                # Temporarily set missing month and day values to 01.
+                col_mod = df_sub2[df_sub2[col].map(lambda date: len(date) in (4, 6))][col]
+                if len(col_mod):
+                    append_vals = {4: "0101", 6: "01"}
+                    df_sub2.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
+                    df.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
 
-                # Log modifications.
-                logger.warning("Modified {} record(s) in column {}."
-                               "\nModification details: Date suffixed with \"01\" for missing month and / or day values"
-                               .format(len(col_mod), col))
+                # Validation 3: valid date - year.
+                results = df_sub2[~df_sub2[col].map(lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
+                errors[3].extend(results)
 
-            # Validation 3: valid date - year.
-            results = df_sub[col].map(lambda date: 1 if not (1960 <= int(date[:4]) <= today["year"]) else 0)
-            errors[3].extend(results[results == 1].index.values)
+                # Validation 4: valid date - month.
+                results = df_sub2[df_sub2[col].map(lambda date: int(date[4:6]) not in range(1, 12+1))].index.values
+                errors[4].extend(results)
 
-            # Validation 4: valid date - month.
-            results = df_sub[col].map(lambda date: 1 if (int(date[4:6]) not in range(1, 12+1)) else 0)
-            errors[4].extend(results[results == 1].index.values)
+                # Validation 5: valid date - day.
+                results = df_sub2[df_sub2[col].map(lambda date: validate_day(date))].index.values
+                errors[5].extend(results)
 
-            # Validation 5: valid date - day.
-            results = df_sub[col].map(lambda date: validate_day(date))
-            errors[5].extend(results[results == 1].index.values)
-
-            # Validation 6: ensure date <= today.
-            results = df_sub[col].map(lambda date: validate_date_vs_today(date))
-            errors[6].extend(results[results == 1].index.values)
+                # Validation 6: ensure date <= today.
+                results = df_sub2[df_sub2[col].map(lambda date: int(date) > today["full"])].index.values
+                errors[6].extend(results)
 
     # Validation 7: ensure credate <= revdate.
-    df_sub = df[(df["credate"] != defaults["credate"]) & (df["revdate"] != defaults["revdate"])]
+    df_sub = df[(df["credate"] != defaults["credate"]) &
+                (df["revdate"] != defaults["revdate"]) &
+                ~(df.index.isin(list(set(chain.from_iterable(itemgetter(1, 2)(errors))))))]
     if len(df_sub):
-        results = df_sub[["credate", "revdate"]].apply(lambda row: 1 if not int(row[0]) <= int(row[1]) else 0, axis=1)
-        errors[7].extend(results[results == 1].index.values)
+        results = df_sub[df_sub["credate"].map(int) > df_sub["revdate"].map(int)].index.values
+        errors[7].extend(results)
 
-    if mod_flag:
-        return {"errors": errors, "modified_dframes": df.copy(deep=True)}
-    else:
-        return {"errors": errors}
+    return {"errors": errors}
 
 
 def validate_deadend_disjoint_proximity(junction, roadseg):

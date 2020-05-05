@@ -11,7 +11,7 @@ license:
   text: Open Government License - Prince Edward Island
 language: en
 data:
-  filename: PEI_NRN19/PEI_NRN19.shp
+  filename: PEI_NRN20/PEI_NRN20.shp
   layer:
   driver: ESRI Shapefile
   crs: "EPSG:2954"

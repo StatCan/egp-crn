@@ -320,15 +320,26 @@ class Stage:
         logger.info("Recovering old nids and classifying all nids for table: roadseg.")
 
         # Copy and filter dataframes.
-        logger.info("test - copy dfs")
         roadseg = self.roadseg[[*self.match_fields, "nid", "uuid", "geometry"]].copy(deep=True)
         roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
 
         # Group by nid.
+        def groupby_to_list(df, group_field, list_field):
+            """
+            Faster alternative to pandas groupby.apply/agg(list).
+            Groups records by one or more fields and compiles an output field into a list for each group.
+            """
+
+            keys, vals = df.sort_values(group_field)[[group_field, list_field]].values.T
+            keys_unique, keys_indexes = np.unique(keys, return_index=True)
+            vals_arrays = np.split(vals, keys_indexes[1:])
+
+            return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
+
         logger.info("test - group by nid - new")
-        roadseg_grouped = roadseg.groupby("nid")["geometry"].apply(list)
+        roadseg_grouped = groupby_to_list(roadseg, "nid", "geometry")
         logger.info("test - group by nid - old")
-        roadseg_old_grouped = roadseg_old.groupby("nid")["geometry"].apply(list)
+        roadseg_old_grouped = groupby_to_list(roadseg_old, "nid", "geometry")
 
         # Dissolve grouped geometries.
         logger.info("test - linemerge new")
@@ -338,9 +349,10 @@ class Stage:
 
         # Convert series to geodataframes.
         # Restore nid index as column.
-        logger.info("test - reset indexes")
-        roadseg_grouped = gpd.GeoDataFrame(roadseg_grouped.reset_index(drop=False))
-        roadseg_old_grouped = gpd.GeoDataFrame(roadseg_old_grouped.reset_index(drop=False))
+        roadseg_grouped = gpd.GeoDataFrame({"nid": roadseg_grouped.index,
+                                            "geometry": roadseg_grouped.reset_index(drop=True)})
+        roadseg_old_grouped = gpd.GeoDataFrame({"nid": roadseg_old_grouped,
+                                                "geometry": roadseg_old_grouped.reset_index(drop=True)})
 
         # Merge current and old dataframes on geometry.
         logger.info("test - merge new and old on geometry")
@@ -370,25 +382,19 @@ class Stage:
 
         # Separate modified from confirmed nid groups.
         # Restore match fields.
-        logger.info("test - restore match fields new")
         roadseg_confirmed_new = classified_nids["confirmed"]\
             .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
-        logger.info("test - restore match fields old")
         roadseg_confirmed_old = classified_nids["confirmed"]\
             .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
             .drop_duplicates(keep="first")
 
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
-        logger.info("test - separate confirmed and modified nid groups")
         flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        logger.info("test - store modified")
         classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
-        logger.info("test - store confirmed")
         classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
 
         # Store nid classifications as change logs.
-        logger.info("test - store change logs")
         self.change_logs["roadseg"] = {
             change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
             change, nids in classified_nids.items()}
