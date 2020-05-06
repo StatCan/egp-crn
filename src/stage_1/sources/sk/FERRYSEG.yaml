@@ -1,0 +1,61 @@
+coverage:
+  country: ca
+  province: sk
+  ISO3166:
+    alpha2: CA-SK
+    country: Canada
+    subdivision: Saskatchewan
+  website: https://www.isc.ca/Pages/default.aspx
+license:
+  url: https://www.isc.ca/About/Legal/Pages/default.aspx
+  text:
+language: en
+data:
+  filename: SURN_Feb_2019/FERRYSEG.shp
+  layer:
+  driver: ESRI Shapefile
+  crs: "EPSG:26913"
+  spatial: True
+conform:
+  ferryseg:
+    acqtech:
+      fields: ACQTECH
+      functions:
+        - function: direct
+          cast_type: int
+    metacover:
+      fields: METACOVER
+      functions:
+        - function: direct
+          cast_type: int
+    credate: CREDATE
+    datasetnam:
+      fields: DATASETNAM
+      functions:
+        - function: direct
+          cast_type: int
+    accuracy: ACCURACY
+    provider:
+      fields: PROVIDER
+      functions:
+        - function: direct
+          cast_type: int
+    revdate: REVDATE
+    specvers: SPECVERS
+    closing:
+    ferrysegid: FERRYSEGID
+    roadclass: ROADCLASS
+    nid: NID
+    rtename1en: RTENAME1EN
+    rtename2en: RTENAME2EN
+    rtename3en: RTENAME3EN
+    rtename4en: RTENAME4EN
+    rtename1fr: RTENAME1FR
+    rtename2fr: RTENAME2FR
+    rtename3fr: RTENAME3FR
+    rtename4fr: RTENAME4FR
+    rtnumber1: RTNUMBER1
+    rtnumber2: RTNUMBER2
+    rtnumber3: RTNUMBER3
+    rtnumber4: RTNUMBER4
+    rtnumber5: RTNUMBER5

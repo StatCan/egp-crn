@@ -1,0 +1,51 @@
+coverage:
+  country: ca
+  province: sk
+  ISO3166:
+    alpha2: CA-SK
+    country: Canada
+    subdivision: Saskatchewan
+  website: https://www.isc.ca/Pages/default.aspx
+license:
+  url: https://www.isc.ca/About/Legal/Pages/default.aspx
+  text:
+language: en
+data:
+  filename: SURN_Feb_2019/BLKPASSAGE.shp
+  layer:
+  driver: ESRI Shapefile
+  crs: "EPSG:26913"
+  spatial: True
+conform:
+  blkpassage:
+    nid: NID
+    datasetnam:
+      fields: DATASETNAM
+      functions:
+        - function: direct
+          cast_type: int
+    specvers: SPECVERS
+    accuracy: ACCURACY
+    acqtech:
+      fields: ACQTECH
+      functions:
+        - function: direct
+          cast_type: int
+    provider:
+      fields: PROVIDER
+      functions:
+        - function: direct
+          cast_type: int
+    credate: CREDATE
+    revdate: REVDATE
+    metacover:
+      fields: METACOVER
+      functions:
+        - function: direct
+          cast_type: int
+    roadnid: ROADNID
+    blkpassty:
+      fields: BLKPASSTY
+      functions:
+        - function: direct
+          cast_type: int

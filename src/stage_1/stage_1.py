@@ -198,6 +198,9 @@ class Stage:
 
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
+                    if target_name == "roadseg":
+                        print(self.target_gdframes["roadseg"]["roadclass"])
+                        print(self.target_gdframes["roadseg"]["roadclass"].unique())
 
     def apply_functions(self, maps, series, func_list, table_domains, field, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
@@ -237,7 +240,10 @@ class Stage:
                     compile(fixed, "<string>", "eval")
 
                     # Execute vectorized expression.
-                    series = series.map(lambda val: eval("field_map_functions.{}".format(func_name))(val, **params))
+                    if func_name == "direct":
+                        series = field_map_functions.direct(series, **params)
+                    else:
+                        series = series.map(lambda val: eval("field_map_functions.{}".format(func_name))(val, **params))
                 except (SyntaxError, ValueError):
                     logger.exception("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
@@ -496,6 +502,7 @@ class Stage:
                 helpers.ogr2ogr({
                     "overwrite": "-overwrite",
                     "t_srs": "-t_srs EPSG:4617",
+                    "s_srs": "-s_srs {}".format(source_yaml["data"]["crs"]),
                     "dest": "\"{}\"".format(kwargs["filename"]),
                     "src": "\"{}\"".format(source_yaml["data"]["filename"]),
                     "src_layer": source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "",

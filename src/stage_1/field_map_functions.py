@@ -183,9 +183,9 @@ def copy_attribute_functions(field_mapping_attributes, params):
     return attribute_func_lists
 
 
-def direct(val, cast_type=None):
+def direct(series, cast_type=None):
     """
-    Returns the given value. Intended to provide a function call for direct (1:1) field mapping.
+    Returns the given series. Intended to provide a function call for direct (1:1) field mapping.
     Parameter 'cast_type' expected to be a string representation of a python data type. Example: "str", "int", etc.
 
     Possible yaml construction of direct field mapping:
@@ -197,30 +197,25 @@ def direct(val, cast_type=None):
              cast_type: 'int'
     """
 
-    # Process null value.
-    if val == "" or pd.isna(val):
-        return np.nan
+    try:
 
-    # Return direct value.
-    if cast_type is None:
-        return val
+        # Return uncasted series.
+        if cast_type is None:
+            return series
 
-    # Cast data.
-    cast_types = ("float", "int", "str")
-
-    if cast_type in cast_types:
-
-        try:
-
-            return eval("{}({})".format(cast_type, val))
-
-        except (TypeError, ValueError):
-            logger.exception("Unable to cast value \"{}\" from {} to {}.".format(val, type(val), type(cast_type)))
+        # Return casted series.
+        elif cast_type == "float":
+            return series.astype(float)
+        elif cast_type == "int":
+            return series.astype("Int32" if series.dtype.name[-2:] == "32" else "Int64")
+        elif cast_type == "str":
+            return series.astype(str).replace("nan", np.nan)
+        else:
+            logger.exception("Invalid cast type \"{}\". Must be one of float, int, str.".format(cast_type))
             sys.exit(1)
 
-    else:
-        logger.exception("Invalid cast type \"{}\". Cast type must be one of {}."
-                         .format(cast_type, ", ".join(map("\"{}\"".format, cast_types))))
+    except (TypeError, ValueError):
+        logger.exception("Unable to cast series from {} to {}.".format(series.dtype.name, ))
         sys.exit(1)
 
 
