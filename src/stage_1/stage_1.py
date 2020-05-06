@@ -198,9 +198,6 @@ class Stage:
 
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
-                    if target_name == "roadseg":
-                        print(self.target_gdframes["roadseg"]["roadclass"])
-                        print(self.target_gdframes["roadseg"]["roadclass"].unique())
 
     def apply_functions(self, maps, series, func_list, table_domains, field, split_record=False):
         """Iterates and applies field mapping function(s) to a pandas series."""

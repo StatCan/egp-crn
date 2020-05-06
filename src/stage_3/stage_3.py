@@ -336,15 +336,11 @@ class Stage:
 
             return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
-        logger.info("test - group by nid - new")
         roadseg_grouped = groupby_to_list(roadseg, "nid", "geometry")
-        logger.info("test - group by nid - old")
         roadseg_old_grouped = groupby_to_list(roadseg_old, "nid", "geometry")
 
         # Dissolve grouped geometries.
-        logger.info("test - linemerge new")
         roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
-        logger.info("test - linemerge old")
         roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
 
         # Convert series to geodataframes.
@@ -355,12 +351,10 @@ class Stage:
                                                 "geometry": roadseg_old_grouped.reset_index(drop=True)})
 
         # Merge current and old dataframes on geometry.
-        logger.info("test - merge new and old on geometry")
         merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
                          indicator=True)
 
         # Classify nid groups as: added, retired, modified, confirmed.
-        logger.info("test - classify added, retired, and confirmed")
         classified_nids = {
             "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
             "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
@@ -370,13 +364,11 @@ class Stage:
 
         # Recover old nids for confirmed and modified nid groups via uuid index.
         # Merge uuids onto recovery dataframe.
-        logger.info("test - merge uuids onto merged dfs")
         recovery = classified_nids["confirmed"].merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
             .drop_duplicates(subset="nid", keep="first")
         recovery.index = recovery["uuid"]
 
         # Recover old nids. Store results.
-        logger.info("test - recover old nids")
         self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
         self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
 
@@ -398,7 +390,6 @@ class Stage:
         self.change_logs["roadseg"] = {
             change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
             change, nids in classified_nids.items()}
-        sys.exit(1)
 
     def roadseg_update_linkages(self):
         """

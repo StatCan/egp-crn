@@ -97,7 +97,7 @@ conform:
       fields: ROADCLASS
       functions:
         - function: direct
-          cast_type: str
+          cast_type: int
     l_hnuml:
     r_hnuml:
     nid: NID
