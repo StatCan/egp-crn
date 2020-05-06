@@ -324,6 +324,7 @@ class Stage:
         roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
 
         # Group by nid.
+        logger.info("test - group by nid - define function")
         def groupby_to_list(df, group_field, list_field):
             """
             Faster alternative to pandas groupby.apply/agg(list).
@@ -336,25 +337,33 @@ class Stage:
 
             return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
+        logger.info("test - group by nid new")
         roadseg_grouped = groupby_to_list(roadseg, "nid", "geometry")
+        logger.info("test - group by nid old")
         roadseg_old_grouped = groupby_to_list(roadseg_old, "nid", "geometry")
 
         # Dissolve grouped geometries.
+        logger.info("test - dissolve new")
         roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+        logger.info("test - dissolve old")
         roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
 
         # Convert series to geodataframes.
         # Restore nid index as column.
+        logger.info("test - convert to gdf new")
         roadseg_grouped = gpd.GeoDataFrame({"nid": roadseg_grouped.index,
                                             "geometry": roadseg_grouped.reset_index(drop=True)})
+        logger.info("test - convert to gdf old")
         roadseg_old_grouped = gpd.GeoDataFrame({"nid": roadseg_old_grouped,
                                                 "geometry": roadseg_old_grouped.reset_index(drop=True)})
 
         # Merge current and old dataframes on geometry.
+        logger.info("test - merge dfs")
         merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
                          indicator=True)
 
         # Classify nid groups as: added, retired, modified, confirmed.
+        logger.info("test - classify nid groups")
         classified_nids = {
             "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
             "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
@@ -364,24 +373,29 @@ class Stage:
 
         # Recover old nids for confirmed and modified nid groups via uuid index.
         # Merge uuids onto recovery dataframe.
+        logger.info("test - merge uuids onto recovery df")
         recovery = classified_nids["confirmed"].merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
             .drop_duplicates(subset="nid", keep="first")
         recovery.index = recovery["uuid"]
 
         # Recover old nids. Store results.
+        logger.info("test - recover old nids")
         self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
         self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
         # Restore match fields.
+        logger.info("test - restore match fields new")
         roadseg_confirmed_new = classified_nids["confirmed"]\
             .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
+        logger.info("test - restore match fields old")
         roadseg_confirmed_old = classified_nids["confirmed"]\
             .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
             .drop_duplicates(keep="first")
 
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
+        logger.info("test - flag matching groups b/w new and old")
         flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
         classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
         classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
@@ -390,6 +404,8 @@ class Stage:
         self.change_logs["roadseg"] = {
             change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
             change, nids in classified_nids.items()}
+
+        sys.exit(1)
 
     def roadseg_update_linkages(self):
         """
