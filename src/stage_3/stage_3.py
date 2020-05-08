@@ -8,13 +8,13 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
-import shapely.ops
 import sys
 import uuid
 from itertools import chain, compress
 from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString, MultiPoint, Point
+from shapely.ops import linemerge, split
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -47,7 +47,7 @@ class Stage:
             sys.exit(1)
 
         # Compile match fields (fields which must be equal across records).
-        self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix"]
+        self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix", "starticle"]
 
         # Define change logs dictionary.
         self.change_logs = dict()
@@ -125,8 +125,8 @@ class Stage:
         roadseg_old_grouped = self.groupby_to_list(roadseg_old, "structid", "geometry")
 
         # Dissolve grouped geometries.
-        roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
-        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+        roadseg_grouped = roadseg_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
+        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
 
         # Convert series to geodataframes.
         # Restore structid index as column.
@@ -299,12 +299,11 @@ class Stage:
                                 "geometry": grouped.map(lambda uuids: itemgetter(*uuids)(dups_geom_lookup))})
 
         # Dissolve geometries.
-        grouped["geometry"] = np.vectorize(
-            lambda geoms: shapely.ops.linemerge(geoms), otypes=[LineString])(grouped["geometry"])
+        grouped["geometry"] = grouped["geometry"].map(linemerge)
 
         # Concatenate non-grouped groups (single uuid groups) to groups.
         non_grouped = roadseg[~roadseg[self.match_fields].duplicated(keep=False)][["uuid", "geometry"]]
-        non_grouped["uuid"] = non_grouped["uuid"].map(lambda uuid: [uuid])
+        non_grouped["uuid"] = non_grouped["uuid"].map(lambda uid: [uid])
         grouped = pd.concat([grouped.reset_index(drop=True), non_grouped], axis=0, ignore_index=True, sort=False)
 
         # Split multilinestrings into multiple linestring records.
@@ -329,8 +328,7 @@ class Stage:
             lambda pts: Point(pts) if len(pts) == 1 else MultiPoint(pts))
 
         # Split linestrings on junctions, only for groups with coincident junctions.
-        grouped_junction["geometry"] = np.vectorize(
-            lambda line, pts: shapely.ops.split(line, pts), otypes=[LineString])(
+        grouped_junction["geometry"] = np.vectorize(lambda line, pts: split(line, pts), otypes=[LineString])(
             grouped_junction["geometry"], grouped_junction["junction"])
 
         # Split multilinestrings into multiple linestring records, concatenate all split records to non-split records.
@@ -347,7 +345,6 @@ class Stage:
         # 1) geometry: represents the dissolved geometry of the now-reduced group.
         # 2) uuids: the original attribute grouping of uuids.
         # The uuid group now needs to be reduced to match the now-reduced geometry.
-
         grouped = pd.DataFrame({"uuids": grouped["uuid"], "geometry": grouped["geometry"].map(lambda g: set(g.coords))})
 
         # Retrieve roadseg geometries for associated uuids.
@@ -413,8 +410,8 @@ class Stage:
         roadseg_old_grouped = self.groupby_to_list(roadseg_old, "nid", "geometry")
 
         # Dissolve grouped geometries.
-        roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
-        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+        roadseg_grouped = roadseg_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
+        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
 
         # Convert series to geodataframes.
         # Restore nid index as column.
