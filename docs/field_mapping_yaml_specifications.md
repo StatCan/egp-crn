@@ -123,10 +123,10 @@ Example:
         group_index: 0
 
 #### Special Parameters
-process_separately: A boolean (True / False) flag to indicate if source fields should be processed through the function chain separately or together.
+process_separately: A boolean flag (default False) to indicate if source fields should be processed through the function chain separately or together.
                     The resulting output of the chain will always join the fields back together in a pandas series.
 
-Example (False - This would produce an error for this example):
+Example (False - This would produce an error for this example since the called function "regex_sub" only expects 1 field value):
   placename:
     fields: [place_l, place_r]
     functions:

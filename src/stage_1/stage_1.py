@@ -165,26 +165,39 @@ class Stage:
                             process_separately = itemgetter("process_separately")(source_field)
                         except KeyError:
                             process_separately = False
-                            source_field["fields"] = [source_field["fields"]]
+
+                        # Create dataframe to hold results if multiple fields are given and not processed separately.
+                        if not process_separately or len(source_field["fields"]) == 1:
+                            results = pd.Series()
+                        else:
+                            results = pd.DataFrame(columns=range(len(source_field["fields"])))
 
                         # Iterate source fields.
-                        results = pd.DataFrame(columns=range(len(source_field["fields"])))
                         for index, field in enumerate(source_field["fields"]):
 
                             # Retrieve series from mapped dataframe.
-                            mapped_series = mapped_df[field] if process_separately else \
-                                mapped_df.apply(lambda row: row[0] if len(row) == 1 else row.values, axis=1)
+                            if process_separately or len(source_field["fields"]) == 1:
+                                mapped_series = mapped_df[field]
+                            else:
+                                mapped_series = mapped_df.apply(lambda row: row.values, axis=1)
 
                             # Apply field mapping functions to mapped series.
                             field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"],
                                                                          self.domains[target_name], target_field)
 
                             # Store results.
-                            results[index] = field_mapping_results["series"].copy(deep=True)
+                            if isinstance(field_mapping_results["series"], pd.Series):
+                                results = field_mapping_results["series"].copy(deep=True)
+                                break
+                            else:
+                                results[index] = field_mapping_results["series"].copy(deep=True)
 
-                        # Convert results dataframe to series.
-                        field_mapping_results["series"] = results.apply(
-                            lambda row: row[0] if len(row) == 1 else row.values, axis=1)
+                        # Convert results dataframe to series, if required.
+                        if isinstance(results, pd.Series):
+                            field_mapping_results["series"] = results.copy(deep=True)
+                        else:
+                            field_mapping_results["series"] = results.apply(
+                                lambda row: row.values, axis=1, result_type="broadcast")
 
                         # Update target dataframe.
                         target_gdf[target_field] = field_mapping_results["series"].copy(deep=True)

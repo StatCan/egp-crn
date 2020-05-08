@@ -3,6 +3,7 @@ import fiona
 import geopandas as gpd
 import logging
 import math
+import networkx as nx
 import numpy as np
 import os
 import pandas as pd
@@ -52,7 +53,7 @@ class Stage:
         self.change_logs = dict()
 
     def export_change_logs(self):
-        """Exports the dataset differences as logs."""
+        """Exports the dataset differences as logs - based on nids."""
 
         change_logs_dir = os.path.abspath("../../data/processed/{0}/{0}_change_logs".format(self.source))
         logger.info("Writing change logs to: \"{}\".".format(change_logs_dir))
@@ -78,6 +79,90 @@ class Stage:
 
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.dframes, self.data_path)
+
+    def gen_and_recover_structids(self):
+        """Recovers structids from the previous NRN vintage or generates new ones."""
+
+        logger.info("Generating structids for table: roadseg.")
+
+        # Load default field values.
+        defaults = helpers.compile_default_values()["roadseg"]
+
+        # Copy and filter dataframes.
+        roadseg = self.dframes["roadseg"][["uuid", "structid", "structtype", "geometry"]].copy(deep=True)
+        roadseg_old = self.dframes_old["roadseg"][["structid", "structtype", "geometry"]].copy(deep=True)
+
+        # Overwrite any pre-existing structid.
+        roadseg['structid'] = defaults["structid"]
+
+        # Subset dataframes to structures (where structtype is not the default value nor "None").
+        # For previous vintage, further subset to records where structid is not the default value.]
+        roadseg = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
+        roadseg_old = roadseg_old[(~roadseg_old["structtype"].isin(["None", defaults["structtype"]])) &
+                                  (roadseg_old["structid"] != defaults["structid"])]
+
+        # Group contiguous structures.
+        # Process: compile network x subgraphs, assign a structid to each list of subgraph uuids.
+        subgraphs = nx.connected_component_subgraphs(
+            helpers.gdf_to_nx(roadseg, keep_attributes=True, endpoints_only=True))
+        structids = dict()
+
+        for subgraph in subgraphs:
+            structids[uuid.uuid4().hex] = list(set(nx.get_edge_attributes(subgraph, "uuid").values()))
+
+        # Explode uuid groups and invert series-index such that the uuid is the index.
+        structids = pd.Series(structids).explode()
+        structids = pd.Series(structids.index.values, index=structids)
+
+        # Assign structids to dataframe.
+        roadseg["structid"] = structids
+
+        # Recovery old structids.
+        logger.info("Recovering old structids for table: roadseg.")
+
+        # Group by structid.
+        roadseg_grouped = self.groupby_to_list(roadseg, "structid", "geometry")
+        roadseg_old_grouped = self.groupby_to_list(roadseg_old, "structid", "geometry")
+
+        # Dissolve grouped geometries.
+        roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
+
+        # Convert series to geodataframes.
+        # Restore structid index as column.
+        roadseg_grouped = gpd.GeoDataFrame({"structid": roadseg_grouped.index,
+                                            "geometry": roadseg_grouped.reset_index(drop=True)})
+        roadseg_old_grouped = gpd.GeoDataFrame({"structid": roadseg_old_grouped,
+                                                "geometry": roadseg_old_grouped.reset_index(drop=True)})
+
+        # Merge current and old dataframes on geometry.
+        merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
+                         indicator=True)
+
+        # Recover old structids via uuid index.
+        # Merge uuids onto recovery dataframe.
+        recovery = merge[merge["_merge"] == "both"].merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
+            .drop_duplicates(subset="structid", keep="first")
+        recovery.index = recovery["uuid"]
+
+        # Recover old structids.
+        roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
+
+        # Store results.
+        self.dframes["roadseg"].loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
+
+    @staticmethod
+    def groupby_to_list(df, group_field, list_field):
+        """
+        Faster alternative to pandas groupby.apply/agg(list).
+        Groups records by one or more fields and compiles an output field into a list for each group.
+        """
+
+        keys, vals = df.sort_values(group_field)[[group_field, list_field]].values.T
+        keys_unique, keys_indexes = np.unique(keys, return_index=True)
+        vals_arrays = np.split(vals, keys_indexes[1:])
+
+        return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -324,46 +409,25 @@ class Stage:
         roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
 
         # Group by nid.
-        logger.info("test - group by nid - define function")
-        def groupby_to_list(df, group_field, list_field):
-            """
-            Faster alternative to pandas groupby.apply/agg(list).
-            Groups records by one or more fields and compiles an output field into a list for each group.
-            """
-
-            keys, vals = df.sort_values(group_field)[[group_field, list_field]].values.T
-            keys_unique, keys_indexes = np.unique(keys, return_index=True)
-            vals_arrays = np.split(vals, keys_indexes[1:])
-
-            return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
-
-        logger.info("test - group by nid new")
-        roadseg_grouped = groupby_to_list(roadseg, "nid", "geometry")
-        logger.info("test - group by nid old")
-        roadseg_old_grouped = groupby_to_list(roadseg_old, "nid", "geometry")
+        roadseg_grouped = self.groupby_to_list(roadseg, "nid", "geometry")
+        roadseg_old_grouped = self.groupby_to_list(roadseg_old, "nid", "geometry")
 
         # Dissolve grouped geometries.
-        logger.info("test - dissolve new")
         roadseg_grouped = roadseg_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
-        logger.info("test - dissolve old")
         roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: shapely.ops.linemerge(geoms))
 
         # Convert series to geodataframes.
         # Restore nid index as column.
-        logger.info("test - convert to gdf new")
         roadseg_grouped = gpd.GeoDataFrame({"nid": roadseg_grouped.index,
                                             "geometry": roadseg_grouped.reset_index(drop=True)})
-        logger.info("test - convert to gdf old")
         roadseg_old_grouped = gpd.GeoDataFrame({"nid": roadseg_old_grouped,
                                                 "geometry": roadseg_old_grouped.reset_index(drop=True)})
 
         # Merge current and old dataframes on geometry.
-        logger.info("test - merge dfs")
         merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
                          indicator=True)
 
         # Classify nid groups as: added, retired, modified, confirmed.
-        logger.info("test - classify nid groups")
         classified_nids = {
             "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
             "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
@@ -373,29 +437,24 @@ class Stage:
 
         # Recover old nids for confirmed and modified nid groups via uuid index.
         # Merge uuids onto recovery dataframe.
-        logger.info("test - merge uuids onto recovery df")
         recovery = classified_nids["confirmed"].merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
             .drop_duplicates(subset="nid", keep="first")
         recovery.index = recovery["uuid"]
 
         # Recover old nids. Store results.
-        logger.info("test - recover old nids")
         self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
         self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
         # Restore match fields.
-        logger.info("test - restore match fields new")
         roadseg_confirmed_new = classified_nids["confirmed"]\
             .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
-        logger.info("test - restore match fields old")
         roadseg_confirmed_old = classified_nids["confirmed"]\
             .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
             .drop_duplicates(keep="first")
 
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
-        logger.info("test - flag matching groups b/w new and old")
         flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
         classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
         classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
@@ -404,8 +463,6 @@ class Stage:
         self.change_logs["roadseg"] = {
             change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
             change, nids in classified_nids.items()}
-
-        sys.exit(1)
 
     def roadseg_update_linkages(self):
         """
@@ -481,6 +538,7 @@ class Stage:
         self.roadseg_recover_and_classify_nids()
         self.roadseg_update_linkages()
         self.recover_and_classify_nids()
+        self.gen_and_recover_structids()
         self.export_change_logs()
         self.export_gpkg()
 
