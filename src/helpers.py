@@ -121,7 +121,7 @@ def compile_dtypes(length=False):
 
 
 def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../data/empty.gpkg")):
-    """Receives a dictionary of pandas dataframes and exports them as geopackage layers."""
+    """Receives a dictionary of (Geo)pandas (Geo)DataFrames and exports them as GeoPackage layers."""
 
     # Create gpkg from template if it doesn't already exist.
     if not os.path.exists(output_path):
@@ -134,31 +134,44 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
         con = sqlite3.connect(output_path)
         con_ogr = ogr.GetDriverByName("GPKG").Open(output_path, update=1)
 
+        # # Get GeoPackage pre-existing layer names.
+        # layers = [layer.GetName() for layer in con_ogr]
+
         # Iterate dataframes.
         for table_name, df in dataframes.items():
-
-            # Remove pre-existing layer from GeoPackage.
-            if table_name in [layer.GetName() for layer in con_ogr]:
-
-                logger.info("Layer already exists: \"{}\". Removing layer from GeoPackage.".format(table_name))
-                con_ogr.DeleteLayer(table_name)
-
-                # Remove metadata table.
-                con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
-                con.commit()
-
-            # Write to GeoPackage.
-            logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
 
             # Spatial data.
             if "geometry" in dir(df):
 
-                # Open GeoPackage.
-                with fiona.open(output_path, "w", overwrite=True, layer=table_name, driver="GPKG", crs=df.crs.to_wkt(),
-                                schema=gpd.io.file.infer_schema(df)) as gpkg:
+                # Create ogr layer from GeoDataFrame.
+                ogr_data = ogr.Open(df.to_json())
+                ogr_layer = ogr_data.GetLayer()
 
-                    # Write to GeoPackage.
-                    gpkg.writerecords(df.iterfeatures())
+                # Write to GeoPackage.
+                con_ogr.CopyLayer(ogr_layer, table_name, ["OVERWRITE=YES"])
+
+            # # Remove pre-existing layer from GeoPackage.
+            # if table_name in layers:
+            #
+            #     logger.info("Layer already exists: \"{}\". Removing layer from GeoPackage.".format(table_name))
+            #     con_ogr.DeleteLayer(table_name)
+            #
+            #     # Remove metadata table.
+            #     con.cursor().execute("delete from gpkg_contents where table_name = '{}';".format(table_name))
+            #     con.commit()
+            #
+            # # Write to GeoPackage.
+            # logger.info("Writing to GeoPackage: \"{}\", layer: \"{}\".".format(output_path, table_name))
+            #
+            # # Spatial data.
+            # if "geometry" in dir(df):
+            #
+            #     # Open GeoPackage.
+            #     with fiona.open(output_path, "w", overwrite=True, layer=table_name, driver="GPKG", crs=df.crs.to_wkt(),
+            #                     schema=gpd.io.file.infer_schema(df)) as gpkg:
+            #
+            #         # Write to GeoPackage.
+            #         gpkg.writerecords(df.iterfeatures())
 
             # Tabular data.
             else:
@@ -166,7 +179,7 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
                 # Write to GeoPackage.
                 df.to_sql(table_name, con, if_exists="replace", index=False)
 
-                # Add metedata record to gpkg_contents.
+                # Add metadata record to gpkg_contents.
                 con.cursor().execute("insert or ignore into gpkg_contents (table_name, data_type) values "
                                      "('{}', 'attributes');".format(table_name))
                 con.commit()
