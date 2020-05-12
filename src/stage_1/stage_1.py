@@ -186,7 +186,7 @@ class Stage:
                                                                          self.domains[target_name], target_field)
 
                             # Store results.
-                            if isinstance(field_mapping_results["series"], pd.Series):
+                            if isinstance(results, pd.Series):
                                 results = field_mapping_results["series"].copy(deep=True)
                                 break
                             else:
@@ -203,16 +203,16 @@ class Stage:
                         target_gdf[target_field] = field_mapping_results["series"].copy(deep=True)
 
                         # Split records if required.
-                        if field_mapping_results["split_record"]:
+                        if field_mapping_results["split_records"]:
 
                             # Split records and store nid changes.
-                            target_gdf, nid_lookup = field_map_functions.split_record(target_gdf, target_field)
+                            target_gdf, nid_lookup = field_map_functions.split_records(target_gdf, target_field)
                             self.nid_lookup[target_name] = deepcopy(nid_lookup)
 
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
-    def apply_functions(self, maps, series, func_list, table_domains, field, split_record=False):
+    def apply_functions(self, maps, series, func_list, table_domains, field, split_records=False):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
@@ -220,8 +220,8 @@ class Stage:
             func_name = func["function"]
             params = {k: v for k, v in func.items() if k != "function"}
 
-            if func_name == "split_record":
-                split_record = True
+            if func_name == "split_records":
+                split_records = True
                 break
 
             logger.info("Applying field mapping function: {}.".format(func_name))
@@ -231,8 +231,8 @@ class Stage:
 
                 # Retrieve and iterate attribute functions and parameters.
                 for attr_field, attr_func_list in field_map_functions.copy_attribute_functions(maps, params).items():
-                    split_record, series = self.apply_functions(maps, series, attr_func_list, table_domains, attr_field,
-                                                                split_record).values()
+                    split_records, series = self.apply_functions(maps, series, attr_func_list, table_domains,
+                                                                 attr_field, split_records).values()
 
             else:
 
@@ -258,7 +258,7 @@ class Stage:
                     logger.exception("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
 
-        return {"split_record": split_record, "series": series}
+        return {"split_records": split_records, "series": series}
 
     def compile_domains(self):
         """Compiles field domains for the target dataframes."""

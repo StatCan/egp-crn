@@ -325,7 +325,7 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
     return re.sub(pattern_from, pattern_to, val, flags=re.I)
 
 
-def split_record(df, field):
+def split_records(df, field):
     """
     Splits pandas dataframe records on a nested field.
     Returns 2 nid lookup tables, one for the first (left) and second (right) components in each record split, for the

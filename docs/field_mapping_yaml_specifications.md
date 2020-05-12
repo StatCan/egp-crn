@@ -221,24 +221,24 @@ Example (universal modifications):
           regex_find:
             strip_result: True
 
-#### split_record
+#### split_records
 Keeps one of the two source field values:
 - First value if source fields' values are equal.
 - Second value if source fields' values are unequal, after splitting the record into two records.
-split_record can exists within a function chain (see section "Limitations/split_record").
+split_records can exists within a function chain (see section "Limitations/split_records").
 
 Example (generic):
   target_field:
     fields: [source_field, source_field]
     functions:
-      - function: split_record
+      - function: split_records
         field: None
 
 Example:
   placename:
     fields: [place_l, place_r]
     functions:
-      - function: split_record
+      - function: split_records
         field: None
 
 #### Regular Expressions
@@ -280,9 +280,12 @@ This results in the following erroneous scenarios:
 1. Multiple fields being passed to a field mapping functions which only expects one source field.
 2. Only one field being passed to a field mapping function which expects multiple source fields.
 
-## split_record
-**Limitation 1:** split_record must be the last function within a function chain.  
+## split_records
+**Limitation 1:** split_records must be the last function within a function chain.  
 **Explanation 1:** The possibility of splitting records would create duplicate indexes. This would raise an error once the function chain finishes because the size of the target and source fields are no longer the same.
 
-**Limitation 2:** split_record must only apply to a tabular dataset (pandas DataFrame).  
-**Explanation 2:** split_record uses pandas.explode to split records on a field of nested values, however geopandas.explode will attempt to explode multipart geometries.
+**Limitation 2:** split_records must only apply to a tabular dataset (pandas DataFrame).  
+**Explanation 2:** split_records uses pandas.explode to split records on a field of nested values, however geopandas.explode will attempt to explode multipart geometries.
+
+# Missing table linkages.
+Primary and foreign key fields which do not have any source field to map to will become the default field value. If this field must be populated, use "uuid" as the mapping field.

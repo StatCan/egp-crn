@@ -11,6 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pyproj
 import requests
+import shapely.geometry
 import shutil
 import sqlite3
 import subprocess
@@ -149,18 +150,16 @@ def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../
             # Spatial data.
             if isinstance(df, gpd.GeoDataFrame):
 
-                # Create GeoJSON from GeoDataFrame.
-                # Delete "id" attribute.
-                geojson = json.loads(df.to_json())
-                for i in range(len(geojson["features"])):
-                    try:
-                        del geojson["features"][i]["id"]
-                    except KeyError:
-                        pass
-                geojson = json.dumps(geojson)
+                # Load GeoJSON attributes from GeoDataFrame.
+                properties = json.loads(df[df.columns.difference(["geometry"])].to_json(orient="index"))
+                geometry = {str(k): v for k, v in df["geometry"].map(shapely.geometry.mapping).to_dict().items()}
 
-                # Create ogr layer from GeoDataFrame.
-                ogr_data = ogr.Open(geojson)
+                # Construct and open GeoJSON in ogr as layer.
+                ogr_data = ogr.Open("{{\"type\": \"FeatureCollection\", \"features\": [{}]}}".format(", ".join(map(
+                    lambda key: json.dumps({
+                        "type": "Feature",
+                        "properties": properties[key],
+                        "geometry": geometry[key]}), df.index.astype(str)))))
                 ogr_layer = ogr_data.GetLayer()
 
                 # Configure crs.

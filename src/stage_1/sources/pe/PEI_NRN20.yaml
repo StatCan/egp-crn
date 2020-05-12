@@ -264,7 +264,7 @@ conform:
         - function: regex_sub
           pattern_from: "-"
           pattern_to: ""
-        - function: split_record
+        - function: split_records
           field: None
     placetype:
     province: "Prince Edward Island"

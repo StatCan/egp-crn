@@ -206,7 +206,7 @@ conform:
     placename:
       fields: [l_placenam, r_placenam]
       functions:
-        - function: split_record
+        - function: split_records
           field: None
     placetype:
     province: "New Brunswick"
