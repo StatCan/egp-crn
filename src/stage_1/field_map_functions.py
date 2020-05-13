@@ -32,34 +32,25 @@ def apply_domain(val, domain, default):
     value is of a valid none type.
     """
 
-    # Validate against no domain.
-    if domain is None:
-
-        # Preserve value, unless none type.
-        if val == "" or pd.isna(val):
-            return default
-        else:
-            return val
-
-    val = str(val).lower()
-
     # Validate against domain dictionary.
     if isinstance(domain, dict):
 
-        # Validate against keys.
-        for key in domain:
-            if val == str(key).lower():
-                return domain[key][0]
+        # Convert keys to lowercase strings.
+        domain = {str(k).lower(): v for k, v in domain.items()}
 
-        # Validate values as list.
-        domain = domain.values()
+        # Get value.
+        try:
+            domain[str(val).lower()]
+        except KeyError:
+            return default
 
-    # Validate against domain list.
-    for values in domain:
-        if val in map(str.lower, map(str, values)):
-            return values[0]
+    # Return default if value is none type.
+    elif val == "" or pd.isna(val):
+        return default
 
-    return default
+    # Return original value.
+    else:
+        return val
 
 
 def conditional_values(vals, conditions_map, else_value=None):
@@ -332,10 +323,12 @@ def split_records(df, field):
     purposes of repairing table linkages.
     """
 
-    # Validate column count.
-    count = len(df[field][0])
-    if count != 2:
-        logger.exception("Invalid column count for split_records: {}. Only 2 columns are permitted.".format(count))
+    # Validate input type and column count.
+    test_value = df[field].iloc[0]
+    if not isinstance(test_value, np.ndarray) or len(test_value) != 2:
+        logger.exception(f"Invalid input for split_records. "
+                         f"The specified field \"{field}\" must be a series of type: ndarray, length: 2. "
+                         f"Current type: {type(test_value).__name__}, length: {len(test_value)}.")
         sys.exit(1)
 
     # Explode dataframe on field.
