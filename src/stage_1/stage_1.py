@@ -12,7 +12,7 @@ import shutil
 import sys
 import uuid
 import zipfile
-from collections import Counter
+from collections import Counter, defaultdict
 from copy import deepcopy
 from inspect import getmembers, isfunction
 from operator import itemgetter
@@ -75,11 +75,12 @@ class Stage:
 
                     logger.info(f"Applying field domain to table: \"{table}\", field \"{field}\".")
 
+                    # Copy series as object dtype.
+                    series_orig = self.target_gdframes[table][field].copy(deep=True).astype(object)
+
                     # Apply domains to series via apply_functions.
-                    series_orig = self.target_gdframes[table][field].copy(deep=True)
-                    series_new = series_orig.map(
-                        lambda val: field_map_functions.apply_domain(val, domain=domains["lookup"],
-                                                                     default=self.defaults[table][field]))
+                    series_new = field_map_functions.apply_domain(series_orig, domain=domains["lookup"],
+                                                                  default=self.defaults[table][field])
 
                     # Force adjust data type.
                     series_new = series_new.astype(self.dtypes[table][field])
@@ -88,7 +89,6 @@ class Stage:
                     self.target_gdframes[table][field] = series_new.copy(deep=True)
 
                     # Compile and log modifications.
-                    logger.info(f"Quantifying mods. {len(series_new)}")
                     mods = series_orig.astype(str) != series_new.astype(str)
                     if mods.any():
 
@@ -262,24 +262,28 @@ class Stage:
         """Compiles field domains for the target dataframes."""
 
         logging.info("Compiling field domains.")
-        self.domains = dict()
+        self.domains = defaultdict(dict)
 
-        #TEST
+        # Load domains yaml.
         domains_yaml = {lng: helpers.load_yaml(os.path.abspath(f"../field_domains_{lng}.yaml")) for lng in ("en", "fr")}
 
+        # Iterate tables and fields with domains.
         for table in domains_yaml["en"]["tables"]:
             for field in domains_yaml["en"]["tables"][table]:
 
                 try:
 
-                    domain_en = domains_yaml["en"]["tables"][table]
-                    domain_fr = domains_yaml["fr"]["tables"][table]
+                    # Compile domains.
+                    domain_en = domains_yaml["en"]["tables"][table][field]
+                    domain_fr = domains_yaml["fr"]["tables"][table][field]
 
+                    # Resolve referenced domains.
                     while isinstance(domain_en, str):
                         table_ref, field_ref = domain_en.split(";") if domain_en.find(";") > 0 else [table, domain_en]
                         domain_en = domains_yaml["en"]["tables"][table_ref][field_ref]
                         domain_fr = domains_yaml["fr"]["tables"][table_ref][field_ref]
 
+                    # Compile all domain values and domain lookup table, separately.
                     if domain_en is None:
                         self.domains[table][field] = {"values": None, "lookup": None}
                     elif isinstance(domain_en, list):
@@ -299,64 +303,6 @@ class Stage:
                 except (AttributeError, KeyError, TypeError, ValueError):
                     logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
                     sys.exit(1)
-        #TEST
-
-        # for suffix in ("en", "fr"):
-        #
-        #     # Load yaml.
-        #     logger.info("Loading \"{}\" field domains yaml.".format(suffix))
-        #     domains_yaml = helpers.load_yaml(os.path.abspath("../field_domains_{}.yaml".format(suffix)))
-        #
-        #     # Compile domain values.
-        #     logger.info("Compiling \"{}\" domain values.".format(suffix))
-        #
-        #     # Compile table values.
-        #     for table in domains_yaml["tables"]:
-        #         # Register table.
-        #         if table not in self.domains.keys():
-        #             self.domains[table] = dict()
-        #
-        #         for field, vals in domains_yaml["tables"][table].items():
-        #             # Register field.
-        #             if field not in self.domains[table].keys():
-        #                 self.domains[table][field] = {"values": list(), "all": None}
-        #
-        #             try:
-        #
-        #                 # Configure reference domain.
-        #                 while isinstance(vals, str):
-        #                     table_ref, field_ref = vals.split(";") if vals.find(";") > 0 else [table, vals]
-        #                     vals = domains_yaml["tables"][table_ref][field_ref]
-        #
-        #                 # Compile all domain values, including keys.
-        #                 if vals is None:
-        #                     self.domains[table][field]["values"] = self.domains[table][field]["all"] = None
-        #
-        #                 elif isinstance(vals, list) or isinstance(vals, dict):
-        #                     v_all, v_values = self.domains[table][field]["all"], self.domains[table][field]["values"]
-        #
-        #                     # Compile all domain values, including keys.
-        #                     if v_all is None:
-        #                         if isinstance(vals, list):
-        #                             self.domains[table][field]["all"] = {v: v for v in vals}
-        #                         else:
-        #                             self.domains[table][field]["all"] = vals
-        #                             self.domains[table][field]["all"].update({v: v for v in vals.values()})
-        #                     else:
-        #                         self.domains[table][field]["all"] = {k: [v, vals[k]] for k, v in v_all.items()}
-        #
-        #                     # Compile all domain values, excluding keys.
-        #                     # Additionally: 1) Remove duplicates. 2) Reverse sort to avoid false substring matching.
-        #                     v_values.extend(vals.values() if isinstance(vals, dict) else vals)
-        #                     self.domains[table][field]["values"] = sorted(list(set(v_values)), reverse=True)
-        #
-        #                 else:
-        #                     logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
-        #                     sys.exit(1)
-        #
-        #             except (AttributeError, KeyError, ValueError):
-        #                 logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
-        #                 sys.exit(1)
 
         logging.info("Identifying field domain functions.")
         self.domains_funcs = list()
