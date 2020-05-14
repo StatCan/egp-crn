@@ -23,13 +23,13 @@ cur.execute("insert into counter (idx) values (0);")
 db.commit()
 
 
-def apply_domain(val, domain, default):
+def apply_domain(series, domain, default):
     """
-    Applies a domain restriction to the given value based on the provided domain dictionary or list.
-    Returns the default parameter for missing or invalid values.
+    Applies a domain restriction to the given pandas series based on the provided domain dictionary.
+    Replaces missing or invalid values with the default parameter.
 
-    None domains should only represent free flow (unrestricted) fields, thus returning the default parameter only if the
-    value is of a valid none type.
+    Non-dictionary domains are treated as null. Values are left as-is excluding null types and empty strings, which are
+    replaced with the default parameter.
     """
 
     # Validate against domain dictionary.
@@ -38,19 +38,21 @@ def apply_domain(val, domain, default):
         # Convert keys to lowercase strings.
         domain = {str(k).lower(): v for k, v in domain.items()}
 
-        # Get value.
-        try:
-            domain[str(val).lower()]
-        except KeyError:
-            return default
+        # Configure lookup function, convert invalid values to default.
+        def get_value(val):
+            try:
+                return domain[str(val).lower()]
+            except KeyError:
+                return default
 
-    # Return default if value is none type.
-    elif val == "" or pd.isna(val):
-        return default
+        # Get values.
+        return series.map(get_value)
 
-    # Return original value.
     else:
-        return val
+
+        # Convert empty strings and null types to default.
+        series.loc[(series.map(str).isin(["", "nan"])) | (series.isna())] = default
+        return series
 
 
 def conditional_values(vals, conditions_map, else_value=None):
