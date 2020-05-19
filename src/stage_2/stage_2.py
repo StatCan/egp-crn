@@ -172,7 +172,7 @@ class Stage:
             connected_idx = junction["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=0))))
 
             # Construct a uuid series aligned to the series of segment points.
-            pts_uuid = np.concatenate([[uuid] * count for uuid, count in
+            pts_uuid = np.concatenate([[id] * count for id, count in
                                        df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
 
             # Retrieve the uuid associated with the connected indexes.
@@ -192,14 +192,14 @@ class Stage:
                 # Attribute: accuracy.
                 if attribute == "accuracy":
                     connected_attribute = connected_uuid.map(
-                        lambda uuid: max(itemgetter(*uuid)(attribute_uuid)) if isinstance(uuid, tuple) else
-                        itemgetter(uuid)(attribute_uuid))
+                        lambda id: max(itemgetter(*id)(attribute_uuid)) if isinstance(id, tuple) else
+                        itemgetter(id)(attribute_uuid))
 
                 # Attribute: exitnbr.
                 if attribute == "exitnbr":
                     connected_attribute = connected_uuid.map(
-                        lambda uuid: tuple(set(itemgetter(*uuid)(attribute_uuid))) if isinstance(uuid, tuple) else
-                        (itemgetter(uuid)(attribute_uuid),))
+                        lambda id: tuple(set(itemgetter(*id)(attribute_uuid))) if isinstance(id, tuple) else
+                        (itemgetter(id)(attribute_uuid),))
 
                     # Concatenate, sort, and remove invalid attribute tuples.
                     connected_attribute = connected_attribute.map(
@@ -233,7 +233,7 @@ class Stage:
         logger.info("Separating unique and non-unique points.")
 
         # Construct a uuid series aligned to the series of endpoints.
-        pts_uuid = np.concatenate([[uuid] * count for uuid, count in df["geometry"].map(
+        pts_uuid = np.concatenate([[id] * count for id, count in df["geometry"].map(
             lambda geom: len(geom.coords)).iteritems()])
 
         # Construct x- and y-coordinate series aligned to the series of points.
