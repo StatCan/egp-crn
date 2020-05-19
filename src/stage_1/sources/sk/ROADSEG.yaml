@@ -60,9 +60,9 @@ conform:
     r_hnumsufl:
     l_hnumtypl:
     r_hnumtypl:
-    nid: NID
-    l_offnanid:
-    r_offnanid:
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
     l_rfsysind:
     r_rfsysind:
   roadseg:
@@ -88,7 +88,7 @@ conform:
     specvers: SPECVERS
     l_adddirfg:
     r_adddirfg:
-    adrangenid: ADRANGENID
+    adrangenid: uuid
     closing:
     exitnbr: EXITNBR
     l_hnumf:
@@ -194,7 +194,7 @@ conform:
             pattern_from: "[-]"
             pattern_to: " "
     muniquad:
-    nid: NID
+    nid: uuid
     placename: PLACENAME
     placetype:
     province: "Saskatchewan"

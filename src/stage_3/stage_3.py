@@ -295,6 +295,11 @@ class Stage:
         dups = roadseg[roadseg[self.match_fields].duplicated(keep=False)]
         dups_geom_lookup = dups["geometry"].to_dict()
         grouped = dups.groupby(self.match_fields)["uuid"].agg(list)
+        # TEST START
+        # TODO: implement record splitting on grouped results with >= 10,000 uuids.
+        grouped.reset_index(drop=True, inplace=True)
+        invalid_groups = grouped[grouped.map(len) >= 10000].copy(deep=True)
+        # TEST END
         grouped = pd.DataFrame({"uuid": grouped,
                                 "geometry": grouped.map(lambda uuids: itemgetter(*uuids)(dups_geom_lookup))})
 
