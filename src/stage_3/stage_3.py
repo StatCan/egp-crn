@@ -295,13 +295,21 @@ class Stage:
         dups = roadseg[roadseg[self.match_fields].duplicated(keep=False)]
         dups_geom_lookup = dups["geometry"].to_dict()
         grouped = dups.groupby(self.match_fields)["uuid"].agg(list)
-        # TEST START
-        # TODO: implement record splitting on grouped results with >= 10,000 uuids.
-        grouped.reset_index(drop=True, inplace=True)
-        invalid_groups = grouped[grouped.map(len) >= 10000].copy(deep=True)
-        # TEST END
-        grouped = pd.DataFrame({"uuid": grouped,
-                                "geometry": grouped.map(lambda uuids: itemgetter(*uuids)(dups_geom_lookup))})
+
+        # Split groups which exceed the processing threshold.
+        # Note: The threshold and new size are arbitrary. Change them if required.
+        threshold = 10000
+        new_size = 1000
+        invalid_groups = grouped[grouped.map(len) >= threshold].copy(deep=True)
+        grouped.drop(invalid_groups.index, inplace=True)
+        for invalid_group in invalid_groups:
+            grouped = grouped.append(pd.Series([invalid_group[start_idx * new_size: (start_idx * new_size) + new_size]
+                                                for start_idx in range(int(len(invalid_group) / new_size) + 1)]))
+
+        # Compile associated geometries for each uuid group as a dataframe.
+        grouped = pd.DataFrame({"uuid": grouped.values,
+                                "geometry": grouped.map(lambda uuids: itemgetter(*uuids)(dups_geom_lookup)).values},
+                               index=range(len(grouped)))
 
         # Dissolve geometries.
         grouped["geometry"] = grouped["geometry"].map(linemerge)
@@ -309,7 +317,7 @@ class Stage:
         # Concatenate non-grouped groups (single uuid groups) to groups.
         non_grouped = roadseg[~roadseg[self.match_fields].duplicated(keep=False)][["uuid", "geometry"]]
         non_grouped["uuid"] = non_grouped["uuid"].map(lambda uid: [uid])
-        grouped = pd.concat([grouped.reset_index(drop=True), non_grouped], axis=0, ignore_index=True, sort=False)
+        grouped = pd.concat([grouped, non_grouped], axis=0, ignore_index=True, sort=False)
 
         # Split multilinestrings into multiple linestring records.
         # Process: query and explode multilinestring records, then concatenate to linestring records.
