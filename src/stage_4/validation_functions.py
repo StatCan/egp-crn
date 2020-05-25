@@ -30,15 +30,21 @@ dtypes_all = helpers.compile_dtypes()
 def identify_duplicate_lines(df):
     """Identifies the uuids of duplicate line geometries."""
 
+    errors = list()
+
+    # Note: filters are purely intended to reduce processing.
     # Filter geometries to those with duplicate lengths.
-    df_same_len = df[df["geometry"].length.duplicated(keep=False)]
+    df_sub = df[df["geometry"].length.duplicated(keep=False)]
+
+    # Filter geometries to those with duplicate endpoint coordinates.
+    df_sub = df_sub[df_sub["geometry"].map(lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
     # Identify duplicate geometries.
-    mask = df_same_len["geometry"].map(lambda geom1: df_same_len["geometry"].map(lambda geom2:
-                                                                                 geom1.equals(geom2)).sum() > 1)
+    if len(df_sub):
+        mask = df_sub["geometry"].map(lambda geom1: df_sub["geometry"].map(lambda geom2: geom1.equals(geom2)).sum() > 1)
 
-    # Compile uuids of flagged records.
-    errors = df_same_len[mask].index.values
+        # Compile uuids of flagged records.
+        errors = df_sub[mask].index.values
 
     return {"errors": errors}
 
@@ -290,21 +296,21 @@ def validate_exitnbr_conflict(df):
     errors = list()
     default = defaults_all["roadseg"]["exitnbr"]
 
-    # Iterate multi-segment road elements (via nid field) and where exitnbr is not the default value.
-    query = (df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)
-    nid_count = len(df[query]["nid"].unique())
-    for index, nid in enumerate(df[query]["nid"].unique()):
+    # Query multi-segment road elements (via nid field) where exitnbr is not the default value.
+    df_sub = df[(df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)]
 
-        logger.info("Validating road element (nid {} of {}): \"{}\"".format(index + 1, nid_count, nid))
+    # Group exitnbrs by nid, removing duplicate values.
+    grouped = helpers.groupby_to_list(df_sub, "nid", "exitnbr").map(np.unique)
 
-        # Compile exitnbr values, excluding the default value.
-        vals = df[(df["nid"] == nid) & (df["exitnbr"] != default)]["exitnbr"].unique()
+    # Remove the default field value from each group.
+    grouped = grouped.map(lambda vals: vals if default not in vals else vals.remove(default))
 
-        # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
-        if len(vals) > 1:
+    # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
+    flag_nids = grouped[grouped.map(len) > 1]
 
-            # Compile error properties.
-            errors.append("nid: \"{}\", exitnbr values: {}".format(nid, ", ".join(map("\"{}\"".format, vals))))
+    # Compile error properties.
+    for nid, exitnbrs in flag_nids.iteritems():
+        errors.append(f"nid: {nid}; exitnbr values: {', '.join(map(str, exitnbrs))}.")
 
     return {"errors": errors}
 
@@ -346,11 +352,13 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     roads_connected = roadseg[roadseg["geometry"].map(
         lambda geom: any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))]
 
+    # Compile coordinates of connected road segments.
+    road_coords = list(chain.from_iterable(roads_connected["geometry"].map(
+        lambda g: tuple(set(itemgetter(0, -1)(g.coords))))))
+
     # Identify ferry endpoints which intersect multiple road segments.
     ferry_multi_intersect = ferryseg["geometry"].map(
-        lambda ferry: any([roads_connected["geometry"].map(
-            lambda road: any([road_coords == ferry.coords[i] for road_coords in itemgetter(0, -1)(road.coords)]))
-                          .sum() > 1 for i in (0, -1)]))
+        lambda ferry: any([road_coords.count(coords) > 1 for coords in itemgetter(0, -1)(ferry.coords)]))
 
     # Compile uuids of flagged records.
     errors[2] = ferryseg[ferry_multi_intersect].index.values
@@ -482,6 +490,7 @@ def validate_line_length(df):
     return {"errors": errors}
 
 
+# TODO
 def validate_line_merging_angle(df):
     """Validates the merging angle of line segments."""
 
@@ -587,6 +596,7 @@ def validate_line_merging_angle(df):
     return {"errors": errors}
 
 
+# TODO
 def validate_line_proximity(df):
     """Validates the proximity of line segments."""
 
@@ -913,6 +923,7 @@ def validate_roadclass_rtnumber1(df):
     return {"errors": errors}
 
 
+# TODO: use groupby to optimize the iteration of road elements. The preceding bits of this function have been optimized.
 def validate_roadclass_self_intersection(df):
     """Applies a set of validations to roadclass and structtype fields."""
 
@@ -925,8 +936,8 @@ def validate_roadclass_self_intersection(df):
     valid = ["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit"]
 
     # Compile coords of road segments where roadclass is in the validation list.
-    valid_coords = list(set(chain(
-        *[itemgetter(0, -1)(geom.coords) for geom in df[df["roadclass"].isin(valid)]['geometry'].values])))
+    valid_coords = set(chain(
+        *[itemgetter(0, -1)(geom.coords) for geom in df[df["roadclass"].isin(valid)]['geometry'].values]))
 
     # Single-segment road elements:
 
@@ -937,7 +948,7 @@ def validate_roadclass_self_intersection(df):
     if not segments_single.empty:
 
         # Compile nids of road segments with coords in the validation coords list.
-        flag_intersect = np.vectorize(lambda geom: geom.coords[0] in valid_coords)(segments_single["geometry"].values)
+        flag_intersect = segments_single["geometry"].map(lambda g: g.coords[0] in valid_coords)
         flag_nids.extend(segments_single[flag_intersect]["nid"].values)
 
     # Multi-segment road elements:
@@ -951,12 +962,12 @@ def validate_roadclass_self_intersection(df):
         logger.info("Validating multi-segment road elements.")
 
         # Compile nids of road segments with coords in the validation coords list.
-        intersect_func = lambda geom: any(coord in valid_coords for coord in itemgetter(0, -1)(geom.coords))
-        flag_intersect = np.vectorize(intersect_func)(segments_multi["geometry"].values)
+        nids = segments_multi[segments_multi["geometry"].map(
+            lambda g: len(set(itemgetter(0, -1)(g.coords)).intersection(valid_coords)) > 0)]["nid"].unique()
 
         # Iterate flagged elements to identify self-intersections.
-        nid_count = len(segments_multi[flag_intersect]["nid"].unique())
-        for index, nid in enumerate(segments_multi[flag_intersect]["nid"].unique()):
+        nid_count = len(nids)
+        for index, nid in enumerate(nids):
 
             logger.info("Validating road element (nid {} of {}): \"{}\"".format(index + 1, nid_count, nid))
 
@@ -1003,6 +1014,7 @@ def validate_roadclass_structtype(df, return_segments_only=False):
         return {"errors": errors}
 
 
+# TODO: exclude none names
 def validate_route_contiguity(roadseg, ferryseg):
     """
     Applies a set of validations to route attributes (rows represent field groups):

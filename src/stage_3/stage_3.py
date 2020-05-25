@@ -121,8 +121,8 @@ class Stage:
         logger.info("Recovering old structids for table: roadseg.")
 
         # Group by structid.
-        roadseg_grouped = self.groupby_to_list(roadseg, "structid", "geometry")
-        roadseg_old_grouped = self.groupby_to_list(roadseg_old, "structid", "geometry")
+        roadseg_grouped = helpers.groupby_to_list(roadseg, "structid", "geometry")
+        roadseg_old_grouped = helpers.groupby_to_list(roadseg_old, "structid", "geometry")
 
         # Dissolve grouped geometries.
         roadseg_grouped = roadseg_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
@@ -150,19 +150,6 @@ class Stage:
 
         # Store results.
         self.dframes["roadseg"].loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
-
-    @staticmethod
-    def groupby_to_list(df, group_field, list_field):
-        """
-        Faster alternative to pandas groupby.apply/agg(list).
-        Groups records by one or more fields and compiles an output field into a list for each group.
-        """
-
-        keys, vals = df.sort_values(group_field)[[group_field, list_field]].values.T
-        keys_unique, keys_indexes = np.unique(keys, return_index=True)
-        vals_arrays = np.split(vals, keys_indexes[1:])
-
-        return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -419,8 +406,8 @@ class Stage:
         roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
 
         # Group by nid.
-        roadseg_grouped = self.groupby_to_list(roadseg, "nid", "geometry")
-        roadseg_old_grouped = self.groupby_to_list(roadseg_old, "nid", "geometry")
+        roadseg_grouped = helpers.groupby_to_list(roadseg, "nid", "geometry")
+        roadseg_old_grouped = helpers.groupby_to_list(roadseg_old, "nid", "geometry")
 
         # Dissolve grouped geometries.
         roadseg_grouped = roadseg_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))

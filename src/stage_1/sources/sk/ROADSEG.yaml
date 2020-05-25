@@ -29,11 +29,7 @@ conform:
         - function: direct
           cast_type: int
     credate: CREDATE
-    datasetnam:
-      fields: DATASETNAM
-      functions:
-      - function: direct
-        cast_type: int
+    datasetnam: "Saskatchewan"
     accuracy: ACCURACY
     provider:
       fields: PROVIDER
@@ -77,7 +73,7 @@ conform:
       - function: direct
         cast_type: int
     credate: CREDATE
-    datasetnam: DATASETNAM
+    datasetnam: "Saskatchewan"
     accuracy: ACCURACY
     provider:
       fields: PROVIDER
@@ -158,11 +154,7 @@ conform:
         - function: direct
           cast_type: int
     credate: CREDATE
-    datasetnam:
-      fields: DATASETNAM
-      functions:
-        - function: direct
-          cast_type: int
+    datasetnam: "Saskatchewan"
     accuracy: ACCURACY
     provider:
       fields: PROVIDER
