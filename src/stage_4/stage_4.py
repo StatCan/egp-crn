@@ -114,7 +114,8 @@ class Stage:
                 "title_route_text": {"tables": ["roadseg", "ferryseg"], "iterate": True, "args": ()},
                 "identify_duplicate_lines": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "identify_duplicate_points": {"tables": self.df_points, "iterate": True, "args": ()},
-                "identify_isolated_lines": {"tables": ["roadseg", "ferryseg"], "iterate": False, "args": ()},
+                "identify_isolated_lines":
+                    {"tables": ["roadseg", "ferryseg", "junction"], "iterate": False, "args": ()},
                 "validate_dates": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
                 "validate_deadend_disjoint_proximity":
                     {"tables": ["junction", "roadseg"], "iterate": False, "args": ()},

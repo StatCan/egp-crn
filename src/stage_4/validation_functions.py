@@ -52,11 +52,8 @@ def identify_duplicate_lines(df):
 def identify_duplicate_points(df):
     """Identifies the uuids of duplicate point geometries."""
 
-    # Retrieve coordinates as tuples.
-    coords = df["geometry"].map(lambda geom: geom.coords[0])
-
-    # Identify duplicate geometries.
-    mask = coords.duplicated(keep=False)
+    # Identify duplicated geometries.
+    mask = df["geometry"].map(lambda geom: geom.coords[0]).duplicated(keep=False)
 
     # Compile uuids of flagged records.
     errors = df[mask].index.values
@@ -64,36 +61,26 @@ def identify_duplicate_points(df):
     return {"errors": errors}
 
 
-def identify_isolated_lines(roadseg, ferryseg):
+def identify_isolated_lines(roadseg, ferryseg, junction):
     """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
 
-    # Concatenate ferryseg and roadseg dataframes.
-    df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=False, sort=False))
+    # Concatenate ferryseg and roadseg dataframes, keeping only required fields.
+    df = gpd.GeoDataFrame(pd.concat([ferryseg[["uuid", "geometry"]], roadseg[["uuid", "geometry"]]],
+                                    ignore_index=False, sort=False))
 
-    # Convert dataframe to networkx graph.
-    # Drop all columns except uuid and geometry to reduce processing.
-    df.drop(df.columns.difference(["uuid", "geometry"]), axis=1, inplace=True)
-    g = helpers.gdf_to_nx(df, keep_attributes=True, endpoints_only=False)
+    # Compile dead end junctions.
+    deadends = set(chain([geom.coords[0] for geom in junction[junction["junctype"] == "Dead End"]["geometry"].values]))
 
-    # Configure subgraphs.
-    sub_g = nx.connected_component_subgraphs(g)
+    # Identify isolated segments.
+    mask = df["geometry"].map(lambda g: len(set(itemgetter(0, -1)(g.coords)) - deadends) == 0)
 
-    # Compile uuids unique to a subgraph.
-    flag_uuids = list()
-    for s in sub_g:
-        if len(set(nx.get_edge_attributes(s, "uuid").values())) == 1:
-            uuid = list(nx.get_edge_attributes(s, "uuid").values())[0]
-
-            # Store uuid if from roadseg.
-            if uuid not in ferryseg.index:
-                flag_uuids.append(uuid)
-
-    # Compile flagged records as errors.
-    errors = flag_uuids
+    # Compile uuids of flagged records.
+    errors = df[mask].index.values
 
     return {"errors": errors}
 
 
+# TODO: review
 def strip_whitespace(df):
     """Strips leading and trailing whitespace from the given value for each dataframe column."""
 
@@ -114,9 +101,8 @@ def strip_whitespace(df):
             mod_flag = True
 
             # Log modifications.
-            logger.warning("Modified {} record(s) in column {}."
-                           "\nModification details: Field values stripped of leading and trailing whitespace."
-                           .format(len(col_mod), col))
+            logger.warning(f"Modified {len(col_mod)} record(s) in column {col}."
+                           "\nModification details: Field values stripped of leading and trailing whitespace.")
 
     if mod_flag:
         return {"errors": None, "modified_dframes": df.copy(deep=True)}
@@ -124,6 +110,7 @@ def strip_whitespace(df):
         return {"errors": None}
 
 
+# TODO: review
 def title_route_text(df):
     """
     Sets to title case all route name attributes:
@@ -147,8 +134,8 @@ def title_route_text(df):
             mod_flag = True
 
             # Log modifications.
-            logger.warning("Modified {} record(s) in column {}."
-                           "\nModification details: Field values set to title case.".format(len(col_mod), col))
+            logger.warning(f"Modified {len(col_mod)} record(s) in column {col}."
+                           "\nModification details: Field values set to title case.")
 
     if mod_flag:
         return {"errors": None, "modified_dframes": df.copy(deep=True)}
@@ -161,6 +148,7 @@ def validate_dates(df):
 
     errors = {i: list() for i in range(1, 7+1)}
     defaults = helpers.compile_default_values()["roadseg"]
+    df = df[["credate", "revdate"]].copy(deep=True)
 
     # Get current date.
     today = datetime.today().strftime("%Y%m%d")
@@ -174,52 +162,53 @@ def validate_dates(df):
 
         if not 1 <= day <= calendar.mdays[month]:
             if not all([day == 29, month == 2, calendar.isleap(year)]):
-                return True
+                return False
 
-        return False
+        return True
 
     # Iterate credate and revdate, applying validations.
     for col in ("credate", "revdate"):
 
         # Subset to non-default values.
-        df_sub = df[df[col] != defaults[col]]
+        df_sub = df[df[col] != defaults[col]][col]
 
         if len(df_sub):
 
             # Validation 1: date content must be numeric.
-            results = df_sub[~df_sub[col].map(str.isnumeric)].index.values
+            results = df_sub[~df_sub.map(str.isnumeric)].index.values
             errors[1].extend(results)
 
             # Validation 2: length must be 4, 6, or 8.
-            results = df_sub[df_sub[col].map(lambda date: len(date) not in (4, 6, 8))].index.values
+            results = df_sub[df_sub.map(lambda date: len(date) not in (4, 6, 8))].index.values
             errors[2].extend(results)
 
             # Subset to valid records only for remaining validations.
-            df_sub2 = df_sub[~df_sub.index.isin(list(set(chain.from_iterable(errors.values()))))]
+            invalid_indexes = list(set(chain.from_iterable(errors.values())))
+            df_sub2 = df_sub[~df_sub.index.isin(invalid_indexes)]
 
             if len(df_sub2):
 
                 # Temporarily set missing month and day values to 01.
-                col_mod = df_sub2[df_sub2[col].map(lambda date: len(date) in (4, 6))][col]
+                col_mod = df_sub2[df_sub2.map(lambda date: len(date) in (4, 6))]
                 if len(col_mod):
                     append_vals = {4: "0101", 6: "01"}
-                    df_sub2.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
+                    df_sub2.loc[col_mod.index] = col_mod.map(lambda date: date + append_vals[len(date)])
                     df.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
 
                 # Validation 3: valid date - year.
-                results = df_sub2[~df_sub2[col].map(lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
+                results = df_sub2[~df_sub2.map(lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
                 errors[3].extend(results)
 
                 # Validation 4: valid date - month.
-                results = df_sub2[df_sub2[col].map(lambda date: int(date[4:6]) not in range(1, 12+1))].index.values
+                results = df_sub2[~df_sub2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
                 errors[4].extend(results)
 
                 # Validation 5: valid date - day.
-                results = df_sub2[df_sub2[col].map(lambda date: validate_day(date))].index.values
+                results = df_sub2[~df_sub2.map(validate_day)].index.values
                 errors[5].extend(results)
 
                 # Validation 6: ensure date <= today.
-                results = df_sub2[df_sub2[col].map(lambda date: int(date) > today["full"])].index.values
+                results = df_sub2[df_sub2.map(lambda date: int(date) > today["full"])].index.values
                 errors[6].extend(results)
 
     # Validation 7: ensure credate <= revdate.
@@ -233,30 +222,32 @@ def validate_dates(df):
     return {"errors": errors}
 
 
+# TODO: review
 def validate_deadend_disjoint_proximity(junction, roadseg):
     """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
 
     # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
 
-    # Filter junctions to junctype = "Dead End".
-    deadends = junction[junction["junctype"] == "Dead End"]
+    # Filter junctions to junctype = "Dead End", keep only required fields.
+    deadends = junction[junction["junctype"] == "Dead End"]["geometry"]
+    roadseg = roadseg["geometry"]
 
     # Transform records to a meter-based crs: EPSG:3348.
     deadends = helpers.reproject_gdf(deadends, 4617, 3348)
     roadseg = helpers.reproject_gdf(roadseg, 4617, 3348)
 
     # Generate kdtree.
-    tree = cKDTree(np.concatenate(roadseg["geometry"].map(attrgetter("coords")).to_numpy()))
+    tree = cKDTree(np.concatenate(roadseg.map(attrgetter("coords")).to_numpy()))
 
     # Compile indexes of road segments within 5 meters distance of each deadend.
-    proxi_idx_all = deadends["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=5))))
+    proxi_idx_all = deadends.map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=5))))
 
     # Compile index of road segment at 0 meters distance from each deadend. These represent the connected roads.
-    proxi_idx_exclude = deadends["geometry"].map(lambda geom: tree.query(geom.coords)[-1])
+    proxi_idx_exclude = deadends.map(lambda geom: tree.query(geom.coords)[-1])
 
     # Construct a uuid series aligned to the series of road segment points.
     roadseg_pts_uuid = np.concatenate([[uuid] * count for uuid, count in
-                                       roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+                                       roadseg.map(lambda geom: len(geom.coords)).iteritems()])
 
     # Retrieve the uuid associated with the exclusion indexes.
     proxi_idx_exclude = proxi_idx_exclude.map(lambda index: itemgetter(*index)(roadseg_pts_uuid))
@@ -264,7 +255,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     # Compile the range of indexes for all coordinates associated with each road segment.
     idx_ranges = dict.fromkeys(roadseg.index.values)
     base = 0
-    for index, count in roadseg["geometry"].map(lambda geom: len(geom.coords)).iteritems():
+    for index, count in roadseg.map(lambda geom: len(geom.coords)).iteritems():
         idx_ranges[index] = [base, base + count]
         base += count
 
@@ -272,8 +263,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     proxi_idx_exclude = proxi_idx_exclude.map(lambda uuid: list(range(*itemgetter(uuid)(idx_ranges))))
 
     # Filter coincident indexes from all indexes.
-    proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=deadends.index.values)
-    proxi_idx_keep = proxi_idx.apply(lambda row: set(row[0]) - set(row[1]), axis=1)
+    proxi_idx_keep = proxi_idx_all.map(set) - proxi_idx_exclude.map(set)
 
     # Compile the uuid associated with resulting proximity point indexes for each deadend.
     proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(roadseg_pts_uuid) if indexes else False)
@@ -283,9 +273,8 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     errors = list()
 
     for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
-        errors.append("junction uuid \"{}\" is too close to roadseg uuid(s) {}.".format(
-            source_uuid,
-            ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
+        errors.append(f"junction uuid \"{source_uuid}\" is too close to roadseg uuid(s): "
+                      f"{', '.join(map(str, [target_uuids] if isinstance(target_uuids, str) else target_uuids))}.")
 
     return {"errors": errors}
 
@@ -315,6 +304,7 @@ def validate_exitnbr_conflict(df):
     return {"errors": errors}
 
 
+# TODO: review
 def validate_exitnbr_roadclass(df):
     """Applies a set of validations to exitnbr and roadclass fields."""
 
@@ -366,6 +356,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     return {"errors": errors}
 
 
+# TODO: review
 def validate_ids(df):
     """
     Applies a set of validations to all id fields.
@@ -404,21 +395,21 @@ def validate_ids(df):
                 mod_flag = True
 
                 # Log modifications.
-                logger.warning("Modified {} record(s) in column {}."
-                               "\nModification details: Field values set to lower case.".format(len(col_mod), field))
+                logger.warning(f"Modified {len(col_mod)} record(s) in column {field}."
+                               "\nModification details: Field values set to lower case.")
 
             # Validation 1: ensure ids are 32 digits.
             # Compile uuids of flagged records.
             flag_uuids = df_sub[df_sub[field].map(lambda val: len(val) != 32)].index.values
             for val in flag_uuids:
-                errors[1].append("uuid: {}, based on attribute field: {}.".format(val, field))
+                errors[1].append(f"uuid: {val}, based on attribute field: {field}.")
 
             # Validation 2: ensure ids are hexadecimal.
             # Compile uuids of flagged records.
             flag_uuids = df_sub[df_sub[field].map(
                 lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
             for val in flag_uuids:
-                errors[2].append("uuid: {}, based on attribute field: {}.".format(val, field))
+                errors[2].append(f"uuid: {val}, based on attribute field: {field}.")
 
     # Iterate unique id fields.
     unique_fields = ["ferrysegid", "roadsegid"]
@@ -428,13 +419,13 @@ def validate_ids(df):
         # Compile uuids of flagged records.
         flag_uuids = df[df[field].duplicated(keep=False)].index.values
         for val in flag_uuids:
-            errors[3].append("uuid: {}, based on attribute field: {}.".format(val, field))
+            errors[3].append(f"uuid: {val}, based on attribute field: {field}.")
 
         # Validation 4: ensure unique id fields are not the default field value.
         # Compile uuids of flagged records.
         flag_uuids = df[df[field] == defaults[field]].index.values
         for val in flag_uuids:
-            errors[4].append("uuid: {}, based on attribute field: {}.".format(val, field))
+            errors[4].append(f"uuid: {val}, based on attribute field: {field}.")
 
     if mod_flag:
         return {"errors": errors, "modified_dframes": df.copy(deep=True)}
@@ -442,6 +433,7 @@ def validate_ids(df):
         return {"errors": errors}
 
 
+# TODO: review
 def validate_line_endpoint_clustering(df):
     """Validates the quantity of points clustered near the endpoints of line segments."""
 
@@ -470,6 +462,7 @@ def validate_line_endpoint_clustering(df):
     return {"errors": errors}
 
 
+# TODO: review
 def validate_line_length(df):
     """Validates the minimum feature length of line geometries."""
 
@@ -490,7 +483,7 @@ def validate_line_length(df):
     return {"errors": errors}
 
 
-# TODO
+# TODO: review
 def validate_line_merging_angle(df):
     """Validates the merging angle of line segments."""
 
@@ -596,7 +589,7 @@ def validate_line_merging_angle(df):
     return {"errors": errors}
 
 
-# TODO
+# TODO: review
 def validate_line_proximity(df):
     """Validates the proximity of line segments."""
 
@@ -672,13 +665,13 @@ def validate_line_proximity(df):
     errors = list()
 
     for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
-        errors.append("Feature uuid \"{}\" is too close to feature uuid(s) {}.".format(
-            source_uuid,
-            ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
+        errors.append(f"Feature uuid \"{source_uuid}\" is too close to feature uuid(s) "
+                      f"{', '.join(map(str, [target_uuids] if isinstance(target_uuids, str) else target_uuids))}.")
 
     return {"errors": errors}
 
 
+# TODO: review
 def validate_nbrlanes(df):
     """Applies a set of validations to nbrlanes field."""
 
@@ -694,6 +687,7 @@ def validate_nbrlanes(df):
     return {"errors": errors}
 
 
+# TODO: review
 def validate_nid_linkages(df, dfs_all):
     """
     Validates the nid linkages for the input dataframe.
@@ -747,7 +741,7 @@ def validate_nid_linkages(df, dfs_all):
                 ids = set(df[col].map(str.lower))
 
                 # Validation: ensure all nid linkages are valid.
-                logger.info("Validating nid linkage: {}.nid - {}.{}.".format(nid_table, id_table, col))
+                logger.info(f"Validating nid linkage: {nid_table}.nid - {id_table}.{col}.")
 
                 if not ids.issubset(nids):
 
@@ -756,12 +750,14 @@ def validate_nid_linkages(df, dfs_all):
 
                     # Configure error message.
                     if len(flag_ids):
-                        errors.append("The following values from {}.{} are not present in {}.nid:"
-                                      "\n{}".format(id_table, col, nid_table, "\n".join(map(str, flag_ids))))
+                        vals = "\n".join(map(str, flag_ids))
+                        errors.append(f"The following values from {id_table}.{col} are not present in {nid_table}.nid:"
+                                      f"\n{vals}")
 
     return {"errors": errors}
 
 
+# TODO: review
 def validate_pavement(df):
     """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
 
@@ -780,6 +776,7 @@ def validate_pavement(df):
     return {"errors": errors}
 
 
+# TODO: review
 def validate_point_proximity(df):
     """Validates the proximity of points."""
 
@@ -808,13 +805,13 @@ def validate_point_proximity(df):
     errors = list()
 
     for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
-        errors.append("Feature uuid \"{}\" is too close to feature uuid(s) {}.".format(
-            source_uuid,
-            ", ".join(map("\"{}\"".format, [target_uuids] if isinstance(target_uuids, str) else target_uuids))))
+        errors.append(f"Feature uuid \"{source_uuid}\" is too close to feature uuid(s) "
+                      f"{', '.join(map(str, [target_uuids] if isinstance(target_uuids, str) else target_uuids))}.")
 
     return {"errors": errors}
 
 
+# TODO: review
 def validate_road_structures(roadseg, junction):
     """Validates the structid and structtype attributes of road segments."""
 
@@ -852,7 +849,7 @@ def validate_road_structures(roadseg, junction):
         structid_count = len(structids)
         for index, structid in enumerate(sorted(structids)):
 
-            logger.info("Validating structure {} of {}: \"{}\".".format(index + 1, structid_count, structid))
+            logger.info(f"Validating structure {index + 1} of {structid_count}: \"{structid}\".")
 
             # Subset dataframe to those records with current structid.
             structure = roadseg.iloc[list(np.where(roadseg["structid"] == structid)[0])]
@@ -864,10 +861,10 @@ def validate_road_structures(roadseg, junction):
             if not nx.is_connected(structure_graph):
                 # Identify deadends (locations of discontiguity).
                 deadends = [coords for coords, degree in structure_graph.degree() if degree == 1]
-                deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
+                deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
 
                 # Compile error properties.
-                errors[2].append("Structure ID: \"{}\".\nEndpoints:\n{}.".format(structid, deadends))
+                errors[2].append(f"Structure ID: \"{structid}\".\nEndpoints:\n{deadends}.")
 
     # Validation 3: ensure a single, non-default structid is applied to all contiguous road segments with the same
     #               structtype.
@@ -896,8 +893,8 @@ def validate_road_structures(roadseg, junction):
 
             # Compile error properties.
             uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors[3].append("Structure: {}. Structure uuids: {}. Structure IDs: {}.".format(
-                index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structids))))
+            errors[3].append(f"Structure: {index}. Structure uuids: {', '.join(map(str, uuids))}. Structure IDs: "
+                             f"{', '.join(map(str, structids))}.")
 
         # Validation 4.
         structtypes = set(nx.get_edge_attributes(s, "structtype").values())
@@ -905,12 +902,13 @@ def validate_road_structures(roadseg, junction):
 
             # Compile error properties.
             uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors[4].append("Structure: {}. Structure uuids: {}. Structure types: {}.".format(
-                index, ", ".join(map("\"{}\"".format, uuids)), ", ".join(map("\"{}\"".format, structtypes))))
+            errors[4].append(f"Structure: {index}. Structure uuids: {', '.join(map(str, uuids))}. Structure types: "
+                             f"{', '.join(map(str, structtypes))}.")
 
     return {"errors": errors}
 
 
+# TODO: review
 def validate_roadclass_rtnumber1(df):
     """Applies a set of validations to roadclass and rtnumber1 fields."""
 
@@ -923,7 +921,6 @@ def validate_roadclass_rtnumber1(df):
     return {"errors": errors}
 
 
-# TODO: use groupby to optimize the iteration of road elements. The preceding bits of this function have been optimized.
 def validate_roadclass_self_intersection(df):
     """Applies a set of validations to roadclass and structtype fields."""
 
@@ -948,8 +945,8 @@ def validate_roadclass_self_intersection(df):
     if not segments_single.empty:
 
         # Compile nids of road segments with coords in the validation coords list.
-        flag_intersect = segments_single["geometry"].map(lambda g: g.coords[0] in valid_coords)
-        flag_nids.extend(segments_single[flag_intersect]["nid"].values)
+        flagged = segments_single["geometry"].map(lambda g: g.coords[0] in valid_coords)
+        flag_nids.extend(segments_single[flagged]["nid"].values)
 
     # Multi-segment road elements:
 
@@ -962,23 +959,20 @@ def validate_roadclass_self_intersection(df):
         logger.info("Validating multi-segment road elements.")
 
         # Compile nids of road segments with coords in the validation coords list.
-        nids = segments_multi[segments_multi["geometry"].map(
+        flagged_nids = segments_multi[segments_multi["geometry"].map(
             lambda g: len(set(itemgetter(0, -1)(g.coords)).intersection(valid_coords)) > 0)]["nid"].unique()
 
-        # Iterate flagged elements to identify self-intersections.
-        nid_count = len(nids)
-        for index, nid in enumerate(nids):
+        # Compile dataframe records with a flagged nid.
+        flagged_df = df[df["nid"].isin(flagged_nids)]
 
-            logger.info("Validating road element (nid {} of {}): \"{}\"".format(index + 1, nid_count, nid))
+        # Group geometries by nid.
+        grouped_segments = helpers.groupby_to_list(flagged_df, "nid", "geometry")
 
-            # Dissolve road segments.
-            element = shapely.ops.linemerge(df[df["nid"] == nid]["geometry"].values)
+        # Dissolve road segments.
+        elements = grouped_segments.map(shapely.ops.linemerge)
 
-            # Identify self-intersections.
-            if element.is_ring or not element.is_simple:
-
-                # Store nid.
-                flag_nids.append(nid)
+        # Identify self-intersections and store nids.
+        flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
     errors = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
@@ -1002,8 +996,7 @@ def validate_roadclass_structtype(df, return_segments_only=False):
         logger.info("Validating single-segment road elements.")
 
         # Identify self-intersections (start coord == end coord).
-        flag_self_intersect = np.vectorize(lambda geom: geom.coords[0] == geom.coords[-1])(segments["geometry"].values)
-        flag_segments = segments[flag_self_intersect]
+        flag_segments = segments[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
 
         # Validation: for self-intersecting road segments, ensure structtype != "None".
         errors = flag_segments[flag_segments["structtype"] == "None"].index.values
@@ -1033,7 +1026,7 @@ def validate_route_contiguity(roadseg, ferryseg):
                         ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"],
                         ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]]:
 
-        logger.info("Validating routes in field group: {}.".format(", ".join(map("\"{}\"".format, field_group))))
+        logger.info(f"Validating routes in field group: {', '.join(map(str, field_group))}.")
 
         # Compile route names.
         route_names = [df[col].unique() for col in field_group]
@@ -1051,7 +1044,7 @@ def validate_route_contiguity(roadseg, ferryseg):
         route_count = len(route_names)
         for index, route_name in enumerate(route_names):
 
-            logger.info("Validating route {} of {}: \"{}\".".format(index + 1, route_count, route_name))
+            logger.info(f"Validating route {index + 1} of {route_count}: \"{route_name}\".")
 
             # Subset dataframe to those records with route name in at least one field.
             route_df = df.iloc[list(np.where(df[field_group] == route_name)[0])]
@@ -1064,15 +1057,16 @@ def validate_route_contiguity(roadseg, ferryseg):
 
                 # Identify deadends (locations of discontiguity).
                 deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
-                deadends = "\n".join(["{}, {}".format(*deadend) for deadend in deadends])
+                deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
 
                 # Compile error properties.
-                errors.append("Route name: \"{}\", based on attribute fields: {}."
-                              "\nEndpoints:\n{}.".format(route_name, ", ".join(field_group), deadends))
+                errors.append(f"Route name: \"{route_name}\", based on attribute fields: {', '.join(field_group)}."
+                              f"\nEndpoints:\n{deadends}.")
 
     return {"errors": errors}
 
 
+# TODO: review
 def validate_speed(df):
     """Applies a set of validations to speed field."""
 

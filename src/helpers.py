@@ -442,7 +442,7 @@ def ogr2ogr(expression, log=None, max_attempts=5):
 
 
 def reproject_gdf(gdf, epsg_source, epsg_target):
-    """Transforms a GeoDataFrame's geometry column between EPSGs."""
+    """Transforms a GeoDataFrame's geometry column or GeoSeries between EPSGs."""
 
     # Return empty dataframe.
     if not len(gdf):
@@ -450,7 +450,10 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
 
     # Deep copy dataframe to avoid reprojecting original.
     # Explicitly copy crs property since it is excluded from default copy method.
-    gdf = gpd.GeoDataFrame(gdf.copy(deep=True), crs=deepcopy(gdf.crs))
+    if isinstance(gpd.GeoDataFrame):
+        gdf = gpd.GeoDataFrame(gdf.copy(deep=True), crs=deepcopy(gdf.crs))
+    else:
+        gdf = gpd.GeoSeries(gdf.copy(deep=True), crs=deepcopy(gdf.crs))
 
     # Define transformation.
     prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
