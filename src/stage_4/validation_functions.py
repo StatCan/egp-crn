@@ -9,6 +9,7 @@ import pandas as pd
 import shapely.ops
 import string
 import sys
+from collections import Counter
 from datetime import datetime
 from itertools import chain, permutations
 from operator import attrgetter, itemgetter
@@ -32,19 +33,22 @@ def identify_duplicate_lines(df):
 
     errors = list()
 
+    # Keep only required fields.
+    col = df["geometry"]
+
     # Note: filters are purely intended to reduce processing.
     # Filter geometries to those with duplicate lengths.
-    df_sub = df[df["geometry"].length.duplicated(keep=False)]
+    col_sub = col[col.length.duplicated(keep=False)]
 
     # Filter geometries to those with duplicate endpoint coordinates.
-    df_sub = df_sub[df_sub["geometry"].map(lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
+    col_sub = col_sub[col_sub.map(lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
     # Identify duplicate geometries.
-    if len(df_sub):
-        mask = df_sub["geometry"].map(lambda geom1: df_sub["geometry"].map(lambda geom2: geom1.equals(geom2)).sum() > 1)
+    if len(col_sub):
+        mask = col_sub.map(lambda geom1: col_sub.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
 
         # Compile uuids of flagged records.
-        errors = df_sub[mask].index.values
+        errors = col_sub[mask].index.values
 
     return {"errors": errors}
 
@@ -80,28 +84,28 @@ def identify_isolated_lines(roadseg, ferryseg, junction):
     return {"errors": errors}
 
 
-# TODO: review
 def strip_whitespace(df):
     """Strips leading and trailing whitespace from the given value for each dataframe column."""
 
     mod_flag = False
 
-    # Compile valid columns, excluding geometry.
-    df_valid = df.select_dtypes(include="object")
-    if "geometry" in df_valid.columns:
-        df_valid.drop("geometry", axis=1, inplace=True)
+    # Compile valid columns.
+    cols = df.select_dtypes(include="object", exclude="geometry").columns.values
 
     # Iterate columns.
-    for col in df_valid:
+    for col in cols:
 
-        # Apply modification, if required.
-        col_mod = df[df[col].map(lambda val: val != val.strip())][col]
-        if len(col_mod):
-            df.loc[col_mod.index, col] = col_mod.map(str.strip)
+        # Apply modifications.
+        col_orig = df[col]
+        df[col] = df[col].map(str.strip)
+
+        # Quantify modifications.
+        mods = (col_orig != df[col]).sum()
+        if mods:
             mod_flag = True
 
             # Log modifications.
-            logger.warning(f"Modified {len(col_mod)} record(s) in column {col}."
+            logger.warning(f"Modified {mods} record(s) in column {col}."
                            "\nModification details: Field values stripped of leading and trailing whitespace.")
 
     if mod_flag:
@@ -110,7 +114,6 @@ def strip_whitespace(df):
         return {"errors": None}
 
 
-# TODO: review
 def title_route_text(df):
     """
     Sets to title case all route name attributes:
@@ -127,14 +130,17 @@ def title_route_text(df):
     # Iterate validation columns.
     for col in cols:
 
-        # Apply modification, if required.
-        col_mod = df[df[col].map(lambda route: route != defaults_all["roadseg"][col] and not route.istitle())][col]
-        if len(col_mod):
-            df.loc[col_mod.index, col] = col_mod.map(str.title)
+        # Filter records to non-default values which are not already title case.
+        default = defaults_all["roadseg"][col]
+        col_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
+
+        # Apply modifications, if required.
+        if len(col_filtered):
+            df.loc[col_filtered.index, col] = col_filtered.map(str.title)
             mod_flag = True
 
             # Log modifications.
-            logger.warning(f"Modified {len(col_mod)} record(s) in column {col}."
+            logger.warning(f"Modified {len(col_filtered)} record(s) in column {col}."
                            "\nModification details: Field values set to title case.")
 
     if mod_flag:
@@ -170,45 +176,45 @@ def validate_dates(df):
     for col in ("credate", "revdate"):
 
         # Subset to non-default values.
-        df_sub = df[df[col] != defaults[col]][col]
+        col_sub = df[df[col] != defaults[col]][col]
 
-        if len(df_sub):
+        if len(col_sub):
 
             # Validation 1: date content must be numeric.
-            results = df_sub[~df_sub.map(str.isnumeric)].index.values
+            results = col_sub[~col_sub.map(str.isnumeric)].index.values
             errors[1].extend(results)
 
             # Validation 2: length must be 4, 6, or 8.
-            results = df_sub[df_sub.map(lambda date: len(date) not in (4, 6, 8))].index.values
+            results = col_sub[col_sub.map(lambda date: len(date) not in (4, 6, 8))].index.values
             errors[2].extend(results)
 
             # Subset to valid records only for remaining validations.
             invalid_indexes = list(set(chain.from_iterable(errors.values())))
-            df_sub2 = df_sub[~df_sub.index.isin(invalid_indexes)]
+            col_sub2 = col_sub[~col_sub.index.isin(invalid_indexes)]
 
-            if len(df_sub2):
+            if len(col_sub2):
 
                 # Temporarily set missing month and day values to 01.
-                col_mod = df_sub2[df_sub2.map(lambda date: len(date) in (4, 6))]
+                col_mod = col_sub2[col_sub2.map(lambda date: len(date) in (4, 6))]
                 if len(col_mod):
                     append_vals = {4: "0101", 6: "01"}
-                    df_sub2.loc[col_mod.index] = col_mod.map(lambda date: date + append_vals[len(date)])
-                    df.loc[col_mod.index, col] = col_mod.map(lambda date: date + append_vals[len(date)])
+                    col_sub2.loc[col_mod.index] = col_mod.map(lambda date: date + append_vals[len(date)])
+                    df.loc[col_sub2.index, col] = col_sub2
 
                 # Validation 3: valid date - year.
-                results = df_sub2[~df_sub2.map(lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
+                results = col_sub2[~col_sub2.map(lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
                 errors[3].extend(results)
 
                 # Validation 4: valid date - month.
-                results = df_sub2[~df_sub2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
+                results = col_sub2[~col_sub2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
                 errors[4].extend(results)
 
                 # Validation 5: valid date - day.
-                results = df_sub2[~df_sub2.map(validate_day)].index.values
+                results = col_sub2[~col_sub2.map(validate_day)].index.values
                 errors[5].extend(results)
 
                 # Validation 6: ensure date <= today.
-                results = df_sub2[df_sub2.map(lambda date: int(date) > today["full"])].index.values
+                results = col_sub2[col_sub2.map(lambda date: int(date) > today["full"])].index.values
                 errors[6].extend(results)
 
     # Validation 7: ensure credate <= revdate.
@@ -222,7 +228,6 @@ def validate_dates(df):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_deadend_disjoint_proximity(junction, roadseg):
     """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
 
@@ -245,36 +250,39 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     # Compile index of road segment at 0 meters distance from each deadend. These represent the connected roads.
     proxi_idx_exclude = deadends.map(lambda geom: tree.query(geom.coords)[-1])
 
-    # Construct a uuid series aligned to the series of road segment points.
-    roadseg_pts_uuid = np.concatenate([[uuid] * count for uuid, count in
-                                       roadseg.map(lambda geom: len(geom.coords)).iteritems()])
+    # Generate a lookup dict for the index of each roadseg coordinate, mapped to the full range of coordinate indexes
+    # for the road segment associated with that coordinate. Therefore, the coordinate identified for exclusion at
+    # distance=0 can be associated with, and expanded to include, all other coordinates along that road segment.
+    # Process: get the road segment coordinate counts and cumulative counts to generate an index range for each road
+    # segment. Stack the results and duplicate the ranges by the coordinate counts. Convert to a dict.
+    coords_count = roadseg.map(lambda g: len(attrgetter("coords")(g)))
+    coords_idx_cumsum = coords_count.cumsum()
+    coords_full_idx_range = np.repeat(list(map(
+        lambda indexes: set(range(*indexes)),
+        np.column_stack((coords_idx_cumsum - coords_count, coords_idx_cumsum)))),
+        coords_count)
+    coords_full_idx_range_lookup = dict(zip(range(len(coords_full_idx_range)), coords_full_idx_range))
 
-    # Retrieve the uuid associated with the exclusion indexes.
-    proxi_idx_exclude = proxi_idx_exclude.map(lambda index: itemgetter(*index)(roadseg_pts_uuid))
+    # Compile expanded index ranges.
+    proxi_idx_exclude = proxi_idx_exclude.map(lambda idx: itemgetter(*idx)(coords_full_idx_range_lookup))
 
-    # Compile the range of indexes for all coordinates associated with each road segment.
-    idx_ranges = dict.fromkeys(roadseg.index.values)
-    base = 0
-    for index, count in roadseg.map(lambda geom: len(geom.coords)).iteritems():
-        idx_ranges[index] = [base, base + count]
-        base += count
-
-    # Convert associated uuids to expanded index ranges.
-    proxi_idx_exclude = proxi_idx_exclude.map(lambda uuid: list(range(*itemgetter(uuid)(idx_ranges))))
-
-    # Filter coincident indexes from all indexes.
+    # Filter coincident indexes from all indexes. Keep only non-empty results.
     proxi_idx_keep = proxi_idx_all.map(set) - proxi_idx_exclude.map(set)
+    proxi_idx_keep = proxi_idx_keep[proxi_idx_keep.map(len) > 0]
+
+    # Generate a lookup dict for the index of each roadseg coordinate, mapped to the associated uuid.
+    coords_idx_uuid_lookup = dict(zip(range(coords_count.sum()), np.repeat(roadseg.index.values, coords_count)))
 
     # Compile the uuid associated with resulting proximity point indexes for each deadend.
-    proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(roadseg_pts_uuid) if indexes else False)
-    proxi_results = proxi_results.map(lambda uuids: set(uuids) if isinstance(uuids, tuple) else uuids)
+    proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(coords_idx_uuid_lookup))
+    proxi_results = proxi_results.map(lambda uuids: set(uuids) if isinstance(uuids, tuple) else [uuids])
 
     # Compile error properties.
     errors = list()
 
-    for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
+    for source_uuid, target_uuids in proxi_results.iteritems():
         errors.append(f"junction uuid \"{source_uuid}\" is too close to roadseg uuid(s): "
-                      f"{', '.join(map(str, [target_uuids] if isinstance(target_uuids, str) else target_uuids))}.")
+                      f"{', '.join(map(str, target_uuids))}.")
 
     return {"errors": errors}
 
@@ -304,16 +312,16 @@ def validate_exitnbr_conflict(df):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_exitnbr_roadclass(df):
     """Applies a set of validations to exitnbr and roadclass fields."""
 
-    # Subset dataframe to non-default values.
-    df_subset = df[df["exitnbr"] != defaults_all["roadseg"]["exitnbr"]]
+    # Subset dataframe to non-default values, keep only required fields.
+    default = defaults_all["roadseg"]["exitnbr"]
+    col_sub = df[df["exitnbr"] != default]["roadclass"]
 
     # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value.
     # Compile uuids of flagged records.
-    errors = df_subset[~df_subset["roadclass"].isin(["Ramp", "Service Lane"])].index.values
+    errors = col_sub[~col_sub.isin(["Ramp", "Service Lane"])].index.values
 
     return {"errors": errors}
 
@@ -323,6 +331,10 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
 
     errors = dict()
 
+    # Filter dataframes to only required fields.
+    ferryseg = ferryseg["geometry"]
+    roadseg = roadseg["geometry"]
+
     # Validation 1: ensure ferry segments connect to a road segment at at least one endpoint.
 
     # Compile junction coordinates where junctype = "Ferry".
@@ -330,8 +342,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
                                       junction[junction["junctype"] == "Ferry"]["geometry"].values])))
 
     # Identify ferry segments which do not connect to any road segments.
-    mask = ferryseg["geometry"].map(
-        lambda geom: not any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))
+    mask = ferryseg.map(lambda geom: not any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))
 
     # Compile uuids of flagged records.
     errors[1] = ferryseg[mask].index.values
@@ -339,16 +350,16 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     # Validation 2: ensure ferry segments connect to <= 1 road segment at either endpoint.
 
     # Compile road segments which connect to ferry segments.
-    roads_connected = roadseg[roadseg["geometry"].map(
+    roads_connected = roadseg[roadseg.map(
         lambda geom: any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))]
 
     # Compile coordinates of connected road segments.
-    road_coords = list(chain.from_iterable(roads_connected["geometry"].map(
+    road_coords_count = Counter(chain.from_iterable(roads_connected.map(
         lambda g: tuple(set(itemgetter(0, -1)(g.coords))))))
 
     # Identify ferry endpoints which intersect multiple road segments.
-    ferry_multi_intersect = ferryseg["geometry"].map(
-        lambda ferry: any([road_coords.count(coords) > 1 for coords in itemgetter(0, -1)(ferry.coords)]))
+    ferry_multi_intersect = ferryseg.map(
+        lambda ferry: any([itemgetter(coords)(road_coords_count) > 1 for coords in itemgetter(0, -1)(ferry.coords)]))
 
     # Compile uuids of flagged records.
     errors[2] = ferryseg[ferry_multi_intersect].index.values
@@ -366,20 +377,17 @@ def validate_ids(df):
     errors = {1: list(), 2: list(), 3: list(), 4: list()}
     mod_flag = False
 
-    # Compile fields ending with "id".
-    id_fields = [fld for fld in df.columns if fld.endswith("id") and fld != "uuid"]
-
     # Identify dataframe name to configure dtypes and default values.
     dtypes = dtypes_all["roadseg"]
     defaults = defaults_all["roadseg"]
     for table in defaults_all:
-        if all([fld in defaults_all[table] for fld in id_fields]):
+        if set(defaults_all[table]).issubset(df.columns):
             dtypes = dtypes_all[table]
             defaults = defaults_all[table]
             break
 
-    # Iterate str id fields.
-    for field in [fld for fld in df.columns if fld.endswith("id") and fld != "uuid" and dtypes[fld] == "str"]:
+    # Iterate fields which a) end with "id", b) are str type, and c) are not uuid.
+    for field in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
 
         # Subset dataframe to non-default values.
         df_sub = df[df[field] != defaults[field]]
