@@ -38,17 +38,17 @@ def identify_duplicate_lines(df):
 
     # Note: filters are purely intended to reduce processing.
     # Filter geometries to those with duplicate lengths.
-    col_sub = col[col.length.duplicated(keep=False)]
+    s_filtered = col[col.length.duplicated(keep=False)]
 
     # Filter geometries to those with duplicate endpoint coordinates.
-    col_sub = col_sub[col_sub.map(lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
+    s_filtered = s_filtered[s_filtered.map(lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
     # Identify duplicate geometries.
-    if len(col_sub):
-        mask = col_sub.map(lambda geom1: col_sub.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
+    if len(s_filtered):
+        mask = s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
 
         # Compile uuids of flagged records.
-        errors = col_sub[mask].index.values
+        errors = s_filtered[mask].index.values
 
     return {"errors": errors}
 
@@ -96,11 +96,11 @@ def strip_whitespace(df):
     for col in cols:
 
         # Apply modifications.
-        col_orig = df[col]
+        series_orig = df[col]
         df[col] = df[col].map(str.strip)
 
         # Quantify modifications.
-        mods = (col_orig != df[col]).sum()
+        mods = (series_orig != df[col]).sum()
         if mods:
             mod_flag = True
 
@@ -132,15 +132,15 @@ def title_route_text(df):
 
         # Filter records to non-default values which are not already title case.
         default = defaults_all["roadseg"][col]
-        col_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
+        s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
 
         # Apply modifications, if required.
-        if len(col_filtered):
-            df.loc[col_filtered.index, col] = col_filtered.map(str.title)
+        if len(s_filtered):
+            df.loc[s_filtered.index, col] = s_filtered.map(str.title)
             mod_flag = True
 
             # Log modifications.
-            logger.warning(f"Modified {len(col_filtered)} record(s) in column {col}."
+            logger.warning(f"Modified {len(s_filtered)} record(s) in column {col}."
                            "\nModification details: Field values set to title case.")
 
     if mod_flag:
@@ -176,53 +176,54 @@ def validate_dates(df):
     for col in ("credate", "revdate"):
 
         # Subset to non-default values.
-        col_sub = df[df[col] != defaults[col]][col]
+        s_filtered = df[df[col] != defaults[col]][col]
 
-        if len(col_sub):
+        if len(s_filtered):
 
             # Validation 1: date content must be numeric.
-            results = col_sub[~col_sub.map(str.isnumeric)].index.values
+            results = s_filtered[~s_filtered.map(str.isnumeric)].index.values
             errors[1].extend(results)
 
             # Validation 2: length must be 4, 6, or 8.
-            results = col_sub[col_sub.map(lambda date: len(date) not in (4, 6, 8))].index.values
+            results = s_filtered[s_filtered.map(lambda date: len(date) not in (4, 6, 8))].index.values
             errors[2].extend(results)
 
             # Subset to valid records only for remaining validations.
             invalid_indexes = list(set(chain.from_iterable(errors.values())))
-            col_sub2 = col_sub[~col_sub.index.isin(invalid_indexes)]
+            s_filtered2 = s_filtered[~s_filtered.index.isin(invalid_indexes)]
 
-            if len(col_sub2):
+            if len(s_filtered2):
 
                 # Temporarily set missing month and day values to 01.
-                col_mod = col_sub2[col_sub2.map(lambda date: len(date) in (4, 6))]
-                if len(col_mod):
+                series_mod = s_filtered2[s_filtered2.map(lambda date: len(date) in (4, 6))]
+                if len(series_mod):
                     append_vals = {4: "0101", 6: "01"}
-                    col_sub2.loc[col_mod.index] = col_mod.map(lambda date: date + append_vals[len(date)])
-                    df.loc[col_sub2.index, col] = col_sub2
+                    s_filtered2.loc[series_mod.index] = series_mod.map(lambda date: date + append_vals[len(date)])
+                    df.loc[s_filtered2.index, col] = s_filtered2
 
                 # Validation 3: valid date - year.
-                results = col_sub2[~col_sub2.map(lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
+                results = s_filtered2[~s_filtered2.map(
+                    lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
                 errors[3].extend(results)
 
                 # Validation 4: valid date - month.
-                results = col_sub2[~col_sub2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
+                results = s_filtered2[~s_filtered2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
                 errors[4].extend(results)
 
                 # Validation 5: valid date - day.
-                results = col_sub2[~col_sub2.map(validate_day)].index.values
+                results = s_filtered2[~s_filtered2.map(validate_day)].index.values
                 errors[5].extend(results)
 
                 # Validation 6: ensure date <= today.
-                results = col_sub2[col_sub2.map(lambda date: int(date) > today["full"])].index.values
+                results = s_filtered2[s_filtered2.map(lambda date: int(date) > today["full"])].index.values
                 errors[6].extend(results)
 
     # Validation 7: ensure credate <= revdate.
-    df_sub = df[(df["credate"] != defaults["credate"]) &
-                (df["revdate"] != defaults["revdate"]) &
-                ~(df.index.isin(list(set(chain.from_iterable(itemgetter(1, 2)(errors))))))]
-    if len(df_sub):
-        results = df_sub[df_sub["credate"].map(int) > df_sub["revdate"].map(int)].index.values
+    df_filtered = df[(df["credate"] != defaults["credate"]) &
+                     (df["revdate"] != defaults["revdate"]) &
+                     ~(df.index.isin(list(set(chain.from_iterable(itemgetter(1, 2)(errors))))))]
+    if len(df_filtered):
+        results = df_filtered[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
         errors[7].extend(results)
 
     return {"errors": errors}
@@ -294,10 +295,10 @@ def validate_exitnbr_conflict(df):
     default = defaults_all["roadseg"]["exitnbr"]
 
     # Query multi-segment road elements (via nid field) where exitnbr is not the default value.
-    df_sub = df[(df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)]
+    df_filtered = df[(df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)]
 
     # Group exitnbrs by nid, removing duplicate values.
-    grouped = helpers.groupby_to_list(df_sub, "nid", "exitnbr").map(np.unique)
+    grouped = helpers.groupby_to_list(df_filtered, "nid", "exitnbr").map(np.unique)
 
     # Remove the default field value from each group.
     grouped = grouped.map(lambda vals: vals if default not in vals else vals.remove(default))
@@ -317,11 +318,11 @@ def validate_exitnbr_roadclass(df):
 
     # Subset dataframe to non-default values, keep only required fields.
     default = defaults_all["roadseg"]["exitnbr"]
-    col_sub = df[df["exitnbr"] != default]["roadclass"]
+    s_filtered = df[df["exitnbr"] != default]["roadclass"]
 
     # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value.
     # Compile uuids of flagged records.
-    errors = col_sub[~col_sub.isin(["Ramp", "Service Lane"])].index.values
+    errors = s_filtered[~s_filtered.isin(["Ramp", "Service Lane"])].index.values
 
     return {"errors": errors}
 
@@ -342,7 +343,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
                                       junction[junction["junctype"] == "Ferry"]["geometry"].values])))
 
     # Identify ferry segments which do not connect to any road segments.
-    mask = ferryseg.map(lambda geom: not any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))
+    mask = ferryseg.map(lambda geom: not any(coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)))
 
     # Compile uuids of flagged records.
     errors[1] = ferryseg[mask].index.values
@@ -351,7 +352,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
 
     # Compile road segments which connect to ferry segments.
     roads_connected = roadseg[roadseg.map(
-        lambda geom: any([coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)]))]
+        lambda geom: any(coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)))]
 
     # Compile coordinates of connected road segments.
     road_coords_count = Counter(chain.from_iterable(roads_connected.map(
@@ -359,7 +360,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
 
     # Identify ferry endpoints which intersect multiple road segments.
     ferry_multi_intersect = ferryseg.map(
-        lambda ferry: any([itemgetter(coords)(road_coords_count) > 1 for coords in itemgetter(0, -1)(ferry.coords)]))
+        lambda ferry: any(itemgetter(coords)(road_coords_count) > 1 for coords in itemgetter(0, -1)(ferry.coords)))
 
     # Compile uuids of flagged records.
     errors[2] = ferryseg[ferry_multi_intersect].index.values
@@ -367,7 +368,6 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_ids(df):
     """
     Applies a set of validations to all id fields.
@@ -378,62 +378,66 @@ def validate_ids(df):
     mod_flag = False
 
     # Identify dataframe name to configure dtypes and default values.
-    dtypes = dtypes_all["roadseg"]
-    defaults = defaults_all["roadseg"]
-    for table in defaults_all:
-        if set(defaults_all[table]).issubset(df.columns):
-            dtypes = dtypes_all[table]
-            defaults = defaults_all[table]
+    table = "roadseg"
+    dtypes, defaults = dtypes_all[table], defaults_all[table]
+    for t in defaults_all:
+        if set(defaults_all[t]).issubset(df.columns):
+            dtypes, defaults, table = dtypes_all[t], defaults_all[t], t
             break
 
     # Iterate fields which a) end with "id", b) are str type, and c) are not uuid.
-    for field in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
+    for col in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
 
-        # Subset dataframe to non-default values.
-        df_sub = df[df[field] != defaults[field]]
+        # Subset dataframe to required column with non-default values.
+        series = df[df[col] != defaults[col]][col]
 
-        if len(df_sub):
+        if len(series):
 
             # Modification: set ids to lowercase.
+            # Filter records to values which are not already lowercase.
+            s_filtered = series[~series.map(str.islower)]
+
             # Apply modification, if required.
-            col_mod = df_sub[df_sub[field].map(lambda val: val != val.lower())][field]
-            if len(col_mod):
-                df_sub.loc[col_mod.index, field] = col_mod.map(str.lower)
-                df.loc[col_mod.index, field] = col_mod.map(str.lower)
+            if len(s_filtered):
+                series.loc[s_filtered.index] = s_filtered.map(str.lower)
+                df.loc[series.index, col] = series
                 mod_flag = True
 
                 # Log modifications.
-                logger.warning(f"Modified {len(col_mod)} record(s) in column {field}."
+                logger.warning(f"Modified {len(s_filtered)} record(s) in column {col}."
                                "\nModification details: Field values set to lower case.")
 
             # Validation 1: ensure ids are 32 digits.
             # Compile uuids of flagged records.
-            flag_uuids = df_sub[df_sub[field].map(lambda val: len(val) != 32)].index.values
-            for val in flag_uuids:
-                errors[1].append(f"uuid: {val}, based on attribute field: {field}.")
+            flag_uuids = series[series.map(len) != 32].index.values
+            for id in flag_uuids:
+                errors[1].append(f"uuid: {id}, based on attribute field: {col}.")
 
             # Validation 2: ensure ids are hexadecimal.
             # Compile uuids of flagged records.
-            flag_uuids = df_sub[df_sub[field].map(
-                lambda val: not all(map(lambda c: c in string.hexdigits, set(val))))].index.values
-            for val in flag_uuids:
-                errors[2].append(f"uuid: {val}, based on attribute field: {field}.")
+            hexdigits = set(string.hexdigits)
+            flag_uuids = series[series.map(lambda id: not set(id).issubset(hexdigits))].index.values
+            for id in flag_uuids:
+                errors[2].append(f"uuid: {id}, based on attribute field: {col}.")
 
     # Iterate unique id fields.
-    unique_fields = ["ferrysegid", "roadsegid"]
-    for field in [fld for fld in unique_fields if fld in df.columns]:
+    unique_fields = {"ferrysegid", "roadsegid"}
+    for col in unique_fields.intersection(set(df.columns)):
 
-        # Validation 3: ensure unique id fields are unique.
+        # Filter dataframe to required column.
+        series = df[col]
+
+        # Validation 3: ensure unique id fields are unique within their column.
         # Compile uuids of flagged records.
-        flag_uuids = df[df[field].duplicated(keep=False)].index.values
-        for val in flag_uuids:
-            errors[3].append(f"uuid: {val}, based on attribute field: {field}.")
+        flag_uuids = series[series.duplicated(keep=False)].index.values
+        for id in flag_uuids:
+            errors[3].append(f"uuid: {id}, based on attribute field: {col}.")
 
         # Validation 4: ensure unique id fields are not the default field value.
         # Compile uuids of flagged records.
-        flag_uuids = df[df[field] == defaults[field]].index.values
-        for val in flag_uuids:
-            errors[4].append(f"uuid: {val}, based on attribute field: {field}.")
+        flag_uuids = series[series == defaults[col]].index.values
+        for id in flag_uuids:
+            errors[4].append(f"uuid: {id}, based on attribute field: {col}.")
 
     if mod_flag:
         return {"errors": errors, "modified_dframes": df.copy(deep=True)}
@@ -441,36 +445,39 @@ def validate_ids(df):
         return {"errors": errors}
 
 
-# TODO: review
 def validate_line_endpoint_clustering(df):
-    """Validates the quantity of points clustered near the endpoints of line segments."""
+    """
+    Validates the quantity of points clustered near the endpoints of line segments.
+    Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
+    """
 
-    # Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
     errors = None
 
     # Transform records to a meter-based crs: EPSG:3348.
-    df = helpers.reproject_gdf(df, 4617, 3348)
+    series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
 
     # Filter out records with <= 3 points or length < 83 meters.
-    df_subset = df[~df["geometry"].map(lambda geom: len(geom.coords) <= 3 or geom.length < 83)]
+    s_filtered = series[series.length >= 83]
+    s_filtered = s_filtered[s_filtered.map(lambda geom: len(geom.coords) > 3)]
 
-    if len(df_subset):
+    if len(s_filtered):
 
         # Identify invalid records.
         # Process: either of the following must be true:
         # a) The distance of the 4th point along the linestring is < 83 meters.
         # b) The total linestring length minus the distance of the 4th-last point along the linestring is < 83 meters.
-        flags = np.vectorize(lambda geom: (geom.project(Point(geom.coords[3])) < 83) or
-                                          ((geom.length - geom.project(Point(geom.coords[-4]))) < 83)
-                             )(df_subset["geometry"])
+        def endpoint_clustered(geom):
+            pts = itemgetter(3, -4)(geom.coords)
+            return (geom.project(Point(pts[0])) < 83) or ((geom.length - geom.project(Point(pts[1]))) < 83)
+
+        flags = np.vectorize(endpoint_clustered)(s_filtered)
 
         # Compile uuids of flagged records.
-        errors = df_subset[flags].index.values
+        errors = s_filtered[flags].index.values
 
     return {"errors": errors}
 
 
-# TODO: review
 def validate_line_length(df):
     """Validates the minimum feature length of line geometries."""
 
@@ -478,37 +485,43 @@ def validate_line_length(df):
 
     # Filter records to 0.0002 degrees length (approximately 22.2 meters).
     # Purely intended to reduce processing.
-    df_sub = df[df.length <= 0.0002]
+    series = df[df.length <= 0.0002]["geometry"]
 
-    if len(df_sub):
+    if len(series):
 
         # Transform records to a meter-based crs: EPSG:3348.
-        df_sub = helpers.reproject_gdf(df_sub, 4617, 3348)
+        series = helpers.reproject_gdf(series, 4617, 3348)
 
         # Validation: ensure line segments are >= 2 meters in length.
-        errors = df_sub[df_sub.length < 2].index.values
+        errors = series[series.length < 2].index.values
 
     return {"errors": errors}
 
 
 # TODO: review
 def validate_line_merging_angle(df):
-    """Validates the merging angle of line segments."""
+    """
+    Validates the merging angle of line segments.
+    Validation: ensure line segments merge at angles >= 40 degrees.
+    """
 
-    # Validation: ensure line segments merge at angles >= 40 degrees.
+    errors = None
 
     # Transform records to a meter-based crs: EPSG:3348.
-    df = helpers.reproject_gdf(df, 4617, 3348)
+    series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
 
     # Compile the uuid groups for all non-unique points.
 
+    # Compile coordinates (used multiple times; only requires first 2 and last 2 points).
+    pts = series.map(lambda g: list(map(
+        lambda coords: itemgetter(0, 1)(coords), itemgetter(0, 1, -2, -1)(attrgetter("coords")(g)))))
+
     # Construct a uuid series aligned to the series of points.
-    pts_uuid = np.concatenate([[uuid] * count for uuid, count in
-                               df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
+    pts_uuid = np.repeat(series.index.values, pts.map(len))
 
     # Construct x- and y-coordinate series aligned to the series of points.
     # Disregard z-coordinates.
-    pts_x, pts_y, pts_z = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
+    pts_x, pts_y, pts_z = np.concatenate(series.map(attrgetter("coords")).to_numpy()).T
 
     # Join the uuids, x-, and y-coordinates.
     pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
@@ -520,17 +533,13 @@ def validate_line_merging_angle(df):
     uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
 
     # Exit function if no shared points exists (b/c therefore no line merges exist).
-    if not len(uuids_grouped):
-
-        errors = None
-
-    else:
+    if len(uuids_grouped):
 
         # Retrieve the next point, relative to the target point, for each grouped uuid associated with each point.
 
         # Compile the endpoints and next-to-endpoint points for each uuid.
-        pts_uuid = dict.fromkeys(df.index.values)
-        for uuid, geom in df["geometry"].iteritems():
+        pts_uuid = dict.fromkeys(series.index.values)
+        for uuid, geom in series.iteritems():
             pts_uuid[uuid] = list(map(lambda coord: coord[:2], itemgetter(0, 1, -2, -1)(geom.coords)))
 
         # Explode grouped uuids. Maintain index point as both index and column.
@@ -684,13 +693,13 @@ def validate_nbrlanes(df):
     """Applies a set of validations to nbrlanes field."""
 
     # Subset dataframe to non-default values.
-    df_subset = df[df["nbrlanes"] != defaults_all["roadseg"]["nbrlanes"]]
+    df_filtered = df[df["nbrlanes"] != defaults_all["roadseg"]["nbrlanes"]]
 
     # Validation: ensure 1 <= nbrlanes <= 8.
-    flags = df_subset["nbrlanes"].map(lambda nbrlanes: not 1 <= int(nbrlanes) <= 8)
+    flags = df_filtered["nbrlanes"].map(lambda nbrlanes: not 1 <= int(nbrlanes) <= 8)
 
     # Compile uuids of flagged records.
-    errors = df_subset[flags].index.values
+    errors = df_filtered[flags].index.values
 
     return {"errors": errors}
 
@@ -729,7 +738,7 @@ def validate_nid_linkages(df, dfs_all):
     # Identify dataframe name to configure nid linkages.
     id_table = None
     for table in defaults_all:
-        if all([fld in defaults_all[table] for fld in df.columns.difference(["uuid", "geometry"])]):
+        if all(fld in defaults_all[table] for fld in df.columns.difference(["uuid", "geometry"])):
             id_table = table
             break
 
@@ -837,7 +846,7 @@ def validate_road_structures(roadseg, junction):
 
     # Compile truly invalid road segments.
     roadseg_invalid = roadseg_invalid[roadseg_invalid["geometry"].map(
-        lambda geom: any([coords in deadend_coords for coords in itemgetter(0, -1)(geom.coords)]))]
+        lambda geom: any(coords in deadend_coords for coords in itemgetter(0, -1)(geom.coords)))]
 
     # Compile uuids of flagged records.
     errors[1] = roadseg_invalid.index.values
@@ -1081,18 +1090,18 @@ def validate_speed(df):
     errors = dict()
 
     # Subset dataframe to non-default values.
-    df_subset = df[df["speed"] != defaults_all["roadseg"]["speed"]]
+    df_filtered = df[df["speed"] != defaults_all["roadseg"]["speed"]]
 
     # Validation: ensure 5 <= speed <= 120.
-    flags = df_subset["speed"].map(lambda speed: not 5 <= int(speed) <= 120)
+    flags = df_filtered["speed"].map(lambda speed: not 5 <= int(speed) <= 120)
 
     # Compile uuids of flagged records.
-    errors[1] = df_subset[flags].index.values
+    errors[1] = df_filtered[flags].index.values
 
     # Validation 2: ensure speed is a multiple of 5.
-    flags = df_subset["speed"].map(lambda speed: int(speed) % 5 != 0)
+    flags = df_filtered["speed"].map(lambda speed: int(speed) % 5 != 0)
 
     # Compile uuids of flagged records.
-    errors[2] = df_subset[flags].index.values
+    errors[2] = df_filtered[flags].index.values
 
     return {"errors": errors}
