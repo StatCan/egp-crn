@@ -499,6 +499,9 @@ def validate_line_length(df):
 
 
 # TODO: review
+# Test times (seconds):
+# original: 244
+# new: 156
 def validate_line_merging_angle(df):
     """
     Validates the merging angle of line segments.
@@ -513,37 +516,25 @@ def validate_line_merging_angle(df):
     # Compile the uuid groups for all non-unique points.
 
     # Compile coordinates (used multiple times; only requires first 2 and last 2 points).
-    pts = series.map(lambda g: list(map(
-        lambda coords: itemgetter(0, 1)(coords), itemgetter(0, 1, -2, -1)(attrgetter("coords")(g)))))
+    # Export coordinate-uuid lookup dict.
+    pts = series.map(lambda g: tuple(map(itemgetter(0, 1), itemgetter(0, 1, -2, -1)(attrgetter("coords")(g)))))
+    pts_uuid_lookup = pts.to_dict()
 
-    # Construct a uuid series aligned to the series of points.
-    pts_uuid = np.repeat(series.index.values, pts.map(len))
+    # Explode point groups, filter to only duplicates, and construct a dataframe of the uuids and coordinates.
+    pts_exploded = pts.explode()
+    pts_dups = pts_exploded[pts_exploded.duplicated(keep=False)]
+    pts_df = pd.DataFrame({"coords": pts_dups, "uuid": pts_dups.index})
 
-    # Construct x- and y-coordinate series aligned to the series of points.
-    # Disregard z-coordinates.
-    pts_x, pts_y, pts_z = np.concatenate(series.map(attrgetter("coords")).to_numpy()).T
-
-    # Join the uuids, x-, and y-coordinates.
-    pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
-
-    # Filter records to only duplicated points.
-    pts_df = pts_df[pts_df.duplicated(["x", "y"], keep=False)]
-
-    # Group uuids according to x- and y-coordinates.
-    uuids_grouped = pts_df.groupby(["x", "y"])["uuid"].apply(list)
+    # Group uuids according to coordinates.
+    uuids_grouped = helpers.groupby_to_list(pts_df, "coords", "uuid")
 
     # Exit function if no shared points exists (b/c therefore no line merges exist).
     if len(uuids_grouped):
 
-        # Retrieve the next point, relative to the target point, for each grouped uuid associated with each point.
-
-        # Compile the endpoints and next-to-endpoint points for each uuid.
-        pts_uuid = dict.fromkeys(series.index.values)
-        for uuid, geom in series.iteritems():
-            pts_uuid[uuid] = list(map(lambda coord: coord[:2], itemgetter(0, 1, -2, -1)(geom.coords)))
-
         # Explode grouped uuids. Maintain index point as both index and column.
-        uuids_grouped_ex = uuids_grouped.explode().reset_index(drop=False).set_index(["x", "y"], drop=False)
+        uuids_grouped_exploded = uuids_grouped.explode()
+        uuids_grouped_exploded = pd.DataFrame({"coords": uuids_grouped_exploded.index, "uuid": uuids_grouped_exploded})\
+            .reset_index(drop=True)
 
         # Compile next-to-endpoint points.
         # Process: Flag uuids according to duplication status within their group. For unique uuids, configure the
@@ -551,38 +542,28 @@ def validate_line_merging_angle(df):
         # (which represent self-loops), the first duplicate takes the second point, the second duplicate takes the
         # second-last point - thereby avoiding the same next-to-point being taken twice for self-loop intersections.
         dup_flags = {
-            "dup_none": ~uuids_grouped_ex.duplicated(keep=False),
-            "dup_first": uuids_grouped_ex.duplicated(keep="first"),
-            "dup_last": uuids_grouped_ex.duplicated(keep="last")
+            "dup_none": uuids_grouped_exploded[~uuids_grouped_exploded.duplicated(keep=False)][["uuid", "coords"]],
+            "dup_first": uuids_grouped_exploded[uuids_grouped_exploded.duplicated(keep="first")]["uuid"],
+            "dup_last": uuids_grouped_exploded[uuids_grouped_exploded.duplicated(keep="last")]["uuid"]
         }
         dup_results = {
-            "dup_none": pd.Series(np.vectorize(
-                lambda uuid, index: pts_uuid[uuid][1] if pts_uuid[uuid][0] == index else pts_uuid[uuid][-2],
-                otypes=[tuple])(uuids_grouped_ex[dup_flags["dup_none"]]["uuid"],
-                                uuids_grouped_ex[dup_flags["dup_none"]].index)).values,
-            "dup_first": pd.Series(np.vectorize(
-                lambda uuid, index: pts_uuid[uuid][1],
-                otypes=[tuple])(uuids_grouped_ex[dup_flags["dup_first"]]["uuid"],
-                                uuids_grouped_ex[dup_flags["dup_first"]].index)).values,
-            "dup_last": pd.Series(np.vectorize(
-                lambda uuid, index: pts_uuid[uuid][-2],
-                otypes=[tuple])(uuids_grouped_ex[dup_flags["dup_last"]]["uuid"],
-                                uuids_grouped_ex[dup_flags["dup_last"]].index)).values
+            "dup_none": np.vectorize(
+                lambda uid, pt: pts_uuid_lookup[uid][1] if pts_uuid_lookup[uid][0] == pt else pts_uuid_lookup[uid][-2],
+                otypes=[tuple])(dup_flags["dup_none"]["uuid"], dup_flags["dup_none"]["coords"]),
+            "dup_first": dup_flags["dup_first"].map(lambda uid: pts_uuid_lookup[uid][1]).values,
+            "dup_last": dup_flags["dup_last"].map(lambda uid: pts_uuid_lookup[uid][-2]).values
         }
 
-        uuids_grouped_ex["pt"] = None
-        uuids_grouped_ex.loc[dup_flags["dup_none"], "pt"] = dup_results["dup_none"]
-        uuids_grouped_ex.loc[dup_flags["dup_first"], "pt"] = dup_results["dup_first"]
-        uuids_grouped_ex.loc[dup_flags["dup_last"], "pt"] = dup_results["dup_last"]
+        uuids_grouped_exploded["pt"] = None
+        uuids_grouped_exploded.loc[dup_flags["dup_none"].index, "pt"] = dup_results["dup_none"]
+        uuids_grouped_exploded.loc[dup_flags["dup_first"].index, "pt"] = dup_results["dup_first"]
+        uuids_grouped_exploded.loc[dup_flags["dup_last"].index, "pt"] = dup_results["dup_last"]
 
         # Aggregate exploded groups.
-        uuids_grouped_ex.reset_index(drop=True, inplace=True)
-        pts_grouped = uuids_grouped_ex.groupby(["x", "y"])["pt"].agg(list)
+        pts_grouped = helpers.groupby_to_list(uuids_grouped_exploded, "coords", "pt")
 
         # Compile the permutations of points for each point group.
-        # Recover source point as index.
-        pts_grouped = pts_grouped.map(lambda pts: list(set(map(tuple, map(sorted, permutations(pts, r=2))))))
-        pts_grouped.index = uuids_grouped.index
+        pts_grouped = pts_grouped.map(lambda pts: set(map(tuple, map(sorted, permutations(pts, r=2)))))
 
         # Define function to calculate and return validity of angular degrees between two intersecting lines.
         def get_invalid_angle(pt1, pt2, ref_pt):
