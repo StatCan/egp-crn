@@ -11,8 +11,9 @@ import string
 import sys
 from collections import Counter
 from datetime import datetime
+from functools import reduce
 from itertools import chain, permutations
-from operator import attrgetter, itemgetter
+from operator import attrgetter, itemgetter, or_
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
 
@@ -498,10 +499,6 @@ def validate_line_length(df):
     return {"errors": errors}
 
 
-# TODO: review
-# Test times (seconds):
-# original: 244
-# new: 156
 def validate_line_merging_angle(df):
     """
     Validates the merging angle of line segments.
@@ -587,84 +584,42 @@ def validate_line_merging_angle(df):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_line_proximity(df):
     """Validates the proximity of line segments."""
 
     # Validation: ensure line segments are >= 3 meters from each other, excluding connected segments.
-
-    # Transform records to a meter-based crs: EPSG:3348.
-    df = helpers.reproject_gdf(df, 4617, 3348)
-
-    # Generate kdtree.
-    tree = cKDTree(np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()))
-
-    # Compile indexes of line segments with points within 3 meters distance.
-    proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=3))))
-
-    # Compile indexes of line segments with points at 0 meters distance. These represent points comprising the source
-    # line segment.
-    proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom, r=0))))
-
-    # Filter coincident indexes from all indexes.
-    proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=df.index.values)
-    proxi_idx_keep = proxi_idx.apply(lambda row: set(row[0]) - set(row[1]), axis=1)
-
-    # Compile the uuids of connected segments to each segment (i.e. segments connected to a given segment's endpoints).
-
-    # Construct a uuid series aligned to the series of segment endpoints.
-    endpoint_uuids = np.concatenate([[uuid, uuid] for uuid, count in
-                                     df["geometry"].map(lambda geom: len(geom.coords)).iteritems()])
-
-    # Construct x- and y-coordinate series aligned to the series of segment endpoints.
-    # Disregard z-coordinates.
-    endpoint_x, endpoint_y, endpoint_z = np.concatenate(
-        df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()).T
-
-    # Join the uuids, x-, and y-coordinates.
-    endpoint_df = pd.DataFrame({"x": endpoint_x, "y": endpoint_y, "uuid": endpoint_uuids})
-
-    # Group uuids according to x- and y-coordinates (i.e. compile uuids with a matching endpoint).
-    endpoint_uuids_grouped = endpoint_df.groupby(["x", "y"])["uuid"].apply(list)
-
-    # Compile the uuids to exclude from proximity analysis (i.e. connected segments to each source line segment).
-    # Procedure: retrieve the grouped uuids associated with the endpoints for each line segment.
-    df["exclude_uuids"] = df["geometry"].map(
-        lambda geom: set(chain.from_iterable(itemgetter(*map(
-            lambda pt: pt[:2], itemgetter(0, -1)(geom.coords)))(endpoint_uuids_grouped))))
-
-    # Compile the range of indexes for all coordinates associated with each line segment.
-    idx_ranges = dict.fromkeys(df.index.values)
-    base = 0
-    for index, count in df["geometry"].map(lambda geom: len(geom.coords)).iteritems():
-        idx_ranges[index] = [base, base + count]
-        base += count
-
-    # Convert connected uuid lists to index range lists.
-    df["exclude_ranges"] = df["exclude_uuids"].map(lambda uuids: itemgetter(*uuids)(idx_ranges))
-
-    # Expand index ranges to full set of indexes.
-    df["exclude_indexes"] = df["exclude_ranges"].map(
-        lambda ranges: set(range(*ranges)) if type(ranges) == list else set(chain(*map(lambda r: range(*r), ranges))))
-
-    # Join the remaining proximity indexes with excluded indexes.
-    proxi = pd.DataFrame({"indexes": proxi_idx_keep, "exclude": df["exclude_indexes"]}, index=df.index.values)
-
-    # Remove excluded indexes from proximity indexes.
-    proxi_results = proxi.apply(lambda row: row[0] - row[1], axis=1)
-
-    # Compile the uuid associated with every point from all line segments, in order.
-    idx_all = pd.Series(np.concatenate([[uuid] * len(range(*indexes)) for uuid, indexes in idx_ranges.items()]))
-
-    # Compile the uuid associated with resulting proximity point indexes for each line segment.
-    proxi_results = proxi_results.map(lambda indexes: itemgetter(*indexes)(idx_all) if indexes else False)
-
-    # Compile error properties.
     errors = list()
 
-    for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
-        errors.append(f"Feature uuid \"{source_uuid}\" is too close to feature uuid(s) "
-                      f"{', '.join(map(str, [target_uuids] if isinstance(target_uuids, str) else target_uuids))}.")
+    # Transform records to a meter-based crs: EPSG:3348.
+    series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
+
+    # Compile all unique segment coordinates.
+    pts = series.map(lambda g: list(set(attrgetter("coords")(g))))
+    pts_exploded = pts.explode()
+
+    # Generate lookup dicts for:
+    # 1) point coordinate to connected segment uuids.
+    # 2) point index to segment uuid.
+    pts_exploded_df = pd.DataFrame(pts_exploded).reset_index(drop=False)
+    pts_uuids_lookup = helpers.groupby_to_list(pts_exploded_df, "geometry", "uuid").to_dict()
+    pts_idx_uuid_lookup = pts_exploded_df["uuid"].to_dict()
+
+    # Generate kdtree.
+    tree = cKDTree(pts_exploded.to_list())
+
+    # Compile uuids connected to each segment.
+    uuids_exclude = pts.map(lambda points: set(chain.from_iterable(itemgetter(*points)(pts_uuids_lookup))))
+
+    # Compile indexes of segment points within 3 meters distance of each segment, retrieve uuids of returned indexes.
+    uuids_proxi = pts.map(
+        lambda points: set(itemgetter(*chain(*tree.query_ball_point(points, r=3)))(pts_idx_uuid_lookup)))
+
+    # Remove connected uuids from each set of uuids.
+    results = uuids_proxi - uuids_exclude
+
+    # Flag invalid records and compile error properties.
+    for source, target in results[results.map(len) > 0].iteritems():
+        errors.append(f"Feature uuid {source} is too close to feature uuid(s) {', '.join(map(str, target))}.")
 
     return {"errors": errors}
 
