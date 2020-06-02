@@ -11,7 +11,6 @@ import string
 import sys
 from collections import Counter
 from datetime import datetime
-from functools import reduce
 from itertools import chain, permutations
 from operator import attrgetter, itemgetter, or_
 from scipy.spatial import cKDTree
@@ -234,6 +233,7 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
 
     # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
+    errors = list()
 
     # Filter junctions to junctype = "Dead End", keep only required fields.
     deadends = junction[junction["junctype"] == "Dead End"]["geometry"]
@@ -243,21 +243,16 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     deadends = helpers.reproject_gdf(deadends, 4617, 3348)
     roadseg = helpers.reproject_gdf(roadseg, 4617, 3348)
 
-    # Generate kdtree.
-    tree = cKDTree(np.concatenate(roadseg.map(attrgetter("coords")).to_numpy()))
-
-    # Compile indexes of road segments within 5 meters distance of each deadend.
-    proxi_idx_all = deadends.map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=5))))
-
-    # Compile index of road segment at 0 meters distance from each deadend. These represent the connected roads.
-    proxi_idx_exclude = deadends.map(lambda geom: tree.query(geom.coords)[-1])
+    # Compile coordinates (used multiple times).
+    deadends = deadends.map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)))
+    roadseg = roadseg.map(lambda g: set(attrgetter("coords")(g)))
 
     # Generate a lookup dict for the index of each roadseg coordinate, mapped to the full range of coordinate indexes
     # for the road segment associated with that coordinate. Therefore, the coordinate identified for exclusion at
     # distance=0 can be associated with, and expanded to include, all other coordinates along that road segment.
     # Process: get the road segment coordinate counts and cumulative counts to generate an index range for each road
     # segment. Stack the results and duplicate the ranges by the coordinate counts. Convert to a dict.
-    coords_count = roadseg.map(lambda g: len(attrgetter("coords")(g)))
+    coords_count = roadseg.map(len)
     coords_idx_cumsum = coords_count.cumsum()
     coords_full_idx_range = np.repeat(list(map(
         lambda indexes: set(range(*indexes)),
@@ -265,11 +260,19 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
         coords_count)
     coords_full_idx_range_lookup = dict(zip(range(len(coords_full_idx_range)), coords_full_idx_range))
 
-    # Compile expanded index ranges.
+    # Generate kdtree.
+    tree = cKDTree(list(chain.from_iterable(roadseg)))
+
+    # Compile indexes of road segments within 5 meters distance of each deadend.
+    proxi_idx_all = deadends.map(lambda deadend: set(chain(*tree.query_ball_point([deadend], r=5))))
+
+    # Compile index of road segment at 0 meters distance from each deadend. These represent the connected roads.
+    # Expand indexes to ranges.
+    proxi_idx_exclude = deadends.map(lambda deadend: tree.query([deadend])[-1])
     proxi_idx_exclude = proxi_idx_exclude.map(lambda idx: itemgetter(*idx)(coords_full_idx_range_lookup))
 
     # Filter coincident indexes from all indexes. Keep only non-empty results.
-    proxi_idx_keep = proxi_idx_all.map(set) - proxi_idx_exclude.map(set)
+    proxi_idx_keep = proxi_idx_all - proxi_idx_exclude
     proxi_idx_keep = proxi_idx_keep[proxi_idx_keep.map(len) > 0]
 
     # Generate a lookup dict for the index of each roadseg coordinate, mapped to the associated uuid.
@@ -277,11 +280,9 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
 
     # Compile the uuid associated with resulting proximity point indexes for each deadend.
     proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(coords_idx_uuid_lookup))
-    proxi_results = proxi_results.map(lambda uuids: set(uuids) if isinstance(uuids, tuple) else [uuids])
+    proxi_results = proxi_results.map(lambda uuids: set(uuids) if isinstance(uuids, tuple) else {uuids})
 
     # Compile error properties.
-    errors = list()
-
     for source_uuid, target_uuids in proxi_results.iteritems():
         errors.append(f"junction uuid \"{source_uuid}\" is too close to roadseg uuid(s): "
                       f"{', '.join(map(str, target_uuids))}.")
@@ -575,7 +576,7 @@ def validate_line_merging_angle(df):
         # Calculate the angular degree between each reference point and each of their point permutations.
         # Return True if any angles are invalid.
         flags = np.vectorize(
-            lambda pt_groups, pt_ref: any(map(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
+            lambda pt_groups, pt_ref: any(filter(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
             pts_grouped, pts_grouped.index)
 
         # Compile the uuid groups as errors.
@@ -614,28 +615,27 @@ def validate_line_proximity(df):
     uuids_proxi = pts.map(
         lambda points: set(itemgetter(*chain(*tree.query_ball_point(points, r=3)))(pts_idx_uuid_lookup)))
 
-    # Remove connected uuids from each set of uuids.
+    # Remove connected uuids from each set of uuids, keep non-empty results.
     results = uuids_proxi - uuids_exclude
+    results = results[results.map(len) > 0]
 
-    # Flag invalid records and compile error properties.
-    for source, target in results[results.map(len) > 0].iteritems():
+    # Compile error properties.
+    for source, target in results.iteritems():
         errors.append(f"Feature uuid {source} is too close to feature uuid(s) {', '.join(map(str, target))}.")
 
     return {"errors": errors}
 
 
-# TODO: review
 def validate_nbrlanes(df):
     """Applies a set of validations to nbrlanes field."""
 
-    # Subset dataframe to non-default values.
-    df_filtered = df[df["nbrlanes"] != defaults_all["roadseg"]["nbrlanes"]]
+    # Subset dataframe to non-default values, keep only required fields.
+    default = defaults_all["roadseg"]["nbrlanes"]
+    s_filtered = df[df["nbrlanes"] != default]["nbrlanes"]
 
     # Validation: ensure 1 <= nbrlanes <= 8.
-    flags = df_filtered["nbrlanes"].map(lambda nbrlanes: not 1 <= int(nbrlanes) <= 8)
-
     # Compile uuids of flagged records.
-    errors = df_filtered[flags].index.values
+    errors = s_filtered[~s_filtered.map(lambda nbrlanes: 1 <= int(nbrlanes) <= 8)].index.values
 
     return {"errors": errors}
 
@@ -710,21 +710,26 @@ def validate_nid_linkages(df, dfs_all):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_pavement(df):
     """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
 
     errors = dict()
 
+    # Subset dataframe to non-default values, keep only required fields.
+    default = defaults_all["roadseg"]["pavstatus"]
+    df_filtered = df[df["pavstatus"] != default][["pavstatus", "pavsurf", "unpavsurf"]]
+
     # Apply validations and compile uuids of flagged records.
 
     # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
-    errors[1] = df[(df["pavstatus"] == "Paved") & (df["pavsurf"] == "None")].index.values
-    errors[2] = df[(df["pavstatus"] == "Paved") & (df["unpavsurf"] != "None")].index.values
+    paved = df_filtered[df_filtered["pavstatus"] == "Paved"]
+    errors[1] = paved[paved["pavsurf"] == "None"].index.values
+    errors[2] = paved[paved["unpavsurf"] != "None"].index.values
 
     # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
-    errors[3] = df[(df["pavstatus"] == "Unpaved") & (df["pavsurf"] != "None")].index.values
-    errors[4] = df[(df["pavstatus"] == "Unpaved") & (df["unpavsurf"] == "None")].index.values
+    unpaved = df_filtered[df_filtered["pavstatus"] == "Unpaved"]
+    errors[3] = unpaved[unpaved["pavsurf"] != "None"].index.values
+    errors[4] = unpaved[unpaved["unpavsurf"] == "None"].index.values
 
     return {"errors": errors}
 
@@ -771,18 +776,21 @@ def validate_road_structures(roadseg, junction):
     errors = dict()
     defaults = defaults_all["roadseg"]
 
+    # Filter dataframes to only required fields.
+    junction = junction[junction["junctype"] == "Dead End"]["geometry"]
+    roadseg = roadseg[["uuid", "structid", "structtype", "geometry"]]
+
     # Validation 1: ensure dead end road segments have structtype = "None" or the default field value.
 
     # Compile dead end coordinates.
-    deadend_coords = list(set(chain([geom.coords[0] for geom in
-                                     junction[junction["junctype"] == "Dead End"]["geometry"].values])))
+    deadend_coords = set(chain(junction.map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
 
     # Compile road segments with potentially invalid structtype.
-    roadseg_invalid = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
+    roadseg_invalid = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]["geometry"]
 
     # Compile truly invalid road segments.
-    roadseg_invalid = roadseg_invalid[roadseg_invalid["geometry"].map(
-        lambda geom: any(coords in deadend_coords for coords in itemgetter(0, -1)(geom.coords)))]
+    roadseg_invalid = roadseg_invalid[roadseg_invalid.map(
+        lambda g: any(coords in deadend_coords for coords in attrgetter("coords")(g)))]
 
     # Compile uuids of flagged records.
     errors[1] = roadseg_invalid.index.values
@@ -830,8 +838,6 @@ def validate_road_structures(roadseg, junction):
     segments = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
 
     # Convert dataframe to networkx graph.
-    # Drop all columns except uuid, structid, structtype, and geometry to reduce processing.
-    segments.drop(segments.columns.difference(["uuid", "structid", "structtype", "geometry"]), axis=1, inplace=True)
     segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
 
     # Configure subgraphs.
@@ -861,15 +867,18 @@ def validate_road_structures(roadseg, junction):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_roadclass_rtnumber1(df):
     """Applies a set of validations to roadclass and rtnumber1 fields."""
+
+    # Subset dataframe to only required fields.
+    df_filtered = df[["roadclass", "rtnumber1"]]
 
     # Apply validations and compile uuids of flagged records.
 
     # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
+    default = defaults_all["roadseg"]["rtnumber1"]
     errors = df[df["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
-                df["rtnumber1"].map(lambda rtnumber1: rtnumber1 == defaults_all["roadseg"]["rtnumber1"])].index.values
+                df["rtnumber1"].map(lambda rtnumber1: rtnumber1 == default)].index.values
 
     return {"errors": errors}
 
@@ -1019,25 +1028,20 @@ def validate_route_contiguity(roadseg, ferryseg):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_speed(df):
     """Applies a set of validations to speed field."""
 
     errors = dict()
 
-    # Subset dataframe to non-default values.
-    df_filtered = df[df["speed"] != defaults_all["roadseg"]["speed"]]
+    # Subset dataframe to non-default values, keep only required fields.
+    default = defaults_all["roadseg"]["speed"]
+    s_filtered = df[df["speed"] != default]["speed"]
 
-    # Validation: ensure 5 <= speed <= 120.
-    flags = df_filtered["speed"].map(lambda speed: not 5 <= int(speed) <= 120)
-
+    # Validation 1: ensure 5 <= speed <= 120.
     # Compile uuids of flagged records.
-    errors[1] = df_filtered[flags].index.values
+    errors[1] = s_filtered[~s_filtered.map(lambda speed: 5 <= int(speed) <= 120)].index.values
 
     # Validation 2: ensure speed is a multiple of 5.
-    flags = df_filtered["speed"].map(lambda speed: int(speed) % 5 != 0)
-
-    # Compile uuids of flagged records.
-    errors[2] = df_filtered[flags].index.values
+    errors[2] = s_filtered[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
 
     return {"errors": errors}
