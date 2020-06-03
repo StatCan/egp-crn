@@ -11,6 +11,7 @@ import string
 import sys
 from collections import Counter
 from datetime import datetime
+from functools import reduce
 from itertools import chain, permutations
 from operator import attrgetter, itemgetter, or_
 from scipy.spatial import cKDTree
@@ -769,11 +770,10 @@ def validate_point_proximity(df):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_road_structures(roadseg, junction):
     """Validates the structid and structtype attributes of road segments."""
 
-    errors = dict()
+    errors = {1: list(), 2: list(), 3: list(), 4: list()}
     defaults = defaults_all["roadseg"]
 
     # Filter dataframes to only required fields.
@@ -796,13 +796,10 @@ def validate_road_structures(roadseg, junction):
     errors[1] = roadseg_invalid.index.values
 
     # Validation 2: ensure structid is contiguous.
-    errors[2] = list()
 
-    # Compile structids.
-    structids = roadseg["structid"].unique()
-
-    # Remove default value.
-    structids = structids[np.where(structids != defaults["structid"])]
+    # Compile duplicated structids, excluding default value.
+    structids = roadseg[(roadseg["structid"] != defaults["structid"]) &
+                        (roadseg["structid"].duplicated(keep=False))]["structid"].unique()
 
     if len(structids):
 
@@ -813,13 +810,14 @@ def validate_road_structures(roadseg, junction):
             logger.info(f"Validating structure {index + 1} of {structid_count}: \"{structid}\".")
 
             # Subset dataframe to those records with current structid.
-            structure = roadseg.iloc[list(np.where(roadseg["structid"] == structid)[0])]
+            structure = roadseg[roadseg["structid"] == structid]
 
             # Load structure as networkx graph.
             structure_graph = helpers.gdf_to_nx(structure, keep_attributes=False)
 
             # Validate contiguity (networkx connectivity).
             if not nx.is_connected(structure_graph):
+
                 # Identify deadends (locations of discontiguity).
                 deadends = [coords for coords, degree in structure_graph.degree() if degree == 1]
                 deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
@@ -831,8 +829,6 @@ def validate_road_structures(roadseg, junction):
     #               structtype.
     # Validation 4: ensure road segments with different structtypes, excluding "None" and the default field value, are
     #               not contiguous.
-    errors[3] = list()
-    errors[4] = list()
 
     # Compile road segments with valid structtype.
     segments = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
@@ -841,28 +837,36 @@ def validate_road_structures(roadseg, junction):
     segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
 
     # Configure subgraphs.
-    sub_g = nx.connected_component_subgraphs(segments_graph)
+    sub_g = pd.Series(nx.connected_component_subgraphs(segments_graph))
 
-    # Iterate subgraphs and apply validations.
-    for index, s in enumerate(sub_g):
+    # Validation 3.
+    default = defaults["structid"]
+    structids = sub_g.map(lambda graph: set(nx.get_edge_attributes(graph, "structid").values()))
+    structids_invalid = structids[structids.map(lambda vals: (len(vals) > 1) or (default in vals))]
+    if len(structids_invalid):
 
-        # Validation 3.
-        structids = set(nx.get_edge_attributes(s, "structid").values())
-        if len(structids) > 1 or defaults["structid"] in structids:
+        # Compile uuids of invalid structure.
+        uuids_invalid = sub_g.loc[structids_invalid.index].map(
+            lambda graph: set(nx.get_edge_attributes(graph, "uuid").values()))
 
-            # Compile error properties.
-            uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors[3].append(f"Structure: {index}. Structure uuids: {', '.join(map(str, uuids))}. Structure IDs: "
-                             f"{', '.join(map(str, structids))}.")
+        # Compile error properties.
+        for index, row in pd.DataFrame({"uuids": uuids_invalid, "structids": structids_invalid}).iterrows():
+            errors[3].append(f"Structure formed by uuid(s): {', '.join(map(str, row[0]))} contains the following "
+                             f"structid(s): {', '.join(map(str, row[1]))}.")
 
-        # Validation 4.
-        structtypes = set(nx.get_edge_attributes(s, "structtype").values())
-        if len(structtypes) > 1:
+    # Validation 4.
+    structtypes = sub_g.map(lambda graph: set(nx.get_edge_attributes(graph, "structtype").values()))
+    structtypes_invalid = structtypes[structtypes.map(len) > 1]
+    if len(structtypes_invalid):
 
-            # Compile error properties.
-            uuids = list(set(nx.get_edge_attributes(s, "uuid").values()))
-            errors[4].append(f"Structure: {index}. Structure uuids: {', '.join(map(str, uuids))}. Structure types: "
-                             f"{', '.join(map(str, structtypes))}.")
+        # Compile uuids of invalid structure.
+        uuids_invalid = sub_g.loc[structtypes_invalid.index].map(
+            lambda graph: set(nx.get_edge_attributes(graph, "uuid").values()))
+
+        # Compile error properties.
+        for index, row in pd.DataFrame({"uuids": uuids_invalid, "structtypes": structtypes_invalid}).iterrows():
+            errors[4].append(f"Structure formed by uuid(s): {', '.join(map(str, row[0]))} contains the following "
+                             f"structtypes(s): {', '.join(map(str, row[1]))}.")
 
     return {"errors": errors}
 
@@ -870,7 +874,7 @@ def validate_road_structures(roadseg, junction):
 def validate_roadclass_rtnumber1(df):
     """Applies a set of validations to roadclass and rtnumber1 fields."""
 
-    # Subset dataframe to only required fields.
+    # Filter dataframe to only required fields.
     df_filtered = df[["roadclass", "rtnumber1"]]
 
     # Apply validations and compile uuids of flagged records.
@@ -970,6 +974,9 @@ def validate_roadclass_structtype(df, return_segments_only=False):
 
 
 # TODO: exclude none names
+# RUNTIMES:
+# Original: 260
+# New: ?
 def validate_route_contiguity(roadseg, ferryseg):
     """
     Applies a set of validations to route attributes (rows represent field groups):
@@ -980,15 +987,28 @@ def validate_route_contiguity(roadseg, ferryseg):
 
     errors = list()
 
+    # Define field groups.
+    field_groups = [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
+                    ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"],
+                    ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]]
+
+    # Filter dataframes to only required fields.
+    keep_fields = list(chain.from_iterable([*field_groups, ["geometry"]]))
+    roadseg = roadseg[keep_fields]
+    ferryseg = ferryseg[keep_fields]
+
     # Concatenate ferryseg and roadseg.
     df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=True, sort=False))
 
     # Validation: ensure route has contiguous geometry.
-    for field_group in [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
-                        ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"],
-                        ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]]:
+    for field_group in field_groups:
 
         logger.info(f"Validating routes in field group: {', '.join(map(str, field_group))}.")
+
+        # Filter dataframe to non-default values across all fields, keep only field group.
+        default = defaults_all["roadseg"][field_group[0]]
+        df_filtered = df[(df[field_group].values != default).any(axis=1)][field_group]
+        # TODO: not fixed beyond this point.
 
         # Compile route names.
         route_names = [df[col].unique() for col in field_group]
