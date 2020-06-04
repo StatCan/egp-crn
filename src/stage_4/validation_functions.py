@@ -11,9 +11,8 @@ import string
 import sys
 from collections import Counter
 from datetime import datetime
-from functools import reduce
 from itertools import chain, permutations
-from operator import attrgetter, itemgetter, or_
+from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
 
@@ -37,7 +36,6 @@ def identify_duplicate_lines(df):
     # Keep only required fields.
     col = df["geometry"]
 
-    # Note: filters are purely intended to reduce processing.
     # Filter geometries to those with duplicate lengths.
     s_filtered = col[col.length.duplicated(keep=False)]
 
@@ -66,12 +64,15 @@ def identify_duplicate_points(df):
     return {"errors": errors}
 
 
-def identify_isolated_lines(roadseg, ferryseg, junction):
+def identify_isolated_lines(roadseg, junction, ferryseg=None):
     """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
 
     # Concatenate ferryseg and roadseg dataframes, keeping only required fields.
-    df = gpd.GeoDataFrame(pd.concat([ferryseg[["uuid", "geometry"]], roadseg[["uuid", "geometry"]]],
-                                    ignore_index=False, sort=False))
+    if ferryseg:
+        df = gpd.GeoDataFrame(pd.concat([ferryseg[["uuid", "geometry"]], roadseg[["uuid", "geometry"]]],
+                                        ignore_index=False, sort=False))
+    else:
+        df = roadseg.copy(deep=True)
 
     # Compile dead end junctions.
     deadends = set(chain([geom.coords[0] for geom in junction[junction["junctype"] == "Dead End"]["geometry"].values]))
@@ -487,7 +488,6 @@ def validate_line_length(df):
     errors = None
 
     # Filter records to 0.0002 degrees length (approximately 22.2 meters).
-    # Purely intended to reduce processing.
     series = df[df.length <= 0.0002]["geometry"]
 
     if len(series):
@@ -641,7 +641,6 @@ def validate_nbrlanes(df):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_nid_linkages(df, dfs_all):
     """
     Validates the nid linkages for the input dataframe.
@@ -672,41 +671,35 @@ def validate_nid_linkages(df, dfs_all):
             }
     }
 
-    # Identify dataframe name to configure nid linkages.
+    # Identify dataframe name.
     id_table = None
     for table in defaults_all:
-        if all(fld in defaults_all[table] for fld in df.columns.difference(["uuid", "geometry"])):
+        if set(defaults_all[table]).issubset(df.columns):
             id_table = table
             break
 
-    # Iterate nid tables.
-    for nid_table in [t for t in linkages if t in dfs_all]:
+    # Iterate nid tables which link to the id table.
+    for nid_table in filter(lambda t: id_table in linkages[t], set(linkages).intersection(dfs_all)):
 
         # Retrieve nids as lowercase.
         nids = set(dfs_all[nid_table]["nid"].map(str.lower))
 
-        # Validate table linkage.
-        if id_table in linkages[nid_table]:
+        # Iterate linked columns.
+        for col in linkages[nid_table][id_table]:
 
-            # Iterate linked columns.
-            for col in linkages[nid_table][id_table]:
+            # Validation: ensure all nid linkages are valid.
+            print(f"Validating nid linkage: {nid_table}.nid - {id_table}.{col}.")
 
-                # Retrieve column ids as lowercase.
-                ids = set(df[col].map(str.lower))
+            # Retrieve column ids as lowercase.
+            ids = set(df[col].map(str.lower))
 
-                # Validation: ensure all nid linkages are valid.
-                logger.info(f"Validating nid linkage: {nid_table}.nid - {id_table}.{col}.")
+            # Compile invalid ids.
+            invalid_ids = ids - nids
 
-                if not ids.issubset(nids):
-
-                    # Compile invalid ids.
-                    flag_ids = list(ids - nids)
-
-                    # Configure error message.
-                    if len(flag_ids):
-                        vals = "\n".join(map(str, flag_ids))
-                        errors.append(f"The following values from {id_table}.{col} are not present in {nid_table}.nid:"
-                                      f"\n{vals}")
+            # Configure error message.
+            if len(invalid_ids):
+                ids = "\n".join(map(str, invalid_ids))
+                errors.append(f"The following values from {id_table}.{col} are not present in {nid_table}.nid:\n{ids}")
 
     return {"errors": errors}
 
@@ -735,37 +728,36 @@ def validate_pavement(df):
     return {"errors": errors}
 
 
-# TODO: review
 def validate_point_proximity(df):
     """Validates the proximity of points."""
 
     # Validation: ensure points are >= 3 meters from each other.
-
-    # Transform records to a meter-based crs: EPSG:3348.
-    df = helpers.reproject_gdf(df, 4617, 3348)
-
-    # Generate kdtree.
-    tree = cKDTree(np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()))
-
-    # Compile indexes of points with other points within 3 meters distance.
-    proxi_idx_all = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=3))))
-
-    # Compile indexes of points with other points at 0 meters distance. These represent the source point.
-    proxi_idx_exclude = df["geometry"].map(lambda geom: list(chain(*tree.query_ball_point(geom.coords, r=0))))
-
-    # Filter coincident indexes from all indexes.
-    proxi_idx = pd.DataFrame({"all": proxi_idx_all, "exclude": proxi_idx_exclude}, index=df.index.values)
-    proxi_idx_keep = proxi_idx.apply(lambda row: set(row[0]) - set(row[1]), axis=1)
-
-    # Compile the uuid associated with resulting proximity point indexes for each point.
-    proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(df.index) if indexes else False)
-
-    # Compile error properties.
     errors = list()
 
-    for source_uuid, target_uuids in proxi_results[proxi_results != False].iteritems():
-        errors.append(f"Feature uuid \"{source_uuid}\" is too close to feature uuid(s) "
-                      f"{', '.join(map(str, [target_uuids] if isinstance(target_uuids, str) else target_uuids))}.")
+    # Transform records to a meter-based crs: EPSG:3348.
+    series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
+
+    # Compile coordinates (used multiple times)
+    pts = series.map(lambda g: itemgetter(0)(attrgetter("coords")(g)))
+
+    # Generate kdtree.
+    tree = cKDTree(pts.to_list())
+
+    # Compile indexes of points with other points within 3 meters distance. Only keep results with > 1 match.
+    proxi_idx_all = pts.map(lambda pt: set(chain(*tree.query_ball_point([pt], r=3))))
+    proxi_idx_all = proxi_idx_all[proxi_idx_all.map(len) > 1]
+
+    # Compile and filter coincident index from each set of indexes for each point, keep non-empty results.
+    proxi_idx_exclude = pd.Series(range(len(pts)), index=pts.index).map(lambda index: {index})
+    proxi_idx_keep = proxi_idx_all - proxi_idx_exclude.loc[proxi_idx_all.index]
+
+    # Compile uuids associated with each index.
+    pts_idx_uuid_lookup = {index: uid for index, uid in enumerate(pts.index)}
+    results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(pts_idx_uuid_lookup))
+
+    # Compile error properties.
+    for source, target in results.iteritems():
+        errors.append(f"Feature uuid {source} is too close to feature uuid(s) {', '.join(map(str, target))}.")
 
     return {"errors": errors}
 
@@ -797,33 +789,31 @@ def validate_road_structures(roadseg, junction):
 
     # Validation 2: ensure structid is contiguous.
 
-    # Compile duplicated structids, excluding default value.
-    structids = roadseg[(roadseg["structid"] != defaults["structid"]) &
-                        (roadseg["structid"].duplicated(keep=False))]["structid"].unique()
+    # Compile records with duplicated structids, excluding default value.
+    structids_df = roadseg[(roadseg["structid"] != defaults["structid"]) &
+                           (roadseg["structid"].duplicated(keep=False))]
 
-    if len(structids):
+    if len(structids_df):
 
-        # Iterate structids.
-        structid_count = len(structids)
-        for index, structid in enumerate(sorted(structids)):
+        # Group records by structid.
+        structures = helpers.groupby_to_list(structids_df, "structid", "geometry")
 
-            logger.info(f"Validating structure {index + 1} of {structid_count}: \"{structid}\".")
+        # Load structure geometries as networkx graphs.
+        structure_graphs = structures.map(
+            lambda geoms: helpers.gdf_to_nx(gpd.GeoDataFrame(geometry=geoms), keep_attributes=False))
 
-            # Subset dataframe to those records with current structid.
-            structure = roadseg[roadseg["structid"] == structid]
+        # Validate contiguity (networkx connectivity).
+        structures_invalid = structure_graphs[~structure_graphs.map(nx.is_connected)]
 
-            # Load structure as networkx graph.
-            structure_graph = helpers.gdf_to_nx(structure, keep_attributes=False)
+        if len(structures_invalid):
 
-            # Validate contiguity (networkx connectivity).
-            if not nx.is_connected(structure_graph):
+            # Identify deadends (locations of discontiguity).
+            results = structures_invalid.map(lambda graph: [pt for pt, degree in graph.degree() if degree == 1])
 
-                # Identify deadends (locations of discontiguity).
-                deadends = [coords for coords, degree in structure_graph.degree() if degree == 1]
-                deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
-
-                # Compile error properties.
-                errors[2].append(f"Structure ID: \"{structid}\".\nEndpoints:\n{deadends}.")
+            # Compile error properties.
+            for structid, deadends in results.iterrows():
+                deadends = "\n".join(map(lambda deadend: f"{deadend[0]}, {deadend[1]}", deadends))
+                errors[2].append(f"Structure structid: {structid}.\nEndpoints:\n{deadends}.")
 
     # Validation 3: ensure a single, non-default structid is applied to all contiguous road segments with the same
     #               structtype.
@@ -917,7 +907,7 @@ def validate_roadclass_self_intersection(df):
     # Multi-segment road elements:
 
     # Compile multi-segment road elements (via non-unique nids).
-    # Filter to nids with invalid roadclass (intended to reduce spatial processing).
+    # Filter to nids with invalid roadclass.
     segments_multi = df[(df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
 
     if not segments_multi.empty:
@@ -973,11 +963,7 @@ def validate_roadclass_structtype(df, return_segments_only=False):
         return {"errors": errors}
 
 
-# TODO: exclude none names
-# RUNTIMES:
-# Original: 260
-# New: ?
-def validate_route_contiguity(roadseg, ferryseg):
+def validate_route_contiguity(roadseg, ferryseg=None):
     """
     Applies a set of validations to route attributes (rows represent field groups):
         rtename1en, rtename2en, rtename3en, rtename4en,
@@ -995,55 +981,52 @@ def validate_route_contiguity(roadseg, ferryseg):
     # Filter dataframes to only required fields.
     keep_fields = list(chain.from_iterable([*field_groups, ["geometry"]]))
     roadseg = roadseg[keep_fields]
-    ferryseg = ferryseg[keep_fields]
+    if ferryseg:
+        ferryseg = ferryseg[keep_fields]
 
     # Concatenate ferryseg and roadseg.
-    df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=True, sort=False))
+    if ferryseg:
+        df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=True, sort=False))
+    else:
+        df = roadseg.copy(deep=True)
 
     # Validation: ensure route has contiguous geometry.
     for field_group in field_groups:
 
         logger.info(f"Validating routes in field group: {', '.join(map(str, field_group))}.")
 
-        # Filter dataframe to non-default values across all fields, keep only field group.
+        # Filter dataframe to records with >= 1 non-default values across the field group, keep only required fields.
         default = defaults_all["roadseg"][field_group[0]]
-        df_filtered = df[(df[field_group].values != default).any(axis=1)][field_group]
-        # TODO: not fixed beyond this point.
+        df_filtered = df[(df[field_group].values != default).any(axis=1)][[*field_group, "geometry"]]
 
-        # Compile route names.
-        route_names = [df[col].unique() for col in field_group]
-        # Remove default values.
-        route_names = [names[np.where(names != defaults_all["roadseg"][field_group[index]])]
-                       for index, names in enumerate(route_names)]
-        # Concatenate arrays.
-        route_names = np.concatenate(route_names, axis=None)
-        # Remove duplicates.
-        route_names = np.unique(route_names)
-        # Sort route names.
-        route_names = sorted(route_names)
+        # Compile route names, excluding default value.
+        route_names = set(np.unique(df_filtered[field_group].values)) - {default}
 
         # Iterate route names.
         route_count = len(route_names)
-        for index, route_name in enumerate(route_names):
+        for index, route_name in enumerate(sorted(route_names)):
 
             logger.info(f"Validating route {index + 1} of {route_count}: \"{route_name}\".")
 
             # Subset dataframe to those records with route name in at least one field.
-            route_df = df.iloc[list(np.where(df[field_group] == route_name)[0])]
+            route_df = df_filtered[(df_filtered[field_group].values == route_name).any(axis=1)]
 
-            # Load dataframe as networkx graph.
-            route_graph = helpers.gdf_to_nx(route_df, keep_attributes=False)
+            # Only process duplicated route names.
+            if len(route_df) > 1:
 
-            # Validate contiguity (networkx connectivity).
-            if not nx.is_connected(route_graph):
+                # Load dataframe as networkx graph.
+                route_graph = helpers.gdf_to_nx(route_df, keep_attributes=False)
 
-                # Identify deadends (locations of discontiguity).
-                deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
-                deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
+                # Validate contiguity (networkx connectivity).
+                if not nx.is_connected(route_graph):
 
-                # Compile error properties.
-                errors.append(f"Route name: \"{route_name}\", based on attribute fields: {', '.join(field_group)}."
-                              f"\nEndpoints:\n{deadends}.")
+                    # Identify deadends (locations of discontiguity).
+                    deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
+                    deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
+
+                    # Compile error properties.
+                    errors.append(f"Route name: \"{route_name}\", based on attribute fields: {', '.join(field_group)}."
+                                  f"\nEndpoints:\n{deadends}.")
 
     return {"errors": errors}
 
