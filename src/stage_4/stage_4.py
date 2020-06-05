@@ -163,7 +163,10 @@ class Stage:
                         if len(missing):
                             logger.warning("Skipping validation for missing dataset(s): {}.".format(", ".join(missing)))
                             break
-                        args = (*map(deepcopy, itemgetter(*params["tables"])(self.dframes)), *params["args"])
+                        if len(params["tables"]) == 1:
+                            args = (*map(deepcopy, (itemgetter(*params["tables"])(self.dframes),)), *params["args"])
+                        else:
+                            args = (*map(deepcopy, itemgetter(*params["tables"])(self.dframes)), *params["args"])
 
                     # Call function.
                     results = eval("validation_functions.{}(*args)".format(func))
