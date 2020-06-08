@@ -28,133 +28,59 @@ defaults_all = helpers.compile_default_values()
 dtypes_all = helpers.compile_dtypes()
 
 
-def identify_duplicate_lines(df):
-    """Identifies the uuids of duplicate line geometries."""
+def conflicting_exitnbrs(df):
+    """Applies a set of validations to exitnbr field."""
 
     errors = list()
+    default = defaults_all["roadseg"]["exitnbr"]
 
-    # Keep only required fields.
-    series = df["geometry"]
+    # Query multi-segment road elements (via nid field) where exitnbr is not the default value.
+    df_filtered = df[(df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)]
 
-    # Filter geometries to those with duplicate lengths.
-    s_filtered = series[series.length.duplicated(keep=False)]
+    if len(df_filtered):
 
-    if len(s_filtered):
+        # Group exitnbrs by nid, removing duplicate values.
+        grouped = helpers.groupby_to_list(df_filtered, "nid", "exitnbr").map(np.unique)
 
-        # Filter geometries to those with duplicate endpoint coordinates.
-        s_filtered = s_filtered[s_filtered.map(
-            lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
+        # Remove the default field value from each group.
+        grouped = grouped.map(lambda vals: vals if default not in vals else vals.remove(default))
 
-        # Identify duplicate geometries.
-        if len(s_filtered):
-            mask = s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
+        # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
+        flag_nids = grouped[grouped.map(len) > 1]
 
-            # Compile uuids of flagged records.
-            errors = s_filtered[mask].index.values
-
-    return {"errors": errors}
-
-
-def identify_duplicate_points(df):
-    """Identifies the uuids of duplicate point geometries."""
-
-    # Identify duplicated geometries.
-    mask = df["geometry"].map(lambda geom: geom.coords[0]).duplicated(keep=False)
-
-    # Compile uuids of flagged records.
-    errors = df[mask].index.values
+        # Compile error properties.
+        for nid, exitnbrs in flag_nids.iteritems():
+            errors.append(f"nid: {nid}; exitnbr values: {', '.join(map(str, exitnbrs))}.")
 
     return {"errors": errors}
 
 
-def identify_isolated_lines(roadseg, junction, ferryseg=None):
-    """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
+def conflicting_pavement_status(df):
+    """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
 
-    # Concatenate ferryseg and roadseg dataframes, keeping only required fields.
-    if ferryseg is not None:
-        df = gpd.GeoDataFrame(pd.concat([ferryseg[["uuid", "geometry"]], roadseg[["uuid", "geometry"]]],
-                                        ignore_index=False, sort=False))
-    else:
-        df = roadseg.copy(deep=True)
+    errors = dict()
 
-    # Compile dead end junctions.
-    deadends = set(chain([geom.coords[0] for geom in junction[junction["junctype"] == "Dead End"]["geometry"].values]))
+    # Subset dataframe to non-default values, keep only required fields.
+    default = defaults_all["roadseg"]["pavstatus"]
+    df_filtered = df[df["pavstatus"] != default][["pavstatus", "pavsurf", "unpavsurf"]]
 
-    # Identify isolated segments.
-    mask = df["geometry"].map(lambda g: len(set(itemgetter(0, -1)(g.coords)) - deadends) == 0)
+    # Apply validations and compile uuids of flagged records.
+    if len(df_filtered):
 
-    # Compile uuids of flagged records.
-    errors = df[mask].index.values
+        # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
+        paved = df_filtered[df_filtered["pavstatus"] == "Paved"]
+        errors[1] = paved[paved["pavsurf"] == "None"].index.values
+        errors[2] = paved[paved["unpavsurf"] != "None"].index.values
+
+        # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
+        unpaved = df_filtered[df_filtered["pavstatus"] == "Unpaved"]
+        errors[3] = unpaved[unpaved["pavsurf"] != "None"].index.values
+        errors[4] = unpaved[unpaved["unpavsurf"] == "None"].index.values
 
     return {"errors": errors}
 
 
-def strip_whitespace(df):
-    """Strips leading and trailing whitespace from the given value for each dataframe column."""
-
-    mod_flag = False
-
-    # Compile valid columns.
-    cols = df.select_dtypes(include="object", exclude="geometry").columns.values
-
-    # Iterate columns.
-    for col in cols:
-
-        # Apply modifications.
-        series_orig = df[col]
-        df[col] = df[col].map(str.strip)
-
-        # Quantify modifications.
-        mods = (series_orig != df[col]).sum()
-        if mods:
-            mod_flag = True
-
-            # Log modifications.
-            logger.warning(f"Modified {mods} record(s) in column {col}."
-                           "\nModification details: Field values stripped of leading and trailing whitespace.")
-
-    if mod_flag:
-        return {"errors": None, "modified_dframes": df.copy(deep=True)}
-    else:
-        return {"errors": None}
-
-
-def title_route_text(df):
-    """
-    Sets to title case all route name attributes:
-        rtename1en, rtename2en, rtename3en, rtename4en,
-        rtename1fr, rtename2fr, rtename3fr, rtename4fr.
-    """
-
-    mod_flag = False
-
-    # Identify columns to iterate.
-    cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
-                            "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
-
-    # Iterate validation columns.
-    for col in cols:
-
-        # Filter records to non-default values which are not already title case.
-        default = defaults_all["roadseg"][col]
-        s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
-
-        # Apply modifications, if required.
-        if len(s_filtered):
-            df.loc[s_filtered.index, col] = s_filtered.map(str.title)
-            mod_flag = True
-
-            # Log modifications.
-            logger.warning(f"Modified {len(s_filtered)} record(s) in column {col}."
-                           "\nModification details: Field values set to title case.")
-
-    if mod_flag:
-        return {"errors": None, "modified_dframes": df.copy(deep=True)}
-    else:
-        return {"errors": None}
-
-
-def validate_dates(df):
+def dates(df):
     """Applies a set of validations to credate and revdate fields."""
 
     errors = {i: list() for i in range(1, 7+1)}
@@ -234,7 +160,7 @@ def validate_dates(df):
     return {"errors": errors}
 
 
-def validate_deadend_disjoint_proximity(junction, roadseg):
+def deadend_proximity(junction, roadseg):
     """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
 
     # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
@@ -295,34 +221,46 @@ def validate_deadend_disjoint_proximity(junction, roadseg):
     return {"errors": errors}
 
 
-def validate_exitnbr_conflict(df):
-    """Applies a set of validations to exitnbr field."""
+def duplicated_lines(df):
+    """Identifies the uuids of duplicate line geometries."""
 
     errors = list()
-    default = defaults_all["roadseg"]["exitnbr"]
 
-    # Query multi-segment road elements (via nid field) where exitnbr is not the default value.
-    df_filtered = df[(df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)]
+    # Keep only required fields.
+    series = df["geometry"]
 
-    if len(df_filtered):
+    # Filter geometries to those with duplicate lengths.
+    s_filtered = series[series.length.duplicated(keep=False)]
 
-        # Group exitnbrs by nid, removing duplicate values.
-        grouped = helpers.groupby_to_list(df_filtered, "nid", "exitnbr").map(np.unique)
+    if len(s_filtered):
 
-        # Remove the default field value from each group.
-        grouped = grouped.map(lambda vals: vals if default not in vals else vals.remove(default))
+        # Filter geometries to those with duplicate endpoint coordinates.
+        s_filtered = s_filtered[s_filtered.map(
+            lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
-        # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
-        flag_nids = grouped[grouped.map(len) > 1]
+        # Identify duplicate geometries.
+        if len(s_filtered):
+            mask = s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
 
-        # Compile error properties.
-        for nid, exitnbrs in flag_nids.iteritems():
-            errors.append(f"nid: {nid}; exitnbr values: {', '.join(map(str, exitnbrs))}.")
+            # Compile uuids of flagged records.
+            errors = s_filtered[mask].index.values
 
     return {"errors": errors}
 
 
-def validate_exitnbr_roadclass(df):
+def duplicated_points(df):
+    """Identifies the uuids of duplicate point geometries."""
+
+    # Identify duplicated geometries.
+    mask = df["geometry"].map(lambda geom: geom.coords[0]).duplicated(keep=False)
+
+    # Compile uuids of flagged records.
+    errors = df[mask].index.values
+
+    return {"errors": errors}
+
+
+def exitnbr_roadclass_relationship(df):
     """Applies a set of validations to exitnbr and roadclass fields."""
 
     errors = list()
@@ -340,7 +278,7 @@ def validate_exitnbr_roadclass(df):
     return {"errors": errors}
 
 
-def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
+def ferry_road_connectivity(ferryseg, roadseg, junction):
     """Validates the connectivity between ferry and road line segments."""
 
     errors = dict()
@@ -381,7 +319,7 @@ def validate_ferry_road_connectivity(ferryseg, roadseg, junction):
     return {"errors": errors}
 
 
-def validate_ids(df):
+def ids(df):
     """
     Applies a set of validations to all id fields.
     Sets all id fields to lowercase.
@@ -458,7 +396,29 @@ def validate_ids(df):
         return {"errors": errors}
 
 
-def validate_line_endpoint_clustering(df):
+def isolated_lines(roadseg, junction, ferryseg=None):
+    """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
+
+    # Concatenate ferryseg and roadseg dataframes, keeping only required fields.
+    if ferryseg is not None:
+        df = gpd.GeoDataFrame(pd.concat([ferryseg[["uuid", "geometry"]], roadseg[["uuid", "geometry"]]],
+                                        ignore_index=False, sort=False))
+    else:
+        df = roadseg.copy(deep=True)
+
+    # Compile dead end junctions.
+    deadends = set(chain([geom.coords[0] for geom in junction[junction["junctype"] == "Dead End"]["geometry"].values]))
+
+    # Identify isolated segments.
+    mask = df["geometry"].map(lambda g: len(set(itemgetter(0, -1)(g.coords)) - deadends) == 0)
+
+    # Compile uuids of flagged records.
+    errors = df[mask].index.values
+
+    return {"errors": errors}
+
+
+def line_endpoint_clustering(df):
     """
     Validates the quantity of points clustered near the endpoints of line segments.
     Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
@@ -491,7 +451,7 @@ def validate_line_endpoint_clustering(df):
     return {"errors": errors}
 
 
-def validate_line_length(df):
+def line_length(df):
     """Validates the minimum feature length of line geometries."""
 
     errors = None
@@ -510,7 +470,7 @@ def validate_line_length(df):
     return {"errors": errors}
 
 
-def validate_line_merging_angle(df):
+def line_merging_angle(df):
     """
     Validates the merging angle of line segments.
     Validation: ensure line segments merge at angles >= 40 degrees.
@@ -521,15 +481,15 @@ def validate_line_merging_angle(df):
     # Transform records to a meter-based crs: EPSG:3348.
     series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
 
-    # Compile the uuid groups for all non-unique points.
+    # Compile line endpoints and their neighbours, convert to uuid-neighbour lookup dict.
+    endpts_nbrs = series.map(lambda g: tuple(map(itemgetter(0, 1), itemgetter(0, 1, -2, -1)(attrgetter("coords")(g)))))
+    uuid_nbr_lookup = endpts_nbrs.to_dict()
 
-    # Compile coordinates (used multiple times; only requires first 2 and last 2 points).
-    # Export coordinate-uuid lookup dict.
-    pts = series.map(lambda g: tuple(map(itemgetter(0, 1), itemgetter(0, 1, -2, -1)(attrgetter("coords")(g)))))
-    pts_uuid_lookup = pts.to_dict()
+    # Compile only endpoints.
+    endpts = endpts_nbrs.map(itemgetter(0, -1))
 
     # Explode point groups, filter to only duplicates, and construct a dataframe of the uuids and coordinates.
-    pts_exploded = pts.explode()
+    pts_exploded = endpts.explode()
     pts_dups = pts_exploded[pts_exploded.duplicated(keep=False)]
     pts_df = pd.DataFrame({"coords": pts_dups, "uuid": pts_dups.index})
 
@@ -544,11 +504,11 @@ def validate_line_merging_angle(df):
         uuids_grouped_exploded = pd.DataFrame({"coords": uuids_grouped_exploded.index, "uuid": uuids_grouped_exploded})\
             .reset_index(drop=True)
 
-        # Compile next-to-endpoint points.
+        # Compile endpoint-neighbouring points.
         # Process: Flag uuids according to duplication status within their group. For unique uuids, configure the
-        # next-to-endpoint point based on whichever endpoint matches the common group point. For duplicated uuids
+        # neighbouring point based on whichever endpoint matches the common group point. For duplicated uuids
         # (which represent self-loops), the first duplicate takes the second point, the second duplicate takes the
-        # second-last point - thereby avoiding the same next-to-point being taken twice for self-loop intersections.
+        # second-last point - thereby avoiding the same neighbour being taken twice for self-loop intersections.
         dup_flags = {
             "dup_none": uuids_grouped_exploded[~uuids_grouped_exploded.duplicated(keep=False)][["uuid", "coords"]],
             "dup_first": uuids_grouped_exploded[uuids_grouped_exploded.duplicated(keep="first")]["uuid"],
@@ -556,10 +516,10 @@ def validate_line_merging_angle(df):
         }
         dup_results = {
             "dup_none": np.vectorize(
-                lambda uid, pt: pts_uuid_lookup[uid][1] if pts_uuid_lookup[uid][0] == pt else pts_uuid_lookup[uid][-2],
+                lambda uid, pt: uuid_nbr_lookup[uid][1] if uuid_nbr_lookup[uid][0] == pt else uuid_nbr_lookup[uid][-2],
                 otypes=[tuple])(dup_flags["dup_none"]["uuid"], dup_flags["dup_none"]["coords"]),
-            "dup_first": dup_flags["dup_first"].map(lambda uid: pts_uuid_lookup[uid][1]).values,
-            "dup_last": dup_flags["dup_last"].map(lambda uid: pts_uuid_lookup[uid][-2]).values
+            "dup_first": dup_flags["dup_first"].map(lambda uid: uuid_nbr_lookup[uid][1]).values,
+            "dup_last": dup_flags["dup_last"].map(lambda uid: uuid_nbr_lookup[uid][-2]).values
         }
 
         uuids_grouped_exploded["pt"] = None
@@ -578,8 +538,6 @@ def validate_line_merging_angle(df):
 
             angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
             angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
-            angle_1 += 360 if angle_1 < 0 else 0
-            angle_2 += 360 if angle_2 < 0 else 0
 
             return abs(angle_1 - angle_2) < 40
 
@@ -595,7 +553,7 @@ def validate_line_merging_angle(df):
     return {"errors": errors}
 
 
-def validate_line_proximity(df):
+def line_proximity(df):
     """Validates the proximity of line segments."""
 
     # Validation: ensure line segments are >= 3 meters from each other, excluding connected segments.
@@ -636,7 +594,7 @@ def validate_line_proximity(df):
     return {"errors": errors}
 
 
-def validate_nbrlanes(df):
+def nbrlanes(df):
     """Applies a set of validations to nbrlanes field."""
 
     errors = list()
@@ -654,7 +612,7 @@ def validate_nbrlanes(df):
     return {"errors": errors}
 
 
-def validate_nid_linkages(df, dfs_all):
+def nid_linkages(df, dfs_all):
     """
     Validates the nid linkages for the input dataframe.
     Parameter dfs_all must be a dictionary of all nrn dataframes.
@@ -717,32 +675,7 @@ def validate_nid_linkages(df, dfs_all):
     return {"errors": errors}
 
 
-def validate_pavement(df):
-    """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
-
-    errors = dict()
-
-    # Subset dataframe to non-default values, keep only required fields.
-    default = defaults_all["roadseg"]["pavstatus"]
-    df_filtered = df[df["pavstatus"] != default][["pavstatus", "pavsurf", "unpavsurf"]]
-
-    # Apply validations and compile uuids of flagged records.
-    if len(df_filtered):
-
-        # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
-        paved = df_filtered[df_filtered["pavstatus"] == "Paved"]
-        errors[1] = paved[paved["pavsurf"] == "None"].index.values
-        errors[2] = paved[paved["unpavsurf"] != "None"].index.values
-
-        # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
-        unpaved = df_filtered[df_filtered["pavstatus"] == "Unpaved"]
-        errors[3] = unpaved[unpaved["pavsurf"] != "None"].index.values
-        errors[4] = unpaved[unpaved["unpavsurf"] == "None"].index.values
-
-    return {"errors": errors}
-
-
-def validate_point_proximity(df):
+def point_proximity(df):
     """Validates the proximity of points."""
 
     # Validation: ensure points are >= 3 meters from each other.
@@ -768,6 +701,7 @@ def validate_point_proximity(df):
     # Compile uuids associated with each index.
     pts_idx_uuid_lookup = {index: uid for index, uid in enumerate(pts.index)}
     results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(pts_idx_uuid_lookup))
+    results = results.map(lambda vals: set(vals) if isinstance(vals, tuple) else {vals})
 
     # Compile error properties.
     for source, target in results.iteritems():
@@ -776,7 +710,198 @@ def validate_point_proximity(df):
     return {"errors": errors}
 
 
-def validate_road_structures(roadseg, junction):
+def roadclass_rtnumber_relationship(df):
+    """Applies a set of validations to roadclass and rtnumber1 fields."""
+
+    # Filter dataframe to only required fields.
+    df_filtered = df[["roadclass", "rtnumber1"]]
+
+    # Apply validations and compile uuids of flagged records.
+
+    # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
+    default = defaults_all["roadseg"]["rtnumber1"]
+    errors = df_filtered[df_filtered["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
+                         df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 == default)].index.values
+
+    return {"errors": errors}
+
+
+def route_contiguity(roadseg, ferryseg=None):
+    """
+    Applies a set of validations to route attributes (rows represent field groups):
+        rtename1en, rtename2en, rtename3en, rtename4en,
+        rtename1fr, rtename2fr, rtename3fr, rtename4fr,
+        rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
+    """
+
+    errors = list()
+
+    # Define field groups.
+    field_groups = [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
+                    ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"],
+                    ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]]
+
+    # Filter dataframes to only required fields.
+    keep_fields = list(chain.from_iterable([*field_groups, ["geometry"]]))
+    roadseg = roadseg[keep_fields]
+    if ferryseg is not None:
+        ferryseg = ferryseg[keep_fields]
+
+    # Concatenate ferryseg and roadseg.
+    if ferryseg is not None:
+        df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=True, sort=False))
+    else:
+        df = roadseg.copy(deep=True)
+
+    # Validation: ensure route has contiguous geometry.
+    for field_group in field_groups:
+
+        logger.info(f"Validating routes in field group: {', '.join(map(str, field_group))}.")
+
+        # Filter dataframe to records with >= 1 non-default values across the field group, keep only required fields.
+        default = defaults_all["roadseg"][field_group[0]]
+        df_filtered = df[(df[field_group].values != default).any(axis=1)][[*field_group, "geometry"]]
+
+        # Compile route names, excluding default value.
+        route_names = set(np.unique(df_filtered[field_group].values)) - {default}
+
+        # Iterate route names.
+        route_count = len(route_names)
+        for index, route_name in enumerate(sorted(route_names)):
+
+            logger.info(f"Validating route {index + 1} of {route_count}: \"{route_name}\".")
+
+            # Subset dataframe to those records with route name in at least one field.
+            route_df = df_filtered[(df_filtered[field_group].values == route_name).any(axis=1)]
+
+            # Only process duplicated route names.
+            if len(route_df) > 1:
+
+                # Load dataframe as networkx graph.
+                route_graph = helpers.gdf_to_nx(route_df, keep_attributes=False)
+
+                # Validate contiguity (networkx connectivity).
+                if not nx.is_connected(route_graph):
+
+                    # Identify deadends (locations of discontiguity).
+                    deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
+                    deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
+
+                    # Compile error properties.
+                    errors.append(f"Route name: \"{route_name}\", based on attribute fields: {', '.join(field_group)}."
+                                  f"\nEndpoints:\n{deadends}.")
+
+    return {"errors": errors}
+
+
+def self_intersecting_elements(df):
+    """Applies a set of validations to self-intersecting road elements."""
+
+    default = defaults_all["roadseg"]["nid"]
+
+    # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
+    #             elements which a) self-intersect and b) touch another road segment where roadclass is in this set.
+
+    flag_nids = list()
+    valid = ["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit"]
+
+    # Compile coords of road segments where roadclass is in the validation list.
+    valid_coords = set(chain(
+        *[itemgetter(0, -1)(geom.coords) for geom in df[df["roadclass"].isin(valid)]['geometry'].values]))
+
+    # Single-segment road elements:
+
+    # Retrieve single-segment self-intersections.
+    # Function call intended to avoid duplicating logic in this current function.
+    segments_single = self_intersecting_structures(df, return_segments_only=True)
+
+    if not segments_single.empty:
+
+        # Compile nids of road segments with coords in the validation coords list.
+        flagged = segments_single["geometry"].map(lambda g: g.coords[0] in valid_coords)
+        flag_nids.extend(segments_single[flagged]["nid"].values)
+
+    # Multi-segment road elements:
+
+    # Compile multi-segment road elements (via non-unique nids).
+    # Filter to nids with invalid roadclass.
+    segments_multi = df[(df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
+
+    if not segments_multi.empty:
+
+        logger.info("Validating multi-segment road elements.")
+
+        # Compile nids of road segments with coords in the validation coords list.
+        flagged_nids = segments_multi[segments_multi["geometry"].map(
+            lambda g: len(set(itemgetter(0, -1)(g.coords)).intersection(valid_coords)) > 0)]["nid"].unique()
+
+        # Compile dataframe records with a flagged nid.
+        flagged_df = df[df["nid"].isin(flagged_nids)]
+
+        # Group geometries by nid.
+        grouped_segments = helpers.groupby_to_list(flagged_df, "nid", "geometry")
+
+        # Dissolve road segments.
+        elements = grouped_segments.map(shapely.ops.linemerge)
+
+        # Identify self-intersections and store nids.
+        flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
+
+    # Compile uuids of road segments with flagged nid and invalid roadclass.
+    errors = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+    return {"errors": errors}
+
+
+def self_intersecting_structures(df, return_segments_only=False):
+    """Applies a set of validations to self-intersecting road structures."""
+
+    flag_segments = pd.DataFrame()
+    errors = list()
+    default = defaults_all["roadseg"]["nid"]
+
+    # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
+
+    # Compile single-segment road elements (via unique nids).
+    segments = df[(~df["nid"].duplicated(keep=False)) & (df["nid"] != default)]
+
+    if not segments.empty:
+
+        logger.info("Validating single-segment road elements.")
+
+        # Identify self-intersections (start coord == end coord).
+        flag_segments = segments[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
+
+        # Validation: for self-intersecting road segments, ensure structtype != "None".
+        errors = flag_segments[flag_segments["structtype"] == "None"].index.values
+
+    if return_segments_only:
+        return flag_segments
+    else:
+        return {"errors": errors}
+
+
+def speed(df):
+    """Applies a set of validations to speed field."""
+
+    errors = dict()
+
+    # Subset dataframe to non-default values, keep only required fields.
+    default = defaults_all["roadseg"]["speed"]
+    s_filtered = df[df["speed"] != default]["speed"]
+
+    if len(s_filtered):
+
+        # Validation 1: ensure 5 <= speed <= 120.
+        # Compile uuids of flagged records.
+        errors[1] = s_filtered[~s_filtered.map(lambda speed: 5 <= int(speed) <= 120)].index.values
+
+        # Validation 2: ensure speed is a multiple of 5.
+        errors[2] = s_filtered[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
+
+    return {"errors": errors}
+
+
+def structure_attributes(roadseg, junction):
     """Validates the structid and structtype attributes of road segments."""
 
     errors = {1: list(), 2: list(), 3: list(), 4: list()}
@@ -871,196 +996,5 @@ def validate_road_structures(roadseg, junction):
         for index, row in pd.DataFrame({"uuids": uuids_invalid, "structtypes": structtypes_invalid}).iterrows():
             errors[4].append(f"Structure formed by uuid(s): {', '.join(map(str, row[0]))} contains the following "
                              f"structtypes(s): {', '.join(map(str, row[1]))}.")
-
-    return {"errors": errors}
-
-
-def validate_roadclass_rtnumber1(df):
-    """Applies a set of validations to roadclass and rtnumber1 fields."""
-
-    # Filter dataframe to only required fields.
-    df_filtered = df[["roadclass", "rtnumber1"]]
-
-    # Apply validations and compile uuids of flagged records.
-
-    # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
-    default = defaults_all["roadseg"]["rtnumber1"]
-    errors = df_filtered[df_filtered["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
-                         df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 == default)].index.values
-
-    return {"errors": errors}
-
-
-def validate_roadclass_self_intersection(df):
-    """Applies a set of validations to roadclass and structtype fields."""
-
-    default = defaults_all["roadseg"]["nid"]
-
-    # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
-    #             elements which a) self-intersect and b) touch another road segment where roadclass is in this set.
-
-    flag_nids = list()
-    valid = ["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit"]
-
-    # Compile coords of road segments where roadclass is in the validation list.
-    valid_coords = set(chain(
-        *[itemgetter(0, -1)(geom.coords) for geom in df[df["roadclass"].isin(valid)]['geometry'].values]))
-
-    # Single-segment road elements:
-
-    # Retrieve single-segment self-intersections.
-    # Function call intended to avoid duplicating logic in this current function.
-    segments_single = validate_roadclass_structtype(df, return_segments_only=True)
-
-    if not segments_single.empty:
-
-        # Compile nids of road segments with coords in the validation coords list.
-        flagged = segments_single["geometry"].map(lambda g: g.coords[0] in valid_coords)
-        flag_nids.extend(segments_single[flagged]["nid"].values)
-
-    # Multi-segment road elements:
-
-    # Compile multi-segment road elements (via non-unique nids).
-    # Filter to nids with invalid roadclass.
-    segments_multi = df[(df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
-
-    if not segments_multi.empty:
-
-        logger.info("Validating multi-segment road elements.")
-
-        # Compile nids of road segments with coords in the validation coords list.
-        flagged_nids = segments_multi[segments_multi["geometry"].map(
-            lambda g: len(set(itemgetter(0, -1)(g.coords)).intersection(valid_coords)) > 0)]["nid"].unique()
-
-        # Compile dataframe records with a flagged nid.
-        flagged_df = df[df["nid"].isin(flagged_nids)]
-
-        # Group geometries by nid.
-        grouped_segments = helpers.groupby_to_list(flagged_df, "nid", "geometry")
-
-        # Dissolve road segments.
-        elements = grouped_segments.map(shapely.ops.linemerge)
-
-        # Identify self-intersections and store nids.
-        flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
-
-    # Compile uuids of road segments with flagged nid and invalid roadclass.
-    errors = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-    return {"errors": errors}
-
-
-def validate_roadclass_structtype(df, return_segments_only=False):
-    """Applies a set of validations to roadclass and structtype fields."""
-
-    flag_segments = pd.DataFrame()
-    errors = list()
-    default = defaults_all["roadseg"]["nid"]
-
-    # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
-
-    # Compile single-segment road elements (via unique nids).
-    segments = df[(~df["nid"].duplicated(keep=False)) & (df["nid"] != default)]
-
-    if not segments.empty:
-
-        logger.info("Validating single-segment road elements.")
-
-        # Identify self-intersections (start coord == end coord).
-        flag_segments = segments[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
-
-        # Validation: for self-intersecting road segments, ensure structtype != "None".
-        errors = flag_segments[flag_segments["structtype"] == "None"].index.values
-
-    if return_segments_only:
-        return flag_segments
-    else:
-        return {"errors": errors}
-
-
-def validate_route_contiguity(roadseg, ferryseg=None):
-    """
-    Applies a set of validations to route attributes (rows represent field groups):
-        rtename1en, rtename2en, rtename3en, rtename4en,
-        rtename1fr, rtename2fr, rtename3fr, rtename4fr,
-        rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
-    """
-
-    errors = list()
-
-    # Define field groups.
-    field_groups = [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
-                    ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"],
-                    ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]]
-
-    # Filter dataframes to only required fields.
-    keep_fields = list(chain.from_iterable([*field_groups, ["geometry"]]))
-    roadseg = roadseg[keep_fields]
-    if ferryseg is not None:
-        ferryseg = ferryseg[keep_fields]
-
-    # Concatenate ferryseg and roadseg.
-    if ferryseg is not None:
-        df = gpd.GeoDataFrame(pd.concat([ferryseg, roadseg], ignore_index=True, sort=False))
-    else:
-        df = roadseg.copy(deep=True)
-
-    # Validation: ensure route has contiguous geometry.
-    for field_group in field_groups:
-
-        logger.info(f"Validating routes in field group: {', '.join(map(str, field_group))}.")
-
-        # Filter dataframe to records with >= 1 non-default values across the field group, keep only required fields.
-        default = defaults_all["roadseg"][field_group[0]]
-        df_filtered = df[(df[field_group].values != default).any(axis=1)][[*field_group, "geometry"]]
-
-        # Compile route names, excluding default value.
-        route_names = set(np.unique(df_filtered[field_group].values)) - {default}
-
-        # Iterate route names.
-        route_count = len(route_names)
-        for index, route_name in enumerate(sorted(route_names)):
-
-            logger.info(f"Validating route {index + 1} of {route_count}: \"{route_name}\".")
-
-            # Subset dataframe to those records with route name in at least one field.
-            route_df = df_filtered[(df_filtered[field_group].values == route_name).any(axis=1)]
-
-            # Only process duplicated route names.
-            if len(route_df) > 1:
-
-                # Load dataframe as networkx graph.
-                route_graph = helpers.gdf_to_nx(route_df, keep_attributes=False)
-
-                # Validate contiguity (networkx connectivity).
-                if not nx.is_connected(route_graph):
-
-                    # Identify deadends (locations of discontiguity).
-                    deadends = [coords for coords, degree in route_graph.degree() if degree == 1]
-                    deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
-
-                    # Compile error properties.
-                    errors.append(f"Route name: \"{route_name}\", based on attribute fields: {', '.join(field_group)}."
-                                  f"\nEndpoints:\n{deadends}.")
-
-    return {"errors": errors}
-
-
-def validate_speed(df):
-    """Applies a set of validations to speed field."""
-
-    errors = dict()
-
-    # Subset dataframe to non-default values, keep only required fields.
-    default = defaults_all["roadseg"]["speed"]
-    s_filtered = df[df["speed"] != default]["speed"]
-
-    if len(s_filtered):
-
-        # Validation 1: ensure 5 <= speed <= 120.
-        # Compile uuids of flagged records.
-        errors[1] = s_filtered[~s_filtered.map(lambda speed: 5 <= int(speed) <= 120)].index.values
-
-        # Validation 2: ensure speed is a multiple of 5.
-        errors[2] = s_filtered[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
 
     return {"errors": errors}

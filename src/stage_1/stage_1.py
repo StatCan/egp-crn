@@ -258,6 +258,61 @@ class Stage:
 
         return {"split_records": split_records, "series": series}
 
+    def clean_datasets(self):
+        """Applies a series of data cleanups to certain datasets."""
+
+        def strip_whitespace(table, df):
+            """Strips leading and trailing whitespace for each dataframe column."""
+
+            # Compile valid columns.
+            cols = df.select_dtypes(include="object", exclude="geometry").columns.values
+
+            # Iterate columns.
+            for col in cols:
+
+                # Apply modifications.
+                series_orig = df[col]
+                df[col] = df[col].map(str.strip)
+
+                # Quantify and log modifications.
+                mods = (series_orig != df[col]).sum()
+                if mods:
+                    logger.warning(f"Modified {mods} record(s) in table {table}, column {col}."
+                                   "\nModification details: Field values stripped of leading and trailing whitespace.")
+
+            return df.copy(deep=True)
+
+        def title_case_route_names(table, df):
+            """
+            Sets to title case all route name attributes:
+                rtename1en, rtename2en, rtename3en, rtename4en,
+                rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+            """
+
+            # Identify columns to iterate.
+            cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
+                                    "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
+
+            # Iterate columns.
+            for col in cols:
+
+                # Filter records to non-default values which are not already title case.
+                default = self.defaults[table][col]
+                s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
+
+                # Apply modifications, if required.
+                if len(s_filtered):
+                    df.loc[s_filtered.index, col] = s_filtered.map(str.title)
+
+                    # Log modifications.
+                    logger.warning(f"Modified {len(s_filtered)} record(s) in table {table}, column {col}."
+                                   "\nModification details: Field values set to title case.")
+
+            return df.copy(deep=True)
+
+        # TODO: Pass required datasets to cleanup functions, remove functions from function list in stage_4.py.
+        # . . .
+
     def compile_domains(self):
         """Compiles field domains for the target dataframes."""
 
@@ -691,6 +746,7 @@ class Stage:
         self.gen_target_dataframes()
         self.apply_field_mapping()
         self.recover_missing_datasets()
+        self.clean_datasets()
         self.apply_domains()
         self.filter_strplaname_duplicates()
         self.repair_nid_linkages()
