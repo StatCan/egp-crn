@@ -32,7 +32,6 @@ class Stage:
         self.stage = 4
         self.source = source.lower()
         self.errors = defaultdict(dict)
-        self.dframes_modified = list()
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -43,21 +42,31 @@ class Stage:
         # Compile default field values.
         self.defaults = helpers.compile_default_values()
 
-        # Compile dataset abbreviations.
-        self.dataset_abbr = {
-            "addrange": "AR",
-            "altnamlink": "AL",
-            "blkpassage": "BP",
-            "ferryseg": "FS",
-            "junction": "JC",
-            "roadseg": "RS",
-            "strplaname": "SP",
-            "tollpoint": "TP"
-        }
-
         # Compile error codes.
         self.error_codes = {
-
+            "duplicated_lines": 1,
+            "duplicated_points": 2,
+            "isolated_lines": 3,
+            "dates": 4,
+            "deadend_proximity": 5,
+            "conflicting_exitnbrs": 6,
+            "exitnbr_roadclass_relationship": 7,
+            "ferry_road_connectivity": 8,
+            "ids": 9,
+            "line_endpoint_clustering": 10,
+            "line_length": 11,
+            "line_merging_angle": 12,
+            "line_proximity": 13,
+            "nbrlanes": 14,
+            "nid_linkages": 15,
+            "conflicting_pavement_status": 16,
+            "point_proximity": 17,
+            "structure_attributes": 18,
+            "roadclass_rtnumber_relationship": 19,
+            "self_intersecting_elements": 20,
+            "self_intersecting_structures": 21,
+            "route_contiguity": 22,
+            "speed": 23
         }
 
     def classify_tables(self):
@@ -65,18 +74,6 @@ class Stage:
 
         self.df_lines = ("ferryseg", "roadseg")
         self.df_points = ("blkpassage", "junction", "tollpoint")
-
-    def export_gpkg(self):
-        """Exports the dataframes as GeoPackage layers."""
-
-        logger.info("Exporting dataframes to GeoPackage layers.")
-
-        # Export target dataframes to GeoPackage layers.
-        if len(self.dframes_modified):
-            export_dframes = {name: self.dframes[name] for name in set(self.dframes_modified)}
-            helpers.export_gpkg(export_dframes, self.data_path)
-        else:
-            logger.info("Export not required, no dataframe modifications detected.")
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -94,11 +91,11 @@ class Stage:
         with helpers.TempHandlerSwap(logger, log_path):
 
             # Iterate errors.
-            for error in self.errors:
+            for code, errors in self.errors.items():
 
                 # Template and log errors.
-                logs = "\n".join(map(str, error))
-                logger.warning(logs)
+                errors = "\n".join(map(str, errors))
+                logger.warning(f"{code}\n{errors}\n")
 
     def validations(self):
         """Applies a set of validations to one or more dataframes."""
@@ -110,8 +107,6 @@ class Stage:
             # Define functions and parameters.
             # Note: List functions in order if execution order matters.
             funcs = {
-                "strip_whitespace": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
-                "title_route_text": {"tables": ["roadseg", "ferryseg"], "iterate": True, "args": ()},
                 "conflicting_exitnbrs": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "conflicting_pavement_status": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "dates": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
@@ -146,7 +141,7 @@ class Stage:
             for func, params in funcs.items():
                 for table in params["tables"]:
 
-                    logger.info(f"Applying validation \"{func}\" to target dataset(s): "
+                    logger.info(f"Applying validation \"{func}\" to dataset(s): "
                                 f"{table if params['iterate'] else ', '.join(params['tables'])}.")
 
                     # Validate dataset availability and configure function args.
@@ -169,14 +164,14 @@ class Stage:
                     # Call function.
                     results = eval(f"validation_functions.{func}(*args)")
 
-                    # Store results.
-                    if "errors" in results:
-                        self.errors[func] = results["errors"]
-                    if "modified_dframes" in results:
-                        if not isinstance(results["modified_dframes"], dict):
-                            results["modified_dframes"] = {table: results["modified_dframes"]}
-                        self.dframes.update(results["modified_dframes"])
-                        self.dframes_modified.extend(results["modified_dframes"])
+                    # Iterate results.
+                    for code, errors in results.items():
+                        if len(errors):
+
+                            # Generate error code + heading and store results.
+                            heading = f"E{self.error_codes[func]:03}{code:02} for dataset(s): " \
+                                      f"{table if params['iterate'] else ', '.join(sorted(params['tables']))}"
+                            self.errors[heading] = deepcopy(errors)
 
                     # Break iteration for non-iterative function.
                     if not params["iterate"]:
@@ -193,7 +188,6 @@ class Stage:
         self.classify_tables()
         self.validations()
         self.log_errors()
-        self.export_gpkg()
 
 
 @click.command()

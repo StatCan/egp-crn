@@ -261,8 +261,35 @@ class Stage:
     def clean_datasets(self):
         """Applies a series of data cleanups to certain datasets."""
 
+        logger.info(f"Applying data cleanup functions.")
+
+        def lower_case_ids(table, df):
+            """Sets all ID fields to lower case."""
+
+            logger.info(f"Applying data cleanup \"lower case IDs\" to dataset: {table}.")
+
+            # Iterate columns which a) end with "id", b) are str type, and c) are not uuid.
+            dtypes = self.dtypes[table]
+            for col in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
+
+                # Filter records to non-default values which are not already lower case.
+                default = self.defaults[table][col]
+                s_filtered = df[df[col].map(lambda val: val != default and not val.islower())][col]
+
+                # Apply modifications, if required.
+                if len(s_filtered):
+                    df.loc[s_filtered.index, col] = s_filtered.map(str.lower)
+
+                    # Quantify and log modifications.
+                    logger.warning(f"Modified {len(s_filtered)} record(s) in table {table}, column {col}."
+                                   "\nModification details: Column values set to lower case.")
+
+            return df.copy(deep=True)
+
         def strip_whitespace(table, df):
             """Strips leading and trailing whitespace for each dataframe column."""
+
+            logger.info(f"Applying data cleanup \"strip whitespace\" to dataset: {table}.")
 
             # Compile valid columns.
             cols = df.select_dtypes(include="object", exclude="geometry").columns.values
@@ -278,7 +305,7 @@ class Stage:
                 mods = (series_orig != df[col]).sum()
                 if mods:
                     logger.warning(f"Modified {mods} record(s) in table {table}, column {col}."
-                                   "\nModification details: Field values stripped of leading and trailing whitespace.")
+                                   "\nModification details: Column values stripped of leading and trailing whitespace.")
 
             return df.copy(deep=True)
 
@@ -288,6 +315,8 @@ class Stage:
                 rtename1en, rtename2en, rtename3en, rtename4en,
                 rtename1fr, rtename2fr, rtename3fr, rtename4fr.
             """
+
+            logger.info(f"Applying data cleanup \"title case route names\" to dataset: {table}.")
 
             # Identify columns to iterate.
             cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
@@ -304,14 +333,24 @@ class Stage:
                 if len(s_filtered):
                     df.loc[s_filtered.index, col] = s_filtered.map(str.title)
 
-                    # Log modifications.
+                    # Quantify and log modifications.
                     logger.warning(f"Modified {len(s_filtered)} record(s) in table {table}, column {col}."
-                                   "\nModification details: Field values set to title case.")
+                                   "\nModification details: Column values set to title case.")
 
             return df.copy(deep=True)
 
-        # TODO: Pass required datasets to cleanup functions, remove functions from function list in stage_4.py.
-        # . . .
+        # Cleanup: lower case IDs.
+        for table, df in self.target_gdframes.items():
+            self.target_gdframes.update({table: lower_case_ids(table, df.copy(deep=True))})
+
+        # Cleanup: strip whitespace.
+        for table, df in self.target_gdframes.items():
+            self.target_gdframes.update({table: strip_whitespace(table, df.copy(deep=True))})
+
+        # Cleanup: title case route text.
+        for table in ("ferryseg", "roadseg"):
+            df = self.target_gdframes[table].copy(deep=True)
+            self.target_gdframes.update({table: title_case_route_names(table, df)})
 
     def compile_domains(self):
         """Compiles field domains for the target dataframes."""
@@ -746,8 +785,8 @@ class Stage:
         self.gen_target_dataframes()
         self.apply_field_mapping()
         self.recover_missing_datasets()
-        self.clean_datasets()
         self.apply_domains()
+        self.clean_datasets()
         self.filter_strplaname_duplicates()
         self.repair_nid_linkages()
         self.export_gpkg()

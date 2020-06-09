@@ -31,7 +31,7 @@ dtypes_all = helpers.compile_dtypes()
 def conflicting_exitnbrs(df):
     """Applies a set of validations to exitnbr field."""
 
-    errors = list()
+    errors = {1: list()}
     default = defaults_all["roadseg"]["exitnbr"]
 
     # Query multi-segment road elements (via nid field) where exitnbr is not the default value.
@@ -50,9 +50,9 @@ def conflicting_exitnbrs(df):
 
         # Compile error properties.
         for nid, exitnbrs in flag_nids.iteritems():
-            errors.append(f"nid: {nid}; exitnbr values: {', '.join(map(str, exitnbrs))}.")
+            errors[1].append(f"nid: {nid}; exitnbr values: {', '.join(map(str, exitnbrs))}.")
 
-    return {"errors": errors}
+    return errors
 
 
 def conflicting_pavement_status(df):
@@ -77,7 +77,7 @@ def conflicting_pavement_status(df):
         errors[3] = unpaved[unpaved["pavsurf"] != "None"].index.values
         errors[4] = unpaved[unpaved["unpavsurf"] == "None"].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def dates(df):
@@ -157,14 +157,14 @@ def dates(df):
         results = df_filtered[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
         errors[7].extend(results)
 
-    return {"errors": errors}
+    return errors
 
 
 def deadend_proximity(junction, roadseg):
     """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
 
     # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
-    errors = list()
+    errors = {1: list()}
 
     # Filter junctions to junctype = "Dead End", keep only required fields.
     deadends = junction[junction["junctype"] == "Dead End"]["geometry"]
@@ -215,16 +215,16 @@ def deadend_proximity(junction, roadseg):
 
     # Compile error properties.
     for source_uuid, target_uuids in proxi_results.iteritems():
-        errors.append(f"junction uuid \"{source_uuid}\" is too close to roadseg uuid(s): "
-                      f"{', '.join(map(str, target_uuids))}.")
+        errors[1].append(f"junction uuid \"{source_uuid}\" is too close to roadseg uuid(s): "
+                         f"{', '.join(map(str, target_uuids))}.")
 
-    return {"errors": errors}
+    return errors
 
 
 def duplicated_lines(df):
     """Identifies the uuids of duplicate line geometries."""
 
-    errors = list()
+    errors = dict()
 
     # Keep only required fields.
     series = df["geometry"]
@@ -243,27 +243,29 @@ def duplicated_lines(df):
             mask = s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
 
             # Compile uuids of flagged records.
-            errors = s_filtered[mask].index.values
+            errors[1] = s_filtered[mask].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def duplicated_points(df):
     """Identifies the uuids of duplicate point geometries."""
 
+    errors = dict()
+
     # Identify duplicated geometries.
     mask = df["geometry"].map(lambda geom: geom.coords[0]).duplicated(keep=False)
 
     # Compile uuids of flagged records.
-    errors = df[mask].index.values
+    errors[1] = df[mask].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def exitnbr_roadclass_relationship(df):
     """Applies a set of validations to exitnbr and roadclass fields."""
 
-    errors = list()
+    errors = dict()
 
     # Subset dataframe to non-default values, keep only required fields.
     default = defaults_all["roadseg"]["exitnbr"]
@@ -273,9 +275,9 @@ def exitnbr_roadclass_relationship(df):
 
         # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value.
         # Compile uuids of flagged records.
-        errors = s_filtered[~s_filtered.isin(["Ramp", "Service Lane"])].index.values
+        errors[1] = s_filtered[~s_filtered.isin(["Ramp", "Service Lane"])].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def ferry_road_connectivity(ferryseg, roadseg, junction):
@@ -316,17 +318,13 @@ def ferry_road_connectivity(ferryseg, roadseg, junction):
     # Compile uuids of flagged records.
     errors[2] = ferryseg[ferry_multi_intersect].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def ids(df):
-    """
-    Applies a set of validations to all id fields.
-    Sets all id fields to lowercase.
-    """
+    """Applies a set of validations to all id fields."""
 
-    errors = {1: list(), 2: list(), 3: list(), 4: list()}
-    mod_flag = False
+    errors = {i: list() for i in range(1, 4+1)}
 
     # Identify dataframe name to configure dtypes and default values.
     table = "roadseg"
@@ -343,20 +341,6 @@ def ids(df):
         series = df[df[col] != defaults[col]][col]
 
         if len(series):
-
-            # Modification: set ids to lowercase.
-            # Filter records to values which are not already lowercase.
-            s_filtered = series[~series.map(str.islower)]
-
-            # Apply modification, if required.
-            if len(s_filtered):
-                series.loc[s_filtered.index] = s_filtered.map(str.lower)
-                df.loc[series.index, col] = series
-                mod_flag = True
-
-                # Log modifications.
-                logger.warning(f"Modified {len(s_filtered)} record(s) in column {col}."
-                               "\nModification details: Field values set to lower case.")
 
             # Validation 1: ensure ids are 32 digits.
             # Compile uuids of flagged records.
@@ -390,14 +374,13 @@ def ids(df):
         for id in flag_uuids:
             errors[4].append(f"uuid: {id}, based on attribute field: {col}.")
 
-    if mod_flag:
-        return {"errors": errors, "modified_dframes": df.copy(deep=True)}
-    else:
-        return {"errors": errors}
+    return errors
 
 
 def isolated_lines(roadseg, junction, ferryseg=None):
     """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
+
+    errors = {1: list()}
 
     # Concatenate ferryseg and roadseg dataframes, keeping only required fields.
     if ferryseg is not None:
@@ -413,9 +396,9 @@ def isolated_lines(roadseg, junction, ferryseg=None):
     mask = df["geometry"].map(lambda g: len(set(itemgetter(0, -1)(g.coords)) - deadends) == 0)
 
     # Compile uuids of flagged records.
-    errors = df[mask].index.values
+    errors[1] = df[mask].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def line_endpoint_clustering(df):
@@ -424,7 +407,7 @@ def line_endpoint_clustering(df):
     Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
     """
 
-    errors = None
+    errors = {1: list()}
 
     # Transform records to a meter-based crs: EPSG:3348.
     series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
@@ -446,15 +429,15 @@ def line_endpoint_clustering(df):
         flags = np.vectorize(endpoint_clustered)(s_filtered)
 
         # Compile uuids of flagged records.
-        errors = s_filtered[flags].index.values
+        errors[1] = s_filtered[flags].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def line_length(df):
     """Validates the minimum feature length of line geometries."""
 
-    errors = None
+    errors = {1: list()}
 
     # Filter records to 0.0002 degrees length (approximately 22.2 meters).
     series = df[df.length <= 0.0002]["geometry"]
@@ -465,9 +448,9 @@ def line_length(df):
         series = helpers.reproject_gdf(series, 4617, 3348)
 
         # Validation: ensure line segments are >= 2 meters in length.
-        errors = series[series.length < 2].index.values
+        errors[1] = series[series.length < 2].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def line_merging_angle(df):
@@ -476,7 +459,7 @@ def line_merging_angle(df):
     Validation: ensure line segments merge at angles >= 40 degrees.
     """
 
-    errors = None
+    errors = {1: list()}
 
     # Transform records to a meter-based crs: EPSG:3348.
     series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
@@ -548,16 +531,16 @@ def line_merging_angle(df):
             pts_grouped, pts_grouped.index)
 
         # Compile the uuid groups as errors.
-        errors = uuids_grouped[flags].values
+        errors[1] = uuids_grouped[flags].values
 
-    return {"errors": errors}
+    return errors
 
 
 def line_proximity(df):
     """Validates the proximity of line segments."""
 
     # Validation: ensure line segments are >= 3 meters from each other, excluding connected segments.
-    errors = list()
+    errors = {1: list()}
 
     # Transform records to a meter-based crs: EPSG:3348.
     series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
@@ -589,15 +572,15 @@ def line_proximity(df):
 
     # Compile error properties.
     for source, target in results.iteritems():
-        errors.append(f"Feature uuid {source} is too close to feature uuid(s) {', '.join(map(str, target))}.")
+        errors[1].append(f"Feature uuid {source} is too close to feature uuid(s) {', '.join(map(str, target))}.")
 
-    return {"errors": errors}
+    return errors
 
 
 def nbrlanes(df):
     """Applies a set of validations to nbrlanes field."""
 
-    errors = list()
+    errors = {1: list()}
 
     # Subset dataframe to non-default values, keep only required fields.
     default = defaults_all["roadseg"]["nbrlanes"]
@@ -607,9 +590,9 @@ def nbrlanes(df):
 
         # Validation: ensure 1 <= nbrlanes <= 8.
         # Compile uuids of flagged records.
-        errors = s_filtered[~s_filtered.map(lambda nbrlanes: 1 <= int(nbrlanes) <= 8)].index.values
+        errors[1] = s_filtered[~s_filtered.map(lambda nbrlanes: 1 <= int(nbrlanes) <= 8)].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def nid_linkages(df, dfs_all):
@@ -618,7 +601,7 @@ def nid_linkages(df, dfs_all):
     Parameter dfs_all must be a dictionary of all nrn dataframes.
     """
 
-    errors = list()
+    errors = {1: list()}
 
     # Define nid linkages.
     linkages = {
@@ -670,16 +653,16 @@ def nid_linkages(df, dfs_all):
             # Configure error message.
             if len(invalid_ids):
                 ids = "\n".join(map(str, invalid_ids))
-                errors.append(f"The following values from {id_table}.{col} are not present in {nid_table}.nid:\n{ids}")
+                errors[1].append(f"The following values from {id_table}.{col} are not present in {nid_table}.nid:\n{ids}")
 
-    return {"errors": errors}
+    return errors
 
 
 def point_proximity(df):
     """Validates the proximity of points."""
 
     # Validation: ensure points are >= 3 meters from each other.
-    errors = list()
+    errors = {1: list()}
 
     # Transform records to a meter-based crs: EPSG:3348.
     series = helpers.reproject_gdf(df["geometry"], 4617, 3348)
@@ -705,13 +688,15 @@ def point_proximity(df):
 
     # Compile error properties.
     for source, target in results.iteritems():
-        errors.append(f"Feature uuid {source} is too close to feature uuid(s) {', '.join(map(str, target))}.")
+        errors[1].append(f"Feature uuid {source} is too close to feature uuid(s) {', '.join(map(str, target))}.")
 
-    return {"errors": errors}
+    return errors
 
 
 def roadclass_rtnumber_relationship(df):
     """Applies a set of validations to roadclass and rtnumber1 fields."""
+
+    errors = {1: list()}
 
     # Filter dataframe to only required fields.
     df_filtered = df[["roadclass", "rtnumber1"]]
@@ -720,10 +705,10 @@ def roadclass_rtnumber_relationship(df):
 
     # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
     default = defaults_all["roadseg"]["rtnumber1"]
-    errors = df_filtered[df_filtered["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
-                         df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 == default)].index.values
+    errors[1] = df_filtered[df_filtered["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
+                            df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 == default)].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def route_contiguity(roadseg, ferryseg=None):
@@ -734,7 +719,7 @@ def route_contiguity(roadseg, ferryseg=None):
         rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
     """
 
-    errors = list()
+    errors = {1: list()}
 
     # Define field groups.
     field_groups = [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
@@ -788,15 +773,17 @@ def route_contiguity(roadseg, ferryseg=None):
                     deadends = "\n".join([f"{deadend[0]}, {deadend[1]}" for deadend in deadends])
 
                     # Compile error properties.
-                    errors.append(f"Route name: \"{route_name}\", based on attribute fields: {', '.join(field_group)}."
-                                  f"\nEndpoints:\n{deadends}.")
+                    errors[1].append(f"Route name: \"{route_name}\", based on attribute fields: "
+                                     f"{', '.join(field_group)}."
+                                     f"\nEndpoints:\n{deadends}.")
 
-    return {"errors": errors}
+    return errors
 
 
 def self_intersecting_elements(df):
     """Applies a set of validations to self-intersecting road elements."""
 
+    errors = {1: list()}
     default = defaults_all["roadseg"]["nid"]
 
     # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
@@ -848,15 +835,16 @@ def self_intersecting_elements(df):
         flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
-    errors = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
-    return {"errors": errors}
+    errors[1] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
+
+    return errors
 
 
 def self_intersecting_structures(df, return_segments_only=False):
     """Applies a set of validations to self-intersecting road structures."""
 
+    errors = {1: list()}
     flag_segments = pd.DataFrame()
-    errors = list()
     default = defaults_all["roadseg"]["nid"]
 
     # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
@@ -872,18 +860,18 @@ def self_intersecting_structures(df, return_segments_only=False):
         flag_segments = segments[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
 
         # Validation: for self-intersecting road segments, ensure structtype != "None".
-        errors = flag_segments[flag_segments["structtype"] == "None"].index.values
+        errors[1] = flag_segments[flag_segments["structtype"] == "None"].index.values
 
     if return_segments_only:
         return flag_segments
     else:
-        return {"errors": errors}
+        return errors
 
 
 def speed(df):
     """Applies a set of validations to speed field."""
 
-    errors = dict()
+    errors = {i: list() for i in range(1, 2+1)}
 
     # Subset dataframe to non-default values, keep only required fields.
     default = defaults_all["roadseg"]["speed"]
@@ -898,13 +886,13 @@ def speed(df):
         # Validation 2: ensure speed is a multiple of 5.
         errors[2] = s_filtered[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
 
-    return {"errors": errors}
+    return errors
 
 
 def structure_attributes(roadseg, junction):
     """Validates the structid and structtype attributes of road segments."""
 
-    errors = {1: list(), 2: list(), 3: list(), 4: list()}
+    errors = {i: list() for i in range(1, 4+1)}
     defaults = defaults_all["roadseg"]
 
     # Filter dataframes to only required fields.
@@ -997,4 +985,4 @@ def structure_attributes(roadseg, junction):
             errors[4].append(f"Structure formed by uuid(s): {', '.join(map(str, row[0]))} contains the following "
                              f"structtypes(s): {', '.join(map(str, row[1]))}.")
 
-    return {"errors": errors}
+    return errors

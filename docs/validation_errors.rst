@@ -39,27 +39,9 @@ Error Code Structure
 
 All validations have been assigned a unique error code with the following composition:
 
-    :Structure: E (Fixed Letter) || Major Error Code || Minor Error Code || NRN Dataset
-    :Format: E ### ## DD
-    :Example: E00103RS
-
-NRN Datasets
-------------
-
-The "NRN Dataset" value indicates which dataset the errors pertain to, it does not alter the meaning of the error code.
-If a validation operates on multiple datasets simultaneously, the first dataset in list of datasets passed to the
-validation will be used.
-
-Possible values are as follows:
-
-* AR: addrange
-* AL: altnamlink
-* BP: blkpassage
-* FS: ferryseg
-* JC: junction
-* RS: roadseg
-* SP: strplaname
-* TP: tollpoint
+    :Structure: E (Fixed Letter) || Major Error Code || Minor Error Code
+    :Format: E ### ##
+    :Example: E00103
 
 Errors
 ======
