@@ -83,19 +83,17 @@ class Stage:
         self.dframes = helpers.load_gpkg(self.data_path)
 
     def log_errors(self):
-        """Templates and outputs error logs returned by validation functions."""
+        """Outputs error logs returned by validation functions."""
 
         logger.info("Writing error logs.")
 
         log_path = os.path.abspath("../../data/interim/{}_validation_errors.log".format(self.source))
         with helpers.TempHandlerSwap(logger, log_path):
 
-            # Iterate errors.
-            for code, errors in self.errors.items():
-
-                # Template and log errors.
+            # Iterate and log errors.
+            for heading, errors in self.errors.items():
                 errors = "\n".join(map(str, errors))
-                logger.warning(f"{code}\n{errors}\n")
+                logger.warning(f"{heading}\n{errors}\n")
 
     def validations(self):
         """Applies a set of validations to one or more dataframes."""
