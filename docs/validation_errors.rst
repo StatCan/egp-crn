@@ -438,8 +438,8 @@ E01901
 ------
 
 :Validation: Road class - route number relationship.
-:Description: Attribute "rtnumber1" cannot equal the default value when attribute "roadclass" equals one of the
-    following: "Expressway / Highway", "Freeway".
+:Description: Attribute "rtnumber1" cannot equal the default value or "None" when attribute "roadclass" equals one of
+    the following: "Expressway / Highway", "Freeway".
 
 .. figure:: /_static/figures/e01901.png
     :alt: Example Image

@@ -91,7 +91,7 @@ class Stage:
         with helpers.TempHandlerSwap(logger, log_path):
 
             # Iterate and log errors.
-            for heading, errors in self.errors.items():
+            for heading, errors in sorted(self.errors.items()):
                 errors = "\n".join(map(str, errors))
                 logger.warning(f"{heading}\n{errors}\n")
 

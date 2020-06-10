@@ -762,10 +762,11 @@ def roadclass_rtnumber_relationship(df):
 
     # Apply validations and compile uuids of flagged records.
 
-    # Validation: ensure rtnumber1 is not the default value when roadclass == "Freeway" or "Expressway / Highway".
+    # Validation: ensure rtnumber1 is not the default value or "None" when roadclass = "Expressway / Highway" or
+    # "Freeway".
     default = defaults_all["roadseg"]["rtnumber1"]
     errors[1] = df_filtered[df_filtered["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
-                            df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 == default)].index.values
+                            df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 in {default, "None"})].index.values
 
     # Compile error properties.
     for code, vals in errors.items():
@@ -811,8 +812,8 @@ def route_contiguity(roadseg, ferryseg=None):
         default = defaults_all["roadseg"][field_group[0]]
         df_filtered = df[(df[field_group].values != default).any(axis=1)][[*field_group, "geometry"]]
 
-        # Compile route names, excluding default value.
-        route_names = set(np.unique(df_filtered[field_group].values)) - {default}
+        # Compile route names, excluding default value and "None".
+        route_names = set(np.unique(df_filtered[field_group].values)) - {default, "None"}
 
         # Iterate route names.
         route_count = len(route_names)
@@ -839,7 +840,7 @@ def route_contiguity(roadseg, ferryseg=None):
                     # Compile error properties.
                     errors[1].append(f"Discontiguous route: '{route_name}', based on attribute fields: "
                                      f"{', '.join(field_group)}."
-                                     f"\nCoordinates of discontiguity:\n{deadends}\n.")
+                                     f"\nCoordinates of discontiguity:\n{deadends}\n")
 
     return errors
 
