@@ -1,0 +1,46 @@
+coverage:
+  country: ca
+  province: nb
+  ISO3166:
+    alpha2: CA-NB
+    country: Canada
+    subdivision: New Brunswick
+  website: http://geonb.snb.ca/downloads/nbrn/maintenance/
+license:
+  url: http://geonb.snb.ca/documents/license/geonb-odl_en.pdf
+  text: GeoNB Open Data Licence
+language: en
+data:
+  filename: NBRN_Export.gdb
+  layer: Road_Segment_Entity
+  driver: OpenFileGDB
+  crs: "EPSG:2953"
+  spatial: True
+  query: "\"Functional_Road_Class\" = 425"
+conform:
+  ferryseg:
+    acqtech: Element_Acquisition_Technique
+    metacover:
+    credate: Element_Creation_Date
+    datasetnam: "New Brunswick"
+    accuracy: Element_Planimetric_Accuracy
+    provider: Element_Provider
+    revdate: Element_Revision_Date
+    specvers:
+    closing: Closing_Period
+    ferrysegid: Ferry_Segment_ID
+    roadclass: Functional_Road_Class
+    nid: NID
+    rtename1en: Route_Name_English_1
+    rtename2en: Route_Name_English_2
+    rtename3en: Route_Name_English_3
+    rtename4en: Route_Name_English_4
+    rtename1fr: Route_Name_French_1
+    rtename2fr: Route_Name_French_2
+    rtename3fr: Route_Name_French_3
+    rtename4fr: Route_Name_French_4
+    rtnumber1: Route_Number_1
+    rtnumber2: Route_Number_2
+    rtnumber3: Route_Number_3
+    rtnumber4: Route_Number_4
+    rtnumber5: Route_Number_5
