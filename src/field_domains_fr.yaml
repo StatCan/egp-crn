@@ -312,18 +312,166 @@ tables:
       [Aucun, à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
     namebody:
     strtypre:
-      [Aucun, Abbey, Access, Acres, Aire, Allée, Alley, Autoroute, Avenue, Barrage, Bay, Beach, Bend, Bloc, Block,
-      Boulevard, Bourg, Brook, By-pass, Byway, Campus, Cape, Carre, Carrefour, Centre, Cercle, Chase, Chemin, Circle,
-      Circuit, Close, Common, Concession, Corners, Côte, Cour, Court, Cove, Crescent, Croft, Croissant, Crossing,
-      Crossroads, Cul-de-sac, Dale, Dell, Desserte, Diversion, Downs, Drive, Droit de passage, Échangeur, End,
-      Esplanade, Estates, Expressway, Extension, Farm, Field, Forest, Front, Gardens, Gate, Glade, Glen, Green, Grounds,
-      Grove, Harbour, Haven, Heath, Heights, Highlands, Highway, Hill, Hollow, Île, Impasse, Island, Key, Knoll,
-      Landing, Lane, Laneway, Limits, Line, Link, Lookout, Loop, Mall, Manor, Maze, Meadow, Mews, Montée, Moor, Mount,
-      Mountain, Orchard, Parade, Parc, Park, Parkway, Passage, Path, Pathway, Peak, Pines, Place, Plateau, Plaza, Point,
-      Port, Private, Promenade, Quay, Rang, Range, Reach, Ridge, Right of Way, Rise, Road, Rond Point, Route, Row, Rue,
-      Ruelle, Ruisseau, Run, Section, Sentier, Sideroad, Square, Street, Stroll, Subdivision, Terrace, Terrasse,
-      Thicket, Towers, Townline, Trace, Trail, Trunk, Turnabout, Vale, Via, View, Village, Vista, Voie, Walk, Way,
-      Wharf, Wood, Woods, Wynd]
+      0: None
+      1: Abbey
+      2: Access
+      3: Acres
+      4: Aire
+      5: Allée
+      6: Alley
+      7: Autoroute
+      8: Avenue
+      9: Barrage
+      10: Bay
+      11: Beach
+      12: Bend
+      13: Bloc
+      14: Block
+      15: Boulevard
+      16: Bourg
+      17: Brook
+      18: By-pass
+      19: Byway
+      20: Campus
+      21: Cape
+      22: Carre
+      23: Carrefour
+      24: Centre
+      25: Cercle
+      26: Chase
+      27: Chemin
+      28: Circle
+      29: Circuit
+      30: Close
+      31: Common
+      32: Concession
+      33: Corners
+      34: Côte
+      35: Cour
+      36: Court
+      37: Cove
+      38: Crescent
+      39: Croft
+      40: Croissant
+      41: Crossing
+      42: Crossroads
+      43: Cul-de-sac
+      44: Dale
+      45: Dell
+      46: Desserte
+      47: Diversion
+      48: Downs
+      49: Drive
+      50: Droit de passage
+      51: Échangeur
+      52: End
+      53: Esplanade
+      54: Estates
+      55: Expressway
+      56: Extension
+      57: Farm
+      58: Field
+      59: Forest
+      60: Freeway
+      61: Front
+      62: Gardens
+      63: Gate
+      64: Glade
+      65: Glen
+      66: Green
+      67: Grounds
+      68: Grove
+      69: Harbour
+      70: Haven
+      71: Heath
+      72: Heights
+      73: Highlands
+      74: Highway
+      75: Hill
+      76: Hollow
+      77: Île
+      78: Impasse
+      79: Island
+      80: Key
+      81: Knoll
+      82: Landing
+      83: Lane
+      84: Laneway
+      85: Limits
+      86: Line
+      87: Link
+      88: Lookout
+      89: Loop
+      90: Mall
+      91: Manor
+      92: Maze
+      93: Meadow
+      94: Mews
+      95: Montée
+      96: Moor
+      97: Mount
+      98: Mountain
+      99: Orchard
+      100: Parade
+      101: Parc
+      102: Park
+      103: Parkway
+      104: Passage
+      105: Path
+      106: Pathway
+      107: Peak
+      108: Pines
+      109: Place
+      110: Place
+      111: Plateau
+      112: Plaza
+      113: Point
+      114: Port
+      115: Private
+      116: Promenade
+      117: Quay
+      118: Rang
+      119: Range
+      120: Reach
+      121: Ridge
+      122: Right of Way
+      123: Rise
+      124: Road
+      125: Rond Point
+      126: Route
+      127: Row
+      128: Rue
+      129: Ruelle
+      130: Ruisseau
+      131: Run
+      132: Section
+      133: Sentier
+      134: Sideroad
+      135: Square
+      136: Street
+      137: Stroll
+      138: Subdivision
+      139: Terrace
+      140: Terrasse
+      141: Thicket
+      142: Towers
+      143: Townline
+      144: Trace
+      145: Trail
+      146: Trunk
+      147: Turnabout
+      148: Vale
+      149: Via
+      150: View
+      151: Village
+      152: Vista
+      153: Voie
+      154: Walk
+      155: Way
+      156: Wharf
+      157: Wood
+      158: Woods
+      159: Wynd
     strtysuf: strtypre
   tollpoint:
     acqtech: metadata;acqtech

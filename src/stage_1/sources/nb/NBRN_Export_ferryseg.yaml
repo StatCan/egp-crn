@@ -30,7 +30,7 @@ conform:
     closing: Closing_Period
     ferrysegid: Ferry_Segment_ID
     roadclass: Functional_Road_Class
-    nid: NID
+    nid: uuid
     rtename1en: Route_Name_English_1
     rtename2en: Route_Name_English_2
     rtename3en: Route_Name_English_3

@@ -208,7 +208,7 @@ def direct(series, cast_type=None):
             sys.exit(1)
 
     except (TypeError, ValueError):
-        logger.exception("Unable to cast series from {} to {}.".format(series.dtype.name, ))
+        logger.exception("Unable to cast series from {} to {}.".format(series.dtype.name, cast_type))
         sys.exit(1)
 
 
