@@ -273,8 +273,16 @@ def groupby_to_list(df, group_field, list_field):
     Groups records by one or more fields and compiles an output field into a list for each group.
     """
 
-    keys, vals = df.sort_values(group_field)[[group_field, list_field]].values.T
-    keys_unique, keys_indexes = np.unique(keys, return_index=True)
+    if isinstance(group_field, list):
+        transpose = df.sort_values(group_field)[[*group_field, list_field]].values.T
+        keys, vals = np.column_stack(transpose[:-1]), transpose[-1]
+        keys_unique, keys_indexes = np.unique(keys.astype(f"<U{max(map(lambda row: sum(map(len, row)), keys))}"),
+                                              axis=0, return_index=True)
+
+    else:
+        keys, vals = df.sort_values(group_field)[[group_field, list_field]].values.T
+        keys_unique, keys_indexes = np.unique(keys, return_index=True)
+
     vals_arrays = np.split(vals, keys_indexes[1:])
 
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)

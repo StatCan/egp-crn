@@ -318,38 +318,6 @@ def regex_sub(val, pattern_from, pattern_to, domain=None):
     return re.sub(pattern_from, pattern_to, val, flags=re.I)
 
 
-def split_records(df, field):
-    """
-    Splits pandas dataframe records on a nested field.
-    Returns 2 nid lookup tables, one for the first (left) and second (right) components in each record split, for the
-    purposes of repairing table linkages.
-    """
-
-    # Validate input type and column count.
-    test_value = df[field].iloc[0]
-    if not isinstance(test_value, np.ndarray) or len(test_value) != 2:
-        logger.exception(f"Invalid input for split_records. "
-                         f"The specified field \"{field}\" must be a series of type: ndarray, length: 2. "
-                         f"Current type: {type(test_value).__name__}, length: {len(test_value)}.")
-        sys.exit(1)
-
-    # Explode dataframe on field.
-    df = df.explode(field).copy(deep=True)
-
-    # Generate new nids.
-    new_nids = [uuid.uuid4().hex for _ in range(len(df))]
-
-    # Compile nids of the first and second component (l and r) of each split record as nid lookup dicts.
-    nid_lookup_l = dict(zip(df["nid"][0::2], new_nids[0::2]))
-    nid_lookup_r = dict(zip(df["nid"][1::2], new_nids[1::2]))
-    nid_lookup = {"l": nid_lookup_l, "r": nid_lookup_r}
-
-    # Assign new nids.
-    df["nid"] = new_nids
-
-    return df, nid_lookup
-
-
 def validate_dtypes(val_name, val, dtypes):
     """Validates one or more data types."""
 

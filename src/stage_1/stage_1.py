@@ -13,7 +13,6 @@ import sys
 import uuid
 import zipfile
 from collections import Counter, defaultdict
-from copy import deepcopy
 from inspect import getmembers, isfunction
 from operator import itemgetter
 from shapely.wkt import loads
@@ -58,9 +57,6 @@ class Stage:
         # Configure field defaults and dtypes.
         self.defaults = helpers.compile_default_values()
         self.dtypes = helpers.compile_dtypes()
-
-        # Store nid changes.
-        self.nid_lookup = dict()
 
     def apply_domains(self):
         """Applies the field domains to each column in the target dataframes."""
@@ -186,41 +182,30 @@ class Stage:
 
                             # Store results.
                             if isinstance(results, pd.Series):
-                                results = field_mapping_results["series"].copy(deep=True)
+                                results = field_mapping_results.copy(deep=True)
                                 break
                             else:
-                                results[index] = field_mapping_results["series"].copy(deep=True)
+                                results[index] = field_mapping_results.copy(deep=True)
 
                         # Convert results dataframe to series, if required.
                         if isinstance(results, pd.Series):
-                            field_mapping_results["series"] = results.copy(deep=True)
+                            field_mapping_results = results.copy(deep=True)
                         else:
-                            field_mapping_results["series"] = results.apply(lambda row: row.values, axis=1)
+                            field_mapping_results = results.apply(lambda row: row.values, axis=1)
 
                         # Update target dataframe.
-                        target_gdf[target_field] = field_mapping_results["series"].copy(deep=True)
-
-                        # Split records if required.
-                        if field_mapping_results["split_records"]:
-
-                            # Split records and store nid changes.
-                            target_gdf, nid_lookup = field_map_functions.split_records(target_gdf, target_field)
-                            self.nid_lookup[target_name] = deepcopy(nid_lookup)
+                        target_gdf[target_field] = field_mapping_results.copy(deep=True)
 
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
-    def apply_functions(self, maps, series, func_list, table_domains, field, split_records=False):
+    def apply_functions(self, maps, series, func_list, table_domains, field):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
         for func in func_list:
             func_name = func["function"]
             params = {k: v for k, v in func.items() if k != "function"}
-
-            if func_name == "split_records":
-                split_records = True
-                break
 
             logger.info("Applying field mapping function: {}.".format(func_name))
 
@@ -229,8 +214,7 @@ class Stage:
 
                 # Retrieve and iterate attribute functions and parameters.
                 for attr_field, attr_func_list in field_map_functions.copy_attribute_functions(maps, params).items():
-                    split_records, series = self.apply_functions(maps, series, attr_func_list, table_domains,
-                                                                 attr_field, split_records).values()
+                    series = self.apply_functions(maps, series, attr_func_list, table_domains, attr_field).values()
 
             else:
 
@@ -256,7 +240,7 @@ class Stage:
                     logger.exception("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)
 
-        return {"split_records": split_records, "series": series}
+        return series
 
     def clean_datasets(self):
         """Applies a series of data cleanups to certain datasets."""
@@ -519,45 +503,55 @@ class Stage:
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.target_gdframes, self.output_path)
 
-    def filter_strplaname_duplicates(self):
-        """Filter duplicate records from strplaname. This is intended to simplify tables and linkages."""
+    def filter_and_relink_strplaname(self):
+        """
+        For strplaname:
+        1) Filter duplicate records.
+        2) Repair nid linkages.
+        """
 
-        logger.info("Filtering duplicates from strplaname.")
         df = self.target_gdframes["strplaname"].copy(deep=True)
 
-        # Define match fields.
-        fields = df.columns.difference(["uuid", "nid"])
+        # Filter duplicates.
+        logger.info("Filtering duplicates from strplaname.")
 
-        # Drop duplicates.
-        new_df = df.drop_duplicates(subset=fields, keep="first", inplace=False)
+        # Define match fields and drop duplicates.
+        match_fields = list(df.columns.difference(["uuid", "nid"]))
+        df_new = df.drop_duplicates(subset=match_fields, keep="first", inplace=False)
 
-        # Store results only if duplicates were dropped.
-        if len(df) != len(new_df):
+        if len(df) != len(df_new):
 
-            self.target_gdframes["strplaname"] = new_df.copy(deep=True)
+            # Store results.
+            self.target_gdframes["strplaname"] = df_new.copy(deep=True)
 
-            # Create lookup dictionary to repair nid linkages.
-            logger.info("Configuring lookup table for repairing strplaname nid linkages.")
+            # Quantify removed duplicates.
+            logger.info(f"Dropped {len(df) - len(df_new)} duplicated records from strplaname.")
 
-            # Compile the associated nid which is kept for each duplicate group.
-            # Process: group nids by match fields, set first result to index, then explode groups.
-            nid_lookup = df.groupby(list(fields))["nid"].apply(list).reset_index(drop=True)
-            nid_lookup.index = nid_lookup.map(lambda vals: vals[0])
-            nid_lookup = nid_lookup.explode()
+            # Repair nid linkages.
+            logger.info("Repairing strplaname.nid linkages.")
 
-            # Invert nid lookup and store results as dict.
-            nid_lookup = pd.Series(nid_lookup.index.values, index=nid_lookup.values).to_dict()
+            # Define nid linkages.
+            linkages = {
+                "addrange": ["l_offnanid", "r_offnanid"],
+                "altnamlink": ["strnamenid"]
+            }
 
-            # Modify nid_lookup class variable.
-            # Actual repairing will occur in separate nid repair function.
-            if "strplaname" in self.nid_lookup:
-                self.nid_lookup["strplaname"] = deepcopy({
-                    "l": {k: nid_lookup[v] for k, v in self.nid_lookup["strplaname"]["l"].items()},
-                    "r": {k: nid_lookup[v] for k, v in self.nid_lookup["strplaname"]["r"].items()}
-                })
+            # Generate nid lookup dict.
+            # Process: group nids by match fields, set first value in each group as index, explode groups, create dict
+            # from reversed index and values.
+            nids_grouped = helpers.groupby_to_list(df, match_fields, "nid")
+            nids_grouped.index = nids_grouped.map(itemgetter(0))
+            nids_exploded = nids_grouped.explode()
+            nid_lookup = dict(zip(nids_exploded.values, nids_exploded.index))
 
-            else:
-                self.nid_lookup["strplaname"] = deepcopy({"l": nid_lookup, "r": nid_lookup})
+            # Iterate nid linkages.
+            for table in linkages:
+                for field in linkages[table]:
+
+                    # Repair nid linkage.
+                    series = self.target_gdframes[table][field]
+                    self.target_gdframes[table].loc[series.index, field] = series.map(
+                        lambda val: itemgetter(val)(nid_lookup))
 
     def gen_source_dataframes(self):
         """Loads input data into a geopandas dataframe."""
@@ -696,79 +690,6 @@ class Stage:
 
                     logger.info("Previous NRN vintage has no recoverable dataset: {}.".format(table))
 
-    def repair_nid_linkages(self):
-        """
-        1) Repairs the nid linkages between dataframes if the split_records field mapping function was executed.
-          i) For l_ / _l field names: uses a lookup dict with the first (left) nid from each record split.
-          ii) For r_ / _r field names: uses a lookup dict with the second (right) nid from each record split.
-          iii) For any other field name: same as l_ / _l fields.
-        2) Generates new uuids for the split dataframe to restore record uniqueness.
-        """
-
-        if len(self.nid_lookup):
-
-            logger.info("Repairing nid linkages.")
-
-            # Define linkages.
-            # Linkages will be repaired in the order given.
-            linkages = {
-                "addrange":
-                    {
-                        "roadseg": ["adrangenid"]
-                    },
-                "roadseg":
-                    {
-                        "blkpassage": ["roadnid"],
-                        "tollpoint": ["roadnid"]
-                    },
-                "strplaname":
-                    {
-                        "addrange": ["l_offnanid", "r_offnanid"],
-                        "altnamlink": ["strnamenid"]
-                    },
-                "altnamlink":
-                    {
-                        "addrange": ["l_altnanid", "r_altnanid"]
-                    }
-            }
-
-            # Iterate tables with nid linkages that had their nids updated (source).
-            for source in [s for s in linkages if s in self.nid_lookup]:
-
-                nid_lookup = self.nid_lookup[source]
-
-                # Iterate linked tables for linkage repairs (target).
-                for target in [t for t in linkages[source] if t in self.target_gdframes]:
-
-                    # Iterate linked fields.
-                    for col in linkages[source][target]:
-
-                        logger.info("Repairing nid linkage: {}.nid - {}.{}.".format(source, target, col))
-
-                        # Retrieve target column.
-                        target_col = self.target_gdframes[target][col]
-
-                        # Retrieve default field value.
-                        default = self.defaults[target][col]
-
-                        # Update linkage for r_ / _r fields.
-                        if col.startswith("r_") or col.endswith("_r"):
-                            target_col = target_col.map(lambda val: val if val == default else nid_lookup["r"][val])
-
-                        # Update linkage for all other fields, including l_ / _l fields.
-                        else:
-                            target_col = target_col.map(lambda val: val if val == default else nid_lookup["l"][val])
-
-                        # Store results.
-                        self.target_gdframes[target][col] = target_col.copy(deep=True)
-
-                # Generate new uuids and update index.
-                logger.info("Generating new uuids for: {}.".format(source))
-
-                self.target_gdframes[source]["uuid"] = [uuid.uuid4().hex for _ in
-                                                        range(len(self.target_gdframes[source]))]
-                self.target_gdframes[source].index = self.target_gdframes[source]["uuid"]
-
     def execute(self):
         """Executes an NRN stage."""
 
@@ -782,8 +703,7 @@ class Stage:
         self.recover_missing_datasets()
         self.apply_domains()
         self.clean_datasets()
-        self.filter_strplaname_duplicates()
-        self.repair_nid_linkages()
+        self.filter_and_relink_strplaname()
         self.export_gpkg()
 
 
