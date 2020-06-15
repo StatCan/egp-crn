@@ -371,12 +371,6 @@ class Stage:
                     domain_en = domains_yaml["en"]["tables"][table][field]
                     domain_fr = domains_yaml["fr"]["tables"][table][field]
 
-                    # Resolve referenced domains.
-                    while isinstance(domain_en, str):
-                        table_ref, field_ref = domain_en.split(";") if domain_en.find(";") > 0 else [table, domain_en]
-                        domain_en = domains_yaml["en"]["tables"][table_ref][field_ref]
-                        domain_fr = domains_yaml["fr"]["tables"][table_ref][field_ref]
-
                     # Compile all domain values and domain lookup table, separately.
                     if domain_en is None:
                         self.domains[table][field] = {"values": None, "lookup": None}

@@ -3,7 +3,7 @@ default:
   label: Inconnu
 tables:
   metadata:
-    acqtech:
+    acqtech: &acqtech
       -1: Inconnu
       0: Aucun
       1: Autre
@@ -18,12 +18,12 @@ tables:
       10: Photographie aérienne
       11: Image satellite brute
       12: Calculé
-    metacover:
+    metacover: &metacover
       -1: Inconnu
       1: Complet
       2: Partiel
     credate:
-    datasetnam:
+    datasetnam: &datasetnam
       1: Terre-Neuve et Labrador
       2: Nouvelle-Écosse
       3: Île-du-Prince-Édouard
@@ -38,7 +38,7 @@ tables:
       12: Territoires du Nord-Ouest
       13: Nunavut
     accuracy:
-    provider:
+    provider: &provider
       1: Autre
       2: Fédéral
       3: Provincial / Territorial
@@ -46,51 +46,51 @@ tables:
     revdate:
     specvers:
   addrange:
-    acqtech: metadata;acqtech
-    metacover: metadata;metacover
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
-    accuracy: metadata;accuracy
-    provider: metadata;provider
-    revdate: metadata;revdate
-    specvers: metadata;specvers
+    acqtech: *acqtech
+    metacover: *metacover
+    credate:
+    datasetnam: *datasetnam
+    accuracy:
+    provider: *provider
+    revdate:
+    specvers:
     l_altnanid:
     r_altnanid:
-    l_digdirfg:
+    l_digdirfg: &l_digdirfg
       1: Même sens
       2: Sens opposé
       3: Sans objet
-    r_digdirfg: l_digdirfg
+    r_digdirfg: *l_digdirfg
     l_hnumf:
     r_hnumf:
     l_hnumsuff:
     r_hnumsuff:
-    l_hnumtypf:
+    l_hnumtypf: &l_hnumtypf
       -1: Inconnu
       0: Aucun
       1: Localisation réelle
       2: Localisation présumée
       3: Projeté
       4: Interpolé
-    r_hnumtypf: l_hnumtypf
-    l_hnumstr:
+    r_hnumtypf: *l_hnumtypf
+    l_hnumstr: &l_hnumstr
       -1: Inconnu
       0: Aucun
       1: Numéros pairs
       2: Numéros impairs
       3: Numéros mixtes
       4: Numéros irréguliers
-    r_hnumstr: l_hnumstr
+    r_hnumstr: *l_hnumstr
     l_hnuml:
     r_hnuml:
     l_hnumsufl:
     r_hnumsufl:
-    l_hnumtypl: l_hnumtypf
-    r_hnumtypl: l_hnumtypf
+    l_hnumtypl: *l_hnumtypf
+    r_hnumtypl: *l_hnumtypf
     nid:
     l_offnanid:
     r_offnanid:
-    l_rfsysind:
+    l_rfsysind: &l_rfsysind
       -1: Inconnu
       0: Aucun
       1: Civique
@@ -98,23 +98,23 @@ tables:
       3: Mesuré 911
       4: Civique 911
       5: DLS
-    r_rfsysind: l_rfsysind
+    r_rfsysind: *l_rfsysind
   altnamlink:
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
+    credate:
+    datasetnam: *datasetnam
     nid:
-    revdate: metadata;revdate
-    specvers: metadata;specvers
+    revdate:
+    specvers:
     strnamenid:
   blkpassage:
-    acqtech: metadata;acqtech
-    metacover: metadata;metacover
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
-    accuracy: metadata;accuracy
-    provider: metadata;provider
-    revdate: metadata;revdate
-    specvers: metadata;specvers
+    acqtech: *acqtech
+    metacover: *metacover
+    credate:
+    datasetnam: *datasetnam
+    accuracy:
+    provider: *provider
+    revdate:
+    specvers:
     blkpassty:
       -1: Inconnu
       1: Permanente
@@ -122,17 +122,34 @@ tables:
     nid:
     roadnid:
   ferryseg:
-    acqtech: metadata;acqtech
-    metacover: metadata;metacover
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
-    accuracy: metadata;accuracy
-    provider: metadata;provider
-    revdate: metadata;revdate
-    specvers: metadata;specvers
-    closing: roadseg;closing
+    acqtech: *acqtech
+    metacover: *metacover
+    credate:
+    datasetnam: *datasetnam
+    accuracy:
+    provider: *provider
+    revdate:
+    specvers:
+    closing: &closing
+      -1: Inconnu
+      0: Aucun
+      1: Été
+      2: Hiver
     ferrysegid:
-    roadclass: roadseg;roadclass
+    roadclass: &roadclass
+      1: Autoroute
+      2: Route express
+      3: Artère
+      4: Route collectrice
+      5: Local / Rue
+      6: Local / Semi-privé
+      7: Local / Inconnu
+      8: Ruelle / Voie
+      9: Bretelle
+      10: Route d'accès ressources / Site récréatif
+      11: Réservée transport commun
+      12: Service
+      13: Hiver
     nid:
     rtename1en:
     rtename2en:
@@ -148,14 +165,14 @@ tables:
     rtnumber4:
     rtnumber5:
   junction:
-    acqtech: metadata;acqtech
-    metacover: metadata;metacover
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
-    accuracy: metadata;accuracy
-    provider: metadata;provider
-    revdate: metadata;revdate
-    specvers: metadata;specvers
+    acqtech: *acqtech
+    metacover: *metacover
+    credate:
+    datasetnam: *datasetnam
+    accuracy:
+    provider: *provider
+    revdate:
+    specvers:
     exitnbr:
     junctype:
       1: Intersection
@@ -164,39 +181,22 @@ tables:
       4: NatProvTer
     nid:
   roadseg:
-    acqtech: metadata;acqtech
-    metacover: metadata;metacover
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
-    accuracy: metadata;accuracy
-    provider: metadata;provider
-    revdate: metadata;revdate
-    specvers: metadata;specvers
-    l_adddirfg: addrange;l_digdirfg
-    r_adddirfg: addrange;l_digdirfg
+    acqtech: *acqtech
+    metacover: *metacover
+    credate:
+    datasetnam: *datasetnam
+    accuracy:
+    provider: *provider
+    revdate:
+    specvers:
+    l_adddirfg: *l_digdirfg
+    r_adddirfg: *l_digdirfg
     adrangenid:
-    closing:
-      -1: Inconnu
-      0: Aucun
-      1: Été
-      2: Hiver
+    closing: *closing
     exitnbr:
     l_hnumf:
     r_hnumf:
-    roadclass:
-      1: Autoroute
-      2: Route express
-      3: Artère
-      4: Route collectrice
-      5: Local / Rue
-      6: Local / Semi-privé
-      7: Local / Inconnu
-      8: Ruelle / Voie
-      9: Bretelle
-      10: Route d'accès ressources / Site récréatif
-      11: Réservée transport commun
-      12: Service
-      13: Hiver
+    roadclass: *roadclass
     l_hnuml:
     r_hnuml:
     nid:
@@ -253,15 +253,15 @@ tables:
       1: Gravier
       2: Terre
   strplaname:
-    acqtech: metadata;acqtech
-    metacover: metadata;metacover
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
-    accuracy: metadata;accuracy
-    provider: metadata;provider
-    revdate: metadata;revdate
-    specvers: metadata;specvers
-    dirprefix:
+    acqtech: *acqtech
+    metacover: *metacover
+    credate:
+    datasetnam: *datasetnam
+    accuracy:
+    provider: *provider
+    revdate:
+    specvers:
+    dirprefix: &dirprefix
       0: Aucun
       1: North
       2: Nord
@@ -281,7 +281,7 @@ tables:
       16: Sud-est
       17: Central
       18: Centre
-    dirsuffix: dirprefix
+    dirsuffix: *dirprefix
     muniquad:
       0: Aucun
       1: South-West
@@ -307,11 +307,11 @@ tables:
       Township (Municipality) / Canton (Municipalité), Township / Canton,
       United Township (Municipality) / Cantons-unis (Municipalité), Unorganized / Non-organisé, Village / Village,
       Without Designation (Municipality) / Sans désignation (Municipalité)]
-    province: metadata;datasetnam
+    province: *datasetnam
     starticle:
       [Aucun, à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
     namebody:
-    strtypre:
+    strtypre: &strtypre
       0: None
       1: Abbey
       2: Access
@@ -472,16 +472,16 @@ tables:
       157: Wood
       158: Woods
       159: Wynd
-    strtysuf: strtypre
+    strtysuf: *strtypre
   tollpoint:
-    acqtech: metadata;acqtech
-    metacover: metadata;metacover
-    credate: metadata;credate
-    datasetnam: metadata;datasetnam
-    accuracy: metadata;accuracy
-    provider: metadata;provider
-    revdate: metadata;revdate
-    specvers: metadata;specvers
+    acqtech: *acqtech
+    metacover: *metacover
+    credate:
+    datasetnam: *datasetnam
+    accuracy:
+    provider: *provider
+    revdate:
+    specvers:
     nid:
     roadnid:
     tollpttype:
