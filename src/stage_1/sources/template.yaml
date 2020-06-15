@@ -16,6 +16,7 @@ data:
   driver:
   crs:
   spatial:
+  query:
 conform:
   addrange:
     acqtech:

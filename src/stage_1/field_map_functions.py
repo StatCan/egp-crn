@@ -1,9 +1,7 @@
-import ast
 import logging
 import numpy as np
 import pandas as pd
 import re
-import sqlite3
 import sys
 import uuid
 from copy import deepcopy
@@ -11,16 +9,6 @@ from operator import attrgetter, itemgetter
 
 
 logger = logging.getLogger()
-
-
-# Define universally-accessible sqlite database.
-db = sqlite3.connect(":memory:")
-cur = db.cursor()
-
-# Create single-row counter table.
-cur.execute("create table counter (idx integer default 0);")
-cur.execute("insert into counter (idx) values (0);")
-db.commit()
 
 
 def apply_domain(series, domain, default):
@@ -53,62 +41,6 @@ def apply_domain(series, domain, default):
         # Convert empty strings and null types to default.
         series.loc[(series.map(str).isin(["", "nan"])) | (series.isna())] = default
         return series
-
-
-def conditional_values(vals, conditions_map, else_value=None):
-    """
-    Updates the given value based on a series of conditions.
-    Parameter 'vals' should be one or many field values (depending if one or many fields were passed to function).
-    Parameter 'conditions_map' expected to be a dictionary of python conditions-values; excluding if, elif, and else
-    keywords and using str.format() indexing ({index}) to refer to the input values given by parameter 'vals'.
-    Example:
-        {
-        "int({0}) % 2 == 0": "Even",
-        "int({0}) % 2 == 1": "Odd"
-        }
-    Parameter 'else_value' should be the else-condition value. If missing, the first input value will be returned.
-    """
-
-    def sanitize(expr):
-        """Sanitizes the input expression for safe usage in eval()."""
-
-        try:
-
-            parsed = ast.parse(expr, mode="eval")
-            fixed = ast.fix_missing_locations(parsed)
-            compile(fixed, "<string>", "eval")
-
-            return expr
-
-        except (SyntaxError, ValueError):
-            logger.exception("Invalid expression: \"{}\".".format(expr))
-            sys.exit(1)
-
-    # Validate inputs.
-    validate_dtypes("conditions_map", conditions_map, dict)
-    for condition in conditions_map:
-        validate_dtypes("conditions_map[\"{}\"]", condition, str)
-
-    # Format conditions with input values.
-    vals = vals if isinstance(vals, list) else [vals]
-    vals_formatted = ["\"{}\"".format(val) if isinstance(val, str) else val for val in vals]
-    conditions = dict(zip(map(lambda val: val.format(*vals_formatted), conditions_map.keys()), conditions_map.values()))
-
-    # Sanitize input conditions.
-    conditions = dict(zip(map(sanitize, conditions.keys()), conditions.values()))
-
-    # Iterate conditions.
-    return_val = else_value if else_value else vals[0]
-    for condition, value in conditions.items():
-
-        # Test condition.
-        if eval(condition):
-
-            # Store value and break iteration.
-            return_val = value
-            break
-
-    return return_val
 
 
 def copy_attribute_functions(field_mapping_attributes, params):
@@ -212,42 +144,26 @@ def direct(series, cast_type=None):
         sys.exit(1)
 
 
-def gen_uuid(val):
-    """Returns a uuid4 hexadecimal string."""
+def gen_uuid(series):
+    """Returns a uuid4 hexadecimal string for each record in the series."""
 
-    return uuid.uuid4().hex
+    return pd.Series([uuid.uuid4().hex for _ in range(len(series))], index=series.index)
 
 
-def incrementor(val, column, start=1, step=1):
+def incrementor(series, start=1, step=1):
+    """Returns an integer sequence series using the given start and step."""
+
+    if not all(isinstance(param, int) for param in (start, step)):
+        logger.exception(f"Unable to generate sequence. One or more input variables is not an integer.")
+
+    stop = (len(series) * step) + start
+    return pd.Series(range(start, stop, step), index=series.index)
+
+
+def regex_find(series, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):
     """
-    Returns and increments an integer from counter.{column}, starting from and incrementing by the given start and step
-    inputs.
-    """
-
-    # Validate inputs.
-    validate_dtypes("column", column, str)
-    validate_dtypes("start", start, int)
-    validate_dtypes("step", step, int)
-
-    # Add column, ignoring exception if already exists.
-    try:
-        cur.execute("alter table counter add {} integer default {};".format(column, start))
-    except sqlite3.OperationalError:
-        pass
-
-    # Retrieve count.
-    count = cur.execute("select {} from counter;".format(column)).fetchone()[0]
-
-    # Increment column.
-    cur.execute("update counter set {0} = {0}+{1};".format(column, step))
-
-    return count
-
-
-def regex_find(val, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):
-    """
-    Extracts a value's nth match (index) from the nth match group (index) based on a regular expression pattern.
-    Case ignored by default.
+    For each value in a series, extracts the nth match (index) from the nth match group (index) based on a regular
+    expression pattern.
     Parameter 'group_index' can be an int or list of ints, the returned value will be at the first index with a match.
     Parameter 'strip_result' returns the entire value except for the extracted substring.
     Parameter 'sub_inplace' takes the same parameters as regex_sub. This allows regex to match against a modified string
@@ -256,9 +172,38 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
     to preserve hyphens in the remainder of the string.
     """
 
-    # Return numpy nan.
-    if val == "" or pd.isna(val):
-        return np.nan
+    def regex_find_multiple_idx(val, expression):
+        try:
+
+            matches = re.finditer(expression, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
+            result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
+            result[0] = [grp for grp in result[0] if grp != "" and not pd.isna(grp)][0]
+            return result
+
+        except (IndexError, ValueError):
+            return val if strip_result else np.nan
+
+    def regex_find_single_idx(val, expression):
+        try:
+
+            matches = re.finditer(expression, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
+            result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
+            return result
+
+        except (IndexError, ValueError):
+            return val if strip_result else np.nan
+
+    def strip(result):
+        """Strip result from original value."""
+
+        start, end = result[1:]
+
+        # Reset start index to avoid stacking spaces and hyphens.
+        if start > 0 and end < len(result):
+            while result[start - 1] == result[end] and result[end] in {" ", "-"}:
+                start -= 1
+
+        return "".join(map(str, [result[:start], result[end:]]))
 
     # Validate inputs.
     pattern = validate_regex(pattern, domain)
@@ -269,66 +214,64 @@ def regex_find(val, pattern, match_index, group_index, domain=None, strip_result
             validate_dtypes("group_index[{}]".format(index), i, [int, np.int_])
     validate_dtypes('strip_result', strip_result, [bool, np.bool_])
 
-    # Apply and return regex value, or numpy nan.
-    try:
+    # Replace empty or nan values with numpy nan.
+    series.loc[(series == "") | (series.isna())] = np.nan
 
-        # Single group index.
-        if isinstance(group_index, int) or isinstance(group_index, np.int_):
-            matches = re.finditer(pattern, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
-            result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
+    # Compile valid records.
+    series_valid = series[~series.isna()].copy(deep=True)
 
-        # Multiple group indexes.
-        else:
-            matches = re.finditer(pattern, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
-            result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
-            result[0] = [grp for grp in result[0] if grp != "" and not pd.isna(grp)][0]
+    # Compile regex results, based on required group indexes.
+    if isinstance(group_index, int) or isinstance(group_index, np.int_):
+        results = series_valid.map(lambda val: regex_find_single_idx(val, pattern))
+    else:
+        results = series_valid.map(lambda val: regex_find_multiple_idx(val, pattern))
 
-        if strip_result:
-            start, end = result[1:]
-            # Reset start index to avoid stacking spaces and hyphens.
-            if start > 0 and end < len(val):
-                while val[start-1] == val[end] and val[end] in (" ", "-"):
-                    start -= 1
-            result = "".join(map(str, [val[:start], val[end:]]))
-        else:
-            result = result[0]
+    # Strip or keep results.
+    if strip_result:
+        results = results.map(strip)
+    else:
+        results = results.map(itemgetter(0))
 
-        # Strip leading and trailing whitespaces and hyphens.
-        return result.strip(" -")
+    # Strip leading and trailing whitespaces and hyphens.
+    results = results.map(lambda val: val.strip(" -"))
 
-    except (IndexError, ValueError):
-        return val if strip_result else np.nan
+    # Update series with results.
+    series.loc[series_valid.index] = results
+
+    return series
 
 
-def regex_sub(val, pattern_from, pattern_to, domain=None):
-    """
-    Substitutes one regular expression pattern with another.
-    Case ignored by default.
-    """
-
-    # Return numpy nan.
-    if val == "" or pd.isna(val):
-        return np.nan
+def regex_sub(series, pattern_from, pattern_to, domain=None):
+    """Applies value substitution based on from and to regular expression patterns."""
 
     # Validate inputs.
     pattern_from = validate_regex(pattern_from, domain)
     pattern_to = validate_regex(pattern_to, domain)
 
-    # Apply and return regex value.
-    return re.sub(pattern_from, pattern_to, val, flags=re.I)
+    # Replace empty or nan values with numpy nan.
+    series.loc[(series == "") | (series.isna())] = np.nan
+
+    # Compile valid records.
+    series_valid = series[~series.isna()].copy(deep=True)
+
+    # Apply regex substitution.
+    series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(pattern_from, pattern_to, val, flags=re.I))
+
+    return series
 
 
-def validate_dtypes(val_name, val, dtypes):
-    """Validates one or more data types."""
+def validate_dtypes(name, val, dtypes):
+    """Checks if the given value is from the given dtype(s)."""
 
     if not isinstance(dtypes, list):
         dtypes = [dtypes]
 
     if any([isinstance(val, dtype) for dtype in dtypes]):
         return True
+
     else:
-        logger.exception("Validation failed. Invalid data type for \"{}\": \"{}\". Expected {} but received {}.".format(
-            val_name, val, " or ".join(map(attrgetter("__name__"), dtypes)), type(val).__name__))
+        logger.exception(f"Invalid data type for {name}: {val}. Expected one of "
+                         f"{list(map(attrgetter('__name__'), dtypes))} but received {type(val).__name__}.")
         sys.exit(1)
 
 
@@ -350,5 +293,5 @@ def validate_regex(pattern, domain=None):
         return pattern
 
     except re.error:
-        logger.exception("Validation failed. Invalid regular expression: \"{}\".".format(pattern))
+        logger.exception(f"Invalid regular expression: {pattern}.")
         sys.exit(1)

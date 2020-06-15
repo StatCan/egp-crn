@@ -16,6 +16,7 @@ data:
   driver: ESRI Shapefile
   crs: "EPSG:26913"
   spatial: True
+  query:
 conform:
   ferryseg:
     acqtech:

@@ -214,7 +214,7 @@ class Stage:
 
                 # Retrieve and iterate attribute functions and parameters.
                 for attr_field, attr_func_list in field_map_functions.copy_attribute_functions(maps, params).items():
-                    series = self.apply_functions(maps, series, attr_func_list, table_domains, attr_field).values()
+                    series = self.apply_functions(maps, series, attr_func_list, table_domains, attr_field)
 
             else:
 
@@ -231,11 +231,11 @@ class Stage:
                     fixed = ast.fix_missing_locations(parsed)
                     compile(fixed, "<string>", "eval")
 
-                    # Execute vectorized expression.
+                    # Execute expression.
                     if func_name == "direct":
                         series = field_map_functions.direct(series, **params)
                     else:
-                        series = series.map(lambda val: eval("field_map_functions.{}".format(func_name))(val, **params))
+                        series = eval(f"field_map_functions.{func_name}(series, **params)").copy(deep=True)
                 except (SyntaxError, ValueError):
                     logger.exception("Invalid expression: \"{}\".".format(expr))
                     sys.exit(1)

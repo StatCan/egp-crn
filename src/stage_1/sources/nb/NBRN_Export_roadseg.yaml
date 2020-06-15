@@ -106,7 +106,6 @@ conform:
       fields: uuid
       functions:
         - function: incrementor
-          column: roadseg_roadsegid
           start: 1
           step: 1
     rtename1en: Route_Name_English_1

@@ -16,6 +16,7 @@ data:
   driver: ESRI Shapefile
   crs: "EPSG:2953"
   spatial: True
+  query:
 conform:
   addrange:
     acqtech:
