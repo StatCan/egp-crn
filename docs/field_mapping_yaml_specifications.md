@@ -39,6 +39,7 @@ data:
   driver: A GDAL vector driver name.
   crs: The EPSG shorthand string for the dataset / layer.
   spatial: Boolean (True / False) flag to indicate whether the dataset / layer is spatial or tabular.
+  query: An attribute query using SQL WHERE syntax.
 
 Example data source:
   data:
@@ -55,6 +56,7 @@ Example YAML data key:
     driver: ESRI Shapefile
     crs: "EPSG:2953"
     spatial: True
+    query:
 
 ## Key: Conform
 YAML conform key contains all of the field mapping between the source and target datasets. The generic structure is the following:
