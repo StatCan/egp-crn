@@ -126,11 +126,11 @@ conform:
       fields: roadclass
       functions:
         - function: regex_sub
-          pattern_from: "NBDOT|NBDNR|DOT"
-          pattern_to: ""
+          pattern: "NBDOT|NBDNR|DOT"
+          repl: ""
         - function: regex_sub
-          pattern_from: "/"
-          pattern_to: " / "
+          pattern: "/"
+          repl: " / "
     l_hnuml:
       fields: l_hnuml
       functions:
@@ -200,8 +200,8 @@ conform:
           match_index: -1
           group_index: 0
           sub_inplace:
-            pattern_from: "[-]"
-            pattern_to: " "
+            pattern: "[-]"
+            repl: " "
     muniquad:
     nid: uuid
     placename:
@@ -219,8 +219,8 @@ conform:
           match_index: 0
           group_index: 0
           sub_inplace:
-            pattern_from: "[-]"
-            pattern_to: " "
+            pattern: "[-]"
+            repl: " "
     namebody:
       fields: streetname
       functions:
@@ -249,5 +249,5 @@ conform:
           match_index: -1
           group_index: 0
           sub_inplace:
-            pattern_from: "[-]"
-            pattern_to: " "
+            pattern: "[-]"
+            repl: " "

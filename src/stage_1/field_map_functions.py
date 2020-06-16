@@ -166,44 +166,60 @@ def regex_find(series, pattern, match_index, group_index, domain=None, strip_res
     expression pattern.
     Parameter 'group_index' can be an int or list of ints, the returned value will be at the first index with a match.
     Parameter 'strip_result' returns the entire value except for the extracted substring.
-    Parameter 'sub_inplace' takes the same parameters as regex_sub. This allows regex to match against a modified string
+    Parameter 'sub_inplace' takes the same parameters as re.sub. This allows regex to match against a modified string
     yet preserve the unmodified string. For example, to match 'de la' from the string 'Chemin-de-la-Grande-Rivière',
-    sub_inplace can call regex_sub to replace '-' with ' ', then substitute the match's indexes from the original string
+    sub_inplace can call re.sub to replace '-' with ' ', then substitute the match's indexes from the original string
     to preserve hyphens in the remainder of the string.
     """
 
-    def regex_find_multiple_idx(val, expression):
+    def regex_find_multiple_idx(val, pattern):
+        """
+        Return resulting regex string based on multiple group indexes. Returns the result from the first group index
+        with a match.
+        """
+
         try:
 
-            matches = re.finditer(expression, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
+            matches = re.finditer(pattern, re.sub(**sub_inplace, string=val) if sub_inplace else val, flags=re.I)
             result = [[itemgetter(*group_index)(m.groups()), m.start(), m.end()] for m in matches][match_index]
             result[0] = [grp for grp in result[0] if grp != "" and not pd.isna(grp)][0]
-            return result
+
+            # Return stripped result, if required.
+            return strip(val, result) if strip_result else itemgetter(0)(result)
 
         except (IndexError, ValueError):
             return val if strip_result else np.nan
 
-    def regex_find_single_idx(val, expression):
+    def regex_find_single_idx(val, pattern):
+        """Return resulting regex string based on a single group index."""
+
         try:
 
-            matches = re.finditer(expression, regex_sub(val, **sub_inplace) if sub_inplace else val, flags=re.I)
+            matches = re.finditer(pattern, re.sub(**sub_inplace, string=val) if sub_inplace else val, flags=re.I)
             result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
-            return result
+
+            # Return stripped result, if required.
+            return strip(val, result) if strip_result else itemgetter(0)(result)
 
         except (IndexError, ValueError):
             return val if strip_result else np.nan
 
-    def strip(result):
+    def strip(val, result):
         """Strip result from original value."""
 
-        start, end = result[1:]
+        try:
 
-        # Reset start index to avoid stacking spaces and hyphens.
-        if start > 0 and end < len(result):
-            while result[start - 1] == result[end] and result[end] in {" ", "-"}:
-                start -= 1
+            start, end = result[1:]
 
-        return "".join(map(str, [result[:start], result[end:]]))
+            # Reset start index to avoid stacking spaces and hyphens.
+            if start > 0 and end < len(val):
+                while val[start - 1] == val[end] and val[end] in {" ", "-"}:
+                    start -= 1
+
+            return "".join(map(str, [val[:start], val[end:]]))
+
+        except (IndexError, ValueError):
+            return result if strip_result else np.nan
 
     # Validate inputs.
     pattern = validate_regex(pattern, domain)
@@ -213,6 +229,16 @@ def regex_find(series, pattern, match_index, group_index, domain=None, strip_res
         for index, i in enumerate(group_index):
             validate_dtypes("group_index[{}]".format(index), i, [int, np.int_])
     validate_dtypes('strip_result', strip_result, [bool, np.bool_])
+    if sub_inplace:
+        validate_dtypes("sub_inplace", sub_inplace, dict)
+        if {"pattern", "repl"}.issubset(set(sub_inplace.keys())):
+            sub_inplace["pattern"] = validate_regex(sub_inplace["pattern"], domain)
+            sub_inplace["repl"] = validate_regex(sub_inplace["repl"], domain)
+            sub_inplace["flags"] = re.I
+        else:
+            logger.exception("Invalid input for sub_inplace. Missing one or more required re.sub kwargs: pattern, "
+                             "repl.")
+            sys.exit(1)
 
     # Replace empty or nan values with numpy nan.
     series.loc[(series == "") | (series.isna())] = np.nan
@@ -226,14 +252,8 @@ def regex_find(series, pattern, match_index, group_index, domain=None, strip_res
     else:
         results = series_valid.map(lambda val: regex_find_multiple_idx(val, pattern))
 
-    # Strip or keep results.
-    if strip_result:
-        results = results.map(strip)
-    else:
-        results = results.map(itemgetter(0))
-
     # Strip leading and trailing whitespaces and hyphens.
-    results = results.map(lambda val: val.strip(" -"))
+    results = results.map(lambda val: str(val).strip(" -"))
 
     # Update series with results.
     series.loc[series_valid.index] = results
@@ -241,12 +261,17 @@ def regex_find(series, pattern, match_index, group_index, domain=None, strip_res
     return series
 
 
-def regex_sub(series, pattern_from, pattern_to, domain=None):
-    """Applies value substitution based on from and to regular expression patterns."""
+def regex_sub(series, domain=None, **kwargs):
+    """Applies value substitution via re.sub."""
 
     # Validate inputs.
-    pattern_from = validate_regex(pattern_from, domain)
-    pattern_to = validate_regex(pattern_to, domain)
+    validate_dtypes("kwargs", kwargs, dict)
+    if {"pattern", "repl"}.issubset(set(kwargs.keys())):
+        kwargs["pattern"] = validate_regex(kwargs["pattern"], domain)
+        kwargs["repl"] = validate_regex(kwargs["repl"], domain)
+        kwargs["flags"] = re.I
+    else:
+        logger.exception("Invalid input. Missing one or more required re.sub kwargs: pattern, repl.")
 
     # Replace empty or nan values with numpy nan.
     series.loc[(series == "") | (series.isna())] = np.nan
@@ -255,7 +280,7 @@ def regex_sub(series, pattern_from, pattern_to, domain=None):
     series_valid = series[~series.isna()].copy(deep=True)
 
     # Apply regex substitution.
-    series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(pattern_from, pattern_to, val, flags=re.I))
+    series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(**kwargs, string=val))
 
     return series
 

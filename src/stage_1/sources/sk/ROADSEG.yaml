@@ -184,8 +184,8 @@ conform:
           match_index: -1
           group_index: 0
           sub_inplace:
-            pattern_from: "[-]"
-            pattern_to: " "
+            pattern: "[-]"
+            repl: " "
     muniquad:
     nid: uuid
     placename: PLACENAME
@@ -199,8 +199,8 @@ conform:
           match_index: 0
           group_index: 0
           sub_inplace:
-            pattern_from: "[-]"
-            pattern_to: " "
+            pattern: "[-]"
+            repl: " "
     namebody:
       fields: POSTEDNAME
       functions:
@@ -229,5 +229,5 @@ conform:
           match_index: -1
           group_index: 0
           sub_inplace:
-            pattern_from: "[-]"
-            pattern_to: " "
+            pattern: "[-]"
+            repl: " "

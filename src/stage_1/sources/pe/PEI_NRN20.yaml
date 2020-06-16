@@ -45,8 +45,8 @@ conform:
       fields: L_HNUMSUFF
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     r_hnumsuff:
       fields: R_HNUMSUFF
       functions:
@@ -70,8 +70,8 @@ conform:
       fields: L_HNUMSUFL
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     r_hnumsufl:
       fields: R_HNUMSUFL
       functions:
@@ -101,8 +101,8 @@ conform:
       fields: EXITNBR
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     l_hnumf:
       fields: L_HNUMF
       functions:
@@ -130,8 +130,8 @@ conform:
       fields: PLACE_L
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     r_placenam:
       fields: PLACE_R
       functions:
@@ -141,8 +141,8 @@ conform:
       fields: NAME
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     r_stname_c:
       fields: NAME
       functions:
@@ -161,8 +161,8 @@ conform:
       fields: RTENAME1EN
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     rtename2en:
       fields: RTENAME2EN
       functions:
@@ -228,8 +228,8 @@ conform:
       fields: STRUNAMEEN
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     strunamefr:
       fields: STRUNAMEFR
       functions:
@@ -239,8 +239,8 @@ conform:
       fields: STRUCTID
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     structtype: STRUCTTYPE
     trafficdir: TRAFFICDIR
     unpavsurf: UNPAVSURF
@@ -262,8 +262,8 @@ conform:
       process_separately: True
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
         - function: split_records
           field: None
     placetype:
@@ -273,14 +273,14 @@ conform:
       fields: NAMEBODY
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     strtypre:
       fields: STRTYPRE
       functions:
         - function: regex_sub
-          pattern_from: "-"
-          pattern_to: ""
+          pattern: "-"
+          repl: ""
     strtysuf:
       fields: STRTYSUF
       functions:
