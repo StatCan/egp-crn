@@ -8,6 +8,7 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
+import string
 import sys
 import uuid
 from itertools import chain, compress
@@ -145,11 +146,33 @@ class Stage:
             .drop_duplicates(subset="structid", keep="first")
         recovery.index = recovery["uuid"]
 
+        # Filter invalid structids from old data.
+        recovery = recovery[self.get_valid_ids(recovery["structid_old"])]
+
         # Recover old structids.
-        roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
+        if len(recovery):
+            roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
 
         # Store results.
         self.dframes["roadseg"].loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
+
+    def get_valid_ids(self, series):
+        """
+        Validates a series of IDs based on the following conditions:
+        1) ID must be non-null.
+        2) ID must be 32 digits.
+        3) ID must be hexadecimal.
+        Returns flags.
+        """
+
+        hexdigits = set(string.hexdigits)
+
+        # Filter records.
+        flags = ~((series.isna()) |
+                  (series.map(lambda val: len(str(val)) != 32)) |
+                  (series.map(lambda val: not set(str(val)).issubset(hexdigits))))
+
+        return flags
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""
@@ -207,8 +230,14 @@ class Stage:
                         .drop_duplicates(subset="nid", keep="first")
                     recovery.index = recovery["uuid"]
 
-                    # Recover old nids. Store results.
-                    df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+                    # Filter invalid nids from old data.
+                    recovery = recovery[self.get_valid_ids(recovery["nid_old"])]
+
+                    # Recover old nids.
+                    if len(recovery):
+                        df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+
+                    # Store results.
                     self.dframes[table]["nid"] = df["nid"].copy(deep=True)
 
                     # Update confirmed nid classification.
@@ -438,8 +467,14 @@ class Stage:
             .drop_duplicates(subset="nid", keep="first")
         recovery.index = recovery["uuid"]
 
-        # Recover old nids. Store results.
-        self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+        # Filter invalid nids from old data.
+        recovery = recovery[self.get_valid_ids(recovery["nid_old"])]
+
+        # Recover old nids.
+        if len(recovery):
+            self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+
+        # Store results.
         self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
