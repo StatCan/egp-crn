@@ -33,50 +33,40 @@ conform:
     r_digdirfg: R_DIGDIRFG
     l_hnumf:
       fields: L_HNUMF
-      functions:
+      functions: &l_hnumf
         - function: direct
           cast_type: int
     r_hnumf:
       fields: R_HNUMF
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     l_hnumsuff:
       fields: L_HNUMSUFF
-      functions:
+      functions: &l_hnumsuff
         - function: regex_sub
           pattern: "-"
           repl: ""
     r_hnumsuff:
       fields: R_HNUMSUFF
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumsuff]
+      functions: *l_hnumsuff
     l_hnumtypf: L_HNUMTYPF
     r_hnumtypf: R_HNUMTYPF
     l_hnumstr: L_HNUMSTR
     r_hnumstr: R_HNUMSTR
     l_hnuml:
       fields: L_HNUML
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     r_hnuml:
       fields: R_HNUML
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     l_hnumsufl:
       fields: L_HNUMSUFL
-      functions:
+      functions: &l_hnumsufl
         - function: regex_sub
           pattern: "-"
           repl: ""
     r_hnumsufl:
       fields: R_HNUMSUFL
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumsufl]
+      functions: *l_hnumsufl
     l_hnumtypl: L_HNUMTYPL
     r_hnumtypl: R_HNUMTYPL
     nid: uuid
@@ -110,44 +100,34 @@ conform:
           cast_type: int
     r_hnumf:
       fields: R_HNUMF
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     roadclass: ROADCLASS
     l_hnuml:
       fields: L_HNUML
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     r_hnuml:
       fields: R_HNUML
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     nid: NID
     nbrlanes: NBRLANES
     l_placenam:
       fields: PLACE_L
-      functions:
+      functions: &l_placenam
         - function: regex_sub
           pattern: "-"
           repl: ""
     r_placenam:
       fields: PLACE_R
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_placenam]
+      functions: *l_placenam
     l_stname_c:
       fields: NAME
-      functions:
+      functions: &l_stname_c
         - function: regex_sub
           pattern: "-"
           repl: ""
     r_stname_c:
       fields: NAME
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_stname_c]
+      functions: *l_stname_c
     pavsurf: PAVSURF
     pavstatus: PAVSTATUS
     roadjuris: ROADJURIS
@@ -159,88 +139,57 @@ conform:
           step: 1
     rtename1en:
       fields: RTENAME1EN
-      functions:
+      functions: &rtename1en
         - function: regex_sub
           pattern: "-"
           repl: ""
     rtename2en:
       fields: RTENAME2EN
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtename3en:
       fields: RTENAME3EN
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtename4en:
       fields: RTENAME4EN
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtename1fr:
       fields: RTENAME1FR
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtename2fr:
       fields: RTENAME2FR
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtename3fr:
       fields: RTENAME3FR
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtename4fr:
       fields: RTENAME4FR
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtnumber1:
       fields: RTNUMBER1
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtnumber2:
       fields: RTNUMBER2
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtnumber3:
       fields: RTNUMBER3
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtnumber4:
       fields: RTNUMBER4
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     rtnumber5:
       fields: RTNUMBER5
-      functions:
-        - function: copy_attribute_functions
-          attributes: [rtename1en]
+      functions: *rtename1en
     speed: SPEED
     strunameen:
       fields: STRUNAMEEN
-      functions:
+      functions: &strunameen
         - function: regex_sub
           pattern: "-"
           repl: ""
     strunamefr:
       fields: STRUNAMEFR
-      functions:
-        - function: copy_attribute_functions
-          attributes: [strunameen]
+      functions: *strunameen
     structid:
-      fields: STRUCTID
-      functions:
-        - function: regex_sub
-          pattern: "-"
-          repl: ""
     structtype: STRUCTTYPE
     trafficdir: TRAFFICDIR
     unpavsurf: UNPAVSURF
@@ -277,12 +226,11 @@ conform:
           repl: ""
     strtypre:
       fields: STRTYPRE
-      functions:
+      functions: &strtypre
         - function: regex_sub
           pattern: "-"
           repl: ""
     strtysuf:
       fields: STRTYSUF
       functions:
-        - function: copy_attribute_functions
-          attributes: [strtypre]
+        - function: *strtypre

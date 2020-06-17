@@ -19,6 +19,7 @@ import subprocess
 import sys
 import time
 import yaml
+from collections import defaultdict
 from copy import deepcopy
 from itertools import compress
 from osgeo import ogr, osr
@@ -76,6 +77,38 @@ class Timer:
         logger.info("Finished. Time elapsed: {}.".format(delta))
 
 
+def apply_domain(series, domain, default):
+    """
+    Applies a domain restriction to the given pandas series based on the provided domain dictionary.
+    Replaces missing or invalid values with the default parameter.
+
+    Non-dictionary domains are treated as null. Values are left as-is excluding null types and empty strings, which are
+    replaced with the default parameter.
+    """
+
+    # Validate against domain dictionary.
+    if isinstance(domain, dict):
+
+        # Convert keys to lowercase strings.
+        domain = {str(k).lower(): v for k, v in domain.items()}
+
+        # Configure lookup function, convert invalid values to default.
+        def get_value(val):
+            try:
+                return domain[str(val).lower()]
+            except KeyError:
+                return default
+
+        # Get values.
+        return series.map(get_value)
+
+    else:
+
+        # Convert empty strings and null types to default.
+        series.loc[(series.map(str).isin(["", "nan"])) | (series.isna())] = default
+        return series
+
+
 def compile_default_values(lang="en"):
     """Compiles the default value for each field in each table."""
 
@@ -101,6 +134,64 @@ def compile_default_values(lang="en"):
         sys.exit(1)
 
     return defaults
+
+
+def compile_domains(mapped_lang="en"):
+    """
+    Returns a dictionary containing the following for each field in each table:
+    1) 'values': all English and French values and numeric keys flattened into a single list.
+    2) 'lookup': a lookup dictionary mapping each English and French value and numeric key to the value of the given
+    map language.
+    """
+
+    # Compile field domains.
+    domains = defaultdict(dict)
+
+    # Load domain yamls.
+    domain_yamls = {lang: load_yaml(f"../field_domains_{lang}.yaml") for lang in ("en", "fr")}
+
+    # Iterate tables and fields with domains.
+    for table in domain_yamls["en"]["tables"]:
+        for field in domain_yamls["en"]["tables"][table]:
+
+            try:
+
+                # Compile domains.
+                domain_en = domain_yamls["en"]["tables"][table][field]
+                domain_fr = domain_yamls["fr"]["tables"][table][field]
+
+                # Configure mapped and non-mapped output domain.
+                domain_mapped = domain_en if mapped_lang == "en" else domain_fr
+                domain_non_mapped = domain_en if mapped_lang != "en" else domain_fr
+
+                # Compile all domain values and domain lookup table, separately.
+                if domain_en is None:
+                    domains[table][field] = {"values": None, "lookup": None}
+
+                elif isinstance(domain_en, list):
+                    domains[table][field] = {
+                        "values": sorted(list({*domain_en, *domain_fr}), reverse=True),
+                        "lookup": dict([*zip(domain_en, domain_mapped), *zip(domain_fr, domain_mapped)])
+                    }
+
+                elif isinstance(domain_en, dict):
+                    domains[table][field] = {
+                        "values": sorted(list({*domain_en.values(), *domain_fr.values()}), reverse=True),
+                        "lookup": {**domain_mapped,
+                                   **{v: v for v in domain_mapped.values()},
+                                   **{v: domain_mapped[k] for k, v in domain_non_mapped.items()}}
+                    }
+
+                else:
+                    raise TypeError
+
+            except (AttributeError, KeyError, TypeError, ValueError):
+                yaml_paths = ", ".join(os.path.abspath(f"../field_domains_{lang}.yaml") for lang in ("en", "fr"))
+                logger.exception(f"Unable to compile domains from config yamls: {yaml_paths}. Invalid schema "
+                                 f"definition for table: {table}, field: {field}.")
+                sys.exit(1)
+
+    return domains
 
 
 def compile_dtypes(length=False):
@@ -276,7 +367,7 @@ def groupby_to_list(df, group_field, list_field):
     if isinstance(group_field, list):
         transpose = df.sort_values(group_field)[[*group_field, list_field]].values.T
         keys, vals = np.column_stack(transpose[:-1]), transpose[-1]
-        keys_unique, keys_indexes = np.unique(keys.astype(f"<U{max(map(lambda row: sum(map(len, row)), keys))}"),
+        keys_unique, keys_indexes = np.unique(keys.astype("U") if isinstance(keys, np.object) else keys,
                                               axis=0, return_index=True)
 
     else:

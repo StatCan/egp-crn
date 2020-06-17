@@ -168,19 +168,19 @@ conform:
       fields: POSTEDNAME
       functions:
         - function: regex_find
-          pattern: "\\b(domain)\\b(?!$)"
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
           match_index: 0
           group_index: 0
     dirsuffix:
       fields: POSTEDNAME
       functions:
-        - function: copy_attribute_functions
-          attributes: [dirprefix]
-          modify_parameters:
-            regex_find:
-              strip_result: True
         - function: regex_find
-          pattern: "(?<!^)\\b(domain)\\b"
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
           match_index: -1
           group_index: 0
           sub_inplace:
@@ -195,7 +195,7 @@ conform:
       fields: POSTEDNAME
       functions:
         - function: regex_find
-          pattern: "\\b(domain)\\b"
+          pattern: "\\b(domain_strplaname_starticle)\\b"
           match_index: 0
           group_index: 0
           sub_inplace:
@@ -204,28 +204,57 @@ conform:
     namebody:
       fields: POSTEDNAME
       functions:
-        - function: copy_attribute_functions
-          attributes: [starticle, dirsuffix, strtysuf]
-          modify_parameters:
-            regex_find:
-              strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+          sub_inplace:
+            pattern: "[-]"
+            repl: " "
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
+          match_index: -1
+          group_index: 0
+          sub_inplace:
+            pattern: "[-]"
+            repl: " "
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
+          match_index: -1
+          group_index: 0
+          sub_inplace:
+            pattern: "[-]"
+            repl: " "
+          strip_result: True
     strtypre:
       fields: POSTEDNAME
       functions:
         - function: regex_find
-          pattern: "\\b(domain)\\b(?!$)"
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
           match_index: 0
           group_index: 0
     strtysuf:
       fields: POSTEDNAME
       functions:
-        - function: copy_attribute_functions
-          attributes: [strtypre]
-          modify_parameters:
-            regex_find:
-              strip_result: True
         - function: regex_find
-          pattern: "(?<!^)\\b(domain)\\b"
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
           match_index: -1
           group_index: 0
           sub_inplace:

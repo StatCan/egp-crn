@@ -10,6 +10,7 @@ import re
 import shutil
 import sys
 import zipfile
+from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
 from osgeo import ogr
@@ -58,60 +59,6 @@ class Stage:
 
         # Compile output formats.
         self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
-
-    def compile_french_domain_mapping(self):
-        """Compiles French field domains mapped to their English equivalents for all dataframes."""
-
-        logger.info("Compiling French field domain mapping.")
-        defaults_en = helpers.compile_default_values(lang="en")
-        defaults_fr = helpers.compile_default_values(lang="fr")
-        distribution_format = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
-        self.domains_map = dict()
-
-        for suffix in ("en", "fr"):
-
-            # Load yaml.
-            domains_yaml = helpers.load_yaml(os.path.abspath("../field_domains_{}.yaml".format(suffix)))
-
-            # Compile domain values.
-            # Iterate tables.
-            for table in distribution_format:
-                # Register table.
-                if table not in self.domains_map.keys():
-                    self.domains_map[table] = dict()
-
-                # Iterate fields and values.
-                for field, vals in domains_yaml["tables"][table].items():
-                    # Register field.
-                    if field not in self.domains_map[table].keys():
-                        self.domains_map[table][field] = list()
-
-                    try:
-
-                        # Configure reference domain.
-                        while isinstance(vals, str):
-                            table_ref, field_ref = vals.split(";") if vals.find(";") > 0 else [table, vals]
-                            vals = domains_yaml["tables"][table_ref][field_ref]
-
-                        # Configure mapping as dict. Format: {English: French}.
-                        if vals:
-
-                            vals = vals.values() if isinstance(vals, dict) else vals
-
-                            if suffix == "en":
-                                self.domains_map[table][field] = vals
-                            else:
-                                # Compile mapping.
-                                self.domains_map[table][field] = dict(zip(self.domains_map[table][field], vals))
-
-                                # Add default field value.
-                                self.domains_map[table][field][defaults_en[table][field]] = defaults_fr[table][field]
-
-                        else:
-                            del self.domains_map[table][field]
-
-                    except (AttributeError, KeyError, ValueError):
-                        logger.exception("Unable to configure field mapping for English-French domains.")
 
     def configure_release_version(self):
         """Configures the major and minor release versions for the current NRN vintage."""
@@ -276,44 +223,41 @@ class Stage:
         logger.info("Generating French dataframes.")
 
         # Reconfigure dataframes dict to hold English and French data.
-        dframes = {"en": dict(), "fr": dict()}
-        for lang in ("en", "fr"):
-            for table, df in self.dframes.items():
-                dframes[lang][table] = df.copy(deep=True)
+        dframes = {
+            "en": {table: df.copy(deep=True) for table, df in self.dframes.items()},
+            "fr": {table: df.copy(deep=True) for table, df in self.dframes.items()}
+        }
+        self.dframes = deepcopy(dframes)
 
-        # Apply data mapping.
+        # Compile defaults and domains.
         defaults_en = helpers.compile_default_values(lang="en")
         defaults_fr = helpers.compile_default_values(lang="fr")
-        table, field = None, None
+        domains = helpers.compile_domains(mapped_lang="fr")
+
+        # Map field domains to French equivalents.
+        table = None
+        field = None
 
         try:
 
-            # Iterate dataframes.
+            # Iterate dataframes and fields.
             for table, df in dframes["fr"].items():
+                for field, domain in domains[table].items():
 
-                logger.info("Applying French data mapping to \"{}\".".format(table))
+                    logger.info(f"Applying domain to table: {table}, field: {field}.")
 
-                # Iterate fields.
-                for field in defaults_en[table]:
+                    # Apply domain to series.
+                    series = df[field].copy(deep=True)
+                    series = helpers.apply_domain(series, domain, defaults_fr[table][field])
 
-                    logger.info("Target field: \"{}\".".format(field))
+                    # Convert defaults to French equivalents.
+                    series.loc[series == defaults_en[table][field]] = defaults_fr[table][field]
 
-                    # Apply both field domains and defaults mapping.
-                    if field in self.domains_map[table]:
-                        df[field] = df[field].map(self.domains_map[table][field])
-
-                    # Apply only field defaults mapping.
-                    else:
-                        df.loc[df[field] == defaults_en[table][field], field] = defaults_fr[table][field]
-
-                # Store resulting dataframe.
-                dframes["fr"][table] = df
-
-            # Store results.
-            self.dframes = dframes
+                    # Store results to dataframe.
+                    self.dframes["fr"][table][field] = series.copy(deep=True)
 
         except (AttributeError, KeyError, ValueError):
-            logger.exception("Unable to apply French data mapping for table: {}, field: {}.".format(table, field))
+            logger.exception(f"Unable to apply French domain mapping for table: {table}, field: {field}.")
             sys.exit(1)
 
     def gen_output_schemas(self):
@@ -528,7 +472,6 @@ class Stage:
 
         self.load_gpkg()
         self.configure_release_version()
-        self.compile_french_domain_mapping()
         self.gen_french_dataframes()
         self.gen_output_schemas()
         self.define_kml_groups()

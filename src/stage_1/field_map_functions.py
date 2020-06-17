@@ -1,111 +1,24 @@
 import logging
 import numpy as np
+import os
 import pandas as pd
 import re
 import sys
 import uuid
-from copy import deepcopy
 from operator import attrgetter, itemgetter
+
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
+import helpers
 
 
 logger = logging.getLogger()
+domains = helpers.compile_domains(mapped_lang="en")
 
 
-def apply_domain(series, domain, default):
-    """
-    Applies a domain restriction to the given pandas series based on the provided domain dictionary.
-    Replaces missing or invalid values with the default parameter.
+def apply_domain(**kwargs):
+    """Calls helpers.apply_domains to allow it's usage as a field mapping function."""
 
-    Non-dictionary domains are treated as null. Values are left as-is excluding null types and empty strings, which are
-    replaced with the default parameter.
-    """
-
-    # Validate against domain dictionary.
-    if isinstance(domain, dict):
-
-        # Convert keys to lowercase strings.
-        domain = {str(k).lower(): v for k, v in domain.items()}
-
-        # Configure lookup function, convert invalid values to default.
-        def get_value(val):
-            try:
-                return domain[str(val).lower()]
-            except KeyError:
-                return default
-
-        # Get values.
-        return series.map(get_value)
-
-    else:
-
-        # Convert empty strings and null types to default.
-        series.loc[(series.map(str).isin(["", "nan"])) | (series.isna())] = default
-        return series
-
-
-def copy_attribute_functions(field_mapping_attributes, params):
-    """
-    Compiles the field mapping functions for each of the given field mapping attributes (target table columns).
-    Adds / updates any parameters provided for those functions.
-
-    Possible yaml construction of copy_attribute_functions:
-
-    1) - function: copy_attribute_functions:                  2) - function: copy_attribute_functions:
-         attributes: [attribute_1, attribute_2, ...]               attributes:
-         modify_parameters:                                          - attribute_1:
-           function:                                                     function:
-             parameter: Value                                              parameter: Value
-           ...:                                                          ...:
-             ...: ...                                                      ...: ...
-                                                                     - attribute_2
-                                                                     - ...
-    """
-
-    # Validate inputs.
-    validate_dtypes("copy_attribute_functions", params, dict)
-    validate_dtypes("copy_attribute_functions[\"attributes\"]", params["attributes"], list)
-
-    # Validate function attributes - modifications (if any) are set as universal key.
-    if "modify_parameters" in params.keys():
-        for index, attribute in enumerate(params["attributes"]):
-            validate_dtypes("copy_attribute_functions[\"attributes\"][{}]".format(index), attribute, str)
-        for func in params["modify_parameters"]:
-            validate_dtypes("copy_attribute_functions[\"modify_parameters\"][\"{}\"]".format(func),
-                            params["modify_parameters"][func], dict)
-
-    # Validate function attributes - modifications (if any) are nested in attributes key.
-    else:
-        for index, attribute in enumerate(params["attributes"]):
-            validate_dtypes("copy_attribute_functions[\"attributes\"][{}]".format(index), attribute, [str, dict])
-            if isinstance(attribute, dict):
-                for func in attribute:
-                    validate_dtypes("copy_attribute_functions[\"attributes\"][\"{}\"]".format(func), attribute[func],
-                                    dict)
-
-    # Iterate attributes to compile function-parameter dictionary lists.
-    attribute_func_lists = dict()
-
-    for attribute in params["attributes"]:
-
-        # Retrieve attribute name and parameter modifications.
-        mod_params = params["modify_parameters"] if "modify_parameters" in params else dict()
-        if isinstance(attribute, dict):
-            attribute, mod_params = list(attribute.items())[0]
-
-        # Retrieve attribute field mapping functions.
-        attribute_func_list = deepcopy(field_mapping_attributes[attribute]["functions"])
-
-        # Apply modified parameters.
-        for attribute_func, attribute_params in mod_params.items():
-            for attribute_param, attribute_param_value in attribute_params.items():
-                for index, attribute_dict in enumerate(attribute_func_list):
-                    if attribute_dict["function"] == attribute_func:
-                        attribute_func_list[index][attribute_param] = attribute_param_value
-
-        # Store result.
-        attribute_func_lists[attribute] = attribute_func_list
-
-    return attribute_func_lists
+    return helpers.apply_domain(**kwargs)
 
 
 def direct(series, cast_type=None):
@@ -160,7 +73,7 @@ def incrementor(series, start=1, step=1):
     return pd.Series(range(start, stop, step), index=series.index)
 
 
-def regex_find(series, pattern, match_index, group_index, domain=None, strip_result=False, sub_inplace=None):
+def regex_find(series, pattern, match_index, group_index, strip_result=False, sub_inplace=None):
     """
     For each value in a series, extracts the nth match (index) from the nth match group (index) based on a regular
     expression pattern.
@@ -222,7 +135,7 @@ def regex_find(series, pattern, match_index, group_index, domain=None, strip_res
             return result if strip_result else np.nan
 
     # Validate inputs.
-    pattern = validate_regex(pattern, domain)
+    pattern = validate_regex(pattern)
     validate_dtypes("match_index", match_index, [int, np.int_])
     validate_dtypes("group_index", group_index, [int, np.int_, list])
     if isinstance(group_index, list):
@@ -232,8 +145,8 @@ def regex_find(series, pattern, match_index, group_index, domain=None, strip_res
     if sub_inplace:
         validate_dtypes("sub_inplace", sub_inplace, dict)
         if {"pattern", "repl"}.issubset(set(sub_inplace.keys())):
-            sub_inplace["pattern"] = validate_regex(sub_inplace["pattern"], domain)
-            sub_inplace["repl"] = validate_regex(sub_inplace["repl"], domain)
+            sub_inplace["pattern"] = validate_regex(sub_inplace["pattern"])
+            sub_inplace["repl"] = validate_regex(sub_inplace["repl"])
             sub_inplace["flags"] = re.I
         else:
             logger.exception("Invalid input for sub_inplace. Missing one or more required re.sub kwargs: pattern, "
@@ -261,14 +174,14 @@ def regex_find(series, pattern, match_index, group_index, domain=None, strip_res
     return series
 
 
-def regex_sub(series, domain=None, **kwargs):
+def regex_sub(series, **kwargs):
     """Applies value substitution via re.sub."""
 
     # Validate inputs.
     validate_dtypes("kwargs", kwargs, dict)
     if {"pattern", "repl"}.issubset(set(kwargs.keys())):
-        kwargs["pattern"] = validate_regex(kwargs["pattern"], domain)
-        kwargs["repl"] = validate_regex(kwargs["repl"], domain)
+        kwargs["pattern"] = validate_regex(kwargs["pattern"])
+        kwargs["repl"] = validate_regex(kwargs["repl"])
         kwargs["flags"] = re.I
     else:
         logger.exception("Invalid input. Missing one or more required re.sub kwargs: pattern, repl.")
@@ -300,10 +213,11 @@ def validate_dtypes(name, val, dtypes):
         sys.exit(1)
 
 
-def validate_regex(pattern, domain=None):
+def validate_regex(pattern):
     """
     Validates a regular expression.
-    Replaces keyword 'domain' with the domain values of the given field, if provided.
+    Replaces any keywords of format: 'domain_{table}_{field}' that are within curly braces () with the '|' joined
+    domain values of the parsed table and field names.
     """
 
     try:
@@ -311,9 +225,17 @@ def validate_regex(pattern, domain=None):
         # Compile regular expression.
         re.compile(pattern)
 
-        # Load domain values.
-        if pattern.find("domain") >= 0 and domain is not None:
-            pattern = pattern.replace("domain", "|".join(map(str, domain)))
+        # Substitute domain keywords with values.
+        # Process: iterate keyword matches, parse the resulting keywords and use as domain lookup keys, replace the
+        # original values with '|' joined domain values.
+        for kw in set([itemgetter(0)(match.groups()) for match in
+                       re.finditer(r"\(domain_(.*?)\)", pattern, flags=re.I)]):
+
+            table, field = kw.split("_")
+            domain = domains[table][field]["values"]
+
+            if domain:
+                pattern = pattern.replace(kw, "|".join(map(str, domain)))
 
         return pattern
 

@@ -33,62 +33,41 @@ conform:
     r_digdirfg:
     l_hnumf:
       fields: l_hnumf
-      functions:
+      functions: &l_hnumf
         - function: regex_find
           pattern: "(^\\d+)"
           match_index: 0
           group_index: 0
     r_hnumf:
       fields: r_hnumf
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     l_hnumsuff:
       fields: l_hnumf
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
-          modify_parameters:
-            regex_find:
-              strip_result: True
+      functions: &l_hnumsuff
+        - function: regex_find
+          pattern: "(^\\d+)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
     r_hnumsuff:
       fields: r_hnumf
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
-          modify_parameters:
-            regex_find:
-              strip_result: True
+      functions: *l_hnumsuff
     l_hnumtypf:
     r_hnumtypf:
     l_hnumstr: l_hnumstr
     r_hnumstr: r_hnumstr
     l_hnuml:
       fields: l_hnuml
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     r_hnuml:
       fields: r_hnuml
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     l_hnumsufl:
       fields: l_hnuml
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
-          modify_parameters:
-            regex_find:
-              strip_result: True
+      functions: *l_hnumsuff
     r_hnumsufl:
       fields: r_hnuml
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
-          modify_parameters:
-            regex_find:
-              strip_result: True
+      functions: *l_hnumsuff
     l_hnumtypl:
     r_hnumtypl:
     nid: uuid
@@ -112,16 +91,10 @@ conform:
     exitnbr: exitnbr
     l_hnumf:
       fields: l_hnumf
-      functions:
-        - function: regex_find
-          pattern: "(^\\d+)"
-          match_index: 0
-          group_index: 0
+      functions: *l_hnumf
     r_hnumf:
       fields: r_hnumf
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     roadclass:
       fields: roadclass
       functions:
@@ -133,14 +106,10 @@ conform:
           repl: " / "
     l_hnuml:
       fields: l_hnuml
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     r_hnuml:
       fields: r_hnuml
-      functions:
-        - function: copy_attribute_functions
-          attributes: [l_hnumf]
+      functions: *l_hnumf
     nid: nid
     nbrlanes: nbrlanes
     l_placenam: l_placenam
@@ -184,19 +153,19 @@ conform:
       fields: streetname
       functions:
         - function: regex_find
-          pattern: "\\b(domain)\\b(?!$)"
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
           match_index: 0
           group_index: 0
     dirsuffix:
       fields: streetname
       functions:
-        - function: copy_attribute_functions
-          attributes: [dirprefix]
-          modify_parameters:
-            regex_find:
-              strip_result: True
         - function: regex_find
-          pattern: "(?<!^)\\b(domain)\\b"
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
           match_index: -1
           group_index: 0
           sub_inplace:
@@ -215,7 +184,7 @@ conform:
       fields: streetname
       functions:
         - function: regex_find
-          pattern: "\\b(domain)\\b"
+          pattern: "\\b(domain_strplaname_starticle)\\b"
           match_index: 0
           group_index: 0
           sub_inplace:
@@ -224,28 +193,57 @@ conform:
     namebody:
       fields: streetname
       functions:
-        - function: copy_attribute_functions
-          attributes: [starticle, dirsuffix, strtysuf]
-          modify_parameters:
-            regex_find:
-              strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+          sub_inplace:
+            pattern: "[-]"
+            repl: " "
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
+          match_index: -1
+          group_index: 0
+          sub_inplace:
+            pattern: "[-]"
+            repl: " "
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
+          match_index: -1
+          group_index: 0
+          sub_inplace:
+            pattern: "[-]"
+            repl: " "
+          strip_result: True
     strtypre:
       fields: streetname
       functions:
         - function: regex_find
-          pattern: "\\b(domain)\\b(?!$)"
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
           match_index: 0
           group_index: 0
     strtysuf:
       fields: streetname
       functions:
-        - function: copy_attribute_functions
-          attributes: [strtypre]
-          modify_parameters:
-            regex_find:
-              strip_result: True
         - function: regex_find
-          pattern: "(?<!^)\\b(domain)\\b"
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
           match_index: -1
           group_index: 0
           sub_inplace:

@@ -12,8 +12,7 @@ import shutil
 import sys
 import uuid
 import zipfile
-from collections import Counter, defaultdict
-from inspect import getmembers, isfunction
+from collections import Counter
 from operator import itemgetter
 from shapely.wkt import loads
 
@@ -54,29 +53,31 @@ class Stage:
             logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
             sys.exit(1)
 
-        # Configure field defaults and dtypes.
+        # Configure field defaults, dtypes, and domains.
         self.defaults = helpers.compile_default_values()
         self.dtypes = helpers.compile_dtypes()
+        self.domains = helpers.compile_domains()
 
     def apply_domains(self):
-        """Applies the field domains to each column in the target dataframes."""
+        """Applies domain restrictions to each column in the target dataframes."""
 
         logging.info("Applying field domains.")
-        table = field = None
+        table = None
+        field = None
 
         try:
 
             for table in self.target_gdframes:
-                for field, domains in self.domains[table].items():
+                for field, domain in self.domains[table].items():
 
-                    logger.info(f"Applying field domain to table: \"{table}\", field \"{field}\".")
+                    logger.info(f"Applying domain to table: {table}, field: {field}.")
 
                     # Copy series as object dtype.
                     series_orig = self.target_gdframes[table][field].copy(deep=True).astype(object)
 
-                    # Apply domains to series via apply_functions.
-                    series_new = field_map_functions.apply_domain(series_orig, domain=domains["lookup"],
-                                                                  default=self.defaults[table][field])
+                    # Apply domain to series.
+                    series_new = helpers.apply_domain(series_orig, domain=domain["lookup"],
+                                                      default=self.defaults[table][field])
 
                     # Force adjust data type.
                     series_new = series_new.astype(self.dtypes[table][field])
@@ -99,7 +100,7 @@ class Stage:
                                            f"instance(s) of {vals[0]} to {vals[1]}.")
 
         except (AttributeError, KeyError, ValueError):
-            logger.exception(f"Invalid schema definition for table: \"{table}\", field: \"{field}\".")
+            logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
             sys.exit(1)
 
     def apply_field_mapping(self):
@@ -177,8 +178,7 @@ class Stage:
                                 mapped_series = mapped_df.apply(lambda row: row.values, axis=1)
 
                             # Apply field mapping functions to mapped series.
-                            field_mapping_results = self.apply_functions(maps, mapped_series, source_field["functions"],
-                                                                         self.domains[target_name], target_field)
+                            field_mapping_results = self.apply_functions(mapped_series, source_field["functions"])
 
                             # Store results.
                             if isinstance(results, pd.Series):
@@ -199,7 +199,7 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
-    def apply_functions(self, maps, series, func_list, table_domains, field):
+    def apply_functions(self, series, func_list):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
@@ -209,36 +209,25 @@ class Stage:
 
             logger.info("Applying field mapping function: {}.".format(func_name))
 
-            # Advanced function mapping - copy_attribute_functions.
-            if func_name == "copy_attribute_functions":
+            # Generate expression.
+            expr = "field_map_functions.{}(\"val\", **{})".format(func_name, params)
 
-                # Retrieve and iterate attribute functions and parameters.
-                for attr_field, attr_func_list in field_map_functions.copy_attribute_functions(maps, params).items():
-                    series = self.apply_functions(maps, series, attr_func_list, table_domains, attr_field)
+            try:
 
-            else:
+                # Sanitize expression.
+                parsed = ast.parse(expr, mode="eval")
+                fixed = ast.fix_missing_locations(parsed)
+                compile(fixed, "<string>", "eval")
 
-                # Add domain to function parameters.
-                if func_name in self.domains_funcs and table_domains[field]["values"] is not None:
-                    params["domain"] = table_domains[field]["values"]
+                # Execute expression.
+                if func_name == "direct":
+                    series = field_map_functions.direct(series, **params)
+                else:
+                    series = eval(f"field_map_functions.{func_name}(series, **params)").copy(deep=True)
 
-                # Generate expression.
-                expr = "field_map_functions.{}(\"val\", **{})".format(func_name, params)
-
-                try:
-                    # Sanitize expression.
-                    parsed = ast.parse(expr, mode="eval")
-                    fixed = ast.fix_missing_locations(parsed)
-                    compile(fixed, "<string>", "eval")
-
-                    # Execute expression.
-                    if func_name == "direct":
-                        series = field_map_functions.direct(series, **params)
-                    else:
-                        series = eval(f"field_map_functions.{func_name}(series, **params)").copy(deep=True)
-                except (SyntaxError, ValueError):
-                    logger.exception("Invalid expression: \"{}\".".format(expr))
-                    sys.exit(1)
+            except (SyntaxError, ValueError):
+                logger.exception("Invalid expression: \"{}\".".format(expr))
+                sys.exit(1)
 
         return series
 
@@ -335,54 +324,6 @@ class Stage:
         for table in ("ferryseg", "roadseg"):
             df = self.target_gdframes[table].copy(deep=True)
             self.target_gdframes.update({table: title_case_route_names(table, df)})
-
-    def compile_domains(self):
-        """Compiles field domains for the target dataframes."""
-
-        logging.info("Compiling field domains.")
-        self.domains = defaultdict(dict)
-
-        # Load domains yaml.
-        domains_yaml = {lng: helpers.load_yaml(os.path.abspath(f"../field_domains_{lng}.yaml")) for lng in ("en", "fr")}
-
-        # Iterate tables and fields with domains.
-        for table in domains_yaml["en"]["tables"]:
-            for field in domains_yaml["en"]["tables"][table]:
-
-                try:
-
-                    # Compile domains.
-                    domain_en = domains_yaml["en"]["tables"][table][field]
-                    domain_fr = domains_yaml["fr"]["tables"][table][field]
-
-                    # Compile all domain values and domain lookup table, separately.
-                    if domain_en is None:
-                        self.domains[table][field] = {"values": None, "lookup": None}
-                    elif isinstance(domain_en, list):
-                        self.domains[table][field] = {
-                            "values": sorted(list({*domain_en, *domain_fr}), reverse=True),
-                            "lookup": dict([*zip(domain_en, domain_en), *zip(domain_fr, domain_en)])
-                        }
-                    elif isinstance(domain_en, dict):
-                        self.domains[table][field] = {
-                            "values": sorted(list({*domain_en.values(), *domain_fr.values()}), reverse=True),
-                            "lookup": {**domain_en, **{v: v for v in domain_en.values()},
-                                       **{v: domain_en[k] for k, v in domain_fr.items()}}
-                        }
-                    else:
-                        raise TypeError
-
-                except (AttributeError, KeyError, TypeError, ValueError):
-                    logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
-                    sys.exit(1)
-
-        logging.info("Identifying field domain functions.")
-        self.domains_funcs = list()
-
-        # Identify functions from field_map_functions.
-        for func in [f for f in getmembers(field_map_functions) if isfunction(f[1])]:
-            if "domain" in func[1].__code__.co_varnames:
-                self.domains_funcs.append(func[0])
 
     def compile_source_attributes(self):
         """Compiles the yaml files in the sources' directory into a dictionary."""
@@ -545,13 +486,18 @@ class Stage:
             nid_lookup = dict(zip(nids_exploded.values, nids_exploded.index))
 
             # Iterate nid linkages.
-            for table in linkages:
+            for table in set(linkages).intersection(set(self.target_gdframes)):
                 for field in linkages[table]:
 
                     # Repair nid linkage.
                     series = self.target_gdframes[table][field]
                     self.target_gdframes[table].loc[series.index, field] = series.map(
                         lambda val: itemgetter(val)(nid_lookup))
+
+                    # Quantify and log modifications.
+                    mods_count = (series != self.target_gdframes[table][field]).sum()
+                    if mods_count:
+                        logger.warning(f"Repaired {mods_count} linkage(s) between strplaname.nid - {table}.{field}.")
 
     def gen_source_dataframes(self):
         """Loads input data into a geopandas dataframe."""
@@ -696,7 +642,6 @@ class Stage:
         self.download_previous_vintage()
         self.compile_source_attributes()
         self.compile_target_attributes()
-        self.compile_domains()
         self.gen_source_dataframes()
         self.gen_target_dataframes()
         self.apply_field_mapping()
