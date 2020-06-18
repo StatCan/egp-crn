@@ -4,6 +4,7 @@ import fiona
 import geopandas as gpd
 import json
 import logging
+import numpy as np
 import os
 import pandas as pd
 import re
@@ -13,6 +14,7 @@ import sys
 import uuid
 import zipfile
 from collections import Counter
+from datetime import datetime
 from operator import itemgetter
 from shapely.wkt import loads
 
@@ -140,9 +142,9 @@ class Stage:
                     else:
                         logger.info("Target field \"{}\": Identifying function chain.".format(target_field))
 
-                        # Restructure dict for direct field mapping in case of string input.
-                        if isinstance(source_field, str):
-                            source_field = {"fields": [source_field],
+                        # Restructure dict for direct field mapping in case of string or list input.
+                        if isinstance(source_field, str) or isinstance(source_field, list):
+                            source_field = {"fields": [source_field] if isinstance(source_field, str) else source_field,
                                             "functions": [{"function": "direct"}]}
 
                         # Convert single field attribute to list.
@@ -261,6 +263,8 @@ class Stage:
 
         def overwrite_roadsegid(series):
             """Populates the series with incrementing integer values from 1-n."""
+
+            logger.info(f"Applying data cleanup \"overwrite roadsegid\" to dataset: roadseg.")
 
             return pd.Series(range(1, len(series) + 1), index=series.index)
 
@@ -499,7 +503,7 @@ class Stage:
                 for field in linkages[table]:
 
                     # Repair nid linkage.
-                    series = self.target_gdframes[table][field]
+                    series = self.target_gdframes[table][field].copy(deep=True)
                     self.target_gdframes[table].loc[series.index, field] = series.map(
                         lambda val: itemgetter(val)(nid_lookup))
 
@@ -645,6 +649,90 @@ class Stage:
 
                     logger.info("Previous NRN vintage has no recoverable dataset: {}.".format(table))
 
+    def split_strplaname(self):
+        """
+        For strplaname:
+        1) Duplicates all records in strplaname if at least one nested column exists. The first instance will have the
+           first nested value, the second instance will have the second nested value.
+        2) Repairs nid linkages for right-side records.
+
+        This process creates the left- and right-side representation which strplaname is supposed to possess.
+        """
+
+        logger.info("Splitting strplaname to create left- and right-side representation.")
+
+        # Compile nested column names.
+        sample_value = self.target_gdframes["strplaname"].iloc[0]
+        nested_flags = list(map(lambda val: isinstance(val, np.ndarray) or isinstance(val, list), sample_value))
+        cols = sample_value.index[nested_flags].to_list()
+
+        if len(cols):
+
+            # Duplicate dataframe as left- and right-side representations.
+            df_l = self.target_gdframes["strplaname"].copy(deep=True)
+            df_r = self.target_gdframes["strplaname"].copy(deep=True)
+
+            # Iterate nested columns and keep the 1st and 2nd values for left and right dataframes, respectively.
+            for col in cols:
+                df_l.loc[df_l.index, col] = df_l[col].map(itemgetter(0))
+                df_r.loc[df_r.index, col] = df_r[col].map(itemgetter(1))
+
+            # Generate new nids, uuids, and indexes for right dataframe.
+            df_r["nid"] = [uuid.uuid4().hex for _ in range(len(df_r))]
+            df_r["uuid"] = [uuid.uuid4().hex for _ in range(len(df_r))]
+            df_r.index = df_r["uuid"]
+
+            # Update target dataframe.
+            self.target_gdframes["strplaname"] = pd.concat([df_l, df_r], ignore_index=False).copy(deep=True)
+
+            # Generate lookup dict between old and new nids for right dataframe.
+            nid_lookup = dict(zip(df_l["nid"], df_r["nid"]))
+
+            # Repair nid linkages.
+            logger.info("Repairing strplaname.nid linkages.")
+
+            # Define nid linkages.
+            linkages = {
+                "addrange": ["r_offnanid"]
+            }
+
+            # Iterate nid linkages.
+            for table in set(linkages).intersection(set(self.target_gdframes)):
+                for field in linkages[table]:
+
+                    # Repair nid linkage.
+                    series = self.target_gdframes[table][field].copy(deep=True)
+                    self.target_gdframes[table].loc[series.index, field] = series.map(
+                        lambda val: itemgetter(val)(nid_lookup))
+
+                    # Quantify and log modifications.
+                    mods_count = (series != self.target_gdframes[table][field]).sum()
+                    if mods_count:
+                        logger.warning(f"Repaired {mods_count} linkage(s) between strplaname.nid - {table}.{field}.")
+
+            # Update altnamlink.
+            if "altnamlink" in self.target_gdframes:
+
+                logger.info("Updating altnamlink.")
+
+                # Duplicate records.
+                df_first = self.target_gdframes["altnamlink"].copy(deep=True)
+                df_second = self.target_gdframes["altnamlink"].copy(deep=True)
+
+                # Generate new strnamenids, uuids, and indexes for second dataframe.
+                df_second["strnamenid"] = [uuid.uuid4().hex for _ in range(len(df_second))]
+                df_second["uuid"] = [uuid.uuid4().hex for _ in range(len(df_second))]
+                df_second.index = df_second["uuid"]
+
+                # Update columns, if required.
+                df_second["credate"] = datetime.today().strftime("%Y%m%d")
+                df_second["revdate"] = self.defaults["altnamlink"]["revdate"]
+                df_second["strnamenid"] = df_second["strnamenid"].map(lambda val: itemgetter(nid_lookup)(val))
+
+                # Store results.
+                self.target_gdframes["altnamlink"] = pd.concat([df_first, df_second],
+                                                               ignore_index=False).copy(deep=True)
+
     def execute(self):
         """Executes an NRN stage."""
 
@@ -654,6 +742,7 @@ class Stage:
         self.gen_source_dataframes()
         self.gen_target_dataframes()
         self.apply_field_mapping()
+        self.split_strplaname()
         self.recover_missing_datasets()
         self.apply_domains()
         self.clean_datasets()

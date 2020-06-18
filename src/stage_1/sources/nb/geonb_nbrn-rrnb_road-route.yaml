@@ -173,11 +173,7 @@ conform:
             repl: " "
     muniquad:
     nid: uuid
-    placename:
-      fields: [l_placenam, r_placenam]
-      functions:
-        - function: split_records
-          field: None
+    placename: [l_placenam, r_placenam]
     placetype:
     province: "New Brunswick"
     starticle:

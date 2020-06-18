@@ -248,7 +248,7 @@ class Stage:
 
                     # Apply domain to series.
                     series = df[field].copy(deep=True)
-                    series = helpers.apply_domain(series, domain, defaults_fr[table][field])
+                    series = helpers.apply_domain(series, domain["lookup"], defaults_fr[table][field])
 
                     # Convert defaults to French equivalents.
                     series.loc[series == defaults_en[table][field]] = defaults_fr[table][field]

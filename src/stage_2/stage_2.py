@@ -43,29 +43,29 @@ class Stage:
             logger.exception("Input data not found: \"{}\".".format(self.data_path))
             sys.exit(1)
 
+        # Compile field defaults, dtypes, and domains.
+        self.defaults = helpers.compile_default_values(lang="en")["junction"]
+        self.dtypes = helpers.compile_dtypes()["junction"]
+        self.domains = helpers.compile_domains(mapped_lang="en")["junction"]
+
     def apply_domains(self):
         """Applies domain restrictions to each column in the target dataframe."""
 
         logging.info("Applying field domains.")
         field = None
 
-        # Compile defaults, dtypes, and domains.
-        defaults = helpers.compile_default_values()["junction"]
-        dtypes = helpers.compile_dtypes()["junction"]
-        domains = helpers.compile_domains()["junction"]
-
         try:
 
-            for field, domain in domains.items():
+            for field, domain in self.domains.items():
 
                 logger.info(f"Applying domain to field: {field}.")
 
                 # Apply domain to series.
                 series = self.dframes["junction"][field].copy(deep=True)
-                series = helpers.apply_domain(series, domain, defaults[field])
+                series = helpers.apply_domain(series, domain["lookup"], self.defaults[field])
 
                 # Force adjust data type.
-                series = series.astype(dtypes[field])
+                series = series.astype(self.dtypes[field])
 
                 # Store results to dataframe.
                 self.dframes["junction"][field] = series.copy(deep=True)
@@ -192,7 +192,7 @@ class Stage:
 
             for attribute in attributes:
                 attribute_uuid = attributes_uuid[attribute]
-                default = helpers.compile_default_values()["junction"][attribute]
+                default = self.defaults[attribute]
 
                 # Attribute: accuracy.
                 if attribute == "accuracy":
@@ -224,6 +224,7 @@ class Stage:
         self.dframes["junction"]["credate"] = datetime.today().strftime("%Y%m%d")
         self.dframes["junction"]["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
         self.dframes["junction"]["provider"] = "Federal"
+        self.dframes["junction"]["revdate"] = self.defaults["revdate"]
         connected_attributes = compute_connected_attributes(["accuracy", "exitnbr"])
         self.dframes["junction"]["accuracy"] = connected_attributes["accuracy"]
         self.dframes["junction"]["exitnbr"] = connected_attributes["exitnbr"]
