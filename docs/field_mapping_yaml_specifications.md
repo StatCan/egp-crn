@@ -106,8 +106,8 @@ Example:
     fields: name
     functions:
       - function: regex_sub
-        pattern_from: "-"
-        pattern_to: ""
+        pattern: "-"
+        repl: ""
 
 ### Chaining
 Multiple functions can be chained such that the output of one becomes the input of the next.
@@ -117,8 +117,8 @@ Example:
     fields: left_civic_from
     functions:
       - function: regex_sub
-        pattern_from: "-"
-        pattern_to: ""
+        pattern: "-"
+        repl: ""
       - function: regex_find
         pattern: "(^\\d+)"
         match_index: 0
@@ -133,8 +133,8 @@ Example (False - This would produce an error for this example since the called f
     fields: [place_l, place_r]
     functions:
       - function: regex_sub
-        pattern_from: "-"
-        pattern_to: ""
+        pattern: "-"
+        repl: ""
 
 Example (True):
   placename:
@@ -142,86 +142,10 @@ Example (True):
     process_separately: True
     functions:
       - function: regex_sub
-        pattern_from: "-"
-        pattern_to: ""
+        pattern: "-"
+        repl: ""
 
 ### Special Field Mapping Functions
-
-#### copy_attribute_functions
-Copies and appends the function chain from one or many target fields in the current target dataset.
-copy_attribute_functions can exists within a function chain.
-
-Example (generic):
-  target_field:
-    fields: source_field or [source_field] or [source_field, source_field, ...]
-    functions:
-      - function: copy_attribute_functions
-        attributes: [target_field, ...]
-
-##### Modifying Parameters
-By default, copy_attribute_functions will copy the parameters of the copied functions. However, it is possible to modify any of these parameters.
-- Only the required modifications need to be specified.
-- Modifications can be specific to a target field or applied universally:
-  - Specific: Applies the parameter modification only to the function from the specified target field's function chain.
-  - Universal: Applies the parameter modification to all instances of that function from each copied function chain.
-
-Example (generic - no modifications):
-  target_field:
-    fields: source_field or [source_field] or [source_field, source_field, ...]
-    functions:
-      - function: copy_attribute_functions
-        attributes: [target_field, ...]
-
-Example (generic - specific modifications):
-  target_field:
-    fields: source_field or [source_field] or [source_field, source_field, ...]
-    functions:
-      - function: copy_attribute_functions
-        attributes:
-          - target_field:
-            function:
-              parameter: ...
-              parameter: ...
-            function:
-              ...
-            ...
-          - target_field:
-          - ...
-
-Example (generic - universal modifications):
-  target_field:
-    fields: source_field or [source_field] or [source_field, source_field, ...]
-    functions:
-      - function: copy_attribute_functions
-        attributes: [target_field, ...]
-        modify_parameters:
-          function:
-            parameter: ...
-            parameter: ...
-          function:
-            ...
-          ...
-
-Example (specific modifications):
-  namebody:
-    fields: street_name
-    functions:
-      - function: copy_attribute_functions
-        attributes:
-          - strtypre:
-            regex_find:
-              strip_result: True
-          - strtysuf
-
-Example (universal modifications):
-  namebody:
-    fields: street_name
-    functions:
-      - function: copy_attribute_functions
-        attributes: [strtypre, strtysuf]
-        modify_parameters:
-          regex_find:
-            strip_result: True
 
 #### split_records
 Keeps one of the two source field values:
@@ -248,22 +172,22 @@ Several field mapping functions take regular expressions as parameters, which ar
 You can validate a regular expression using this resource: https://regex101.com/.
 
 ##### Keyword: domain
-All regular expression parameters have been configured to accept the keyword: domain.
-If detected, "domain" will be substituted with a list of domain values for the target field, joined by the regex "or" operator: "|".
+All regular expression parameters have been configured to accept the keyword: (domain_{table}_{field}), where {table} and {field} are nrn dataset and field names.
+If detected, "domain_{table}_{field}" will be substituted with a list of domain values for the specified table and field, joined by the regex "or" operator: "|". The brackets will be maintained.
 
 Example:
-  strdirpre:
-    fields: dirprefix
+  dirprefix:
+    fields: strtypre
     functions:
       - function: regex_find
-        pattern: "\\b(domain)\\b"
+        pattern: "\\b(domain_strplaname_dirprefix)\\b"
         match_index: 0
         group_index: 0
 
   would be converted to:
 
-  strdirpre:
-    fields: dirprefix
+  dirprefix:
+    fields: strtypre
     functions:
       - function: regex_find
         pattern: "\\b(East|Est|Nord|North|Ouest|South|Sud|West)\\b"

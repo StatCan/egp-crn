@@ -259,6 +259,11 @@ class Stage:
 
             return df.copy(deep=True)
 
+        def overwrite_roadsegid(series):
+            """Populates the series with incrementing integer values from 1-n."""
+
+            return pd.Series(range(1, len(series) + 1), index=series.index)
+
         def strip_whitespace(table, df):
             """Strips leading and trailing whitespace for each dataframe column."""
 
@@ -315,6 +320,10 @@ class Stage:
         # Cleanup: lower case IDs.
         for table, df in self.target_gdframes.items():
             self.target_gdframes.update({table: lower_case_ids(table, df.copy(deep=True))})
+
+        # Cleanup: overwrite roadsegid.
+        roadsegid = self.target_gdframes["roadseg"]["roadsegid"].copy(deep=True)
+        self.target_gdframes["roadseg"].loc[roadsegid.index, "roadsegid"] = overwrite_roadsegid(roadsegid)
 
         # Cleanup: strip whitespace.
         for table, df in self.target_gdframes.items():
