@@ -230,5 +230,4 @@ conform:
           repl: ""
     strtysuf:
       fields: STRTYSUF
-      functions:
-        - function: *strtypre
+      functions: *strtypre

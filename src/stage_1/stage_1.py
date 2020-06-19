@@ -533,15 +533,18 @@ class Stage:
                 # Transform data source crs.
                 logger.info("Transforming data source to EPSG:4617 and rounding coordinates to 7 decimal places.")
 
+                nlt = "Point" if {"ferryseg", "roadseg"}.isdisjoint(set(source_yaml["conform"])) else "LineString"
+
                 helpers.ogr2ogr({
                     "overwrite": "-overwrite",
-                    "where": f"-where {source_yaml['data']['query']}" if source_yaml["data"]["query"] else "",
+                    "where": f"-where \"{source_yaml['data']['query']}\"" if source_yaml["data"]["query"] else "",
                     "t_srs": "-t_srs EPSG:4617",
                     "s_srs": f"-s_srs {source_yaml['data']['crs']}",
                     "dest": f"\"{kwargs['filename']}\"",
                     "src": f"\"{source_yaml['data']['filename']}\"",
                     "src_layer": source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "",
-                    "lco": "-lco coordinate_precision=7"
+                    "lco": "-lco coordinate_precision=7",
+                    "nlt": f"-nlt {nlt}"
                 })
 
             # Tabular.
