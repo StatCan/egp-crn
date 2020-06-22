@@ -95,10 +95,10 @@ conform:
     r_hnuml: Last_House_Number_Right
     nid: uuid
     nbrlanes: Number_Of_Lanes
-    l_placenam: "TODO: REPLACE"
-    r_placenam: "TODO: REPLACE"
-    l_stname_c: "TODO: REPLACE"
-    r_stname_c: "TODO: REPLACE"
+    l_placenam: SPN_L_Place_Name
+    r_placenam: SPN_R_Place_Name
+    l_stname_c: l_stname_c
+    r_stname_c: r_stname_c
     pavsurf: Paved_Road_Surface_Type
     pavstatus: Pavement_Status
     roadjuris: Jurisdiction
@@ -155,7 +155,7 @@ conform:
       functions:
         - function: direct
     nid: uuid
-    placename: "TODO: REPLACE"
+    placename: [SPN_L_Place_Name, SPN_R_Place_Name]
     placetype:
       fields: [SPN_L_Place_Type, SPN_R_Place_Type]
       process_separately: True

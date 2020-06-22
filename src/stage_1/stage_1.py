@@ -269,7 +269,7 @@ class Stage:
             return pd.Series(range(1, len(series) + 1), index=series.index)
 
         def strip_whitespace(table, df):
-            """Strips leading and trailing whitespace for each dataframe column."""
+            """Strips leading, trailing, and multiple internal whitespace for each dataframe column."""
 
             logger.info(f"Applying data cleanup \"strip whitespace\" to dataset: {table}.")
 
@@ -281,13 +281,14 @@ class Stage:
 
                 # Apply modifications.
                 series_orig = df[col]
-                df[col] = df[col].map(str.strip)
+                df[col] = df[col].map(lambda val: re.sub(r" +", " ", str(val.strip())))
 
                 # Quantify and log modifications.
                 mods = (series_orig != df[col]).sum()
                 if mods:
                     logger.warning(f"Modified {mods} record(s) in table {table}, column {col}."
-                                   "\nModification details: Column values stripped of leading and trailing whitespace.")
+                                   "\nModification details: Column values stripped of leading, trailing, and multiple "
+                                   "internal whitespace.")
 
             return df.copy(deep=True)
 
