@@ -1,5 +1,4 @@
 import calendar
-import fiona
 import geopandas as gpd
 import logging
 import networkx as nx
@@ -34,18 +33,17 @@ def conflicting_exitnbrs(df):
     errors = {1: list()}
     default = defaults_all["roadseg"]["exitnbr"]
 
-    # Query multi-segment road elements (via nid field) where exitnbr is not the default value.
-    df_filtered = df[(df["nid"].duplicated(keep=False)) & (df["nid"] != default) & (df["exitnbr"] != default)]
+    # Query multi-segment road elements (via nid field) where exitnbr is not the default value or not "None".
+    df_filtered = df[(df["nid"].duplicated(keep=False)) &
+                     (df["nid"] != default) &
+                     (~df["exitnbr"].isin({default, "None"}))]
 
     if len(df_filtered):
 
         # Group exitnbrs by nid, removing duplicate values.
         grouped = helpers.groupby_to_list(df_filtered, "nid", "exitnbr").map(np.unique)
 
-        # Remove the default field value from each group.
-        grouped = grouped.map(lambda vals: vals if default not in vals else vals.remove(default))
-
-        # Validation: ensure road element has <= 1 unique exitnbr, excluding the default value.
+        # Validation: ensure road element has <= 1 unique exitnbr.
         flag_nids = grouped[grouped.map(len) > 1]
 
         # Compile error properties.
@@ -288,13 +286,13 @@ def exitnbr_roadclass_relationship(df):
 
     errors = {1: list()}
 
-    # Subset dataframe to non-default values, keep only required fields.
+    # Subset dataframe to non-default and non-"None" values, keep only required fields.
     default = defaults_all["roadseg"]["exitnbr"]
-    s_filtered = df[df["exitnbr"] != default]["roadclass"]
+    s_filtered = df[~df["exitnbr"].isin({default, "None"})]["roadclass"]
 
     if len(s_filtered):
 
-        # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value.
+        # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value or not "None".
         # Compile uuids of flagged records.
         errors[1] = s_filtered[~s_filtered.isin(["Ramp", "Service Lane"])].index.values
 

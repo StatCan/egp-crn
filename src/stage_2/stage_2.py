@@ -1,5 +1,4 @@
 import click
-import fiona
 import geopandas as gpd
 import logging
 import numpy as np
@@ -208,7 +207,8 @@ class Stage:
 
                     # Concatenate, sort, and remove invalid attribute tuples.
                     connected_attribute = connected_attribute.map(
-                        lambda vals: ", ".join(sorted([str(v) for v in vals if v != default and not pd.isna(v)])))
+                        lambda vals: ", ".join(sorted([str(v) for v in vals if v not in {default, "None"} and
+                                                       not pd.isna(v)])))
 
                 # Populate empty results with default.
                 connected_attribute = connected_attribute.map(lambda v: v if len(str(v)) else default)

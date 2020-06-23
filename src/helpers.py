@@ -182,6 +182,9 @@ def compile_domains(mapped_lang="en"):
                                    **{v: domain_mapped[k] for k, v in domain_non_mapped.items()}}
                     }
 
+                    # Add integer keys as floats to accommodate incorrectly casted data.
+                    domains[table][field]["lookup"].update({str(float(k)): v for k, v in domain_mapped.items()})
+
                 else:
                     raise TypeError
 

@@ -1,5 +1,4 @@
 import click
-import fiona
 import geopandas as gpd
 import logging
 import math
@@ -102,59 +101,62 @@ class Stage:
         roadseg_old = roadseg_old[(~roadseg_old["structtype"].isin(["None", defaults["structtype"]])) &
                                   (roadseg_old["structid"] != defaults["structid"])]
 
-        # Group contiguous structures.
-        # Process: compile network x subgraphs, assign a structid to each list of subgraph uuids.
-        subgraphs = nx.connected_component_subgraphs(
-            helpers.gdf_to_nx(roadseg, keep_attributes=True, endpoints_only=True))
-        structids = dict()
+        if len(roadseg):
 
-        for subgraph in subgraphs:
-            structids[uuid.uuid4().hex] = list(set(nx.get_edge_attributes(subgraph, "uuid").values()))
+            # Group contiguous structures.
+            # Process: compile network x subgraphs, assign a structid to each list of subgraph uuids.
+            subgraphs = nx.connected_component_subgraphs(
+                helpers.gdf_to_nx(roadseg, keep_attributes=True, endpoints_only=True))
+            structids = dict()
 
-        # Explode uuid groups and invert series-index such that the uuid is the index.
-        structids = pd.Series(structids).explode()
-        structids = pd.Series(structids.index.values, index=structids)
+            for subgraph in subgraphs:
+                structids[uuid.uuid4().hex] = list(set(nx.get_edge_attributes(subgraph, "uuid").values()))
 
-        # Assign structids to dataframe.
-        roadseg["structid"] = structids
+            # Explode uuid groups and invert series-index such that the uuid is the index.
+            structids = pd.Series(structids).explode()
+            structids = pd.Series(structids.index.values, index=structids)
 
-        # Recovery old structids.
-        logger.info("Recovering old structids for table: roadseg.")
+            # Assign structids to dataframe.
+            roadseg["structid"] = structids
 
-        # Group by structid.
-        roadseg_grouped = helpers.groupby_to_list(roadseg, "structid", "geometry")
-        roadseg_old_grouped = helpers.groupby_to_list(roadseg_old, "structid", "geometry")
+            # Recovery old structids.
+            logger.info("Recovering old structids for table: roadseg.")
 
-        # Dissolve grouped geometries.
-        roadseg_grouped = roadseg_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
-        roadseg_old_grouped = roadseg_old_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
+            # Group by structid.
+            roadseg_grouped = helpers.groupby_to_list(roadseg, "structid", "geometry")
+            roadseg_old_grouped = helpers.groupby_to_list(roadseg_old, "structid", "geometry")
 
-        # Convert series to geodataframes.
-        # Restore structid index as column.
-        roadseg_grouped = gpd.GeoDataFrame({"structid": roadseg_grouped.index,
-                                            "geometry": roadseg_grouped.reset_index(drop=True)})
-        roadseg_old_grouped = gpd.GeoDataFrame({"structid": roadseg_old_grouped,
-                                                "geometry": roadseg_old_grouped.reset_index(drop=True)})
+            # Dissolve grouped geometries.
+            roadseg_grouped = roadseg_grouped.map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
+            roadseg_old_grouped = roadseg_old_grouped.map(
+                lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
 
-        # Merge current and old dataframes on geometry.
-        merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
-                         indicator=True)
+            # Convert series to geodataframes.
+            # Restore structid index as column.
+            roadseg_grouped = gpd.GeoDataFrame({"structid": roadseg_grouped.index,
+                                                "geometry": roadseg_grouped.reset_index(drop=True)})
+            roadseg_old_grouped = gpd.GeoDataFrame({"structid": roadseg_old_grouped,
+                                                    "geometry": roadseg_old_grouped.reset_index(drop=True)})
 
-        # Recover old structids via uuid index.
-        # Merge uuids onto recovery dataframe.
-        recovery = merge[merge["_merge"] == "both"].merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
-            .drop_duplicates(subset="structid", keep="first")
-        recovery.index = recovery["uuid"]
+            # Merge current and old dataframes on geometry.
+            merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
+                             indicator=True)
 
-        # Filter invalid structids from old data.
-        recovery = recovery[self.get_valid_ids(recovery["structid_old"])]
+            # Recover old structids via uuid index.
+            # Merge uuids onto recovery dataframe.
+            recovery = merge[merge["_merge"] == "both"].merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
+                .drop_duplicates(subset="structid", keep="first")
+            recovery.index = recovery["uuid"]
 
-        # Recover old structids.
-        if len(recovery):
-            roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
+            # Filter invalid structids from old data.
+            recovery = recovery[self.get_valid_ids(recovery["structid_old"])]
 
-        # Store results.
-        self.dframes["roadseg"].loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
+            # Recover old structids.
+            if len(recovery):
+                roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
+
+            # Store results.
+            self.dframes["roadseg"].loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
 
     def get_valid_ids(self, series):
         """
