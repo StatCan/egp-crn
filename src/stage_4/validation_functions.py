@@ -120,7 +120,7 @@ def dates(df):
             errors[1].extend(results)
 
             # Validation 2: length must be 4, 6, or 8.
-            results = s_filtered[s_filtered.map(lambda date: len(date) not in (4, 6, 8))].index.values
+            results = s_filtered[s_filtered.map(lambda date: len(date) not in {4, 6, 8})].index.values
             errors[2].extend(results)
 
             # Subset to valid records only for remaining validations.
@@ -130,7 +130,7 @@ def dates(df):
             if len(s_filtered2):
 
                 # Temporarily set missing month and day values to 01.
-                series_mod = s_filtered2[s_filtered2.map(lambda date: len(date) in (4, 6))]
+                series_mod = s_filtered2[s_filtered2.map(lambda date: len(date) in {4, 6})]
                 if len(series_mod):
                     append_vals = {4: "0101", 6: "01"}
                     s_filtered2.loc[series_mod.index] = series_mod.map(lambda date: date + append_vals[len(date)])
@@ -156,7 +156,7 @@ def dates(df):
     # Validation 7: ensure credate <= revdate.
     df_filtered = df[(df["credate"] != defaults["credate"]) &
                      (df["revdate"] != defaults["revdate"]) &
-                     ~(df.index.isin(list(set(chain.from_iterable(itemgetter(1, 2)(errors))))))]
+                     ~(df.index.isin(set(chain.from_iterable(itemgetter(1, 2)(errors)))))]
     if len(df_filtered):
         results = df_filtered[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
         errors[7].extend(results)
@@ -296,8 +296,8 @@ def exitnbr_roadclass_relationship(df):
         #             Lane" when exitnbr is not the default value or not "None".
 
         # Compile uuids of flagged records.
-        errors[1] = s_filtered[~s_filtered.isin(["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit",
-                                                 "Service Lane"])].index.values
+        errors[1] = s_filtered[~s_filtered.isin({"Expressway / Highway", "Freeway", "Ramp", "Rapid Transit",
+                                                 "Service Lane"})].index.values
 
     # Compile error properties.
     for code, vals in errors.items():
@@ -766,7 +766,7 @@ def roadclass_rtnumber_relationship(df):
     # Validation: ensure rtnumber1 is not the default value or "None" when roadclass = "Expressway / Highway" or
     # "Freeway".
     default = defaults_all["roadseg"]["rtnumber1"]
-    errors[1] = df_filtered[df_filtered["roadclass"].isin(["Freeway", "Expressway / Highway"]) &
+    errors[1] = df_filtered[df_filtered["roadclass"].isin({"Expressway / Highway", "Freeway"}) &
                             df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 in {default, "None"})].index.values
 
     # Compile error properties.
@@ -857,7 +857,7 @@ def self_intersecting_elements(df):
     #             this set.
 
     flag_nids = list()
-    valid = ["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane"]
+    valid = {"Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane"}
 
     # Compile coords of road segments where roadclass is in the validation list.
     valid_coords = set(chain(
@@ -989,7 +989,7 @@ def structure_attributes(roadseg, junction):
     deadend_coords = set(chain(junction.map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
 
     # Compile road segments with potentially invalid structtype.
-    roadseg_invalid = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]["geometry"]
+    roadseg_invalid = roadseg[~roadseg["structtype"].isin({"None", defaults["structtype"]})]["geometry"]
 
     # Compile truly invalid road segments.
     roadseg_invalid = roadseg_invalid[roadseg_invalid.map(
@@ -1035,7 +1035,7 @@ def structure_attributes(roadseg, junction):
     #               not contiguous.
 
     # Compile road segments with valid structtype.
-    segments = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
+    segments = roadseg[~roadseg["structtype"].isin({"None", defaults["structtype"]})]
 
     # Convert dataframe to networkx graph.
     segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)

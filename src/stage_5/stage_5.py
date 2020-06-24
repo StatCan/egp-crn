@@ -447,8 +447,8 @@ class Stage:
                             # Configure new relative path inside .zip file.
                             arcname = os.path.join(os.path.basename(data_dir), os.path.relpath(path, data_dir))
 
-                            # Write to .zip file.
-                            zip_f.write(path, arcname)
+                            # Write to and compress .zip file.
+                            zip_f.write(path, arcname=arcname, compress_type=zipfile.ZIP_DEFLATED)
 
             except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
                 logger.exception("Unable to compress directory.")
