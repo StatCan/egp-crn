@@ -172,7 +172,7 @@ E00601
 ------
 
 :Validation: Conflicting exit numbers.
-:Description: Attribute "exitnbr" must be identical or the default value for all road segments constituting a
+:Description: Attribute "exitnbr" must be identical or the default value or "None" for all road segments constituting a
     road element.
 
 .. figure:: /_static/figures/e00601.png
@@ -184,8 +184,8 @@ E00701
 ------
 
 :Validation: Exit number - road class relationship.
-:Description: When attribute "exitnbr" is not equal to the default value, attribute "roadclass" must equal one of the
-    following: "Ramp", "Service Lane".
+:Description: When attribute "exitnbr" is not equal to the default value or "None", attribute "roadclass" must equal
+    one of the following: "Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane".
 
 .. figure:: /_static/figures/e00701.png
     :alt: Example Image
@@ -451,7 +451,7 @@ E02001
 
 :Validation: Self-intersecting road elements.
 :Description: Road segments which constitute a self-intersecting road element must have attribute "roadclass" equal to
-    one of the following: "Expressway / Highway", "Freeway", "Ramp", "Rapid Transit".
+    one of the following: "Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane".
 
 .. figure:: /_static/figures/e02001.png
     :alt: Example Image

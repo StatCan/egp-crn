@@ -292,9 +292,12 @@ def exitnbr_roadclass_relationship(df):
 
     if len(s_filtered):
 
-        # Validation: ensure roadclass == "Ramp" or "Service Lane" when exitnbr is not the default value or not "None".
+        # Validation: ensure roadclass is one of: "Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service
+        #             Lane" when exitnbr is not the default value or not "None".
+
         # Compile uuids of flagged records.
-        errors[1] = s_filtered[~s_filtered.isin(["Ramp", "Service Lane"])].index.values
+        errors[1] = s_filtered[~s_filtered.isin(["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit",
+                                                 "Service Lane"])].index.values
 
     # Compile error properties.
     for code, vals in errors.items():
@@ -849,11 +852,12 @@ def self_intersecting_elements(df):
     errors = {1: list()}
     default = defaults_all["roadseg"]["nid"]
 
-    # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit") for all road
-    #             elements which a) self-intersect and b) touch another road segment where roadclass is in this set.
+    # Validation: ensure roadclass is in ("Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane")
+    #             for all road elements which a) self-intersect and b) touch another road segment where roadclass is in
+    #             this set.
 
     flag_nids = list()
-    valid = ["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit"]
+    valid = ["Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane"]
 
     # Compile coords of road segments where roadclass is in the validation list.
     valid_coords = set(chain(
