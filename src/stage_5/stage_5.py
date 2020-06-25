@@ -422,9 +422,9 @@ class Stage:
             tasks.task_done()
 
     def zip_data(self):
-        """Compresses all exported data directories to .zip format."""
+        """Compresses all exported data directories into .zip files."""
 
-        logger.info("Apply .zip compression to output data directories.")
+        logger.info("Apply compression and zip output data directories.")
 
         # Iterate output directories.
         root = os.path.abspath("../../data/processed/{}".format(self.source))
@@ -432,8 +432,8 @@ class Stage:
 
             data_dir = os.path.join(root, data_dir)
 
-            # Walk directory and zip contents.
-            logger.info("Applying .zip compression to directory \"{}\".".format(data_dir))
+            # Walk directory, compress, and zip contents.
+            logger.info("Applying compression and writing .zip from directory \"{}\".".format(data_dir))
 
             try:
 
