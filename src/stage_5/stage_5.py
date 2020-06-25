@@ -424,7 +424,7 @@ class Stage:
     def zip_data(self):
         """Compresses all exported data directories into .zip files."""
 
-        logger.info("Apply compression and zip output data directories.")
+        logger.info("Apply compression and zip to output data directories.")
 
         # Iterate output directories.
         root = os.path.abspath("../../data/processed/{}".format(self.source))
