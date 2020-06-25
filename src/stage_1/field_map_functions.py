@@ -21,6 +21,25 @@ def apply_domain(**kwargs):
     return helpers.apply_domain(**kwargs)
 
 
+def concatenate(df, columns, separator=" "):
+    """Concatenates all non-null values across multiple columns into a single string, using the given separator."""
+
+    try:
+
+        # Validate columns.
+        invalid = set(columns) - set(df.columns)
+        if len(invalid):
+            logger.exception(f"Invalid column(s): {', '.join(invalid)}.")
+
+        # Concatenate non-null values.
+        sep = str(separator)
+        return df[columns].apply(lambda row: sep.join(map(str, filter(lambda val: not pd.isna(val), row))), axis=1)
+
+    except (KeyError, ValueError):
+        logger.exception(f"Unable to concatenate columns: {', '.join(columns)} by \"{separator}\".")
+        sys.exit(1)
+
+
 def direct(series, cast_type=None):
     """
     Returns the given series. Intended to provide a function call for direct (1:1) field mapping.
