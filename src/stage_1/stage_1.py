@@ -616,17 +616,17 @@ class Stage:
 
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
 
-    def interpolate_addresses(self):
-        """Interpolates address points to segmented roadseg attributes."""
-
-        logger.info("Interpolating addresses.")
-
-        # Compile required datasets.
-        addresses = self.source_gdframes["addrange"].copy(deep=True)
-        roadseg = self.target_gdframes["roadseg"].copy(deep=True)
-
-        # Filter addresses to only those with street name matches with roadseg.
-        # TODO: finish.
+    # def interpolate_addresses(self):
+    #     """Interpolates address points to segmented roadseg attributes."""
+    #
+    #     logger.info("Interpolating addresses.")
+    #
+    #     # Compile required datasets.
+    #     addresses = self.source_gdframes["addrange"].copy(deep=True)
+    #     roadseg = self.target_gdframes["roadseg"].copy(deep=True)
+    #
+    #     # Filter addresses to only those with street name matches with roadseg.
+    #     # TODO: finish.
 
     def recover_missing_datasets(self):
         """

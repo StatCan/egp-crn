@@ -1,0 +1,32 @@
+coverage:
+  country: ca
+  province: on
+  ISO3166:
+    alpha2: CA-ON
+    country: Canada
+    subdivision: Ontario
+  website: https://geohub.lio.gov.on.ca/datasets/mnrf::ontario-road-network-orn-road-net-element
+license:
+  url:  https://www.ontario.ca/page/open-government-licence-ontario 
+  text: Open Government Licence – Ontario
+language: en
+data:
+  filename: Files_for_delivery.gdb
+  layer: ORN_Toll_Booths
+  driver: OpenFileGDB
+  crs: "ESPG:4269"
+  spatial: True
+  query:
+conform:
+  tollpoint:
+    acqtech:
+    metacover:
+    credate: EFFECTIVE_
+    datasetnam: "Ontario"
+    accuracy:
+    provider:
+    revdate:
+    specvers:
+    nid: uuid
+    roadnid:
+    tollpttype: TOLL_PNT_TYP_CDE

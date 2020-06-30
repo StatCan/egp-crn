@@ -24,6 +24,7 @@ from copy import deepcopy
 from itertools import compress
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
+from tqdm import tqdm
 
 
 logger = logging.getLogger()
@@ -126,7 +127,7 @@ def compile_default_values(lang="en"):
             for field, dtype in dist_format[name]["fields"].items():
 
                 # Configure default value.
-                key = "label" if dtype[0] in ("bytes", "str", "unicode") else "code"
+                key = "label" if dtype[0] == "str" else "code"
                 defaults[name][field] = dft_vals[key]
 
     except (AttributeError, KeyError, ValueError):
@@ -224,6 +225,54 @@ def compile_dtypes(length=False):
 
 def export_gpkg(dataframes, output_path, empty_gpkg_path=os.path.abspath("../../data/empty.gpkg")):
     """Receives a dictionary of (Geo)pandas (Geo)DataFrames and exports them as GeoPackage layers."""
+
+    # TODO: START
+    # Open / create GeoPackage.
+    driver = ogr.GetDriverByName("GPKG")
+    if os.path.exists(output_path):
+        gpkg = driver.Open(output_path, update=1)
+    else:
+        gpkg = driver.CreateDataSource(output_path)
+
+    # Export target dataframes as GeoPackage layers.
+    try:
+
+        # Compile schemas.
+        schemas = load_yaml("distribution_format.yaml")
+
+        # Iterate dataframes.
+        for table_name, df in dataframes.items():
+
+            logger.info(f"Writing to GeoPackage: \"{output_path}\", layer: \"{table_name}\".")
+
+            # Configure layer schema.
+            schema = dict()
+            for field, field_data in schemas[table_name]["fields"].items():
+                schema[field] = {
+                    "type": {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}[field_data[0]],
+                    "width": field_data[1]
+                }
+
+            # Configure layer shape type.
+            if isinstance(df, pd.DataFrame):
+                shape_type = ogr.wkbNone
+            elif df.geom_type[0] in {"Point", "MultiPoint"}:
+                shape_type = {"Point": ogr.wkbPoint, "MultiPoint": ogr.wkbMultiPoint}[df.geom_type[0]]
+            elif df.geom_type[0] in {"LineString", "MultiLineString"}:
+                shape_type = {"LineString": ogr.wkbLineString,
+                              "MultiLineString": ogr.wkbMultiLineString}[df.geom_type[0]]
+            else:
+                raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
+                                 f"{', '.join(map(str, df.geom_type.unique()))}")
+
+            # TODO: Create layer.
+            # TODO: write data.
+
+    except (Exception, KeyError, ValueError, sqlite3.Error) as e:
+        logger.exception("Error raised when writing to GeoPackage: \"{}\".".format(output_path))
+        logger.exception(e)
+        sys.exit(1)
+    # TODO: END
 
     # Create gpkg from template if it doesn't already exist.
     if not os.path.exists(output_path):

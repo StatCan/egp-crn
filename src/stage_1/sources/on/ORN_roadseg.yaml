@@ -1,0 +1,111 @@
+coverage:
+  country: ca
+  province: on
+  ISO3166:
+    alpha2: CA-ON
+    country: Canada
+    subdivision: Ontario
+  website: https://geohub.lio.gov.on.ca/datasets/mnrf::ontario-road-network-orn-road-net-element
+license:
+  url:  https://www.ontario.ca/page/open-government-licence-ontario 
+  text: Open Government Licence – Ontario
+language: en
+data:
+  filename: Files_for_delivery.gdb
+  layer: ORN_Road_Segments
+  driver: OpenFileGDB
+  crs: "ESPG:4269"
+  spatial: True
+  query: "\"ROAD_ELEMENT_TYPE\" <> 'FERRY CONNECTION'"
+conform:
+  addrange:
+    acqtech: ACQUISITION_TECHNIQUE_CDE
+    metacover:
+    credate: CREATION_DATE
+    datasetnam: "Ontario"
+    accuracy: ROAD_ABSOLUTE_ACCURACY
+    provider:
+    revdate: REVISION_DATE
+    specvers:
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg:
+    r_digdirfg:
+    l_hnumf: L_FIRST_HOUSE_NUM
+    r_hnumf: R_FIRST_HOUSE_NUM
+    l_hnumsuff:
+    r_hnumsuff:
+    l_hnumtypf: 
+    r_hnumtypf:
+    l_hnumstr: L_HOUSE_NUMBER_STRUCTURE_CDE
+    r_hnumstr: R_HOUSE_NUMBER_STRUCTURE_CDE
+    l_hnuml: L_LAST_HOUSE_NUM
+    r_hnuml: R_LAST_HOUSE_NUM
+    l_hnumsufl:
+    r_hnumsufl:
+    l_hnumtypl:
+    r_hnumtypl:
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind:
+    r_rfsysind:
+  roadseg:
+    acqtech: ACQUISITION_TECHNIQUE_CDE
+    metacover:
+    credate: CREATION_DATE
+    datasetnam: "Ontario"
+    accuracy: ROAD_ABSOLUTE_ACCURACY
+    provider:
+    revdate: REVISION_DATE
+    specvers:
+    l_adddirfg:
+    r_adddirfg:
+    adrangenid: uuid
+    closing:
+    exitnbr: EXIT_NUMBER
+    l_hnumf: L_FIRST_HOUSE_NUM
+    r_hnumf: R_FIRST_HOUSE_NUM
+    roadclass: ROAD_CLASS_CDE
+    l_hnuml: L_LAST_HOUSE_NUMBER
+    r_hnuml: R_LAST_HOUSE_NUMBER
+    nid: uuid
+    nbrlanes: NUMBER_OF_LANES
+    l_placenam:
+    r_placenam:
+    l_stname_c: L_FULL_STREET_NAME
+    r_stname_c: R_FULL_STREET_NAME
+    pavsurf: PAVED_SURFACE_TYPE_CDE
+    pavstatus: PAVEMENT_STATUS_CDE
+    roadjuris: JURISDICTION
+    roadsegid: OGF_ID
+    rtename1en: ROUTE_NAME_ENGLISH_1
+    rtename1fr: ROUTE_NAME_FRENCH_1
+    rtnumber1: ROUTE_NUMBER_1
+    speed: SPEED_LIMIT
+    strunameen: STRUCTURE_NAME_ENGLISH
+    strunamefr: STRUCTURE_NAME_FRENCH
+    structid:
+    structtype: STRUCTURE_TYPE_CDE
+    trafficdir: DIRECTION_OF_TRAFFIC_FLOW_CDE
+    unpavsurf: UNPAVED_SURFACE_TYPE_CDE
+  strplaname:
+    acqtech: ACQUISITION_TECHNIQUE_CDE
+    metacover:
+    credate: CREATION_DATE
+    datasetnam: "Ontario"
+    accuracy: ROAD_ABSOLUTE_ACCURACY
+    provider:
+    revdate: REVISION_DATE
+    specvers:
+    dirprefix: L_DIR_PRE
+    dirsuffix: L_DIR_SUF
+    muniquad:
+    nid: uuid
+    placename:
+    placetype:
+    province: "Ontario"
+    starticle:
+    namebody:
+    strtypre: L_STR_TYP_PRE
+    strtysuf: L_STR_TYP_SUF

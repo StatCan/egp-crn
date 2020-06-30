@@ -1,0 +1,37 @@
+coverage:
+  country: ca
+  province: on
+  ISO3166:
+    alpha2: CA-ON
+    country: Canada
+    subdivision: Ontario
+  website: https://geohub.lio.gov.on.ca/datasets/mnrf::ontario-road-network-orn-road-net-element
+license:
+  url:  https://www.ontario.ca/page/open-government-licence-ontario 
+  text: Open Government Licence – Ontario
+language: en
+data:
+  filename: Files_for_delivery.gdb
+  layer: ORN_Road_Segments
+  driver: OpenFileGDB
+  crs: "ESPG:4269"
+  spatial: True
+  query: "\"ROAD_ELEMENT_TYPE\" = 'FERRY CONNECTION'"
+conform:
+  ferryseg:
+    acqtech: ACQUISITION_TECHNIQUE_CDE
+    metacover:
+    credate: CREATION_DATE
+    datasetnam: "Ontario"
+    accuracy: ROAD_ABSOLUTE_ACCURACY
+    provider:
+    revdate: REVISION_DATE
+    specvers:
+    closing: 
+    ferrysegid:
+    roadclass: ROAD_CLASS_CDE
+    nid: uuid
+    rtename1en: ROUTE_NAME_ENGLISH_1
+    rtename1fr: ROUTE_NAME_FRENCH_1
+    rtnumber1: ROUTE_NUMBER_1
+  

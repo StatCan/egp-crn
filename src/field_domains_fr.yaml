@@ -312,7 +312,7 @@ tables:
       [Aucun, à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
     namebody:
     strtypre: &strtypre
-      0: None
+      0: Aucun
       1: Abbey
       2: Access
       3: Acres
