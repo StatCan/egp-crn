@@ -166,7 +166,7 @@ strplaname:
     placename:  [str, 100]
     placetype:  [str, 68]
     province:   [str, 25]
-    starticle:  [str, 6]
+    starticle:  [str, 7]
     namebody:   [str, 50]
     strtypre:   [str, 16]
     strtysuf:   [str, 16]
