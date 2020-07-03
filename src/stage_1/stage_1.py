@@ -16,7 +16,6 @@ import zipfile
 from collections import Counter
 from datetime import datetime
 from operator import itemgetter
-from shapely.wkt import loads
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
@@ -48,6 +47,9 @@ class Stage:
 
         # Configure source attribute path.
         self.source_attribute_path = os.path.abspath("sources/{}".format(self.source))
+
+        # Configure previous NRN vintage path.
+        self.nrn_old_path = os.path.abspath(f"../../data/interim/{self.source}_old")
 
         # Validate output namespace.
         self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
@@ -116,7 +118,7 @@ class Stage:
 
             # Retrieve target attributes.
             for target_name in source_attributes["conform"]:
-                logger.info("Applying field mapping from {} to {}.".format(source_name, target_name))
+                logger.info(f"Applying field mapping from {source_name} to {target_name}.")
 
                 # Retrieve table field mapping attributes.
                 maps = source_attributes["conform"][target_name]
@@ -129,18 +131,18 @@ class Stage:
 
                     # No mapping.
                     if source_field is None:
-                        logger.info("Target field \"{}\": No mapping provided.".format(target_field))
+                        logger.info(f"Target field {target_field}: No mapping provided.")
 
                     # Raw value mapping.
                     elif isinstance(source_field, str) and (source_field.lower() not in source_gdf.columns):
-                        logger.info("Target field \"{}\": Applying raw value field mapping.".format(target_field))
+                        logger.info(f"Target field {target_field}: Applying raw value.")
 
                         # Update target dataframe with raw value.
                         target_gdf[target_field] = source_field
 
                     # Function mapping.
                     else:
-                        logger.info("Target field \"{}\": Identifying function chain.".format(target_field))
+                        logger.info(f"Target field {target_field}: Identifying function chain.")
 
                         # Restructure dict for direct field mapping in case of string or list input.
                         if isinstance(source_field, str) or isinstance(source_field, list):
@@ -180,7 +182,8 @@ class Stage:
                                 mapped_series = mapped_df.apply(lambda row: row.values, axis=1)
 
                             # Apply field mapping functions to mapped series.
-                            field_mapping_results = self.apply_functions(mapped_series, source_field["functions"])
+                            field_mapping_results = self.apply_functions(mapped_series, source_field["functions"],
+                                                                         target_field)
 
                             # Store results.
                             if isinstance(results, pd.Series):
@@ -201,7 +204,7 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
-    def apply_functions(self, series, func_list):
+    def apply_functions(self, series, func_list, target_field):
         """Iterates and applies field mapping function(s) to a pandas series."""
 
         # Iterate functions.
@@ -209,10 +212,10 @@ class Stage:
             func_name = func["function"]
             params = {k: v for k, v in func.items() if k != "function"}
 
-            logger.info("Applying field mapping function: {}.".format(func_name))
+            logger.info(f"Target field {target_field}: Applying field mapping function: {func_name}.")
 
             # Generate expression.
-            expr = "field_map_functions.{}(\"val\", **{})".format(func_name, params)
+            expr = f"field_map_functions.{func_name}(series, **params)"
 
             try:
 
@@ -225,10 +228,10 @@ class Stage:
                 if func_name == "direct":
                     series = field_map_functions.direct(series, **params)
                 else:
-                    series = eval(f"field_map_functions.{func_name}(series, **params)").copy(deep=True)
+                    series = eval(expr).copy(deep=True)
 
             except (SyntaxError, ValueError):
-                logger.exception("Invalid expression: \"{}\".".format(expr))
+                logger.exception(f"Invalid expression: {expr}.")
                 sys.exit(1)
 
         return series
@@ -375,17 +378,13 @@ class Stage:
             sys.exit(1)
 
     def download_previous_vintage(self):
-        """
-        1) Downloads the previous NRN vintage.
-        2) Standardizes table and field names to match interim data format (instead of exported format).
-        3) Exports previous NRN vintage as <source>_old.gpkg.
-        """
+        """Downloads the previous NRN vintage and extracts the English GeoPackage as <source>_old.gpkg."""
 
         logger.info("Retrieving previous NRN vintage.")
-        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
 
         # Retrieve metadata for previous NRN vintage.
         logger.info("Retrieving metadata for previous NRN vintage.")
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
         metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
 
         # Get metadata from url.
@@ -404,7 +403,7 @@ class Stage:
             download = helpers.get_url(download_url, stream=True, timeout=30)
 
             # Copy download content to file.
-            with open("../../data/interim/nrn_old.zip", "wb") as f:
+            with open(f"{self.nrn_old_path}.zip", "wb") as f:
                 shutil.copyfileobj(download.raw, f)
 
         except (requests.exceptions.RequestException, shutil.Error) as e:
@@ -415,40 +414,23 @@ class Stage:
         # Extract zipped data.
         logger.info("Extracting zipped data for previous NRN vintage.")
 
-        gpkg_path = [f for f in zipfile.ZipFile("../../data/interim/nrn_old.zip", "r").namelist() if
+        gpkg_path = [f for f in zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r").namelist() if
                      f.endswith(".gpkg")][0]
 
-        with zipfile.ZipFile("../../data/interim/nrn_old.zip", "r") as zip_f:
-            with zip_f.open(gpkg_path) as zsrc, open("../../data/interim/nrn_old.gpkg", "wb") as zdest:
+        with zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r") as zip_f:
+            with zip_f.open(gpkg_path) as zsrc, open(f"{self.nrn_old_path}.gpkg", "wb") as zdest:
                 shutil.copyfileobj(zsrc, zdest)
 
-        # Load previous NRN vintage into dataframes.
-        logger.info("Loading previous NRN vintage into dataframes.")
-
-        self.dframes_old = helpers.load_gpkg("../../data/interim/nrn_old.gpkg", find=True)
-
-        # Standardize table and field names.
-        logger.info("Standardizing previous NRN vintage to match interim format.")
-
-        for name, dframe in self.dframes_old.items():
-            dframe.columns = map(str.lower, dframe.columns)
-            self.dframes_old[name] = dframe.copy(deep=True)
-
-        # Export standardized previous NRN vintage for usage in later stages.
-        logger.info("Exporting previous NRN vintage dataframes to GeoPackage layers.")
-        helpers.export_gpkg(self.dframes_old, "../../data/interim/{}_old.gpkg".format(self.source))
-
         # Remove temporary files.
-        logger.info("Removing temporary previous NRN vintage files and directories.")
-        for f in os.listdir("../../data/interim"):
-            if os.path.splitext(f)[0] == "nrn_old":
-                path = os.path.join("../../data/interim", f)
-                try:
-                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
-                except (OSError, shutil.Error) as e:
-                    logger.warning("Unable to remove directory or file: \"{}\".".format(os.path.abspath(path)))
-                    logger.warning(e)
-                    continue
+        logger.info("Removing temporary files for previous NRN vintage.")
+
+        path = f"{self.nrn_old_path}.zip"
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError as e:
+                logger.warning(f"Unable to remove file: {path}.")
+                logger.warning(e)
 
     def export_gpkg(self):
         """Exports the target dataframes as GeoPackage layers."""
@@ -526,6 +508,7 @@ class Stage:
 
             # Configure filename absolute path.
             source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
+            # TODO: replace ogr2ogr call with helpers functions (explode_geometry, round_coordinates, reproject_gdf)
 
             # Spatial.
             if source_yaml["data"]["spatial"]:
@@ -631,39 +614,34 @@ class Stage:
     def recover_missing_datasets(self):
         """
         Recovers missing NRN datasets in the current vintage from the previous vintage.
-        Exception: junction.
+        Exception: altnamlink, junction.
         """
 
         # Identify datasets to be recovered.
-        recovery_tables = [t for t in self.target_attributes if t not in self.target_gdframes and t != "junction"]
-        if any(recovery_tables):
+        recovery_tables = set(self.target_attributes) - set(self.target_gdframes) - {"altnamlink", "junction"}
+        if recovery_tables:
 
             logger.info("Recovering missing datasets from the previous NRN vintage.")
 
-            # Iterate recovery datasets.
-            for table in recovery_tables:
+            # Load datasets from previous NRN vintage.
+            dframes_old = helpers.load_gpkg(f"{self.nrn_old_path}.gpkg", find=True, layers=recovery_tables)
 
-                # Recover dataset if available and not empty.
-                if table in self.dframes_old and len(self.dframes_old[table]):
+            # Remove empty datasets.
+            dframes_old = {table: df for table, df in dframes_old.items() if len(df)}
 
-                        logger.info("Recovering dataset: {}.".format(table))
+            # Recover non-empty datasets.
+            for table, df in dframes_old.items():
 
-                        df = self.dframes_old[table].copy(deep=True)
+                logger.info(f"Recovering dataset: {table}.")
 
-                        # Add uuid field.
-                        df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
+                # Add uuid field.
+                df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
-                        # Round coordinates to decimal precision = 7.
-                        df["geometry"] = df["geometry"].map(
-                            lambda g: loads(re.sub(r"\d*\.\d+", lambda m: "{:.7f}".format(float(m.group(0))), g.wkt)))
+                # Round coordinates to decimal precision = 7.
+                df["geometry"] = helpers.round_coordinates(df, precision=7)
 
-                        # Store result.
-                        self.target_gdframes[table] = df.copy(deep=True)
-
-                # Log unrecoverable dataset.
-                else:
-
-                    logger.info("Previous NRN vintage has no recoverable dataset: {}.".format(table))
+                # Store result.
+                self.target_gdframes[table] = df.copy(deep=True)
 
     def split_strplaname(self):
         """
@@ -693,10 +671,11 @@ class Stage:
                 df_l.loc[df_l.index, col] = df_l[col].map(itemgetter(0))
                 df_r.loc[df_r.index, col] = df_r[col].map(itemgetter(1))
 
-            # Generate new nids, uuids, and indexes for right dataframe.
+            # Generate new nids, uuids, and indexes for right dataframe, re-assign uuids as index for left dataframe.
             df_r["nid"] = [uuid.uuid4().hex for _ in range(len(df_r))]
             df_r["uuid"] = [uuid.uuid4().hex for _ in range(len(df_r))]
             df_r.index = df_r["uuid"]
+            df_l.index = df_l["uuid"]
 
             # Update target dataframe.
             self.target_gdframes["strplaname"] = pd.concat([df_l, df_r], ignore_index=False).copy(deep=True)

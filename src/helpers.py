@@ -2,7 +2,6 @@ import datetime
 import fiona
 import geopandas as gpd
 import geoparquet as gpq
-import json
 import logging
 import networkx as nx
 import numpy as np
@@ -11,6 +10,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pyproj
+import re
 import requests
 import sqlite3
 import subprocess
@@ -20,8 +20,10 @@ import yaml
 from collections import defaultdict
 from copy import deepcopy
 from itertools import compress
+from operator import attrgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
+from shapely.wkt import loads
 from tqdm import tqdm
 
 
@@ -223,6 +225,27 @@ def compile_dtypes(length=False):
     return dtypes
 
 
+def explode_geometry(gdf):
+    """Explodes MultiLineStrings and MultiPoints to LineStrings and Points, respectively."""
+
+    multi_types = {"MultiLineString", "MultiPoint"}
+    if len(set(gdf.geom_type.unique()).intersection(multi_types)):
+
+        # Separate multi- and single-type records.
+        multi = gdf[gdf.geom_type.isin(multi_types)]
+        single = gdf[~gdf.index.isin(multi.index)]
+
+        # Explode multi-type geometries.
+        multi_exploded = multi.explode().reset_index(drop=True)
+
+        # Merge all records.
+        merged = gpd.GeoDataFrame(pd.concat([single, multi_exploded], ignore_index=True), crs=gdf.crs)
+        return merged.copy(deep=True)
+
+    else:
+        return gdf.copy(deep=True)
+
+
 def export_gpkg(dataframes, output_path):
     """Receives a dictionary of (Geo)pandas (Geo)DataFrames and exports them as GeoPackage layers."""
 
@@ -247,27 +270,23 @@ def export_gpkg(dataframes, output_path):
 
             logger.info(f"Layer {table_name}: creating layer.")
 
-            # Configure layer shape type.
-            if isinstance(df, pd.DataFrame):
-                shape_type = ogr.wkbNone
-            elif len(df.geom_type.unique()) > 1:
-                raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
-                                 f"{', '.join(map(str, df.geom_type.unique()))}.")
-            elif df.geom_type[0] in {"Point", "MultiPoint"}:
-                shape_type = {"Point": ogr.wkbPoint, "MultiPoint": ogr.wkbMultiPoint}[df.geom_type[0]]
-            elif df.geom_type[0] in {"LineString", "MultiLineString"}:
-                shape_type = {"LineString": ogr.wkbLineString,
-                              "MultiLineString": ogr.wkbMultiLineString}[df.geom_type[0]]
-            else:
-                raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
-                                 f"{', '.join(map(str, df.geom_type.unique()))}.")
+            # Configure layer shape type and spatial reference.
+            if hasattr(df, "__geo_interface__"):
 
-            # Configure spatial reference.
-            if shape_type == ogr.wkbNone:
-                srs = None
-            else:
                 srs = osr.SpatialReference()
                 srs.ImportFromEPSG(df.crs.to_epsg())
+
+                if len(df.geom_type.unique()) > 1:
+                    raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
+                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
+                elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
+                    shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
+                else:
+                    raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
+                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
+            else:
+                shape_type = ogr.wkbNone
+                srs = None
 
             # Create layer.
             layer = gpkg.CreateLayer(name=table_name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
@@ -314,7 +333,7 @@ def export_gpkg(dataframes, output_path):
 
                 # Set feature geometry, if spatial.
                 if srs:
-                    geom = ogr.CreateGeometryFromJson(json.dumps(feat["geometry"]))
+                    geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
                     feature.SetGeometry(geom)
 
                 # Create feature.
@@ -420,7 +439,7 @@ def load_gpkg(gpkg_path, find=False, layers=None):
     Returns a dictionary of geopackage layers as pandas or geopandas (geo)dataframes.
     Parameter find will creating a mapping for geopackage layer names which contain, but do not exactly match the
     expected NRN layer names.
-    Parameter layers accepts a list of table names if only a subset of GeoPackage layers are required.
+    Parameter layers accepts an iterable of table names if only a subset of GeoPackage layers are required.
     """
 
     dframes = dict()
@@ -462,6 +481,7 @@ def load_gpkg(gpkg_path, find=False, layers=None):
                            f"exception may be raised later on if any of these layers are required.")
 
         # Load GeoPackage layers as (geo)dataframes.
+        # Convert column names to lowercase on import.
         for table_name in layers_map:
 
             logger.info(f"Loading layer: {table_name}.")
@@ -470,11 +490,11 @@ def load_gpkg(gpkg_path, find=False, layers=None):
 
                 # Spatial data.
                 if distribution_format[table_name]["spatial"]:
-                    df = gpd.read_file(gpkg_path, layer=layers_map[table_name], driver="GPKG")
+                    df = gpd.read_file(gpkg_path, layer=layers_map[table_name], driver="GPKG").rename(columns=str.lower)
 
                 # Tabular data.
                 else:
-                    df = pd.read_sql_query(f"select * from {layers_map[table_name]}", con)
+                    df = pd.read_sql_query(f"select * from {layers_map[table_name]}", con).rename(columns=str.lower)
 
                 # Set index field: uuid.
                 if "uuid" in df.columns:
@@ -616,6 +636,21 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
         return gdf["geometry"]
     else:
         return gdf
+
+
+def round_coordinates(gdf, precision=7):
+    """Rounds the coordinates of the geometry column to the specified decimal precision."""
+
+    try:
+
+        gdf["geometry"] = gdf["geometry"].map(
+            lambda g: loads(re.sub(r"\d*\.\d+", lambda m: f"{float(m.group(0)):.{precision}f}", g.wkt)))
+
+    except (TypeError, ValueError) as e:
+        logger.exception("Unable to round coordinates for GeoDataFrame.")
+        logger.exception(e)
+        sys.exit(1)
+
 
 def to_geoparquet(self: gpd.GeoDataFrame, path: str):
     """

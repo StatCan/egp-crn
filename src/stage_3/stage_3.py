@@ -185,7 +185,7 @@ class Stage:
 
         logger.info("Loading Geopackage layers - previous vintage.")
 
-        self.dframes_old = helpers.load_gpkg("../../data/interim/{}_old.gpkg".format(self.source))
+        self.dframes_old = helpers.load_gpkg("../../data/interim/{}_old.gpkg".format(self.source), find=True)
 
     def recover_and_classify_nids(self):
         """
