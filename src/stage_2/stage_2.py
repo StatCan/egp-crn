@@ -242,19 +242,19 @@ class Stage:
         pts_uuid = np.concatenate([[id] * count for id, count in df["geometry"].map(
             lambda geom: len(geom.coords)).iteritems()])
 
-        # Construct x- and y-coordinate series aligned to the series of points.
-        pts_x, pts_y = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
+        # Construct x-, y-, and z-coordinate series aligned to the series of points.
+        pts_x, pts_y, pts_z = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
 
-        # Join the uuids, x-, and y-coordinates.
-        pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
+        # Join the uuids, x-, y-, and z-coordinates.
+        pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "z": pts_z, "uuid": pts_uuid})
 
         # Query unique points (all) and endpoints.
-        pts_unique = pts_df[~pts_df[["x", "y"]].duplicated(keep=False)][["x", "y"]].values
+        pts_unique = pts_df[~pts_df[["x", "y", "z"]].duplicated(keep=False)][["x", "y", "z"]].values
         endpoints_unique = np.unique(np.concatenate(
             df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)
 
         # Query non-unique points (all), keep only the first duplicated point from self-loops.
-        pts_dup = pts_df[(pts_df[["x", "y"]].duplicated(keep=False)) & (~pts_df.duplicated(keep="first"))]
+        pts_dup = pts_df[(pts_df[["x", "y", "z"]].duplicated(keep=False)) & (~pts_df.duplicated(keep="first"))]
 
         # Query junctypes.
 
@@ -266,7 +266,7 @@ class Stage:
         # junctype: Intersection.
         # Process: Query non-unique points with >= 3 instances.
         logger.info("Configuring junctype: Intersection.")
-        counts = Counter(map(tuple, pts_dup[["x", "y"]].values))
+        counts = Counter(map(tuple, pts_dup[["x", "y", "z"]].values))
         intersection = {pt for pt, count in counts.items() if count >= 3}
 
         # junctype: Ferry.

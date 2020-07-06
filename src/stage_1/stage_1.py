@@ -496,70 +496,54 @@ class Stage:
                         logger.warning(f"Repaired {mods_count} linkage(s) between strplaname.nid - {table}.{field}.")
 
     def gen_source_dataframes(self):
-        """Loads input data into a geopandas dataframe."""
+        """Loads source data into GeoDataFrames."""
 
-        logger.info("Loading input data as dataframes.")
+        logger.info("Loading source data as dataframes.")
         self.source_gdframes = dict()
 
         for source, source_yaml in self.source_attributes.items():
 
-            logger.info("Loading data source {}, layer={}.".format(source_yaml["data"]["filename"],
-                                                                   source_yaml["data"]["layer"]))
+            logger.info(f"Loading source data for {source}.yaml: file={source_yaml['data']['filename']}, layer="
+                        f"{source_yaml['data']['layer']}.")
 
-            # Configure filename absolute path.
-            source_yaml["data"]["filename"] = os.path.join(self.data_path, source_yaml["data"]["filename"])
-            # TODO: replace ogr2ogr call with helpers functions (explode_geometry, round_coordinates, reproject_gdf)
-
-            # Spatial.
-            if source_yaml["data"]["spatial"]:
-                kwargs = {"filename": os.path.abspath("../../data/interim/{}_temp.geojson".format(self.source))}
-
-                # Transform data source crs.
-                logger.info("Transforming data source to EPSG:4617 and rounding coordinates to 7 decimal places.")
-
-                nlt = "Point" if {"ferryseg", "roadseg"}.isdisjoint(set(source_yaml["conform"])) else "LineString"
-
-                helpers.ogr2ogr({
-                    "overwrite": "-overwrite",
-                    "where": f"-where \"{source_yaml['data']['query']}\"" if source_yaml["data"]["query"] else "",
-                    "t_srs": "-t_srs EPSG:4617",
-                    "s_srs": f"-s_srs {source_yaml['data']['crs']}",
-                    "dest": f"\"{kwargs['filename']}\"",
-                    "src": f"\"{source_yaml['data']['filename']}\"",
-                    "src_layer": source_yaml["data"]["layer"] if source_yaml["data"]["layer"] else "",
-                    "lco": "-lco coordinate_precision=7",
-                    "nlt": f"-nlt {nlt}"
-                })
-
-            # Tabular.
-            else:
-                kwargs = source_yaml["data"]
-
-            # Load source into dataframe.
-            logger.info("Loading data source as (Geo)DataFrame.")
+            # Load source data into a geodataframe.
             try:
-                gdf = gpd.read_file(**kwargs)
-            except fiona.errors.FionaValueError:
-                logger.exception("ValueError raised when importing source {}.".format(kwargs["filename"]))
+
+                df = gpd.read_file(os.path.join(self.data_path, source_yaml["data"]["filename"]),
+                                   driver=source_yaml["data"]["driver"],
+                                   layer=source_yaml["data"]["layer"])
+
+            except fiona.errors.FionaValueError as e:
+                logger.exception(f"Unable to load data source.")
+                logger.exception(e)
                 sys.exit(1)
 
-            # Remove temp data source.
-            logger.info("Removing temporary data source output.")
-            try:
-                os.remove(kwargs["filename"])
-            except OSError as e:
-                logger.warning("Unable to remove file: \"{}\".".format(kwargs["filename"]))
-                logger.warning(e)
+            # Query dataframe.
+            if source_yaml["data"]["query"]:
+                df.query(source_yaml["data"]["query"], inplace=True)
 
-            # Force lowercase field names.
-            gdf.columns = map(str.lower, gdf.columns)
+            # Force lowercase column names.
+            df.columns = map(str.lower, df.columns)
+
+            # Apply spatial data modifications.
+            if source_yaml["data"]["spatial"]:
+
+                # Cast multi-type geometries.
+                df = helpers.explode_geometry(df)
+
+                # Reproject to EPSG:4617.
+                df = helpers.reproject_gdf(df, int(source_yaml["data"]["crs"].split(":")[-1]), 4617)
+
+                # Round coordinates to decimal precision = 7.
+                df = helpers.round_coordinates(df, 7)
 
             # Add uuid field.
-            gdf["uuid"] = [uuid.uuid4().hex for _ in range(len(gdf))]
+            df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
             # Store result.
-            self.source_gdframes[source] = gdf
-            logger.info("Successfully loaded dataframe.")
+            self.source_gdframes[source] = df.copy(deep=True)
+
+            logger.info("Successfully loaded source data.")
 
     def gen_target_dataframes(self):
         """Creates empty dataframes for all applicable output tables based on the input data field mapping."""

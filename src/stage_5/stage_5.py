@@ -195,8 +195,9 @@ class Stage:
         tasks_mp = list()
         for frmt in self.dframes:
             for lang in self.dframes[frmt]:
-                temp_path = os.path.abspath("../../data/interim/{}_{}_{}_temp.gpkg".format(self.source, frmt, lang))
-                tasks_mp.append((self.dframes[frmt][lang], temp_path))
+                temp_path = os.path.abspath(f"../../data/interim/{self.source}_{frmt}_{lang}_temp.gpkg")
+                export_schemas_path = os.path.abspath(f"distribution_formats/{lang}/{frmt}.yaml")
+                tasks_mp.append((self.dframes[frmt][lang], temp_path, export_schemas_path))
 
         # Execute tasks in process pool.
         pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
@@ -294,9 +295,8 @@ class Stage:
                         drop_columns = df.columns.difference([*schemas[table]["fields"], "geometry"])
                         df.drop(drop_columns, axis=1, inplace=True)
 
-                        # Conform column names.
-                        df.columns = map(lambda col: "geometry" if col == "geometry" else schemas[table]["fields"][col],
-                                         df.columns)
+                        # Map column names.
+                        df.columns.rename(columns=schemas[table]["fields"], inplace=True)
 
                         # Store results.
                         dframes[frmt][lang][table] = df

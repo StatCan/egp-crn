@@ -39,7 +39,7 @@ data:
   driver: A GDAL vector driver name.
   crs: The EPSG shorthand string for the dataset / layer.
   spatial: Boolean (True / False) flag to indicate whether the dataset / layer is spatial or tabular.
-  query: An attribute query using SQL WHERE syntax.
+  query: An attribute query using pandas.query syntax.
 
 Example data source:
   data:

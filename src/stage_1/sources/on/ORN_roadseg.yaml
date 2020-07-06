@@ -16,7 +16,7 @@ data:
   driver: OpenFileGDB
   crs: "ESPG:4269"
   spatial: True
-  query: "\"ROAD_ELEMENT_TYPE\" <> 'FERRY CONNECTION'"
+  query: "ROAD_ELEMENT_TYPE != 'FERRY CONNECTION'"
 conform:
   addrange:
     acqtech: ACQUISITION_TECHNIQUE_CDE

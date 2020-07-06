@@ -16,7 +16,7 @@ data:
   driver: OpenFileGDB
   crs: "EPSG:2953"
   spatial: True
-  query: "\"Functional_Road_Class\" <> 425"
+  query: "Functional_Road_Class != 425"
 conform:
   addrange:
     acqtech: Element_Acquisition_Technique

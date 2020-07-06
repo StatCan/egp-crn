@@ -19,7 +19,6 @@ import time
 import yaml
 from collections import defaultdict
 from copy import deepcopy
-from itertools import compress
 from operator import attrgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
@@ -228,6 +227,8 @@ def compile_dtypes(length=False):
 def explode_geometry(gdf):
     """Explodes MultiLineStrings and MultiPoints to LineStrings and Points, respectively."""
 
+    logger.info("Exploding multi-type geometries.")
+
     multi_types = {"MultiLineString", "MultiPoint"}
     if len(set(gdf.geom_type.unique()).intersection(multi_types)):
 
@@ -246,24 +247,35 @@ def explode_geometry(gdf):
         return gdf.copy(deep=True)
 
 
-def export_gpkg(dataframes, output_path):
-    """Receives a dictionary of (Geo)pandas (Geo)DataFrames and exports them as GeoPackage layers."""
+def export_gpkg(dataframes, output_path, export_schemas=None):
+    """
+    Receives a dictionary of (Geo)pandas (Geo)DataFrames and exports them as GeoPackage layers.
+    Optionally accepts an export schemas yaml path which will override the default distribution format column names.
+    """
 
+    output_path = os.path.abspath(output_path)
     logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
 
     try:
 
-        logger.info(f"Creating / opening data source: {os.path.abspath(output_path)}.")
+        logger.info(f"Creating / opening data source: {output_path}.")
 
         # Create / open GeoPackage.
         driver = ogr.GetDriverByName("GPKG")
         if os.path.exists(output_path):
             gpkg = driver.Open(output_path, update=1)
         else:
-            gpkg = driver.CreateDataSource(output_path)
+            # TODO: test this line.
+            gpkg = driver.CreateDataSource(output_path, ["FID=uuid"])
 
         # Compile schemas.
         schemas = load_yaml(os.path.abspath("../distribution_format.yaml"))
+        if export_schemas:
+            export_schemas = load_yaml(export_schemas)["conform"]
+        else:
+            export_schemas = defaultdict(dict)
+            for table in schemas:
+                export_schemas[table]["fields"] = {field: field for field in schemas[table]["fields"]}
 
         # Iterate dataframes.
         for table_name, df in dataframes.items():
@@ -296,14 +308,14 @@ def export_gpkg(dataframes, output_path):
             # Configure layer schema (field definitions).
             ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
 
-            for field_name, field_params in schemas[table_name]["fields"].items():
-                field_type, field_width = field_params
-                field_defn = ogr.FieldDefn(field_name, ogr_field_map[field_type])
+            for field_name, mapped_field_name in export_schemas[table_name]["fields"].items():
+                field_type, field_width = schemas[table_name]["fields"][field_name]
+                field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
                 field_defn.SetWidth(field_width)
                 layer.CreateField(field_defn)
 
-            # Set columns to lowercase.
-            df.columns = map(str.lower, df.columns)
+            # Map dataframe column names (does nothing if already mapped).
+            df.rename(columns=export_schemas[table_name]["fields"], inplace=True)
 
             # Add uuid field to schema, if available.
             if "uuid" in df.columns:
@@ -312,7 +324,7 @@ def export_gpkg(dataframes, output_path):
                 layer.CreateField(field_defn)
 
             # Filter invalid columns from dataframe.
-            invalid_cols = set(df.columns) - {*schemas[table_name]["fields"], "uuid", "geometry"}
+            invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"], "uuid", "geometry"}
             if invalid_cols:
                 logger.warning(f"Layer {table_name}: extraneous columns detected and will not be written to output: "
                                f"{', '.join(map(str, invalid_cols))}.")
@@ -455,20 +467,21 @@ def load_gpkg(gpkg_path, find=False, layers=None):
 
             # Create sqlite connection.
             con = sqlite3.connect(gpkg_path)
+            cur = con.cursor()
 
             # Load GeoPackage table names.
-            cur = con.cursor()
-            layers = list(zip(*cur.execute("select name from sqlite_master where type='table';").fetchall()))[0]
+            gpkg_layers = list(zip(*cur.execute("select name from sqlite_master where type='table';").fetchall()))[0]
 
             # Create table name mapping.
             layers_map = dict()
             if find:
                 for table_name in distribution_format:
-                    results = [name.lower().find(table_name) >= 0 for name in layers]
-                    if any(results):
-                        layers_map[table_name] = list(compress(layers, results))[0]
+                    for layer_name in gpkg_layers:
+                        if layer_name.lower().find(table_name) >= 0:
+                            layers_map[table_name] = layer_name
+                            break
             else:
-                layers_map = {name: name for name in layers}
+                layers_map = {name: name for name in set(distribution_format).intersection(set(gpkg_layers))}
 
         except sqlite3.Error:
             logger.exception(f"Unable to connect to GeoPackage: {gpkg_path}.")
@@ -595,6 +608,8 @@ def ogr2ogr(expression, log=None, max_attempts=5):
 def reproject_gdf(gdf, epsg_source, epsg_target):
     """Transforms a GeoDataFrame's geometry column or GeoSeries between EPSGs."""
 
+    logger.info(f"Reprojecting geometry from EPSG:{epsg_source} to EPSG:{epsg_target}.")
+
     series_flag = True if isinstance(gdf, gpd.GeoSeries) else False
 
     # Return empty dataframe.
@@ -641,10 +656,14 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
 def round_coordinates(gdf, precision=7):
     """Rounds the coordinates of the geometry column to the specified decimal precision."""
 
+    logger.info(f"Rounding coordinates to decimal precision: {precision}.")
+
     try:
 
         gdf["geometry"] = gdf["geometry"].map(
             lambda g: loads(re.sub(r"\d*\.\d+", lambda m: f"{float(m.group(0)):.{precision}f}", g.wkt)))
+
+        return gdf
 
     except (TypeError, ValueError) as e:
         logger.exception("Unable to round coordinates for GeoDataFrame.")
