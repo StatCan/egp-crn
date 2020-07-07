@@ -265,8 +265,7 @@ def export_gpkg(dataframes, output_path, export_schemas=None):
         if os.path.exists(output_path):
             gpkg = driver.Open(output_path, update=1)
         else:
-            # TODO: test this line.
-            gpkg = driver.CreateDataSource(output_path, ["FID=uuid"])
+            gpkg = driver.CreateDataSource(output_path)
 
         # Compile schemas.
         schemas = load_yaml(os.path.abspath("../distribution_format.yaml"))
@@ -283,7 +282,7 @@ def export_gpkg(dataframes, output_path, export_schemas=None):
             logger.info(f"Layer {table_name}: creating layer.")
 
             # Configure layer shape type and spatial reference.
-            if hasattr(df, "__geo_interface__"):
+            if isinstance(df, gpd.GeoDataFrame):
 
                 srs = osr.SpatialReference()
                 srs.ImportFromEPSG(df.crs.to_epsg())
@@ -324,7 +323,7 @@ def export_gpkg(dataframes, output_path, export_schemas=None):
                 layer.CreateField(field_defn)
 
             # Filter invalid columns from dataframe.
-            invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"], "uuid", "geometry"}
+            invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"].values(), "uuid", "geometry"}
             if invalid_cols:
                 logger.warning(f"Layer {table_name}: extraneous columns detected and will not be written to output: "
                                f"{', '.join(map(str, invalid_cols))}.")
@@ -512,6 +511,10 @@ def load_gpkg(gpkg_path, find=False, layers=None):
                 # Set index field: uuid.
                 if "uuid" in df.columns:
                     df.index = df["uuid"]
+
+                # Drop fid field (this field is automatically generated and not part of the NRN).
+                if "fid" in df.columns:
+                    df.drop(columns=["fid"], inplace=True)
 
                 # Store result.
                 dframes[table_name] = df.copy(deep=True)
