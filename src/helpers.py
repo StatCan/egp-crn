@@ -331,7 +331,7 @@ def export_gpkg(dataframes, output_path, export_schemas=None):
             # Write layer.
             layer.StartTransaction()
 
-            for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {table_name}: writing to file."):
+            for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {table_name}: writing to file"):
 
                 # Instantiate feature.
                 feature = ogr.Feature(layer.GetLayerDefn())

@@ -607,25 +607,27 @@ class Stage:
 
             logger.info("Recovering missing datasets from the previous NRN vintage.")
 
-            # Load datasets from previous NRN vintage.
-            dframes_old = helpers.load_gpkg(f"{self.nrn_old_path}.gpkg", find=True, layers=recovery_tables)
+            # Iterate datasets from previous NRN vintage.
+            for table, df in helpers.load_gpkg(f"{self.nrn_old_path}.gpkg", find=True, layers=recovery_tables).items():
 
-            # Remove empty datasets.
-            dframes_old = {table: df for table, df in dframes_old.items() if len(df)}
+                # Recover non-empty datasets.
+                if len(df):
 
-            # Recover non-empty datasets.
-            for table, df in dframes_old.items():
+                    logger.info(f"Recovering dataset: {table}.")
 
-                logger.info(f"Recovering dataset: {table}.")
+                    # Add uuid field.
+                    df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
-                # Add uuid field.
-                df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
+                    if isinstance(df, gpd.GeoDataFrame):
 
-                # Round coordinates to decimal precision = 7.
-                df["geometry"] = helpers.round_coordinates(df, precision=7)
+                        # Reproject to EPSG:4617.
+                        df = helpers.reproject_gdf(df, df.crs.to_epsg(), 4617)
 
-                # Store result.
-                self.target_gdframes[table] = df.copy(deep=True)
+                        # Round coordinates to decimal precision = 7.
+                        df = helpers.round_coordinates(df, precision=7)
+
+                    # Store result.
+                    self.target_gdframes[table] = df.copy(deep=True)
 
     def split_strplaname(self):
         """
