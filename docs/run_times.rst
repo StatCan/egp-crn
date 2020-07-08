@@ -8,7 +8,7 @@ Run Times
 New Brunswick (NB)
 ==================
 
-July 06, 2020
+July 08, 2020
 -------------
 
 :Source: data/raw/nb/NBRN_Export.gdb
@@ -26,9 +26,9 @@ Stage      Time
 2          01:43.88
 3          05:38.79
 4          06:13.86
-5          00:00.00
+5          45:04.80
 ---------  ----
-**Total**  **00:00.00**
+**Total**  **01:10:54.85**
 =========  ====
 
 Prince Edward Island (PE)

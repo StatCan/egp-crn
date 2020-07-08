@@ -1,7 +1,6 @@
 import click
 import json
 import logging
-import numpy as np
 import os
 import pandas as pd
 import pathlib
@@ -9,6 +8,7 @@ import re
 import shutil
 import sys
 import zipfile
+from collections import Counter
 from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
@@ -92,6 +92,7 @@ class Stage:
         logger.info("Defining KML groups.")
         self.kml_groups = dict()
         placenames, placenames_exceeded = None, None
+        kml_limit = 250
 
         # Iterate languages.
         for lang in ("en", "fr"):
@@ -107,65 +108,56 @@ class Stage:
 
             # Compile placenames.
             if placenames is None:
-                placenames = sorted(set(np.append(df[l_placenam].unique(), df[r_placenam].unique())))
-                placenames = pd.Series(placenames)
 
-                # Sanitize placename syntax.
+                # Compile sorted placenames.
+                placenames = pd.concat([df[l_placenam], df[df[l_placenam] != df[r_placenam]][r_placenam]],
+                                       ignore_index=True).sort_values(ascending=True)
+
+                # Flag limit-exceeding and non-limit-exceeding placenames.
+                placenames_exceeded = {name for name, count in Counter(placenames).items() if count > kml_limit}
+                placenames = pd.Series(sorted(set(placenames.unique()) - placenames_exceeded))
+
+                # Sanitize placenames for sql syntax.
                 placenames = placenames.map(lambda name: name.replace("'", "''"))
+                placenames_exceeded = set(map(lambda name: name.replace("'", "''"), placenames_exceeded))
 
-            # Generate placenames dataframe.
+            # Generate dataframe with export parameters.
             # names: Conform placenames to valid file names.
             # queries: Configure ogr2ogr -where query.
             placenames_df = pd.DataFrame({
-                "names": map(lambda name: re.sub("[\W_]+", "_", name), placenames),
+                "names": map(lambda name: re.sub(r"[\W_]+", "_", name), placenames),
                 "queries": placenames.map(
                     lambda name: f"-where \"\\\"{l_placenam}\\\"='{name}' or \\\"{r_placenam}\\\"='{name}'\"")
             })
 
-            # Identify placenames exceeding feature limit.
-            if placenames_exceeded is None:
-                logger.info("Identifying placenames with excessive feature totals.")
-
-                limit = 250
-                flags = np.vectorize(
-                    lambda name: len(df[(df[l_placenam] == name) | (df[r_placenam] == name)]) > limit)(
-                    placenames_df["names"])
-                placenames_exceeded = placenames_df[flags]["names"]
-
-            # Remove exceeding placenames from placenames dataframe.
-            placenames_df = placenames_df[~placenames_df["names"].isin(placenames_exceeded)]
-
             # Add rowid field to simulate SQLite column.
             df["ROWID"] = range(1, len(df) + 1)
 
-            # Compile limit-sized rowid ranges for each exceeding placename.
-            for placename in placenames_exceeded:
+            # Compile rowid ranges of size=kml_limit for each limit-exceeding placename.
+            for placename in sorted(placenames_exceeded):
 
                 logger.info(f"Separating features for limit-exceeding placename: {placename}.")
 
                 # Compile rowids for placename.
                 rowids = df[(df[l_placenam] == placename) | (df[r_placenam] == placename)]["ROWID"].values
 
-                # Compile feature index bounds based on feature limit.
-                bounds = list(itemgetter([i*limit for i in range(0, int(len(rowids) / limit) +
-                                                                 (0 if (len(rowids) % limit == 0) else 1))])(rowids))
-                bounds.append(rowids[-1] + 1)
+                # Split rowids into kml_limit-sized chunks and configure sql queries.
+                sql_queries = list()
+                for i in range(0, len(rowids), kml_limit):
+                    ids = ','.join(map(str, rowids[i: i + kml_limit]))
+                    sql_queries.append(f"-sql \"select * from roadseg where ROWID in ({ids})\" -dialect SQLITE")
 
-                # Configure placename sql statements for each feature bounds.
-                sql_statements = list(map(
-                    lambda vals: f"(ROWID >= {vals[1]} and ROWID < {bounds[vals[0] + 1]}) and "
-                                 f"({l_placenam} = '{placename}' or {r_placenam} = '{placename}')",
-                    enumerate(bounds[:-1])
-                ))
-
-                # Add sql statements to placenames dataframe.
-                rows = pd.DataFrame({
-                    "names": map(lambda i: f"{placename}_{i}", range(1, len(sql_statements) + 1)),
-                    "queries": map("-sql \"select * from roadseg where {}\" -dialect SQLITE".format, sql_statements)
+                # Generate dataframe with export parameters.
+                # names: Conform placenames to valid file names and add chunk id as suffix.
+                # queries: Configure ogr2ogr -sql query.
+                placename_valid = re.sub(r"[\W_]+", "_", placename)
+                placenames_exceeded_df = pd.DataFrame({
+                    "names": map(lambda i: f"{placename_valid}_{i}", range(1, len(sql_queries) + 1)),
+                    "queries": sql_queries
                 })
 
-                # Append new rows to placenames dataframe.
-                placenames_df = placenames_df.append(rows).reset_index(drop=True)
+                # Append dataframe to full placenames dataframe.
+                placenames_df = placenames_df.append(placenames_exceeded_df).reset_index(drop=True)
 
             # Store results.
             self.kml_groups[lang] = placenames_df
