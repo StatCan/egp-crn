@@ -528,6 +528,9 @@ class Stage:
             # Apply spatial data modifications.
             if source_yaml["data"]["spatial"]:
 
+                # Filter invalid geometries.
+                df = df[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
+
                 # Cast multi-type geometries.
                 df = helpers.explode_geometry(df)
 
@@ -619,6 +622,12 @@ class Stage:
                     df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
                     if isinstance(df, gpd.GeoDataFrame):
+
+                        # Filter invalid geometries.
+                        df = df[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
+
+                        # Cast multi-type geometries.
+                        df = helpers.explode_geometry(df)
 
                         # Reproject to EPSG:4617.
                         df = helpers.reproject_gdf(df, df.crs.to_epsg(), 4617)
