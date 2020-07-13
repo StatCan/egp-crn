@@ -23,6 +23,9 @@ class ORN:
         self.nrn_datasets = dict()
         self.source_datasets = dict()
         self.base_dataset = "orn_road_net_element"
+        self.base_query = "road_element_type != 'VIRTUAL ROAD'"
+        self.base_fk = "ogf_id"
+        self.source_fk = "orn_road_net_element_id"
 
         # Validate src.
         self.src = os.path.abspath(src)
@@ -149,11 +152,39 @@ class ORN:
             del self.source_datasets[linkage["right"]]
 
     def configure_valid_records(self):
-        """
-        Configures and keeps only valid records for each source dataset.
-        1) Removes records which do not link to the base dataset.
-        2) Filters many-to-one relationships to the record with the longest event along the base dataset.
-        """
+        """Configures and keeps only records which link to valid records from the base dataset."""
+
+        logger.info(f"Configuring valid records.")
+
+        # Filter base dataset to valid records.
+        logger.info(f"Configuring valid records for base dataset: {self.base_dataset}.")
+        self.source_datasets[self.base_dataset].query(self.base_query, inplace=True)
+
+        # Compile base dataset foreign keys.
+        base_fkeys = set(self.source_datasets[self.base_dataset][self.base_fk])
+
+        # Iterate dataframes and remove records which do not link to the base dataset.
+        for name, df in self.source_datasets.items():
+            if self.source_fk in df.columns:
+
+                logger.info(f"Configuring valid records for source dataset: {name}.")
+
+                df_valid = df[df[self.source_fk].isin(base_fkeys)]
+                logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {name}.")
+
+                # Store or delete dataset.
+                if len(df_valid):
+                    self.source_datasets[name] = df_valid.copy(deep=True)
+                else:
+                    del self.source_datasets[name]
+
+    def group_paritized_attributes(self):
+        """Groups records which are split by parity (left, right, both)."""
+
+        # TODO
+
+    def reduce_attributes(self):
+        """Reduces duplicated base dataset events to the event with the longest measurement."""
 
         # TODO
 
@@ -163,6 +194,8 @@ class ORN:
         self.compile_source_datasets()
         self.configure_secondary_linkages()
         self.configure_valid_records()
+        self.group_paritized_attributes()
+        self.reduce_attributes()
         self.assemble_base_dataset()
 
 
