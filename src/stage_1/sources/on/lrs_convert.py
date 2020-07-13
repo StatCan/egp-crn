@@ -49,38 +49,59 @@ class ORN:
         logger.info(f"Compiling source datasets from: {self.src}.")
 
         schema = {
-            "orn_address_info": ["orn_road_net_element_id", "from_measure", "to_measure", "first_house_number",
-                                 "last_house_number", "house_number_structure", "street_side", "full_street_name",
-                                 "standard_municipality", "effective_datetime"],
-            "orn_alternate_street_name": ["orn_road_net_element_id", "from_measure", "to_measure", "full_street_name",
-                                          "effective_datetime"],
-            "orn_blocked_passage": ["orn_road_net_element_id", "at_measure", "blocked_passage_type",
-                                    "effective_datetime"],
-            "orn_road_surface": ["orn_road_net_element_id", "from_measure", "to_measure", "pavement_status",
-                                 "surface_type", "effective_datetime"],
-            "orn_route_name": ["orn_road_net_element_id", "from_measure", "to_measure", "route_name_english",
-                               "route_name_french", "effective_datetime"],
-            "orn_route_number": ["orn_road_net_element_id", "from_measure", "to_measure", "route_number",
-                                 "effective_datetime"],
-            "orn_speed_limit": ["orn_road_net_element_id", "from_measure", "to_measure", "speed_limit",
-                                "effective_datetime"],
-            "orn_structure": ["orn_road_net_element_id", "from_measure", "to_measure", "structure_type",
-                              "structure_name_english", "structure_name_french", "effective_datetime"],
-            "orn_toll_point": ["orn_road_net_element_id", "at_measure", "toll_point_type", "effective_datetime"],
-            "orn_jurisdiction": ["orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
-                                 "effective_datetime"],
-            "orn_number_of_lanes": ["orn_road_net_element_id", "from_measure", "to_measure", "number_of_lanes",
-                                    "effective_datetime"],
-            "orn_official_street_name": ["orn_road_net_element_id", "from_measure", "to_measure", "full_street_name",
-                                         "effective_datetime"],
-            "orn_road_class": ["orn_road_net_element_id", "from_measure", "to_measure", "road_class",
-                               "effective_datetime"],
-            "orn_road_net_element": ["ogf_id", "road_absolute_accuracy", "direction_of_traffic_flow", "exit_number",
-                                     "road_element_type", "acquisition_technique", "creation_date",
-                                     "effective_datetime", "geometry"],
-            "orn_street_name_parsed": ["full_street_name", "directional_prefix", "street_type_prefix",
-                                       "street_name_body", "street_type_suffix", "directional_suffix",
-                                       "effective_datetime"]
+            "orn_address_info": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "first_house_number", "last_house_number",
+                "house_number_structure", "street_side", "full_street_name", "standard_municipality",
+                "effective_datetime"
+            ],
+            "orn_alternate_street_name": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "full_street_name", "effective_datetime"
+            ],
+            "orn_blocked_passage": [
+                "orn_road_net_element_id", "at_measure", "blocked_passage_type", "effective_datetime"
+            ],
+            "orn_road_surface": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "pavement_status", "surface_type",
+                "effective_datetime"
+            ],
+            "orn_route_name": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "route_name_english", "route_name_french",
+                "effective_datetime"
+            ],
+            "orn_route_number": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "route_number", "effective_datetime"
+            ],
+            "orn_speed_limit": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "speed_limit", "effective_datetime"
+            ],
+            "orn_structure": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "structure_type", "structure_name_english",
+                "structure_name_french", "effective_datetime"
+            ],
+            "orn_toll_point": [
+                "orn_road_net_element_id", "at_measure", "toll_point_type", "effective_datetime"
+            ],
+            "orn_jurisdiction": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
+                "effective_datetime"
+            ],
+            "orn_number_of_lanes": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "number_of_lanes", "effective_datetime"
+            ],
+            "orn_official_street_name": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "full_street_name", "effective_datetime"
+            ],
+            "orn_road_class": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "road_class", "effective_datetime"
+            ],
+            "orn_road_net_element": [
+                "ogf_id", "road_absolute_accuracy", "direction_of_traffic_flow", "exit_number", "road_element_type",
+                "acquisition_technique", "creation_date", "effective_datetime", "geometry"
+            ],
+            "orn_street_name_parsed": [
+                "full_street_name", "directional_prefix", "street_type_prefix", "street_name_body",
+                "street_type_suffix", "directional_suffix", "effective_datetime"
+            ]
         }
 
         # Iterate ORN schema.
