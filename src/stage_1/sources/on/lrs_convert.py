@@ -29,10 +29,8 @@ class ORN:
         self.source_fk = "orn_road_net_element_id"
         self.event_measurement_fields = ["from_measure", "to_measure"]
         self.irreducible_datasets = ["orn_road_net_element", "orn_blocked_passage", "orn_toll_point"]
-        self.parities = {
-            "orn_address_info": "street_side",
-            "orn_jurisdiction": "street_side",
-        }
+        self.parities = {"orn_address_info": "street_side",
+                         "orn_jurisdiction": "street_side"}
         self.address_dataset = "orn_address_info"
 
         # Validate src.
