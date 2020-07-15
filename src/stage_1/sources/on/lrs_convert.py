@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pandas as pd
 import sys
+import uuid
 from src import helpers
 
 
@@ -28,7 +29,8 @@ class ORN:
         self.base_fk = "ogf_id"
         self.source_fk = "orn_road_net_element_id"
         self.event_measurement_fields = ["from_measure", "to_measure"]
-        self.irreducible_datasets = ["orn_road_net_element", "orn_blocked_passage", "orn_toll_point"]
+        self.irreducible_datasets = ["orn_road_net_element", "orn_blocked_passage", "orn_toll_point",
+                                     "orn_street_name_parsed"]
         self.parities = {"orn_address_info": "street_side",
                          "orn_jurisdiction": "street_side"}
         self.address_dataset = "orn_address_info"
@@ -47,10 +49,58 @@ class ORN:
         if os.path.exists(self.dst):
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
 
-    def assemble_base_dataset(self):
-        """Assembles the base dataset attributes from all linked datasets and resolves any conflicting attributes."""
+    def assemble_nrn_datasets(self):
+        """Assembles the NRN datasets from all linked datasets."""
 
-        # TODO
+        logger.info("Assembling NRN datasets.")
+
+        # addrange.
+        logger.info("Assembling NRN dataset: addrange.")
+
+        # Group address parities into single records.
+        addrange_l = self.source_datasets["orn_address_info"][
+            self.source_datasets["orn_address_info"]["street_side"] == "Left"].copy(deep=True)
+        addrange_r = self.source_datasets["orn_address_info"][
+            self.source_datasets["orn_address_info"]["street_side"] == "Right"].copy(deep=True)
+        addrange_merge = addrange_l.merge(addrange_r, how="outer", on=self.source_fk, suffixes=("_l", "_r"))
+
+        # Create addrange.
+        addrange = addrange_merge.copy(deep=True)
+        addrange["nid"] = [uuid.uuid4().hex for _ in range(len(addrange))]
+
+        # Resolve conflicting attributes.
+        addrange["effective_datetime"] = addrange[["effective_datetime_l", "effective_datetime_r"]].max(axis=1)
+        addrange.drop(columns=["street_side_l", "street_side_r", "effective_datetime_l", "effective_datetime_r"],
+                      inplace=True)
+
+        # Configure official and alternate street names fields.
+        addrange["l_altnanid"] = addrange.merge(self.source_datasets["orn_alternate_street_name"], how="left",
+                                                on=self.source_fk)["full_street_name"]
+        addrange.loc[addrange["l_altnanid"].isna(), "l_altnanid"] = "None"
+        addrange["r_altnanid"] = addrange["l_altnanid"]
+        addrange.rename(columns={"full_street_name_l": "l_offnanid", "full_street_name_r": "r_offnanid"}, inplace=True)
+
+        # strplaname
+        logger.info("Assembling NRN dataset: strplaname.")
+
+        # Compile strplaname records from left and right official and alternate street names from addrange.
+        addrange_strplaname_links = [["l_offnanid", "standard_municipality_l"],
+                                     ["r_offnanid", "standard_municipality_r"],
+                                     ["l_altnanid", "standard_municipality_l"],
+                                     ["r_altnanid", "standard_municipality_r"]]
+        strplaname_records = {index: addrange[cols].rename(columns={cols[0]: "full_street_name", cols[1]: "placename"})
+                              for index, cols in enumerate(addrange_strplaname_links)}
+
+        # Create strplaname.
+        strplaname = pd.concat(strplaname_records.values(), ignore_index=True, sort=False).drop_duplicates(keep="first")
+        strplaname["nid"] = [uuid.uuid4().hex for _ in range(len(strplaname))]
+
+        # Convert addrange offnanids and altnanids to strplaname nids.
+        for cols in addrange_strplaname_links:
+            addrange.loc[addrange.index, cols[0]] = addrange.merge(
+                strplaname, how="left", left_on=cols, right_on=["full_street_name", "placename"])["nid_y"].values
+
+        # TODO: drop any unneeded columns from addrange and strplaname, add effective_datetime to strplaname, create remaining nrn datasets.
 
     def compile_source_datasets(self):
         """Loads source layers into (Geo)DataFrames."""
@@ -69,27 +119,6 @@ class ORN:
             "orn_blocked_passage": [
                 "orn_road_net_element_id", "at_measure", "blocked_passage_type", "effective_datetime"
             ],
-            "orn_road_surface": [
-                "orn_road_net_element_id", "from_measure", "to_measure", "pavement_status", "surface_type",
-                "effective_datetime"
-            ],
-            "orn_route_name": [
-                "orn_road_net_element_id", "from_measure", "to_measure", "route_name_english", "route_name_french",
-                "effective_datetime"
-            ],
-            "orn_route_number": [
-                "orn_road_net_element_id", "from_measure", "to_measure", "route_number", "effective_datetime"
-            ],
-            "orn_speed_limit": [
-                "orn_road_net_element_id", "from_measure", "to_measure", "speed_limit", "effective_datetime"
-            ],
-            "orn_structure": [
-                "orn_road_net_element_id", "from_measure", "to_measure", "structure_type", "structure_name_english",
-                "structure_name_french", "effective_datetime"
-            ],
-            "orn_toll_point": [
-                "orn_road_net_element_id", "at_measure", "toll_point_type", "effective_datetime"
-            ],
             "orn_jurisdiction": [
                 "orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
                 "effective_datetime"
@@ -107,9 +136,30 @@ class ORN:
                 "ogf_id", "road_absolute_accuracy", "direction_of_traffic_flow", "exit_number", "road_element_type",
                 "acquisition_technique", "creation_date", "effective_datetime", "geometry"
             ],
+            "orn_road_surface": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "pavement_status", "surface_type",
+                "effective_datetime"
+            ],
+            "orn_route_name": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "route_name_english", "route_name_french",
+                "effective_datetime"
+            ],
+            "orn_route_number": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "route_number", "effective_datetime"
+            ],
+            "orn_speed_limit": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "speed_limit", "effective_datetime"
+            ],
             "orn_street_name_parsed": [
                 "full_street_name", "directional_prefix", "street_type_prefix", "street_name_body",
                 "street_type_suffix", "directional_suffix", "effective_datetime"
+            ],
+            "orn_structure": [
+                "orn_road_net_element_id", "from_measure", "to_measure", "structure_type", "structure_name_english",
+                "structure_name_french", "effective_datetime"
+            ],
+            "orn_toll_point": [
+                "orn_road_net_element_id", "at_measure", "toll_point_type", "effective_datetime"
             ]
         }
 
@@ -132,30 +182,6 @@ class ORN:
 
             # Store results.
             self.source_datasets[layer] = df.copy(deep=True)
-
-    def configure_secondary_linkages(self):
-        """Joins datasets which do not directly link to the base dataset."""
-
-        logger.info("Configuring secondary dataset linkages.")
-
-        # Define linkages
-        linkages = [
-            {"left": "orn_official_street_name", "right": "orn_street_name_parsed", "left_on": "full_street_name",
-             "right_on": "full_street_name"},
-        ]
-
-        # Apply linkages.
-        for linkage in linkages:
-
-            logger.info(f"Configuring linkage: {linkage['left_on']} - {linkage['right_on']}.")
-
-            # Merge dataframes.
-            self.source_datasets[linkage["left"]] = self.source_datasets[linkage["left"]].merge(
-                self.source_datasets[linkage["right"]], how="left", left_on=linkage["left_on"],
-                right_on=linkage["right_on"], suffixes=("", "_merge"))
-
-            # Delete right dataframe.
-            del self.source_datasets[linkage["right"]]
 
     def configure_valid_records(self):
         """Configures and keeps only records which link to valid records from the base dataset."""
@@ -254,7 +280,7 @@ class ORN:
                     dfs = list()
                     for parity in ("Left", "Right"):
 
-                        logger.info(f"Paritized dataset detected. Reducing dataset for parity: {parity}.")
+                        logger.info(f"Paritized dataset detected. Reducing events for parity: {parity}.")
 
                         # Get parity records.
                         records = df[df[self.parities[name]] == parity].copy(deep=True)
@@ -320,11 +346,10 @@ class ORN:
         """Executes class functionality."""
 
         self.compile_source_datasets()
-        self.configure_secondary_linkages()
         self.configure_valid_records()
         self.resolve_unsplit_parities()
         self.reduce_events()
-        self.assemble_base_dataset()
+        self.assemble_nrn_datasets()
 
 
 @click.command()
