@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import sys
 import uuid
+from operator import itemgetter
 from src import helpers
 
 
@@ -70,37 +71,81 @@ class ORN:
 
         # Resolve conflicting attributes.
         addrange["effective_datetime"] = addrange[["effective_datetime_l", "effective_datetime_r"]].max(axis=1)
-        addrange.drop(columns=["street_side_l", "street_side_r", "effective_datetime_l", "effective_datetime_r"],
-                      inplace=True)
+        addrange.drop(columns=["effective_datetime_l", "effective_datetime_r"], inplace=True)
 
         # Configure official and alternate street names fields.
         addrange["l_altnanid"] = addrange.merge(self.source_datasets["orn_alternate_street_name"], how="left",
                                                 on=self.source_fk)["full_street_name"]
         addrange.loc[addrange["l_altnanid"].isna(), "l_altnanid"] = "None"
         addrange["r_altnanid"] = addrange["l_altnanid"]
-        addrange.rename(columns={"full_street_name_l": "l_offnanid", "full_street_name_r": "r_offnanid"}, inplace=True)
+        addrange["l_offnanid"] = addrange["full_street_name_l"]
+        addrange["r_offnanid"] = addrange["full_street_name_r"]
 
         # strplaname
         logger.info("Assembling NRN dataset: strplaname.")
 
         # Compile strplaname records from left and right official and alternate street names from addrange.
+        # Exclude "None" street names.
         addrange_strplaname_links = [["l_offnanid", "standard_municipality_l"],
                                      ["r_offnanid", "standard_municipality_r"],
                                      ["l_altnanid", "standard_municipality_l"],
                                      ["r_altnanid", "standard_municipality_r"]]
-        strplaname_records = {index: addrange[cols].rename(columns={cols[0]: "full_street_name", cols[1]: "placename"})
-                              for index, cols in enumerate(addrange_strplaname_links)}
+        strplaname_records = {index: addrange[addrange[cols[0]] != "None"][[*cols, "effective_datetime"]].rename(
+            columns={cols[0]: "full_street_name", cols[1]: "placename"})
+            for index, cols in enumerate(addrange_strplaname_links)}
 
         # Create strplaname.
-        strplaname = pd.concat(strplaname_records.values(), ignore_index=True, sort=False).drop_duplicates(keep="first")
+        strplaname = pd.concat(strplaname_records.values(), ignore_index=True, sort=False).drop_duplicates(
+            subset=["full_street_name", "placename"], keep="first")
         strplaname["nid"] = [uuid.uuid4().hex for _ in range(len(strplaname))]
 
-        # Convert addrange offnanids and altnanids to strplaname nids.
-        for cols in addrange_strplaname_links:
-            addrange.loc[addrange.index, cols[0]] = addrange.merge(
-                strplaname, how="left", left_on=cols, right_on=["full_street_name", "placename"])["nid_y"].values
+        # Assemble strplaname linked attributes.
+        strplaname = strplaname.merge(self.source_datasets["orn_street_name_parsed"], how="left", on="full_street_name")
 
-        # TODO: drop any unneeded columns from addrange and strplaname, add effective_datetime to strplaname, create remaining nrn datasets.
+        # Convert addrange offnanids and altnanids to strplaname nids.
+        logger.info("Assembling NRN dataset linkage: addrange-strplaname.")
+
+        for cols in addrange_strplaname_links:
+            addrange_filtered = addrange[addrange[cols[0]] != "None"]
+            addrange.loc[addrange_filtered.index, cols[0]] = addrange_filtered.merge(
+                strplaname[["full_street_name", "placename", "nid"]], how="left", left_on=cols,
+                right_on=["full_street_name", "placename"])["nid_y"].values
+
+        # Resolve strplaname conflicting attributes.
+        strplaname["effective_datetime"] = strplaname[["effective_datetime_x", "effective_datetime_y"]].max(axis=1)
+        strplaname.drop(columns=["effective_datetime_x", "effective_datetime_y", "full_street_name"], inplace=True)
+
+        # roadseg
+        logger.info("Assembling NRN dataset: roadseg.")
+
+        # Create roadseg.
+        roadseg = self.source_datasets[self.base_dataset].query("road_element_type == 'ROAD ELEMENT'").copy(deep=True)
+        roadseg.reset_index(drop=True, inplace=True)
+        roadseg["nid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
+
+        # Assemble roadseg linked attributes.
+        # TODO: add remaining linkages from other source_datasets.
+        linkages = [
+            {"df": addrange,
+             "cols_from": ["full_street_name_l", "full_street_name_r", "standard_municipality_l",
+                           "standard_municipality_r"],
+             "cols_to": ["l_stname_c", "r_stname_c", "l_placenam", "r_placenam"], "na": "Unknown"},
+            {"df": addrange, "cols_from": ["nid"], "cols_to": ["adrangenid"], "na": "None"},
+            {"df": self.source_datasets["orn_jurisdiction"], "cols_from": ["jurisdiction"], "cols_to": ["roadjuris"],
+             "na": "Unknown"},
+            {"df": self.source_datasets["orn_number_of_lanes"], "cols_from": ["number_of_lanes"],
+             "cols_to": ["nbrlanes"], "na": "Unknown"}
+        ]
+
+        # Iterate linkages.
+        for linkage in linkages:
+            df, cols_from, cols_to = itemgetter("df", "cols_from", "cols_to")(linkage)
+
+            # Apply linkages.
+            roadseg[cols_to] = roadseg[[self.base_fk]].merge(
+                df.rename(columns=dict(zip(cols_from, cols_to))), how="left", left_on=self.base_fk,
+                right_on=self.source_fk
+            )[cols_to].fillna(value=linkage["na"])
 
     def compile_source_datasets(self):
         """Loads source layers into (Geo)DataFrames."""
@@ -125,9 +170,6 @@ class ORN:
             ],
             "orn_number_of_lanes": [
                 "orn_road_net_element_id", "from_measure", "to_measure", "number_of_lanes", "effective_datetime"
-            ],
-            "orn_official_street_name": [
-                "orn_road_net_element_id", "from_measure", "to_measure", "full_street_name", "effective_datetime"
             ],
             "orn_road_class": [
                 "orn_road_net_element_id", "from_measure", "to_measure", "road_class", "effective_datetime"
@@ -190,7 +232,11 @@ class ORN:
 
         # Filter base dataset to valid records.
         logger.info(f"Configuring valid records for base dataset: {self.base_dataset}.")
+
+        count = len(self.source_datasets[self.base_dataset])
         self.source_datasets[self.base_dataset].query(self.base_query, inplace=True)
+        logger.info(f"Dropped {count - len(self.source_datasets[self.base_dataset])} of {count} records for base "
+                    f"dataset: {self.base_dataset}.")
 
         # Compile base dataset foreign keys.
         base_fkeys = set(self.source_datasets[self.base_dataset][self.base_fk])
@@ -244,7 +290,7 @@ class ORN:
     def reduce_events(self):
         """
         Reduces many-to-one base dataset events to the event with the longest measurement.
-        Exception: paritized fields keep the longest event for both "Left" and "Right" instances.
+        Exception: address dataset will keep the longest event for both "Left" and "Right" paritized instances.
         """
 
         def configure_address_structure(structures):
@@ -274,50 +320,46 @@ class ORN:
                 # Calculate event lengths.
                 df["event_length"] = np.abs(df[self.event_measurement_fields[0]] - df[self.event_measurement_fields[1]])
 
-                # Handle paritized fields.
-                if name in self.parities:
+                # Handle paritized address fields.
+                if name == self.address_dataset:
 
+                    logger.info("Address dataset detected. Reducing events by parity.")
                     dfs = list()
+
                     for parity in ("Left", "Right"):
 
-                        logger.info(f"Paritized dataset detected. Reducing events for parity: {parity}.")
+                        logger.info(f"Reducing events for parity: {parity}.")
 
                         # Get parity records.
                         records = df[df[self.parities[name]] == parity].copy(deep=True)
 
-                        # Handle address ranges.
-                        address_attributes = dict()
-                        if name == self.address_dataset:
+                        # Configure updated address attributes.
+                        logger.info("Configuring updated address attributes.")
 
-                            logger.info("Address dataset detected. Configuring updated address attributes.")
-
-                            # Configure updated address attributes.
-                            address_attributes = {
-                                "first_house_number": helpers.groupby_to_list(
-                                    records, self.source_fk, "first_house_number").map(min),
-                                "last_house_number": helpers.groupby_to_list(
-                                    records, self.source_fk, "last_house_number").map(max),
-                                "house_number_structure": helpers.groupby_to_list(
-                                    records, self.source_fk, "house_number_structure").map(configure_address_structure),
-                                "effective_datetime": helpers.groupby_to_list(
-                                    records, self.source_fk, "effective_datetime").map(max)
-                            }
+                        address_attributes = {
+                            "first_house_number": helpers.groupby_to_list(
+                                records, self.source_fk, "first_house_number").map(min),
+                            "last_house_number": helpers.groupby_to_list(
+                                records, self.source_fk, "last_house_number").map(max),
+                            "house_number_structure": helpers.groupby_to_list(
+                                records, self.source_fk, "house_number_structure").map(configure_address_structure),
+                            "effective_datetime": helpers.groupby_to_list(
+                                records, self.source_fk, "effective_datetime").map(max)
+                        }
 
                         # Drop duplicate events, keeping the maximum event_length.
                         records = records.sort_values("event_length").drop_duplicates(self.source_fk, keep="last")
 
-                        # Update address attributes, if possible.
-                        if len(address_attributes):
+                        # Update address attributes.
+                        records.index = records[self.source_fk]
+                        for attribute, series in address_attributes.items():
 
-                            records.index = records[self.source_fk]
-                            for attribute, series in address_attributes.items():
+                            logger.info(f"Updating address attribute: {attribute}.")
 
-                                logger.info(f"Updating address attribute: {attribute}.")
+                            # Update attribute.
+                            records[attribute].update(series)
 
-                                # Update attribute.
-                                records[attribute].update(series)
-
-                            records.reset_index(drop=True, inplace=True)
+                        records.reset_index(drop=True, inplace=True)
 
                         dfs.append(records)
 
