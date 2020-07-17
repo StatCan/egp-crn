@@ -31,7 +31,7 @@ class ORN:
         self.source_fk = "orn_road_net_element_id"
         self.event_measurement_fields = ["from_measure", "to_measure"]
         self.irreducible_datasets = ["orn_road_net_element", "orn_blocked_passage", "orn_toll_point",
-                                     "orn_street_name_parsed"]
+                                     "orn_street_name_parsed", "orn_route_name", "orn_route_number"]
         self.parities = {"orn_address_info": "street_side",
                          "orn_jurisdiction": "street_side"}
         self.address_dataset = "orn_address_info"
@@ -67,6 +67,7 @@ class ORN:
 
         # Create addrange.
         addrange = addrange_merge.copy(deep=True)
+        addrange.reset_index(drop=True, inplace=True)
         addrange["nid"] = [uuid.uuid4().hex for _ in range(len(addrange))]
 
         # Resolve conflicting attributes.
@@ -75,11 +76,9 @@ class ORN:
 
         # Configure official and alternate street names fields.
         addrange["l_altnanid"] = addrange.merge(self.source_datasets["orn_alternate_street_name"], how="left",
-                                                on=self.source_fk)["full_street_name"]
-        addrange.loc[addrange["l_altnanid"].isna(), "l_altnanid"] = "None"
+                                                on=self.source_fk)["full_street_name"].fillna(value="None")
         addrange["r_altnanid"] = addrange["l_altnanid"]
-        addrange["l_offnanid"] = addrange["full_street_name_l"]
-        addrange["r_offnanid"] = addrange["full_street_name_r"]
+        addrange[["l_offnanid", "r_offnanid"]] = addrange[["full_street_name_l", "full_street_name_r"]]
 
         # strplaname
         logger.info("Assembling NRN dataset: strplaname.")
@@ -97,6 +96,7 @@ class ORN:
         # Create strplaname.
         strplaname = pd.concat(strplaname_records.values(), ignore_index=True, sort=False).drop_duplicates(
             subset=["full_street_name", "placename"], keep="first")
+        strplaname.reset_index(drop=True, inplace=True)
         strplaname["nid"] = [uuid.uuid4().hex for _ in range(len(strplaname))]
 
         # Assemble strplaname linked attributes.
@@ -124,7 +124,6 @@ class ORN:
         roadseg["nid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
 
         # Assemble roadseg linked attributes.
-        # TODO: add remaining linkages from other source_datasets.
         linkages = [
             {"df": addrange,
              "cols_from": ["full_street_name_l", "full_street_name_r", "standard_municipality_l",
@@ -134,18 +133,90 @@ class ORN:
             {"df": self.source_datasets["orn_jurisdiction"], "cols_from": ["jurisdiction"], "cols_to": ["roadjuris"],
              "na": "Unknown"},
             {"df": self.source_datasets["orn_number_of_lanes"], "cols_from": ["number_of_lanes"],
-             "cols_to": ["nbrlanes"], "na": "Unknown"}
+             "cols_to": ["nbrlanes"], "na": "Unknown"},
+            {"df": self.source_datasets["orn_road_class"], "cols_from": ["road_class"], "cols_to": ["roadclass"],
+             "na": "Unknown"},
+            {"df": self.source_datasets["orn_road_surface"], "cols_from": ["pavement_status", "surface_type"],
+             "cols_to": ["pavstatus", "pavsurf"], "na": {"pavstatus": "Unknown", "pavsurf": "None"}},
+            {"df": self.source_datasets["orn_road_surface"], "cols_from": ["surface_type"], "cols_to": ["unpavsurf"],
+             "na": "None"},
+            {"df": self.source_datasets["orn_speed_limit"], "cols_from": ["speed_limit"], "cols_to": ["speed"],
+             "na": "Unknown"},
+            {"df": self.source_datasets["orn_structure"],
+             "cols_from": ["structure_type", "structure_name_english", "structure_name_french"],
+             "cols_to": ["structtype", "strunameen", "strunamefr"], "na": "None"},
         ]
 
         # Iterate linkages.
         for linkage in linkages:
-            df, cols_from, cols_to = itemgetter("df", "cols_from", "cols_to")(linkage)
+            df = linkage["df"].copy(deep=True)
+            cols_from, cols_to, na = itemgetter("cols_from", "cols_to", "na")(linkage)
 
             # Apply linkages.
             roadseg[cols_to] = roadseg[[self.base_fk]].merge(
                 df.rename(columns=dict(zip(cols_from, cols_to))), how="left", left_on=self.base_fk,
                 right_on=self.source_fk
-            )[cols_to].fillna(value=linkage["na"])
+            )[cols_to].fillna(value=na)
+
+        # Configure linked route names and numbers.
+        for route_params in [
+            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_english",
+             "cols_to": ["rtename1en", "rtename2en", "rtename3en", "rtename4en"], "na": "None"},
+            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_french",
+             "cols_to": ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"], "na": "None"},
+            {"df": self.source_datasets["orn_route_number"], "col_from": "route_number",
+             "cols_to": ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"], "na": "None"}
+        ]:
+
+            df = route_params["df"].copy(deep=True)
+            col_from, cols_to, na = itemgetter("col_from", "cols_to", "na")(route_params)
+
+            # Filter to valid and unique records.
+            df = df[~((df[col_from].isna()) | (df[col_from] == na) |
+                      (df[[self.source_fk, col_from]].duplicated(keep="first")))]
+            if len(df):
+
+                # Configure attributes: compute and nest event lengths with attribute values, group nested events by ID,
+                # sort attribute values by event lengths, unpack only attribute values.
+                df["event"] = df[[*self.event_measurement_fields, col_from]].apply(
+                    lambda row: [abs(row[0] - row[1]), row[-1]], axis=1)
+                df_grouped = helpers.groupby_to_list(df, self.source_fk, "event")
+                df_filtered = df_grouped.map(lambda row: list(map(itemgetter(-1), sorted(row, key=itemgetter(0)))))
+
+                # Iterate and populate target columns with nested attribute values at the given index.
+                for index, col in enumerate(cols_to):
+                    subset = df_filtered[df_filtered.map(len) > index].map(itemgetter(index))
+                    subset_df = pd.DataFrame({self.source_fk: subset.index, "value": subset})
+                    roadseg[col] = roadseg.merge(subset_df, how="left", left_on=self.base_fk,
+                                                 right_on=self.source_fk)["value"].fillna(value=na)
+
+            else:
+                for col in cols_to:
+                    roadseg[col] = na
+
+        # Resolve roadseg conflicting attributes: effective datetime.
+        roadseg.index = roadseg[self.base_fk]
+        col = "effective_datetime"
+        dfs = [roadseg, addrange, self.source_datasets["orn_jurisdiction"], self.source_datasets["orn_number_of_lanes"],
+               self.source_datasets["orn_road_class"], self.source_datasets["orn_road_surface"],
+               self.source_datasets["orn_speed_limit"], self.source_datasets["orn_structure"],
+               self.source_datasets["orn_route_name"], self.source_datasets["orn_route_number"]]
+        df_concat = pd.concat([df.rename(columns={self.base_fk: self.source_fk})[[self.source_fk, col]] for df in dfs],
+                              ignore_index=True)
+        roadseg[col] = helpers.groupby_to_list(df_concat, self.source_fk, col).map(max)
+        roadseg.reset_index(drop=True, inplace=True)
+
+        # ferryseg
+        logger.info("Assembling NRN dataset: ferryseg.")
+        # TODO
+
+        # blkpassage
+        logger.info("Assembling NRN dataset: blkpassage.")
+        # TODO
+
+        # tollpoint
+        logger.info("Assembling NRN dataset: tollpoint.")
+        # TODO
 
     def compile_source_datasets(self):
         """Loads source layers into (Geo)DataFrames."""
