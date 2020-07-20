@@ -153,70 +153,53 @@ class ORN:
             cols_from, cols_to, na = itemgetter("cols_from", "cols_to", "na")(linkage)
 
             # Apply linkages.
-            roadseg[cols_to] = roadseg[[self.base_fk]].merge(
-                df.rename(columns=dict(zip(cols_from, cols_to))), how="left", left_on=self.base_fk,
-                right_on=self.source_fk
-            )[cols_to].fillna(value=na)
+            roadseg[cols_to] = roadseg[[self.base_fk]].merge(df.rename(columns=dict(zip(cols_from, cols_to))),
+                                                             how="left", left_on=self.base_fk, right_on=self.source_fk
+                                                             )[cols_to].fillna(value=na)
 
         # Configure linked route names and numbers.
-        for route_params in [
-            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_english",
-             "cols_to": ["rtename1en", "rtename2en", "rtename3en", "rtename4en"], "na": "None"},
-            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_french",
-             "cols_to": ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"], "na": "None"},
-            {"df": self.source_datasets["orn_route_number"], "col_from": "route_number",
-             "cols_to": ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"], "na": "None"}
-        ]:
-
-            df = route_params["df"].copy(deep=True)
-            col_from, cols_to, na = itemgetter("col_from", "cols_to", "na")(route_params)
-
-            # Filter to valid and unique records.
-            df = df[~((df[col_from].isna()) | (df[col_from] == na) |
-                      (df[[self.source_fk, col_from]].duplicated(keep="first")))]
-            if len(df):
-
-                # Configure attributes: compute and nest event lengths with attribute values, group nested events by ID,
-                # sort attribute values by event lengths, unpack only attribute values.
-                df["event"] = df[[*self.event_measurement_fields, col_from]].apply(
-                    lambda row: [abs(row[0] - row[1]), row[-1]], axis=1)
-                df_grouped = helpers.groupby_to_list(df, self.source_fk, "event")
-                df_filtered = df_grouped.map(lambda row: list(map(itemgetter(-1), sorted(row, key=itemgetter(0)))))
-
-                # Iterate and populate target columns with nested attribute values at the given index.
-                for index, col in enumerate(cols_to):
-                    subset = df_filtered[df_filtered.map(len) > index].map(itemgetter(index))
-                    subset_df = pd.DataFrame({self.source_fk: subset.index, "value": subset})
-                    roadseg[col] = roadseg.merge(subset_df, how="left", left_on=self.base_fk,
-                                                 right_on=self.source_fk)["value"].fillna(value=na)
-
-            else:
-                for col in cols_to:
-                    roadseg[col] = na
+        roadseg = self.configure_route_attributes(roadseg)
 
         # Resolve roadseg conflicting attributes: effective datetime.
-        roadseg.index = roadseg[self.base_fk]
-        col = "effective_datetime"
-        dfs = [roadseg, addrange, self.source_datasets["orn_jurisdiction"], self.source_datasets["orn_number_of_lanes"],
-               self.source_datasets["orn_road_class"], self.source_datasets["orn_road_surface"],
-               self.source_datasets["orn_speed_limit"], self.source_datasets["orn_structure"],
-               self.source_datasets["orn_route_name"], self.source_datasets["orn_route_number"]]
-        df_concat = pd.concat([df.rename(columns={self.base_fk: self.source_fk})[[self.source_fk, col]] for df in dfs],
-                              ignore_index=True)
-        roadseg[col] = helpers.groupby_to_list(df_concat, self.source_fk, col).map(max)
-        roadseg.reset_index(drop=True, inplace=True)
+        roadseg = self.resolve_effective_datetime(
+            roadseg, [roadseg, addrange, "orn_jurisdiction", "orn_number_of_lanes", "orn_road_class",
+                      "orn_road_surface", "orn_speed_limit", "orn_structure", "orn_route_name", "orn_route_number"])
 
         # ferryseg
         logger.info("Assembling NRN dataset: ferryseg.")
-        # TODO
+
+        # Create ferryseg.
+        ferryseg = self.source_datasets[self.base_dataset].query(
+            "road_element_type == 'FERRY CONNECTION'").copy(deep=True)
+        ferryseg.reset_index(drop=True, inplace=True)
+        ferryseg["nid"] = [uuid.uuid4().hex for _ in range(len(ferryseg))]
+
+        # Configure linked route names and numbers.
+        ferryseg = self.configure_route_attributes(ferryseg)
+
+        # Resolve roadseg conflicting attributes: effective datetime.
+        ferryseg = self.resolve_effective_datetime(ferryseg, [ferryseg, "orn_route_name", "orn_route_number"])
 
         # blkpassage
         logger.info("Assembling NRN dataset: blkpassage.")
+
+        # Create blkpassage.
+        blkpassage = self.source_datasets["orn_blocked_passage"].copy(deep=True)
+        blkpassage["nid"] = [uuid.uuid4().hex for _ in range(len(blkpassage))]
         # TODO
 
         # tollpoint
         logger.info("Assembling NRN dataset: tollpoint.")
+
+        # Create tollpoint.
+        tollpoint = self.source_datasets["orn_toll_point"].copy(deep=True)
+        tollpoint["nid"] = [uuid.uuid4().hex for _ in range(len(tollpoint))]
         # TODO
+
+        # Store final datasets.
+        for name, df in {"addrange": addrange, "blkpassage": blkpassage, "ferryseg": ferryseg, "roadseg": roadseg,
+                         "strplaname": strplaname, "tollpoint": tollpoint}.items():
+            self.nrn_datasets[name] = df.copy(deep=True)
 
     def compile_source_datasets(self):
         """Loads source layers into (Geo)DataFrames."""
@@ -296,6 +279,48 @@ class ORN:
             # Store results.
             self.source_datasets[layer] = df.copy(deep=True)
 
+    def configure_route_attributes(self, df):
+        """Configures the route name and number attributes for the given DataFrame."""
+
+        for route_params in [
+            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_english",
+             "cols_to": ["rtename1en", "rtename2en", "rtename3en", "rtename4en"], "na": "None"},
+            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_french",
+             "cols_to": ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"], "na": "None"},
+            {"df": self.source_datasets["orn_route_number"], "col_from": "route_number",
+             "cols_to": ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"], "na": "None"}
+        ]:
+
+            routes_df = route_params["df"].copy(deep=True)
+            col_from, cols_to, na = itemgetter("col_from", "cols_to", "na")(route_params)
+
+            # Filter to valid and unique records.
+            routes_df = routes_df[~((routes_df[col_from].isna()) | (routes_df[col_from] == na) |
+                                    (routes_df[[self.source_fk, col_from]].duplicated(keep="first")))]
+
+            if len(routes_df):
+
+                # Configure attributes: compute and nest event lengths with attribute values, group nested events by ID,
+                # sort attribute values by event lengths, unpack only attribute values.
+                routes_df["event"] = routes_df[[*self.event_measurement_fields, col_from]].apply(
+                    lambda row: [abs(row[0] - row[1]), row[-1]], axis=1)
+                routes_df_grouped = helpers.groupby_to_list(routes_df, self.source_fk, "event")
+                routes_df_filtered = routes_df_grouped.map(
+                    lambda row: list(map(itemgetter(-1), sorted(row, key=itemgetter(0)))))
+
+                # Iterate and populate target columns with nested attribute values at the given index.
+                for index, col in enumerate(cols_to):
+                    routes_subset = routes_df_filtered[routes_df_filtered.map(len) > index].map(itemgetter(index))
+                    routes_subset_df = pd.DataFrame({self.source_fk: routes_subset.index, "value": routes_subset})
+                    df[col] = df.merge(routes_subset_df, how="left", left_on=self.base_fk,
+                                       right_on=self.source_fk)["value"].fillna(value=na)
+
+            else:
+                for col in cols_to:
+                    df[col] = na
+
+        return df.copy(deep=True)
+
     def configure_valid_records(self):
         """Configures and keeps only records which link to valid records from the base dataset."""
 
@@ -326,6 +351,32 @@ class ORN:
                     self.source_datasets[name] = df_valid.copy(deep=True)
                 else:
                     del self.source_datasets[name]
+
+    def resolve_effective_datetime(self, main_df, linked_dfs):
+        """
+        Updates the effective_datetime for the given DataFrame from the maximum of all linked DataFrames, for each
+        identifier.
+        """
+
+        # Compile linked dataframes.
+        dfs = list()
+        for linked_df in linked_dfs:
+            if isinstance(linked_df, str):
+                dfs.append(self.source_datasets[linked_df].copy(deep=True))
+            else:
+                dfs.append(linked_df.copy(deep=True))
+
+        # Concatenate all dataframes.
+        dfs_concat = pd.concat([df.rename(columns={self.base_fk: self.source_fk})[[
+            self.source_fk, "effective_datetime"]] for df in dfs], ignore_index=True)
+
+        # Group by identifier, configure and assign maximum value.
+        main_df.index = main_df[self.base_fk]
+        main_df["effective_datetime"] = helpers.groupby_to_list(
+            dfs_concat, self.source_fk, "effective_datetime").map(max)
+        main_df.reset_index(drop=True, inplace=True)
+
+        return main_df.copy(deep=True)
 
     def resolve_unsplit_parities(self):
         """

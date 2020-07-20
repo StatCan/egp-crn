@@ -264,12 +264,16 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def overwrite_roadsegid(series):
-            """Populates the series with incrementing integer values from 1-n."""
+        def overwrite_segment_id(table, df):
+            """Populates the DataFrame's 'ferrysegid' or 'roadsegid' with incrementing integer values from 1-n."""
 
-            logger.info(f"Applying data cleanup \"overwrite roadsegid\" to dataset: roadseg.")
+            logger.info(f"Applying data cleanup \"overwrite segment ID\" to dataset: {table}.")
 
-            return pd.Series(range(1, len(series) + 1), index=series.index)
+            # Overwrite column.
+            col = {"ferryseg": "ferrysegid", "roadseg": "roadsegid"}[table]
+            df[col] = range(1, len(df + 1))
+
+            return df.copy(deep=True)
 
         def strip_whitespace(table, df):
             """Strips leading, trailing, and multiple internal whitespace for each dataframe column."""
@@ -329,9 +333,10 @@ class Stage:
         for table, df in self.target_gdframes.items():
             self.target_gdframes.update({table: lower_case_ids(table, df.copy(deep=True))})
 
-        # Cleanup: overwrite roadsegid.
-        roadsegid = self.target_gdframes["roadseg"]["roadsegid"].copy(deep=True)
-        self.target_gdframes["roadseg"].loc[roadsegid.index, "roadsegid"] = overwrite_roadsegid(roadsegid)
+        # Cleanup: overwrite segment ID.
+        for table in ("ferryseg", "roadseg"):
+            df = self.target_gdframes[table].copy(deep=True)
+            self.target_gdframes.update({table: overwrite_segment_id(table, df)})
 
         # Cleanup: strip whitespace.
         for table, df in self.target_gdframes.items():
