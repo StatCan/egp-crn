@@ -6,7 +6,9 @@ import os
 import pandas as pd
 import sys
 import uuid
+from collections import Counter
 from operator import itemgetter
+from shapely.geometry import MultiLineString
 from src import helpers
 
 
@@ -30,6 +32,7 @@ class ORN:
         self.base_fk = "ogf_id"
         self.source_fk = "orn_road_net_element_id"
         self.event_measurement_fields = ["from_measure", "to_measure"]
+        self.point_event_measurement_field = "at_measure"
         self.irreducible_datasets = ["orn_road_net_element", "orn_blocked_passage", "orn_toll_point",
                                      "orn_street_name_parsed", "orn_route_name", "orn_route_number"]
         self.parities = {"orn_address_info": "street_side",
@@ -70,15 +73,20 @@ class ORN:
         addrange.reset_index(drop=True, inplace=True)
         addrange["nid"] = [uuid.uuid4().hex for _ in range(len(addrange))]
 
-        # Resolve conflicting attributes.
+        # Resolve addrange conflicting attributes.
         addrange["effective_datetime"] = addrange[["effective_datetime_l", "effective_datetime_r"]].max(axis=1)
         addrange.drop(columns=["effective_datetime_l", "effective_datetime_r"], inplace=True)
 
-        # Configure official and alternate street names fields.
+        # Assemble addrange linked attributes: official and alternate street names.
         addrange["l_altnanid"] = addrange.merge(self.source_datasets["orn_alternate_street_name"], how="left",
                                                 on=self.source_fk)["full_street_name"].fillna(value="None")
         addrange["r_altnanid"] = addrange["l_altnanid"]
         addrange[["l_offnanid", "r_offnanid"]] = addrange[["full_street_name_l", "full_street_name_r"]]
+
+        # Assemble addrange linked attributes.
+        for col in ("road_absolute_accuracy", "acquisition_technique", "creation_date"):
+            addrange[col] = addrange.merge(self.source_datasets[self.base_dataset], how="left", left_on=self.source_fk,
+                                           right_on=self.base_fk)[col]
 
         # strplaname
         logger.info("Assembling NRN dataset: strplaname.")
@@ -99,17 +107,32 @@ class ORN:
         strplaname.reset_index(drop=True, inplace=True)
         strplaname["nid"] = [uuid.uuid4().hex for _ in range(len(strplaname))]
 
-        # Assemble strplaname linked attributes.
-        strplaname = strplaname.merge(self.source_datasets["orn_street_name_parsed"], how="left", on="full_street_name")
-
         # Convert addrange offnanids and altnanids to strplaname nids.
-        logger.info("Assembling NRN dataset linkage: addrange-strplaname.")
+        logger.info("Resolving NRN dataset linkage: addrange-strplaname.")
 
         for cols in addrange_strplaname_links:
             addrange_filtered = addrange[addrange[cols[0]] != "None"]
             addrange.loc[addrange_filtered.index, cols[0]] = addrange_filtered.merge(
                 strplaname[["full_street_name", "placename", "nid"]], how="left", left_on=cols,
                 right_on=["full_street_name", "placename"])["nid_y"].values
+
+        # Assemble strplaname linked attributes: parsed street name.
+        strplaname = strplaname.merge(self.source_datasets["orn_street_name_parsed"], how="left", on="full_street_name")
+
+        # Assemble strplaname linked attributes.
+        for col in ("road_absolute_accuracy", "acquisition_technique", "creation_date"):
+            attr_concat = pd.concat([addrange[[col, nid_col]].rename(columns={nid_col: "nid"}) for nid_col in
+                                     ["l_offnanid", "r_offnanid", "l_altnanid", "r_altnanid"]], ignore_index=True)
+            attr_grouped = helpers.groupby_to_list(attr_concat, "nid", col)
+
+            # Resolve conflicting attributes.
+            attr = attr_grouped.map(lambda vals:
+                                    max(vals) if col == "road_absolute_accuracy"
+                                    else Counter(vals).most_common()[0][0] if col == "acquisition_technique"
+                                    else min(vals))
+
+            # Assign attributes.
+            strplaname[col] = strplaname.merge(pd.DataFrame({"nid": attr.index, col: attr}), how="left", on="nid")[col]
 
         # Resolve strplaname conflicting attributes.
         strplaname["effective_datetime"] = strplaname[["effective_datetime_x", "effective_datetime_y"]].max(axis=1)
@@ -165,6 +188,21 @@ class ORN:
             roadseg, [roadseg, addrange, "orn_jurisdiction", "orn_number_of_lanes", "orn_road_class",
                       "orn_road_surface", "orn_speed_limit", "orn_structure", "orn_route_name", "orn_route_number"])
 
+        # Remove invalid roadseg-addrange-strplaname linkages.
+        # Note: could not do earlier b/c attributes were required from addrange.
+        logger.info("Resolving NRN dataset linkage: roadseg-addrange-strplaname.")
+
+        addrange_invalid_nids = set(
+            addrange[addrange[["first_house_number_l", "first_house_number_r",
+                               "last_house_number_l", "last_house_number_r"]].sum(axis=1) == 0]["nid"])
+        addrange_valid_nanids = set(np.concatenate(
+            addrange[~addrange["nid"].isin(addrange_invalid_nids)][["l_offnanid", "r_offnanid",
+                                                                    "l_altnanid", "r_altnanid"]].values))
+
+        roadseg.loc[roadseg["adrangenid"].isin(addrange_invalid_nids), "adrangenid"] = "None"
+        strplaname = strplaname[strplaname["nid"].isin(addrange_valid_nanids)]
+        addrange = addrange[~addrange["nid"].isin(addrange_invalid_nids)]
+
         # ferryseg
         logger.info("Assembling NRN dataset: ferryseg.")
 
@@ -184,22 +222,53 @@ class ORN:
         logger.info("Assembling NRN dataset: blkpassage.")
 
         # Create blkpassage.
-        blkpassage = self.source_datasets["orn_blocked_passage"].copy(deep=True)
-        blkpassage["nid"] = [uuid.uuid4().hex for _ in range(len(blkpassage))]
-        # TODO
+        blkpassage = self.assemble_point_dataset("orn_blocked_passage", roadseg)
 
         # tollpoint
         logger.info("Assembling NRN dataset: tollpoint.")
 
         # Create tollpoint.
-        tollpoint = self.source_datasets["orn_toll_point"].copy(deep=True)
-        tollpoint["nid"] = [uuid.uuid4().hex for _ in range(len(tollpoint))]
-        # TODO
+        tollpoint = self.assemble_point_dataset("orn_toll_point", roadseg)
 
         # Store final datasets.
         for name, df in {"addrange": addrange, "blkpassage": blkpassage, "ferryseg": ferryseg, "roadseg": roadseg,
                          "strplaname": strplaname, "tollpoint": tollpoint}.items():
+
+            # Adjust datetime columns.
+            df.rename(columns={"creation_date": "credate", "effective_datetime": "revdate"}, inplace=True)
+            for col in ("credate", "revdate"):
+                df[col] = df[col].map(lambda dt: dt.replace("-", "").split("T")[0])
+
             self.nrn_datasets[name] = df.copy(deep=True)
+
+    def assemble_point_dataset(self, source_name, linked_df):
+        """Assembles the NRN point dataset for the given source name. Currently supported: blkpassage, tollpoint."""
+
+        # Create dataset.
+        df = self.source_datasets[source_name].copy(deep=True)
+        df["nid"] = [uuid.uuid4().hex for _ in range(len(df))]
+
+        # Create geometry column.
+        # Process: interpolate the event measurement along the associated LineString from the base dataset.
+        df["geometry"] = df.merge(linked_df[[self.base_fk, "geometry"]], how="left", left_on=self.source_fk,
+                                  right_on=self.base_fk)["geometry"]
+        df["geometry"] = df["geometry"].map(lambda g: g[0] if isinstance(g, MultiLineString) else g)
+        df["geometry"] = df[[self.point_event_measurement_field, "geometry"]].apply(
+            lambda row: row[1].interpolate(row[0]), axis=1)
+        df = gpd.GeoDataFrame(df, crs=linked_df.crs)
+
+        # Assemble linked attributes.
+        for col_from, col_to in {"road_absolute_accuracy": "accuracy", "acquisition_technique": "acqtech",
+                                 "nid": "roadnid", "creation_date": "creation_date",
+                                 "effective_datetime": "effective_datetime_y"}.items():
+            df[col_to] = df[[self.source_fk]].merge(linked_df.rename(columns={col_from: col_to}), how="left",
+                                                    left_on=self.source_fk, right_on=self.base_fk)[col_to]
+
+        # Resolve conflicting attributes.
+        df["effective_datetime"] = df[["effective_datetime", "effective_datetime_y"]].max(axis=1)
+        df.drop(columns=[self.point_event_measurement_field, "effective_datetime_y"], inplace=True)
+
+        return df.copy(deep=True)
 
     def compile_source_datasets(self):
         """Loads source layers into (Geo)DataFrames."""
@@ -514,6 +583,8 @@ class ORN:
         self.resolve_unsplit_parities()
         self.reduce_events()
         self.assemble_nrn_datasets()
+        helpers.export_gpkg(self.nrn_datasets, self.dst)
+        # TODO: rename source columns upon loading.
 
 
 @click.command()
