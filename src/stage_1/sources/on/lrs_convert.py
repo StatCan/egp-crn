@@ -81,7 +81,7 @@ class ORN:
         addrange.drop(columns=["revdate_l", "revdate_r"], inplace=True)
 
         # Assemble addrange linked attributes: official and alternate street names.
-        addrange.rename(columns={"stname_c_l": "l_stname_c", "stname_c_r": "r_stname_c"})
+        addrange.rename(columns={"stname_c_l": "l_stname_c", "stname_c_r": "r_stname_c"}, inplace=True)
         addrange["l_altnanid"] = addrange.merge(self.source_datasets["orn_alternate_street_name"], how="left",
                                                 on=self.source_fk)["stname_c"].fillna(value="None")
         addrange["r_altnanid"] = addrange["l_altnanid"]
@@ -97,7 +97,7 @@ class ORN:
 
         # Compile strplaname records from left and right official and alternate street names from addrange.
         # Exclude "None" street names.
-        addrange.rename(columns={"placename_l": "l_placenam", "placename_r": "r_placenam"})
+        addrange.rename(columns={"placename_l": "l_placenam", "placename_r": "r_placenam"}, inplace=True)
         addrange_strplaname_links = [["l_offnanid", "l_placenam"], ["r_offnanid", "r_placenam"],
                                      ["l_altnanid", "l_placenam"], ["r_altnanid", "r_placenam"]]
         strplaname_records = {index: addrange[addrange[cols[0]] != "None"][[*cols, "revdate"]].rename(
@@ -197,6 +197,8 @@ class ORN:
         # Note: could not do earlier b/c attributes were required from addrange.
         logger.info("Resolving NRN dataset linkage: roadseg-addrange-strplaname.")
 
+        addrange.rename(columns={"hnumf_l": "l_hnumf", "hnumf_r": "r_hnumf",
+                                 "hnuml_l": "l_hnuml", "hnuml_r": "r_hnuml"}, inplace=True)
         addrange_invalid_nids = set(
             addrange[addrange[["l_hnumf", "r_hnumf", "l_hnuml", "r_hnuml"]].sum(axis=1) == 0]["nid"])
         addrange_valid_nanids = set(np.concatenate(
@@ -559,8 +561,8 @@ class ORN:
                 dfs.append(linked_df.copy(deep=True))
 
         # Concatenate all dataframes.
-        dfs_concat = pd.concat([df.rename(columns={self.base_fk: self.source_fk})[[
-            self.source_fk, "revdate"]] for df in dfs], ignore_index=True)
+        dfs_concat = pd.concat([df.rename(columns={self.base_fk: self.source_fk})[[self.source_fk, "revdate"]]
+                                for df in dfs], ignore_index=True)
 
         # Group by identifier, configure and assign maximum value.
         main_df.index = main_df[self.base_fk]
