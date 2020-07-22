@@ -4,12 +4,15 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import sqlite3
 import sys
 import uuid
 from collections import Counter
-from operator import itemgetter
+from operator import attrgetter, itemgetter
+from osgeo import ogr, osr
 from shapely.geometry import MultiLineString
 from src import helpers
+from tqdm import tqdm
 
 
 # Set logger.
@@ -74,17 +77,18 @@ class ORN:
         addrange["nid"] = [uuid.uuid4().hex for _ in range(len(addrange))]
 
         # Resolve addrange conflicting attributes.
-        addrange["effective_datetime"] = addrange[["effective_datetime_l", "effective_datetime_r"]].max(axis=1)
-        addrange.drop(columns=["effective_datetime_l", "effective_datetime_r"], inplace=True)
+        addrange["revdate"] = addrange[["revdate_l", "revdate_r"]].max(axis=1)
+        addrange.drop(columns=["revdate_l", "revdate_r"], inplace=True)
 
         # Assemble addrange linked attributes: official and alternate street names.
+        addrange.rename(columns={"stname_c_l": "l_stname_c", "stname_c_r": "r_stname_c"})
         addrange["l_altnanid"] = addrange.merge(self.source_datasets["orn_alternate_street_name"], how="left",
-                                                on=self.source_fk)["full_street_name"].fillna(value="None")
+                                                on=self.source_fk)["stname_c"].fillna(value="None")
         addrange["r_altnanid"] = addrange["l_altnanid"]
-        addrange[["l_offnanid", "r_offnanid"]] = addrange[["full_street_name_l", "full_street_name_r"]]
+        addrange[["l_offnanid", "r_offnanid"]] = addrange[["l_stname_c", "r_stname_c"]]
 
         # Assemble addrange linked attributes.
-        for col in ("road_absolute_accuracy", "acquisition_technique", "creation_date"):
+        for col in ("accuracy", "acqtech", "credate"):
             addrange[col] = addrange.merge(self.source_datasets[self.base_dataset], how="left", left_on=self.source_fk,
                                            right_on=self.base_fk)[col]
 
@@ -93,17 +97,16 @@ class ORN:
 
         # Compile strplaname records from left and right official and alternate street names from addrange.
         # Exclude "None" street names.
-        addrange_strplaname_links = [["l_offnanid", "standard_municipality_l"],
-                                     ["r_offnanid", "standard_municipality_r"],
-                                     ["l_altnanid", "standard_municipality_l"],
-                                     ["r_altnanid", "standard_municipality_r"]]
-        strplaname_records = {index: addrange[addrange[cols[0]] != "None"][[*cols, "effective_datetime"]].rename(
-            columns={cols[0]: "full_street_name", cols[1]: "placename"})
+        addrange.rename(columns={"placename_l": "l_placenam", "placename_r": "r_placenam"})
+        addrange_strplaname_links = [["l_offnanid", "l_placenam"], ["r_offnanid", "r_placenam"],
+                                     ["l_altnanid", "l_placenam"], ["r_altnanid", "r_placenam"]]
+        strplaname_records = {index: addrange[addrange[cols[0]] != "None"][[*cols, "revdate"]].rename(
+            columns={cols[0]: "stname_c", cols[1]: "placename"})
             for index, cols in enumerate(addrange_strplaname_links)}
 
         # Create strplaname.
         strplaname = pd.concat(strplaname_records.values(), ignore_index=True, sort=False).drop_duplicates(
-            subset=["full_street_name", "placename"], keep="first")
+            subset=["stname_c", "placename"], keep="first")
         strplaname.reset_index(drop=True, inplace=True)
         strplaname["nid"] = [uuid.uuid4().hex for _ in range(len(strplaname))]
 
@@ -113,30 +116,30 @@ class ORN:
         for cols in addrange_strplaname_links:
             addrange_filtered = addrange[addrange[cols[0]] != "None"]
             addrange.loc[addrange_filtered.index, cols[0]] = addrange_filtered.merge(
-                strplaname[["full_street_name", "placename", "nid"]], how="left", left_on=cols,
-                right_on=["full_street_name", "placename"])["nid_y"].values
+                strplaname[["stname_c", "placename", "nid"]], how="left", left_on=cols,
+                right_on=["stname_c", "placename"])["nid_y"].values
 
         # Assemble strplaname linked attributes: parsed street name.
-        strplaname = strplaname.merge(self.source_datasets["orn_street_name_parsed"], how="left", on="full_street_name")
+        strplaname = strplaname.merge(self.source_datasets["orn_street_name_parsed"], how="left", on="stname_c")
 
         # Assemble strplaname linked attributes.
-        for col in ("road_absolute_accuracy", "acquisition_technique", "creation_date"):
+        for col in ("accuracy", "acqtech", "credate"):
             attr_concat = pd.concat([addrange[[col, nid_col]].rename(columns={nid_col: "nid"}) for nid_col in
                                      ["l_offnanid", "r_offnanid", "l_altnanid", "r_altnanid"]], ignore_index=True)
             attr_grouped = helpers.groupby_to_list(attr_concat, "nid", col)
 
             # Resolve conflicting attributes.
             attr = attr_grouped.map(lambda vals:
-                                    max(vals) if col == "road_absolute_accuracy"
-                                    else Counter(vals).most_common()[0][0] if col == "acquisition_technique"
+                                    max(vals) if col == "accuracy"
+                                    else Counter(vals).most_common()[0][0] if col == "acqtech"
                                     else min(vals))
 
             # Assign attributes.
             strplaname[col] = strplaname.merge(pd.DataFrame({"nid": attr.index, col: attr}), how="left", on="nid")[col]
 
         # Resolve strplaname conflicting attributes.
-        strplaname["effective_datetime"] = strplaname[["effective_datetime_x", "effective_datetime_y"]].max(axis=1)
-        strplaname.drop(columns=["effective_datetime_x", "effective_datetime_y", "full_street_name"], inplace=True)
+        strplaname["revdate"] = strplaname[["revdate_x", "revdate_y"]].max(axis=1)
+        strplaname.drop(columns=["revdate_x", "revdate_y", "stname_c"], inplace=True)
 
         # roadseg
         logger.info("Assembling NRN dataset: roadseg.")
@@ -149,24 +152,22 @@ class ORN:
         # Assemble roadseg linked attributes.
         linkages = [
             {"df": addrange,
-             "cols_from": ["full_street_name_l", "full_street_name_r", "standard_municipality_l",
-                           "standard_municipality_r"],
+             "cols_from": ["l_stname_c", "r_stname_c", "l_placenam", "r_placenam"],
              "cols_to": ["l_stname_c", "r_stname_c", "l_placenam", "r_placenam"], "na": "Unknown"},
             {"df": addrange, "cols_from": ["nid"], "cols_to": ["adrangenid"], "na": "None"},
-            {"df": self.source_datasets["orn_jurisdiction"], "cols_from": ["jurisdiction"], "cols_to": ["roadjuris"],
+            {"df": self.source_datasets["orn_jurisdiction"], "cols_from": ["roadjuris"], "cols_to": ["roadjuris"],
              "na": "Unknown"},
-            {"df": self.source_datasets["orn_number_of_lanes"], "cols_from": ["number_of_lanes"],
-             "cols_to": ["nbrlanes"], "na": "Unknown"},
-            {"df": self.source_datasets["orn_road_class"], "cols_from": ["road_class"], "cols_to": ["roadclass"],
+            {"df": self.source_datasets["orn_number_of_lanes"], "cols_from": ["nbrlanes"], "cols_to": ["nbrlanes"],
              "na": "Unknown"},
-            {"df": self.source_datasets["orn_road_surface"], "cols_from": ["pavement_status", "surface_type"],
+            {"df": self.source_datasets["orn_road_class"], "cols_from": ["roadclass"], "cols_to": ["roadclass"],
+             "na": "Unknown"},
+            {"df": self.source_datasets["orn_road_surface"], "cols_from": ["pavstatus", "surf"],
              "cols_to": ["pavstatus", "pavsurf"], "na": {"pavstatus": "Unknown", "pavsurf": "None"}},
-            {"df": self.source_datasets["orn_road_surface"], "cols_from": ["surface_type"], "cols_to": ["unpavsurf"],
+            {"df": self.source_datasets["orn_road_surface"], "cols_from": ["surf"], "cols_to": ["unpavsurf"],
              "na": "None"},
-            {"df": self.source_datasets["orn_speed_limit"], "cols_from": ["speed_limit"], "cols_to": ["speed"],
+            {"df": self.source_datasets["orn_speed_limit"], "cols_from": ["speed"], "cols_to": ["speed"],
              "na": "Unknown"},
-            {"df": self.source_datasets["orn_structure"],
-             "cols_from": ["structure_type", "structure_name_english", "structure_name_french"],
+            {"df": self.source_datasets["orn_structure"], "cols_from": ["structtype", "strunameen", "strunamefr"],
              "cols_to": ["structtype", "strunameen", "strunamefr"], "na": "None"},
         ]
 
@@ -180,21 +181,24 @@ class ORN:
                                                              how="left", left_on=self.base_fk, right_on=self.source_fk
                                                              )[cols_to].fillna(value=na)
 
+        # Resolve conflicting attributes: pavsurf and unpavsurf.
+        roadseg.loc[roadseg["pavstatus"] == "Paved", "unpavsurf"] = "None"
+        roadseg.loc[roadseg["pavstatus"] == "Unpaved", "pavsurf"] = "None"
+
         # Configure linked route names and numbers.
         roadseg = self.configure_route_attributes(roadseg)
 
-        # Resolve roadseg conflicting attributes: effective datetime.
-        roadseg = self.resolve_effective_datetime(
-            roadseg, [roadseg, addrange, "orn_jurisdiction", "orn_number_of_lanes", "orn_road_class",
-                      "orn_road_surface", "orn_speed_limit", "orn_structure", "orn_route_name", "orn_route_number"])
+        # Resolve roadseg conflicting attributes: revdate.
+        roadseg = self.resolve_revdate(roadseg, [roadseg, addrange, "orn_jurisdiction", "orn_number_of_lanes",
+                                                 "orn_road_class", "orn_road_surface", "orn_speed_limit",
+                                                 "orn_structure", "orn_route_name", "orn_route_number"])
 
         # Remove invalid roadseg-addrange-strplaname linkages.
         # Note: could not do earlier b/c attributes were required from addrange.
         logger.info("Resolving NRN dataset linkage: roadseg-addrange-strplaname.")
 
         addrange_invalid_nids = set(
-            addrange[addrange[["first_house_number_l", "first_house_number_r",
-                               "last_house_number_l", "last_house_number_r"]].sum(axis=1) == 0]["nid"])
+            addrange[addrange[["l_hnumf", "r_hnumf", "l_hnuml", "r_hnuml"]].sum(axis=1) == 0]["nid"])
         addrange_valid_nanids = set(np.concatenate(
             addrange[~addrange["nid"].isin(addrange_invalid_nids)][["l_offnanid", "r_offnanid",
                                                                     "l_altnanid", "r_altnanid"]].values))
@@ -215,8 +219,8 @@ class ORN:
         # Configure linked route names and numbers.
         ferryseg = self.configure_route_attributes(ferryseg)
 
-        # Resolve roadseg conflicting attributes: effective datetime.
-        ferryseg = self.resolve_effective_datetime(ferryseg, [ferryseg, "orn_route_name", "orn_route_number"])
+        # Resolve roadseg conflicting attributes: revdate.
+        ferryseg = self.resolve_revdate(ferryseg, [ferryseg, "orn_route_name", "orn_route_number"])
 
         # blkpassage
         logger.info("Assembling NRN dataset: blkpassage.")
@@ -231,13 +235,19 @@ class ORN:
         tollpoint = self.assemble_point_dataset("orn_toll_point", roadseg)
 
         # Store final datasets.
+        logger.info("Storing finalized NRN datasets.")
+
         for name, df in {"addrange": addrange, "blkpassage": blkpassage, "ferryseg": ferryseg, "roadseg": roadseg,
                          "strplaname": strplaname, "tollpoint": tollpoint}.items():
 
             # Adjust datetime columns.
-            df.rename(columns={"creation_date": "credate", "effective_datetime": "revdate"}, inplace=True)
             for col in ("credate", "revdate"):
-                df[col] = df[col].map(lambda dt: dt.replace("-", "").split("T")[0])
+                df.loc[df.index, col] = df[col].map(lambda dt: dt.replace("-", "").split("T")[0])
+
+            # Convert None values to 'None' for object columns.
+            for col, dtype in df.dtypes.items():
+                if col != "geometry" and dtype.kind == "O":
+                    df.loc[df[col].isna(), col] = "None"
 
             self.nrn_datasets[name] = df.copy(deep=True)
 
@@ -258,15 +268,14 @@ class ORN:
         df = gpd.GeoDataFrame(df, crs=linked_df.crs)
 
         # Assemble linked attributes.
-        for col_from, col_to in {"road_absolute_accuracy": "accuracy", "acquisition_technique": "acqtech",
-                                 "nid": "roadnid", "creation_date": "creation_date",
-                                 "effective_datetime": "effective_datetime_y"}.items():
+        for col_from, col_to in {"accuracy": "accuracy", "acqtech": "acqtech", "nid": "roadnid", "credate": "credate",
+                                 "revdate": "revdate_y"}.items():
             df[col_to] = df[[self.source_fk]].merge(linked_df.rename(columns={col_from: col_to}), how="left",
                                                     left_on=self.source_fk, right_on=self.base_fk)[col_to]
 
         # Resolve conflicting attributes.
-        df["effective_datetime"] = df[["effective_datetime", "effective_datetime_y"]].max(axis=1)
-        df.drop(columns=[self.point_event_measurement_field, "effective_datetime_y"], inplace=True)
+        df["revdate"] = df[["revdate", "revdate_y"]].max(axis=1)
+        df.drop(columns=[self.point_event_measurement_field, "revdate_y"], inplace=True)
 
         return df.copy(deep=True)
 
@@ -328,6 +337,39 @@ class ORN:
             ]
         }
 
+        rename = {
+            "acquisition_technique":     "acqtech",
+            "blocked_passage_type":      "blkpassty",
+            "creation_date":             "credate",
+            "direction_of_traffic_flow": "trafficdir",
+            "directional_prefix":        "dirprefix",
+            "directional_suffix":        "dirsuffix",
+            "effective_datetime":        "revdate",
+            "exit_number":               "exitnbr",
+            "first_house_number":        "hnumf",
+            "full_street_name":          "stname_c",
+            "house_number_structure":    "hnumstr",
+            "jurisdiction":              "roadjuris",
+            "last_house_number":         "hnuml",
+            "number_of_lanes":           "nbrlanes",
+            "pavement_status":           "pavstatus",
+            "road_absolute_accuracy":    "accuracy",
+            "road_class":                "roadclass",
+            "route_name_english":        "rtenameen",
+            "route_name_french":         "rtenamefr",
+            "route_number":              "rtnumber",
+            "speed_limit":               "speed",
+            "standard_municipality":     "placename",
+            "street_name_body":          "namebody",
+            "street_type_prefix":        "strtypre",
+            "street_type_suffix":        "strtysuf",
+            "structure_name_english":    "strunameen",
+            "structure_name_french":     "strunamefr",
+            "structure_type":            "structtype",
+            "surface_type":              "surf",
+            "toll_point_type":           "tollpttype"
+        }
+
         # Iterate ORN schema.
         for index, items in enumerate(schema.items()):
 
@@ -341,6 +383,9 @@ class ORN:
             # Filter columns.
             df.drop(columns=df.columns.difference(cols), inplace=True)
 
+            # Update column names to match NRN.
+            df.rename(columns=rename, inplace=True)
+
             # Convert tabular dataframes.
             if "geometry" not in df.columns:
                 df = pd.DataFrame(df)
@@ -352,11 +397,11 @@ class ORN:
         """Configures the route name and number attributes for the given DataFrame."""
 
         for route_params in [
-            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_english",
+            {"df": self.source_datasets["orn_route_name"], "col_from": "rtenameen",
              "cols_to": ["rtename1en", "rtename2en", "rtename3en", "rtename4en"], "na": "None"},
-            {"df": self.source_datasets["orn_route_name"], "col_from": "route_name_french",
+            {"df": self.source_datasets["orn_route_name"], "col_from": "rtenamefr",
              "cols_to": ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"], "na": "None"},
-            {"df": self.source_datasets["orn_route_number"], "col_from": "route_number",
+            {"df": self.source_datasets["orn_route_number"], "col_from": "rtnumber",
              "cols_to": ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"], "na": "None"}
         ]:
 
@@ -421,11 +466,89 @@ class ORN:
                 else:
                     del self.source_datasets[name]
 
-    def resolve_effective_datetime(self, main_df, linked_dfs):
-        """
-        Updates the effective_datetime for the given DataFrame from the maximum of all linked DataFrames, for each
-        identifier.
-        """
+    def export_gpkg(self):
+        """Exports the NRN datasets to a GeoPackage."""
+
+        logger.info(f"Exporting datasets to GeoPackage: {self.dst}.")
+
+        try:
+
+            logger.info(f"Creating data source: {self.dst}.")
+
+            # Create GeoPackage.
+            driver = ogr.GetDriverByName("GPKG")
+            gpkg = driver.CreateDataSource(self.dst)
+
+            # Iterate dataframes.
+            for name, df in self.nrn_datasets.items():
+
+                logger.info(f"Layer {name}: creating layer.")
+
+                # Configure layer shape type and spatial reference.
+                if isinstance(df, gpd.GeoDataFrame):
+
+                    srs = osr.SpatialReference()
+                    srs.ImportFromEPSG(df.crs.to_epsg())
+
+                    if len(df.geom_type.unique()) > 1:
+                        raise ValueError(f"Multiple geometry types detected for dataframe {name}: "
+                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
+                    elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
+                        shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
+                    else:
+                        raise ValueError(f"Invalid geometry type(s) for dataframe {name}: "
+                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
+                else:
+                    shape_type = ogr.wkbNone
+                    srs = None
+
+                # Create layer.
+                layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
+
+                logger.info(f"Layer {name}: configuring schema.")
+
+                # Configure layer schema (field definitions).
+                ogr_field_map = {"f": ogr.OFTReal, "i": ogr.OFTInteger, "O": ogr.OFTString}
+
+                for field_name, dtype in df.dtypes.items():
+                    if field_name != "geometry":
+                        field_defn = ogr.FieldDefn(field_name, ogr_field_map[dtype.kind])
+                        layer.CreateField(field_defn)
+
+                # Write layer.
+                layer.StartTransaction()
+
+                for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {name}: writing to file"):
+
+                    # Instantiate feature.
+                    feature = ogr.Feature(layer.GetLayerDefn())
+
+                    # Set feature properties.
+                    properties = feat._asdict()
+                    for prop in set(properties) - {"geometry"}:
+                        field_index = feature.GetFieldIndex(prop)
+                        feature.SetField(field_index, properties[prop])
+
+                    # Set feature geometry, if required.
+                    if srs:
+                        geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
+                        feature.SetGeometry(geom)
+
+                    # Create feature.
+                    layer.CreateFeature(feature)
+
+                    # Clear pointer for next iteration.
+                    feature = None
+
+                layer.CommitTransaction()
+
+        except (Exception, KeyError, ValueError, sqlite3.Error) as e:
+            logger.exception(f"Error raised when writing to GeoPackage: {self.dst}.")
+            logger.exception(e)
+            sys.exit(1)
+
+    def resolve_revdate(self, main_df, linked_dfs):
+        """Updates the revdate for the given DataFrame from the maximum of all linked DataFrames."""
 
         # Compile linked dataframes.
         dfs = list()
@@ -437,12 +560,11 @@ class ORN:
 
         # Concatenate all dataframes.
         dfs_concat = pd.concat([df.rename(columns={self.base_fk: self.source_fk})[[
-            self.source_fk, "effective_datetime"]] for df in dfs], ignore_index=True)
+            self.source_fk, "revdate"]] for df in dfs], ignore_index=True)
 
         # Group by identifier, configure and assign maximum value.
         main_df.index = main_df[self.base_fk]
-        main_df["effective_datetime"] = helpers.groupby_to_list(
-            dfs_concat, self.source_fk, "effective_datetime").map(max)
+        main_df["revdate"] = helpers.groupby_to_list(dfs_concat, self.source_fk, "revdate").map(max)
         main_df.reset_index(drop=True, inplace=True)
 
         return main_df.copy(deep=True)
@@ -528,14 +650,11 @@ class ORN:
                         logger.info("Configuring updated address attributes.")
 
                         address_attributes = {
-                            "first_house_number": helpers.groupby_to_list(
-                                records, self.source_fk, "first_house_number").map(min),
-                            "last_house_number": helpers.groupby_to_list(
-                                records, self.source_fk, "last_house_number").map(max),
-                            "house_number_structure": helpers.groupby_to_list(
-                                records, self.source_fk, "house_number_structure").map(configure_address_structure),
-                            "effective_datetime": helpers.groupby_to_list(
-                                records, self.source_fk, "effective_datetime").map(max)
+                            "hnumf": helpers.groupby_to_list(records, self.source_fk, "hnumf").map(min),
+                            "hnuml": helpers.groupby_to_list(records, self.source_fk, "hnuml").map(max),
+                            "hnumstr": helpers.groupby_to_list(
+                                records, self.source_fk, "hnumstr").map(configure_address_structure),
+                            "revdate": helpers.groupby_to_list(records, self.source_fk, "revdate").map(max)
                         }
 
                         # Drop duplicate events, keeping the maximum event_length.
@@ -583,8 +702,7 @@ class ORN:
         self.resolve_unsplit_parities()
         self.reduce_events()
         self.assemble_nrn_datasets()
-        helpers.export_gpkg(self.nrn_datasets, self.dst)
-        # TODO: rename source columns upon loading.
+        self.export_gpkg()
 
 
 @click.command()
