@@ -76,12 +76,16 @@ class ORN:
         addrange.reset_index(drop=True, inplace=True)
         addrange["nid"] = [uuid.uuid4().hex for _ in range(len(addrange))]
 
+        # Change parity suffixes to prefixes.
+        for parity in ("l", "r"):
+            addrange.rename(columns={col: f"{parity}_{''.join(col.split(f'_{parity}')[:-1])}" for col in
+                                     addrange.columns if col.endswith(f"_{parity}")}, inplace=True)
+
         # Resolve addrange conflicting attributes.
-        addrange["revdate"] = addrange[["revdate_l", "revdate_r"]].max(axis=1)
-        addrange.drop(columns=["revdate_l", "revdate_r"], inplace=True)
+        addrange["revdate"] = addrange[["l_revdate", "r_revdate"]].max(axis=1)
+        addrange.drop(columns=["l_revdate", "r_revdate"], inplace=True)
 
         # Assemble addrange linked attributes: official and alternate street names.
-        addrange.rename(columns={"stname_c_l": "l_stname_c", "stname_c_r": "r_stname_c"}, inplace=True)
         addrange["l_altnanid"] = addrange.merge(self.source_datasets["orn_alternate_street_name"], how="left",
                                                 on=self.source_fk)["stname_c"].fillna(value="None")
         addrange["r_altnanid"] = addrange["l_altnanid"]
@@ -97,7 +101,6 @@ class ORN:
 
         # Compile strplaname records from left and right official and alternate street names from addrange.
         # Exclude "None" street names.
-        addrange.rename(columns={"placename_l": "l_placenam", "placename_r": "r_placenam"}, inplace=True)
         addrange_strplaname_links = [["l_offnanid", "l_placenam"], ["r_offnanid", "r_placenam"],
                                      ["l_altnanid", "l_placenam"], ["r_altnanid", "r_placenam"]]
         strplaname_records = {index: addrange[addrange[cols[0]] != "None"][[*cols, "revdate"]].rename(
@@ -197,8 +200,6 @@ class ORN:
         # Note: could not do earlier b/c attributes were required from addrange.
         logger.info("Resolving NRN dataset linkage: roadseg-addrange-strplaname.")
 
-        addrange.rename(columns={"hnumf_l": "l_hnumf", "hnumf_r": "r_hnumf",
-                                 "hnuml_l": "l_hnuml", "hnuml_r": "r_hnuml"}, inplace=True)
         addrange_invalid_nids = set(
             addrange[addrange[["l_hnumf", "r_hnumf", "l_hnuml", "r_hnuml"]].sum(axis=1) == 0]["nid"])
         addrange_valid_nanids = set(np.concatenate(
@@ -361,7 +362,7 @@ class ORN:
             "route_name_french":         "rtenamefr",
             "route_number":              "rtnumber",
             "speed_limit":               "speed",
-            "standard_municipality":     "placename",
+            "standard_municipality":     "placenam",
             "street_name_body":          "namebody",
             "street_type_prefix":        "strtypre",
             "street_type_suffix":        "strtysuf",
@@ -549,6 +550,91 @@ class ORN:
             logger.exception(e)
             sys.exit(1)
 
+    def map_unrecognized_values(self):
+        """Maps unrecognized attribute values to assumed NRN equivalent."""
+
+        logger.info(f"Mapping unrecognized field values.")
+
+        # Define value mapping.
+        value_map = {
+            "blkpassty":
+                {
+                    "Permanent": "Permanently Fixed"
+                },
+            "dirprefix":
+                {
+                    "North East": "Northeast",
+                    "North West": "Northwest",
+                    "South East": "Southeast",
+                    "South West": "Southwest",
+                },
+            "dirsuffix":
+                {
+                    "North East": "Northeast",
+                    "North West": "Northwest",
+                    "South East": "Southeast",
+                    "South West": "Southwest",
+                },
+            "roadclass":
+                {
+                    "Alleyway / Laneway": "Alleyway / Lane",
+                    "Service": "Service Lane"
+                },
+            "strtypre":
+                {
+                    "Bypass": "By-pass",
+                    "Concession Road": "Concession",
+                    "Corner": "Corners",
+                    "County Road": "Road",
+                    "Crossroad": "Crossroads",
+                    "Cul De Sac": "Cul-de-sac",
+                    "Fire Route": "Route",
+                    "Garden": "Gardens",
+                    "Height": "Heights",
+                    "Hills": "Hill",
+                    "Isle": "Island",
+                    "Lanes": "Lane",
+                    "Pointe": "Point",
+                    "Regional Road": "Road"
+                },
+            "strtysuf":
+                {
+                    "Bypass": "By-pass",
+                    "Concession Road": "Concession",
+                    "Corner": "Corners",
+                    "County Road": "Road",
+                    "Crossroad": "Crossroads",
+                    "Cul De Sac": "Cul-de-sac",
+                    "Fire Route": "Route",
+                    "Garden": "Gardens",
+                    "Height": "Heights",
+                    "Hills": "Hill",
+                    "Isle": "Island",
+                    "Lanes": "Lane",
+                    "Pointe": "Point",
+                    "Regional Road": "Road"
+                },
+            "tollpttype":
+                {
+                    "Physical": "Physical Toll Booth",
+                    "Virtual": "Virtual Toll Booth",
+                },
+            "trafficdir":
+                {
+                    "Both": "Both directions",
+                    "Negative": "Opposite direction",
+                    "Positive": "Same direction"
+                }
+        }
+
+        # Iterate dataframes and columns.
+        for name, df in self.nrn_datasets.items():
+            for col in set(df.columns).intersection(set(value_map)):
+
+                # Iterate and update mapped values.
+                for val_from, val_to in value_map[col].items():
+                    self.nrn_datasets[name].loc[self.nrn_datasets[name][col] == val_from, col] = val_to
+
     def resolve_revdate(self, main_df, linked_dfs):
         """Updates the revdate for the given DataFrame from the maximum of all linked DataFrames."""
 
@@ -704,6 +790,7 @@ class ORN:
         self.resolve_unsplit_parities()
         self.reduce_events()
         self.assemble_nrn_datasets()
+        self.map_unrecognized_values()
         self.export_gpkg()
 
 
