@@ -1,0 +1,53 @@
+coverage:
+  country: ca
+  province: on
+  ISO3166:
+    alpha2: CA-ON
+    country: Canada
+    subdivision: Ontario
+  website: https://data.ontario.ca/dataset/ontario-road-network-road-net-element
+license:
+  url: https://www.ontario.ca/page/open-government-licence-ontario
+  text: Open Government License - Ontario
+language: en
+data:
+  filename: orn.gpkg
+  layer: strplaname
+  driver: GPKG
+  crs: "EPSG:4269"
+  spatial: False
+  query:
+conform:
+  strplaname:
+    acqtech: acqtech
+    metacover:
+    credate: credate
+    datasetnam: "Ontario"
+    accuracy: accuracy
+    provider:
+    revdate: revdate
+    specvers:
+    dirprefix: dirprefix
+    dirsuffix: dirsuffix
+    muniquad:
+    nid:
+    placename: placename
+    placetype:
+    province: "Ontario"
+    starticle:
+      fields: namebody
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+    namebody:
+      fields: namebody
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+    strtypre: strtypre
+    strtysuf: strtysuf

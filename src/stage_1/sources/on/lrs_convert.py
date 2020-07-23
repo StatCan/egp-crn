@@ -158,6 +158,8 @@ class ORN:
              "cols_from": ["l_stname_c", "r_stname_c", "l_placenam", "r_placenam"],
              "cols_to": ["l_stname_c", "r_stname_c", "l_placenam", "r_placenam"], "na": "Unknown"},
             {"df": addrange, "cols_from": ["nid"], "cols_to": ["adrangenid"], "na": "None"},
+            {"df": addrange, "cols_from": ["l_hnumf", "r_hnumf", "l_hnuml", "r_hnuml"],
+             "cols_to": ["l_hnumf", "r_hnumf", "l_hnuml", "r_hnuml"], "na": 0},
             {"df": self.source_datasets["orn_jurisdiction"], "cols_from": ["roadjuris"], "cols_to": ["roadjuris"],
              "na": "Unknown"},
             {"df": self.source_datasets["orn_number_of_lanes"], "cols_from": ["nbrlanes"], "cols_to": ["nbrlanes"],
@@ -633,7 +635,8 @@ class ORN:
 
                 # Iterate and update mapped values.
                 for val_from, val_to in value_map[col].items():
-                    self.nrn_datasets[name].loc[self.nrn_datasets[name][col] == val_from, col] = val_to
+                    self.nrn_datasets[name].loc[
+                        self.nrn_datasets[name][col].map(str.lower) == val_from.lower(), col] = val_to
 
     def resolve_revdate(self, main_df, linked_dfs):
         """Updates the revdate for the given DataFrame from the maximum of all linked DataFrames."""
