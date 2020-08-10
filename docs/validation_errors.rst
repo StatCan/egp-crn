@@ -46,11 +46,25 @@ All validations have been assigned a unique error code with the following compos
 Errors
 ======
 
-E00101
-------
+E001
+----
 
 :Validation: Duplicated lines.
+
+E00101
+^^^^^^
+
 :Description: Line segments within the same dataset must not be duplicated.
+
+E00102
+^^^^^^
+
+:Description: Line segments must not contain repeated adjacent coordinates.
+
+E00103
+^^^^^^
+
+:Description: Line segments within the same dataset must not overlap (i.e. contain multiple duplicated adjacent points), excluding endpoints.
 
 E00201
 ------

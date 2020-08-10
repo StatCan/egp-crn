@@ -10,7 +10,7 @@ import string
 import sys
 from collections import Counter
 from datetime import datetime
-from itertools import chain, permutations
+from itertools import chain, compress, groupby, permutations
 from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
@@ -231,12 +231,14 @@ def deadend_proximity(junction, roadseg):
 
 
 def duplicated_lines(df):
-    """Identifies the uuids of duplicate line geometries."""
+    """Identifies the uuids of duplicate and overlapping line geometries."""
 
-    errors = {1: list()}
+    errors = {i: list() for i in range(1, 3+1)}
 
     # Keep only required fields.
     series = df["geometry"]
+
+    # Validation 1: ensure line segments are not duplicated.
 
     # Filter geometries to those with duplicate lengths.
     s_filtered = series[series.length.duplicated(keep=False)]
@@ -253,6 +255,40 @@ def duplicated_lines(df):
 
             # Compile uuids of flagged records.
             errors[1] = s_filtered[mask].index.values
+
+    # Validation 2: ensure line segments do not have repeated adjacent points.
+
+    # Filter geometries to those with duplicated coordinates.
+    s_filtered = series[series["geometry"].map(lambda g: len(g.coords) != len(set(g.coords)))]
+
+    if len(s_filtered):
+
+        # Identify geometries with repeated adjacent coordinates.
+        mask = s_filtered.map(lambda g: len(g.coords) != len(list(groupby(g.coords))))
+
+        # Compile uuids of flagged records.
+        errors[2] = s_filtered[mask].index.values
+
+    # Validation 3: ensure line segments do not overlap (i.e. contain adjacent non-unique points), excluding
+    # endpoints.
+
+    # Extract coordinates from geometries (used multiple times).
+    series_coords = series.map(attrgetter("coords"))
+
+    # Compile all non-unique coordinates.
+    coords_dup = {pt for pt, count in Counter(chain.from_iterable(series_coords.map(set))).items() if count > 1}
+
+    # Flag non-unique coordinates.
+    series_dup_mask = series_coords.map(lambda coords: [pt in coords_dup for pt in coords])
+
+    # Flag and filter to only those records with adjacent non-unique coordinates.
+    series_adj_dups_indexer = series_dup_mask[series_dup_mask.map(
+        lambda flags: {len(list(group)) for flag, group in groupby(flags) if flag} - {1}).map(len) > 0].index
+    series_adj_dups = pd.DataFrame({"coords": series_coords, "flags": series_dup_mask}).loc[series_adj_dups_indexer]
+    series_adj_dups = series_adj_dups.apply(lambda row: tuple(compress(*row)), axis=1)
+
+    # Identify overlapping groups.
+    # . . . .
 
     # Compile error properties.
     for code, vals in errors.items():
