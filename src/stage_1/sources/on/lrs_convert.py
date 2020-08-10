@@ -11,8 +11,10 @@ from collections import Counter
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import MultiLineString
-from src import helpers
 from tqdm import tqdm
+
+sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
+import helpers
 
 
 # Set logger.
