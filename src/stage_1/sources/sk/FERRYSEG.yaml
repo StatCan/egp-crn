@@ -44,7 +44,7 @@ conform:
     revdate: REVDATE
     specvers: SPECVERS
     closing:
-    ferrysegid: FERRYSEGID
+    ferrysegid:
     roadclass: ROADCLASS
     nid: NID
     rtename1en: RTENAME1EN

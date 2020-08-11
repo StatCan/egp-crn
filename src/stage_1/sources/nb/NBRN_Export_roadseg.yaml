@@ -103,11 +103,6 @@ conform:
     pavstatus: Pavement_Status
     roadjuris: Jurisdiction
     roadsegid:
-      fields: uuid
-      functions:
-        - function: incrementor
-          start: 1
-          step: 1
     rtename1en: Route_Name_English_1
     rtename2en: Route_Name_English_2
     rtename3en: Route_Name_English_3

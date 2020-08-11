@@ -28,7 +28,7 @@ conform:
     revdate: Element_Revision_Date
     specvers:
     closing: Closing_Period
-    ferrysegid: Ferry_Segment_ID
+    ferrysegid:
     roadclass: Functional_Road_Class
     nid: uuid
     rtename1en: Route_Name_English_1
