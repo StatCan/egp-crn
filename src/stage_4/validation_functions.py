@@ -300,8 +300,7 @@ def duplicated_lines(df):
     if len(coord_pairs_dup_grouped):
         for uuid_group, pairs in coord_pairs_dup_grouped.iteritems():
             vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
-            errors[3].append(f"Overlapping geometries identified for uuids: {vals}; number of overlapping points: "
-                             f"{len(pairs)}.")
+            errors[3].append(f"Overlap identified for uuids: {vals}; number of overlapping segments: {len(pairs)}.")
 
     # Compile error properties.
     for code, vals in errors.items():
