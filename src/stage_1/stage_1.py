@@ -264,10 +264,10 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def overwrite_segment_id(table, df):
+        def overwrite_segment_ids(table, df):
             """Populates the DataFrame's 'ferrysegid' or 'roadsegid' with incrementing integer values from 1-n."""
 
-            logger.info(f"Applying data cleanup \"overwrite segment ID\" to dataset: {table}.")
+            logger.info(f"Applying data cleanup \"overwrite segment IDs\" to dataset: {table}.")
 
             # Overwrite column.
             col = {"ferryseg": "ferrysegid", "roadseg": "roadsegid"}[table]
@@ -329,23 +329,24 @@ class Stage:
 
             return df.copy(deep=True)
 
-        # Cleanup: lower case IDs.
+        # Apply cleanup functions.
         for table, df in self.target_gdframes.items():
-            self.target_gdframes.update({table: lower_case_ids(table, df.copy(deep=True))})
 
-        # Cleanup: overwrite segment ID.
-        for table in ("ferryseg", "roadseg"):
             df = self.target_gdframes[table].copy(deep=True)
-            self.target_gdframes.update({table: overwrite_segment_id(table, df)})
 
-        # Cleanup: strip whitespace.
-        for table, df in self.target_gdframes.items():
-            self.target_gdframes.update({table: strip_whitespace(table, df.copy(deep=True))})
+            # Cleanup: lower case IDs.
+            self.target_gdframes.update({table: lower_case_ids(table, df)})
 
-        # Cleanup: title case route text.
-        for table in ("ferryseg", "roadseg"):
-            df = self.target_gdframes[table].copy(deep=True)
-            self.target_gdframes.update({table: title_case_route_names(table, df)})
+            # Cleanup: strip whitespace.
+            self.target_gdframes.update({table: strip_whitespace(table, df)})
+
+            # Cleanup: overwrite segment IDs.
+            if table in {"ferryseg", "roadseg"}:
+                self.target_gdframes.update({table: overwrite_segment_ids(table, df)})
+
+            # Cleanup: title case route text.
+            if table in {"ferryseg", "roadseg"}:
+                self.target_gdframes.update({table: title_case_route_names(table, df)})
 
     def compile_source_attributes(self):
         """Compiles the yaml files in the sources' directory into a dictionary."""
