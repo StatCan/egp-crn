@@ -64,7 +64,7 @@ E00102
 E00103
 ^^^^^^
 
-:Description: Line segments within the same dataset must not overlap (i.e. contain multiple duplicated adjacent points), excluding endpoints.
+:Description: Line segments within the same dataset must not overlap (i.e. contain duplicated adjacent points).
 
 E00201
 ------
