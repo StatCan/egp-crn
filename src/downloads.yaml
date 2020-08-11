@@ -1,19 +1,19 @@
 previous_nrn_vintage:
-  metadata_url: https://open.canada.ca/data/api/action/package_show?id=<id>
+  metadata_url: https://open.canada.ca/data/api/action/package_show?id=3d282116-e556-400c-9306-ca1a3cada77f
   ids:
-    ab: ebfbc7d8-e6a0-42ab-ad9e-1077221214d9
-    bc: fd1edf8b-f06d-4074-a27d-3e2c36d905da
-    mb: 08364fec-3770-44e7-b7cd-b4367e911a35
-    nb: 1fa38552-f819-43ff-ac60-113bd10ddb49
-    nl: 56c8b232-bf88-4e51-b650-860dfcb86e9f
-    ns: caba16f1-0dd8-4db1-813b-c7bdd67122ef
-    nt: e81802cf-9bad-47b8-8d45-591921316c66
-    nu: 7810494c-5fed-4a10-849d-413833a36ab1
-    "on": b87ae33c-2339-4edd-9ef3-6581b6341742
-    pe: 4c1ae636-5c7c-41ab-a943-1f82ae3faf89
-    qc: f79e8e77-093c-4cbc-ac40-47b0ea0ade59
-    sk: 23ba8fb5-41f9-47d8-8763-6f69ec2f55cc
-    yt: 2e72388e-4815-44c0-ae92-ce252a712365
+    ab: 52916d01-a173-4af9-a2f8-e12b2589630b
+    bc: a9742a6a-6bc8-4adb-b09e-077977fd1d4a
+    mb: 2b9807df-b344-47a3-93b5-26d7578f7ba1
+    nb: cce71069-6962-4c0f-86f3-187502c73137
+    nl: 25c5adf7-bae3-4243-8c18-6fd07f558895
+    ns: afc3eef6-610a-4e59-b16c-2e3082471460
+    nt: fcc9a6bb-e3c8-48b7-b011-82d25e6b12e1
+    nu: e3f27c10-ea5c-4f2e-b3c0-c0cacf9e848d
+    "on": 78fcf1e5-78f4-4106-9f51-6a8e4c9a7840
+    pe: 1dbde63e-dbaf-40cc-8785-ab070d08f8fb
+    qc: 998aa25d-1a32-4033-aec6-5df345a00b56
+    sk: 7af5ad79-835a-4196-820d-fbc63a6cc927
+    yt: 41eec6a4-8cd8-4f0a-9705-fd1c4f8f94ab
 provincial_boundaries:
   url: http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip
   filename: lpr_000a16a_e.shp

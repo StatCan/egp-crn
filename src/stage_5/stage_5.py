@@ -61,20 +61,31 @@ class Stage:
         """Configures the major and minor release versions for the current NRN vintage."""
 
         logger.info("Configuring NRN release version.")
-        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+
+        logger.info("Retrieving metadata for previous NRN vintage.")
 
         # Retrieve metadata for previous NRN vintage.
-        logger.info("Retrieving metadata for previous NRN vintage.")
-        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+        metadata_url = source["metadata_url"]
+        nrn_id = source["ids"][self.source]
 
         # Get metadata from url.
         metadata = helpers.get_url(metadata_url, timeout=30)
+        metadata = json.loads(metadata.content)
+
+        # Extract download url from metadata.
+        download_url, timestamp = None, None
+        for product in metadata["result"]["resources"]:
+            if product["id"] == nrn_id:
+                download_url, timestamp = itemgetter("url", "created")(product)
+
+        if not download_url:
+            logger.exception(f"Unable to find previous NRN product from metadata: {metadata_url}.")
+            sys.exit(1)
 
         # Extract release year and version numbers from metadata.
-        metadata = json.loads(metadata.content)
-        release_year = int(metadata["result"]["metadata_created"][:4])
-        self.major_version, self.minor_version = list(
-            map(int, re.findall(r"\d+", metadata["result"]["resources"][0]["url"])[-2:]))
+        release_year = int(timestamp[:4])
+        self.major_version, self.minor_version = list(map(int, re.findall(r"\d+", download_url)[-2:]))
 
         # Conditionally set major and minor version numbers.
         if release_year == datetime.now().year:

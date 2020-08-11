@@ -387,17 +387,26 @@ class Stage:
 
         logger.info("Retrieving previous NRN vintage.")
 
-        # Retrieve metadata for previous NRN vintage.
         logger.info("Retrieving metadata for previous NRN vintage.")
+
+        # Retrieve metadata for previous NRN vintage.
         source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
-        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        metadata_url = source["metadata_url"]
+        nrn_id = source["ids"][self.source]
 
         # Get metadata from url.
         metadata = helpers.get_url(metadata_url, timeout=30)
+        metadata = json.loads(metadata.content)
 
         # Extract download url from metadata.
-        metadata = json.loads(metadata.content)
-        download_url = metadata["result"]["resources"][0]["url"]
+        download_url = None
+        for product in metadata["result"]["resources"]:
+            if product["id"] == nrn_id:
+                download_url = product["url"]
+
+        if not download_url:
+            logger.exception(f"Unable to find previous NRN product from metadata: {metadata_url}.")
+            sys.exit(1)
 
         # Download previous NRN vintage.
         logger.info("Downloading previous NRN vintage.")
