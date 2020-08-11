@@ -259,7 +259,7 @@ def duplicated_lines(df):
     # Validation 2: ensure line segments do not have repeated adjacent points.
 
     # Filter geometries to those with duplicated coordinates.
-    s_filtered = series[series["geometry"].map(lambda g: len(g.coords) != len(set(g.coords)))]
+    s_filtered = series[series.map(lambda g: len(g.coords) != len(set(g.coords)))]
 
     if len(s_filtered):
 
@@ -291,16 +291,17 @@ def duplicated_lines(df):
 
     # Filter to duplicated pairs.
     coord_pairs_dup = coord_pairs_grouped[coord_pairs_grouped["uuid"].map(len) > 1]
+    if len(coord_pairs_dup):
 
-    # Group duplicated pairs by sorted uuid groups.
-    coord_pairs_dup["uuid"] = coord_pairs_dup["uuid"].map(sorted).map(tuple)
-    coord_pairs_dup_grouped = helpers.groupby_to_list(coord_pairs_dup, "uuid", "pairs")
+        # Group duplicated pairs by sorted uuid groups.
+        coord_pairs_dup["uuid"] = coord_pairs_dup["uuid"].map(sorted).map(tuple)
+        coord_pairs_dup_grouped = helpers.groupby_to_list(coord_pairs_dup, "uuid", "pairs")
 
-    # Compile error properties.
-    if len(coord_pairs_dup_grouped):
-        for uuid_group, pairs in coord_pairs_dup_grouped.iteritems():
-            vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
-            errors[3].append(f"Overlap identified for uuids: {vals}; number of overlapping segments: {len(pairs)}.")
+        # Compile error properties.
+        if len(coord_pairs_dup_grouped):
+            for uuid_group, pairs in coord_pairs_dup_grouped.iteritems():
+                vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
+                errors[3].append(f"Overlap identified for uuids: {vals}; number of overlapping segments: {len(pairs)}.")
 
     # Compile error properties.
     for code, vals in errors.items():
