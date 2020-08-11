@@ -271,7 +271,7 @@ class Stage:
 
             # Overwrite column.
             col = {"ferryseg": "ferrysegid", "roadseg": "roadsegid"}[table]
-            df[col] = range(1, len(df + 1))
+            df[col] = range(1, len(df) + 1)
 
             return df.copy(deep=True)
 
