@@ -430,7 +430,7 @@ class Stage:
         logger.info("Extracting zipped data for previous NRN vintage.")
 
         gpkg_path = [f for f in zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r").namelist() if
-                     f.endswith(".gpkg")][0]
+                     f.lower().endswith("en.gpkg")][0]
 
         with zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r") as zip_f:
             with zip_f.open(gpkg_path) as zsrc, open(f"{self.nrn_old_path}.gpkg", "wb") as zdest:
