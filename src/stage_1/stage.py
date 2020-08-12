@@ -636,6 +636,9 @@ class Stage:
                     # Add uuid field.
                     df["uuid"] = [uuid.uuid4().hex for _ in range(len(df))]
 
+                    # Overwrite nid field.
+                    df["nid"] = [uuid.uuid4().hex for _ in range(len(df))]
+
                     if isinstance(df, gpd.GeoDataFrame):
 
                         # Filter invalid geometries.

@@ -97,7 +97,7 @@ conform:
           cast_type: int
     l_hnuml:
     r_hnuml:
-    nid: NID
+    nid: uuid
     nbrlanes: NBRLANES
     l_placenam: PLACENAME
     r_placenam: PLACENAME

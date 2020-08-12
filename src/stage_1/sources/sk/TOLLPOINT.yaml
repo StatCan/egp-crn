@@ -19,7 +19,7 @@ data:
   query:
 conform:
   tollpoint:
-    nid: NID
+    nid: uuid
     datasetnam:
       fields: DATASETNAM
       functions:

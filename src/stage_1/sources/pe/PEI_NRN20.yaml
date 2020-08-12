@@ -108,7 +108,7 @@ conform:
     r_hnuml:
       fields: R_HNUML
       functions: *l_hnumf
-    nid: NID
+    nid: uuid
     nbrlanes: NBRLANES
     l_placenam:
       fields: PLACE_L

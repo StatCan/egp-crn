@@ -31,6 +31,33 @@ Stage      Time
 **Total**  **25:49.70**
 =========  ====
 
+Ontario (ON)
+============
+
+August 12, 2020
+---------------
+
+:Source: data/raw/on/orn.gpkg
+:Environment:
+    :OS: Windows 10 64-bit
+    :CPU: Intel Core i7 4700HQ @ 2.40GHz
+    :RAM: 16.0GB
+    :Python: 3.6.8
+:Runtimes:
+
+===========  ====
+Stage        Time
+===========  ====
+lrs_convert  10:37.16
+1            00:00.00
+2            00:00.00
+3            00:00.00
+4            00:00.00
+5            00:00.00
+-----------  ----
+**Total**    **00:00.00**
+===========  ====
+
 Prince Edward Island (PE)
 =========================
 
