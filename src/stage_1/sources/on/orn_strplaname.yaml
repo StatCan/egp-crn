@@ -30,7 +30,7 @@ conform:
     dirprefix: dirprefix
     dirsuffix: dirsuffix
     muniquad:
-    nid:
+    nid: nid
     placename: placename
     placetype:
     province: "Ontario"

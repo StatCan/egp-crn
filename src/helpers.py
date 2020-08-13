@@ -431,6 +431,9 @@ def groupby_to_list(df, group_field, list_field):
     """
 
     if isinstance(group_field, list):
+        for field in group_field:
+            if df[field].dtype.name != "geometry":
+                df[field] = df[field].astype("U")
         transpose = df.sort_values(group_field)[[*group_field, list_field]].values.T
         keys, vals = np.column_stack(transpose[:-1]), transpose[-1]
         keys_unique, keys_indexes = np.unique(keys.astype("U") if isinstance(keys, np.object) else keys,

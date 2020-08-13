@@ -28,5 +28,5 @@ conform:
     revdate: revdate
     specvers:
     blkpassty: blkpassty
-    nid:
+    nid: nid
     roadnid: roadnid

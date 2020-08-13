@@ -45,7 +45,7 @@ conform:
     r_hnumsufl:
     l_hnumtypl:
     r_hnumtypl:
-    nid:
+    nid: nid
     l_offnanid: l_offnanid
     r_offnanid: r_offnanid
     l_rfsysind:

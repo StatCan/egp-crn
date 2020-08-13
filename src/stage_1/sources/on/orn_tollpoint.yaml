@@ -27,6 +27,6 @@ conform:
     provider:
     revdate: revdate
     specvers:
-    nid:
+    nid: nid
     roadnid: roadnid
     tollpttype: tollpttype

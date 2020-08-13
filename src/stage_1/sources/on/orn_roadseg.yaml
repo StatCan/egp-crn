@@ -37,7 +37,7 @@ conform:
     roadclass: roadclass
     l_hnuml: l_hnuml
     r_hnuml: r_hnuml
-    nid:
+    nid: nid
     nbrlanes: nbrlanes
     l_placenam: l_placenam
     r_placenam: r_placenam
