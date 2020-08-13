@@ -275,6 +275,29 @@ class Stage:
 
             return df.copy(deep=True)
 
+        def standardize_nones(table, df):
+            """Standardizes None string values (different from nulls)."""
+
+            logger.info(f"Applying data cleanup \"standardize_nones\" to dataset: {table}.")
+
+            # Compile valid columns.
+            cols = df.select_dtypes(include="object", exclude="geometry").columns.values
+
+            # Iterate columns.
+            for col in cols:
+
+                # Apply modifications.
+                series_orig = df[col]
+                df.loc[df[col].map(str.lower) == "none", col] = "None"
+
+                # Quantify and log modifications.
+                mods = (series_orig != df[col]).sum()
+                if mods:
+                    logger.warning(f"Modified {mods} record(s) in table {table}, column {col}."
+                                   f"\nModification details: Column values standardized to \"None\".")
+
+            return df.copy(deep=True)
+
         def strip_whitespace(table, df):
             """Strips leading, trailing, and multiple internal whitespace for each dataframe column."""
 
@@ -339,6 +362,9 @@ class Stage:
 
             # Cleanup: strip whitespace.
             self.target_gdframes.update({table: strip_whitespace(table, df)})
+
+            # Cleanup: standardize nones.
+            self.target_gdframes.update({table: standardize_nones(table, df)})
 
             # Cleanup: overwrite segment IDs.
             if table in {"ferryseg", "roadseg"}:

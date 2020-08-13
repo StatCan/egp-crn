@@ -34,7 +34,7 @@ Stage      Time
 Ontario (ON)
 ============
 
-August 12, 2020
+August 13, 2020
 ---------------
 
 :Source: data/raw/on/orn.gpkg
@@ -49,8 +49,8 @@ August 12, 2020
 Stage        Time
 ===========  ====
 lrs_convert  10:37.16
-1            00:00.00
-2            00:00.00
+1            20:37.11
+2            05:13.80
 3            00:00.00
 4            00:00.00
 5            00:00.00
