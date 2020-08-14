@@ -519,6 +519,9 @@ def load_gpkg(gpkg_path, find=False, layers=None):
                 if "fid" in df.columns:
                     df.drop(columns=["fid"], inplace=True)
 
+                # Fill nulls with string "None".
+                df.fillna("None", inplace=True)
+
                 # Store result.
                 dframes[table_name] = df.copy(deep=True)
                 logger.info(f"Successfully loaded layer as dataframe: {table_name}.")

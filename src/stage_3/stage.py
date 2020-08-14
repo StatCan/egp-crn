@@ -47,14 +47,13 @@ class Stage:
             sys.exit(1)
 
         # Compile match fields (fields which must be equal across records).
-        self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix", "starticle"]
-        self.match_fields_old = self.match_fields
-
-        # Compile backup match fields (for when addrange or strplaname are not available).
-        self.match_fields_backup = ["r_stname_c"]
+        self.match_fields = ["r_stname_c"]
 
         # Define change logs dictionary.
         self.change_logs = dict()
+
+        # Load default field values.
+        self.defaults = helpers.compile_default_values()["roadseg"]
 
     def export_change_logs(self):
         """Exports the dataset differences as logs - based on nids."""
@@ -89,21 +88,18 @@ class Stage:
 
         logger.info("Generating structids for table: roadseg.")
 
-        # Load default field values.
-        defaults = helpers.compile_default_values()["roadseg"]
-
         # Copy and filter dataframes.
         roadseg = self.dframes["roadseg"][["uuid", "structid", "structtype", "geometry"]].copy(deep=True)
         roadseg_old = self.dframes_old["roadseg"][["structid", "structtype", "geometry"]].copy(deep=True)
 
         # Overwrite any pre-existing structid.
-        roadseg['structid'] = defaults["structid"]
+        roadseg["structid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
+        roadseg.loc[roadseg["structtype"] == "None", "structid"] = "None"
 
         # Subset dataframes to structures (where structtype is not the default value nor "None").
         # For previous vintage, further subset to records where structid is not the default value.]
-        roadseg = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
-        roadseg_old = roadseg_old[(~roadseg_old["structtype"].isin(["None", defaults["structtype"]])) &
-                                  (roadseg_old["structid"] != defaults["structid"])]
+        roadseg = roadseg[roadseg["structtype"] != "None"]
+        roadseg_old = roadseg_old[~roadseg_old["structid"].isin(["None", self.defaults["structid"]])]
 
         if len(roadseg):
 
@@ -121,7 +117,7 @@ class Stage:
             structids = pd.Series(structids.index.values, index=structids)
 
             # Assign structids to dataframe.
-            roadseg["structid"] = structids
+            roadseg.loc[structids.index, "structid"] = structids
 
             # Recovery old structids.
             logger.info("Recovering old structids for table: roadseg.")
@@ -160,7 +156,8 @@ class Stage:
                 roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
 
             # Store results.
-            self.dframes["roadseg"].loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
+            self.roadseg.loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
+            self.dframes["roadseg"].loc[self.roadseg.index, "structid"] = self.roadseg["structid"].copy(deep=True)
 
     def get_valid_ids(self, series):
         """
@@ -274,50 +271,12 @@ class Stage:
 
         logger.info("Generating full roadseg representation.")
 
-        # Current vintage.
-
-        # Copy and filter dataframes.
-        if {"addrange", "strplaname"}.issubset(set(self.dframes)):
-
-            roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid", "geometry"]].copy(deep=True)
-            addrange = self.dframes["addrange"][["nid", "r_offnanid"]].copy(deep=True)
-            strplaname = self.dframes["strplaname"][["nid", *self.match_fields]].copy(deep=True)
-
-            # Merge dataframes to assemble full roadseg representation.
-            self.roadseg = roadseg.merge(
-                addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-                strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname")).copy(
-                deep=True)
-
-        else:
-
-            self.match_fields = self.match_fields_backup
-            self.roadseg = self.dframes["roadseg"][["uuid", "nid", "geometry", *self.match_fields]].copy(deep=True)
-
+        # Copy and filter dataframe - current vintage.
+        self.roadseg = self.dframes["roadseg"][["uuid", "nid", "geometry", *self.match_fields]].copy(deep=True)
         self.roadseg.index = self.roadseg["uuid"]
 
-        # Previous vintage.
-
-        # Copy and filter dataframes.
-        # Filter duplicates (may exist due to differences between previous and current generation process).
-        if {"addrange", "strplaname"}.issubset(set(self.dframes_old)):
-
-            roadseg = self.dframes_old["roadseg"][["nid", "adrangenid", "geometry"]].copy(deep=True)
-            addrange = self.dframes_old["addrange"][["nid", "r_offnanid"]].copy(deep=True)
-            addrange = addrange[~addrange.duplicated(keep="first")]
-            strplaname = self.dframes_old["strplaname"][["nid", *self.match_fields_old]].copy(deep=True)
-            strplaname = strplaname[~strplaname.duplicated(keep="first")]
-
-            # Merge dataframes to assemble full roadseg representation.
-            self.roadseg_old = roadseg.merge(
-                addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-                strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname")).copy(
-                deep=True)
-
-        else:
-
-            self.match_fields_old = self.match_fields_backup
-            self.roadseg_old = self.dframes_old["roadseg"][["nid", "geometry", *self.match_fields_old]].copy(deep=True)
+        # Copy and filter dataframe - previous vintage.
+        self.roadseg_old = self.dframes_old["roadseg"][["nid", "geometry", *self.match_fields]].copy(deep=True)
 
     def roadseg_gen_nids(self):
         """Groups roadseg records and assigns nid values."""
@@ -327,6 +286,14 @@ class Stage:
         # Copy and filter dataframes.
         roadseg = self.roadseg[[*self.match_fields, "uuid", "nid", "geometry"]].copy(deep=True)
         junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
+
+        # Overwrite any pre-existing structid.
+        roadseg["nid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
+
+        # Subset dataframes to where at least one match field is not equal to the default value nor "None".
+        default = self.defaults[self.match_fields[0]]
+        roadseg = roadseg[~((roadseg[self.match_fields].eq(roadseg[self.match_fields].iloc[:, 0], axis=0).all(axis=1)) &
+                            (roadseg[self.match_fields[0]].isin(["None", default])))]
 
         # Group uuids and geometry by match fields.
         # To reduce processing, only duplicated records are grouped.
@@ -441,8 +408,8 @@ class Stage:
         # Assign nids to roadseg.
         # Store results.
         nid_groups.index = nid_groups["uuid"]
-        self.dframes["roadseg"]["nid"] = nid_groups["nid"].copy(deep=True)
-        self.roadseg["nid"] = nid_groups["nid"].copy(deep=True)
+        self.roadseg.loc[nid_groups.index, "nid"] = nid_groups["nid"].copy(deep=True)
+        self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
     def roadseg_recover_and_classify_nids(self):
         """
@@ -454,7 +421,7 @@ class Stage:
 
         # Copy and filter dataframes.
         roadseg = self.roadseg[[*self.match_fields, "nid", "uuid", "geometry"]].copy(deep=True)
-        roadseg_old = self.roadseg_old[[*self.match_fields_old, "nid", "geometry"]].copy(deep=True)
+        roadseg_old = self.roadseg_old[[*self.match_fields, "nid", "geometry"]].copy(deep=True)
 
         # Group by nid.
         roadseg_grouped = helpers.groupby_to_list(roadseg, "nid", "geometry")
@@ -504,12 +471,12 @@ class Stage:
         roadseg_confirmed_new = classified_nids["confirmed"]\
             .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
         roadseg_confirmed_old = classified_nids["confirmed"]\
-            .merge(roadseg_old[["nid", *self.match_fields_old]], how="left", left_on="nid_old", right_on="nid")\
+            .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
             .drop_duplicates(keep="first")
 
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
-        flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields_old]).all(axis=1)
+        flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
         classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
         classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
 
@@ -567,6 +534,7 @@ class Stage:
 
             # Retrieve associated record geometries for each record index.
             df["roadsegs"] = df["roadseg_idxs"].map(lambda idxs: itemgetter(*idxs)(roadseg_geometry_lookup))
+            df["roadsegs"] = df["roadsegs"].map(lambda vals: vals if isinstance(vals, tuple) else (vals,))
 
             # Retrieve the local roadsegs index of the nearest roadsegs geometry.
             df["nearest_local_idx"] = np.vectorize(

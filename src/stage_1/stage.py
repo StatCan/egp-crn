@@ -267,11 +267,13 @@ class Stage:
         def overwrite_segment_ids(table, df):
             """Populates the DataFrame's 'ferrysegid' or 'roadsegid' with incrementing integer values from 1-n."""
 
-            logger.info(f"Applying data cleanup \"overwrite segment IDs\" to dataset: {table}.")
+            if table in {"ferryseg", "roadseg"}:
 
-            # Overwrite column.
-            col = {"ferryseg": "ferrysegid", "roadseg": "roadsegid"}[table]
-            df[col] = range(1, len(df) + 1)
+                logger.info(f"Applying data cleanup \"overwrite segment IDs\" to dataset: {table}.")
+
+                # Overwrite column.
+                col = {"ferryseg": "ferrysegid", "roadseg": "roadsegid"}[table]
+                df[col] = range(1, len(df) + 1)
 
             return df.copy(deep=True)
 
@@ -287,7 +289,7 @@ class Stage:
             for col in cols:
 
                 # Apply modifications.
-                series_orig = df[col]
+                series_orig = df[col].copy(deep=True)
                 df.loc[df[col].map(str.lower) == "none", col] = "None"
 
                 # Quantify and log modifications.
@@ -310,7 +312,7 @@ class Stage:
             for col in cols:
 
                 # Apply modifications.
-                series_orig = df[col]
+                series_orig = df[col].copy(deep=True)
                 df[col] = df[col].map(lambda val: re.sub(r" +", " ", str(val.strip())))
 
                 # Quantify and log modifications.
@@ -329,50 +331,41 @@ class Stage:
                 rtename1fr, rtename2fr, rtename3fr, rtename4fr.
             """
 
-            logger.info(f"Applying data cleanup \"title case route names\" to dataset: {table}.")
+            if table in {"ferryseg", "roadseg"}:
 
-            # Identify columns to iterate.
-            cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
-                                    "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
+                logger.info(f"Applying data cleanup \"title case route names\" to dataset: {table}.")
 
-            # Iterate columns.
-            for col in cols:
+                # Identify columns to iterate.
+                cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
+                                        "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
 
-                # Filter records to non-default values which are not already title case.
-                default = self.defaults[table][col]
-                s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
+                # Iterate columns.
+                for col in cols:
 
-                # Apply modifications, if required.
-                if len(s_filtered):
-                    df.loc[s_filtered.index, col] = s_filtered.map(str.title)
+                    # Filter records to non-default values which are not already title case.
+                    default = self.defaults[table][col]
+                    s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
 
-                    # Quantify and log modifications.
-                    logger.warning(f"Modified {len(s_filtered)} record(s) in table {table}, column {col}."
-                                   "\nModification details: Column values set to title case.")
+                    # Apply modifications, if required.
+                    if len(s_filtered):
+                        df.loc[s_filtered.index, col] = s_filtered.map(str.title)
+
+                        # Quantify and log modifications.
+                        logger.warning(f"Modified {len(s_filtered)} record(s) in table {table}, column {col}."
+                                       "\nModification details: Column values set to title case.")
 
             return df.copy(deep=True)
 
         # Apply cleanup functions.
         for table, df in self.target_gdframes.items():
 
-            df = self.target_gdframes[table].copy(deep=True)
+            # Iterate cleanup functions.
+            for func in (lower_case_ids, strip_whitespace, standardize_nones, overwrite_segment_ids,
+                         title_case_route_names):
+                df = func(table, df)
 
-            # Cleanup: lower case IDs.
-            self.target_gdframes.update({table: lower_case_ids(table, df)})
-
-            # Cleanup: strip whitespace.
-            self.target_gdframes.update({table: strip_whitespace(table, df)})
-
-            # Cleanup: standardize nones.
-            self.target_gdframes.update({table: standardize_nones(table, df)})
-
-            # Cleanup: overwrite segment IDs.
-            if table in {"ferryseg", "roadseg"}:
-                self.target_gdframes.update({table: overwrite_segment_ids(table, df)})
-
-            # Cleanup: title case route text.
-            if table in {"ferryseg", "roadseg"}:
-                self.target_gdframes.update({table: title_case_route_names(table, df)})
+            # Store updated dataframe.
+            self.target_gdframes.update({table: df.copy(deep=True)})
 
     def compile_source_attributes(self):
         """Compiles the yaml files in the sources' directory into a dictionary."""
