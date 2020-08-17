@@ -938,17 +938,19 @@ def self_intersecting_elements(df):
         flagged_nids = segments_multi[segments_multi["geometry"].map(
             lambda g: len(set(itemgetter(0, -1)(g.coords)).intersection(valid_coords)) > 0)]["nid"].unique()
 
-        # Compile dataframe records with a flagged nid.
-        flagged_df = df[df["nid"].isin(flagged_nids)]
+        if len(flagged_nids):
 
-        # Group geometries by nid.
-        grouped_segments = helpers.groupby_to_list(flagged_df, "nid", "geometry")
+            # Compile dataframe records with a flagged nid.
+            flagged_df = df[df["nid"].isin(flagged_nids)]
 
-        # Dissolve road segments.
-        elements = grouped_segments.map(shapely.ops.linemerge)
+            # Group geometries by nid.
+            grouped_segments = helpers.groupby_to_list(flagged_df, "nid", "geometry")
 
-        # Identify self-intersections and store nids.
-        flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
+            # Dissolve road segments.
+            elements = grouped_segments.map(shapely.ops.linemerge)
+
+            # Identify self-intersections and store nids.
+            flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
     errors[1] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values
