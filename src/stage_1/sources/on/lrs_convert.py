@@ -4,13 +4,14 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import shapely
 import sqlite3
 import sys
 import uuid
 from collections import Counter
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
-from shapely.geometry import MultiLineString
+from shapely.geometry import LineString, MultiLineString
 from tqdm import tqdm
 
 sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
@@ -39,7 +40,7 @@ class ORN:
         self.event_measurement_fields = ["from_measure", "to_measure"]
         self.point_event_measurement_field = "at_measure"
         self.irreducible_datasets = ["orn_road_net_element", "orn_blocked_passage", "orn_toll_point",
-                                     "orn_street_name_parsed", "orn_route_name", "orn_route_number"]
+                                     "orn_street_name_parsed", "orn_route_name", "orn_route_number", "orn_structure"]
         self.parities = {"orn_address_info": "street_side",
                          "orn_jurisdiction": "street_side"}
         self.address_dataset = "orn_address_info"
@@ -154,6 +155,9 @@ class ORN:
         roadseg.reset_index(drop=True, inplace=True)
         roadseg["nid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
 
+        # Cast geometry.
+        roadseg["geometry"] = roadseg["geometry"].map(lambda g: g if isinstance(g, LineString) else g[0])
+
         # Assemble roadseg linked attributes.
         linkages = [
             {"df": addrange,
@@ -173,9 +177,7 @@ class ORN:
             {"df": self.source_datasets["orn_road_surface"], "cols_from": ["surf"], "cols_to": ["unpavsurf"],
              "na": "None"},
             {"df": self.source_datasets["orn_speed_limit"], "cols_from": ["speed"], "cols_to": ["speed"],
-             "na": "Unknown"},
-            {"df": self.source_datasets["orn_structure"], "cols_from": ["structtype", "strunameen", "strunamefr"],
-             "cols_to": ["structtype", "strunameen", "strunamefr"], "na": "None"},
+             "na": "Unknown"}
         ]
 
         # Iterate linkages.
@@ -194,6 +196,9 @@ class ORN:
 
         # Configure linked route names and numbers.
         roadseg = self.configure_route_attributes(roadseg)
+
+        # Configure linked structures.
+        roadseg = self.configure_structures(roadseg)
 
         # Resolve roadseg conflicting attributes: revdate.
         roadseg = self.resolve_revdate(roadseg, [roadseg, addrange, "orn_jurisdiction", "orn_number_of_lanes",
@@ -222,6 +227,9 @@ class ORN:
             "road_element_type == 'FERRY CONNECTION'").copy(deep=True)
         ferryseg.reset_index(drop=True, inplace=True)
         ferryseg["nid"] = [uuid.uuid4().hex for _ in range(len(ferryseg))]
+
+        # Cast geometry.
+        ferryseg["geometry"] = ferryseg["geometry"].map(lambda g: g if isinstance(g, LineString) else g[0])
 
         # Configure linked route names and numbers.
         ferryseg = self.configure_route_attributes(ferryseg)
@@ -441,6 +449,31 @@ class ORN:
                     df[col] = na
 
         return df.copy(deep=True)
+
+    def configure_structures(self, df):
+        """Configures structures and their attributes for the given DataFrame."""
+
+        # Compile records with linked structures.
+        df_structs = df[df[self.base_fk].isin(set(self.source_datasets[self.source_fk]))].copy(deep=True)
+
+        # Convert geometries to meter-based projection.
+        df_structs = helpers.reproject_gdf(df_structs, df_structs.crs.to_epsg(), 3348)
+
+        # Merge full geometries onto structures.
+        structures = self.source_datasets["orn_structure"].copy(deep=True)
+        structures = structures.merge(df_structs, how="left", left_on=self.source_fk, right_on=self.base_fk)
+
+        # Subset geometries to structure events, filter invalid results.
+        structures["geometry"] = structures[["geometry", *self.event_measurement_fields]].apply(
+            lambda row: shapely.ops.substring(*row), axis=1)
+        structures = structures[structures["geometry"].map(lambda g: isinstance(g, LineString))]
+
+        # Remove structure geometries from original geometries.
+        # Process: group structure geometries and calculate the geometric difference of the base geometry.
+        structures_grouped = helpers.groupby_to_list(structures, self.source_fk, "geometry")
+        structures_grouped = pd.DataFrame({self.source_fk: structures_grouped.index,
+                                           "structure_geoms": structures_grouped})
+        base_geoms = df_structs.merge(structures_grouped, how="right", left_on=self.base_fk, right_on=self.source_fk)
 
     def configure_valid_records(self):
         """Configures and keeps only records which link to valid records from the base dataset."""
