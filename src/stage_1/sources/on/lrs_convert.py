@@ -9,6 +9,7 @@ import sqlite3
 import sys
 import uuid
 from collections import Counter
+from itertools import chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, MultiLineString
@@ -200,10 +201,12 @@ class ORN:
         # Configure linked structures.
         roadseg = self.configure_structures(roadseg)
 
+        logger.info("Assembling NRN dataset: roadseg (continued).")
+
         # Resolve roadseg conflicting attributes: revdate.
         roadseg = self.resolve_revdate(roadseg, [roadseg, addrange, "orn_jurisdiction", "orn_number_of_lanes",
                                                  "orn_road_class", "orn_road_surface", "orn_speed_limit",
-                                                 "orn_structure", "orn_route_name", "orn_route_number"])
+                                                 "orn_route_name", "orn_route_number"])
 
         # Remove invalid roadseg-addrange-strplaname linkages.
         # Note: could not do earlier b/c attributes were required from addrange.
@@ -254,6 +257,8 @@ class ORN:
 
         for name, df in {"addrange": addrange, "blkpassage": blkpassage, "ferryseg": ferryseg, "roadseg": roadseg,
                          "strplaname": strplaname, "tollpoint": tollpoint}.items():
+
+            df = df.copy(deep=True)
 
             # Adjust datetime columns.
             for col in ("credate", "revdate"):
@@ -411,6 +416,8 @@ class ORN:
     def configure_route_attributes(self, df):
         """Configures the route name and number attributes for the given DataFrame."""
 
+        logger.info("Configuring route attributes.")
+
         for route_params in [
             {"df": self.source_datasets["orn_route_name"], "col_from": "rtenameen",
              "cols_to": ["rtename1en", "rtename2en", "rtename3en", "rtename4en"], "na": "None"},
@@ -453,14 +460,36 @@ class ORN:
     def configure_structures(self, df):
         """Configures structures and their attributes for the given DataFrame."""
 
+        logger.info("Configuring structures.")
+
+        def update_geoms(geom, ranges):
+            """Splits the LineString into smaller LineStrings by removing the given ranges from the geometry."""
+
+            # Compute new geometry ranges.
+            new_ranges = [(0, ranges[0][0]), (ranges[-1][1], geom.length)]
+            if len(ranges) > 1:
+                values = list(chain.from_iterable(ranges))[1: -1]
+                pairs = list(zip(values[0::2], values[1::2]))
+                new_ranges.extend(pairs)
+            new_ranges = [new_range for new_range in new_ranges if
+                          new_range[0] != new_range[1] and new_range[0] < geom.length]
+
+            # Update geometry from ranges.
+            if len(new_ranges):
+                return [shapely.ops.substring(geom, *new_range) for new_range in new_ranges]
+            else:
+                return None
+
+        # Compile structure linkages.
+        structures = self.source_datasets["orn_structure"].copy(deep=True)
+
         # Compile records with linked structures.
-        df_structs = df[df[self.base_fk].isin(set(self.source_datasets[self.source_fk]))].copy(deep=True)
+        df_structs = df[df[self.base_fk].isin(set(structures[self.source_fk]))].copy(deep=True)
 
         # Convert geometries to meter-based projection.
         df_structs = helpers.reproject_gdf(df_structs, df_structs.crs.to_epsg(), 3348)
 
         # Merge full geometries onto structures.
-        structures = self.source_datasets["orn_structure"].copy(deep=True)
         structures = structures.merge(df_structs, how="left", left_on=self.source_fk, right_on=self.base_fk)
 
         # Subset geometries to structure events, filter invalid results.
@@ -469,11 +498,44 @@ class ORN:
         structures = structures[structures["geometry"].map(lambda g: isinstance(g, LineString))]
 
         # Remove structure geometries from original geometries.
-        # Process: group structure geometries and calculate the geometric difference of the base geometry.
-        structures_grouped = helpers.groupby_to_list(structures, self.source_fk, "geometry")
+        # Process: group structure event measurements and subtract the ranges from the base geometry.
+
+        # Group and sort structure events.
+        structures["range"] = structures[self.event_measurement_fields].apply(lambda vals: tuple(sorted(vals)), axis=1)
+        structures_grouped = helpers.groupby_to_list(structures, self.source_fk, "range")
         structures_grouped = pd.DataFrame({self.source_fk: structures_grouped.index,
-                                           "structure_geoms": structures_grouped})
-        base_geoms = df_structs.merge(structures_grouped, how="right", left_on=self.base_fk, right_on=self.source_fk)
+                                           "structure_ranges": structures_grouped})
+        df_structs = df_structs.merge(structures_grouped, how="right", left_on=self.base_fk, right_on=self.source_fk)
+        df_structs["structure_ranges"] = df_structs["structure_ranges"].map(sorted)
+
+        # Generate new base geometries, filter invalid results.
+        df_structs["new_geometries"] = df_structs[["geometry", "structure_ranges"]].apply(
+            lambda row: update_geoms(*row), axis=1)
+        df_structs = df_structs[~df_structs["new_geometries"].isna()]
+
+        # Explode nested geometries, update geometry column.
+        df_structs = gpd.GeoDataFrame(pd.DataFrame(df_structs).explode("new_geometries"), crs=3348)
+        df_structs["geometry"] = df_structs["new_geometries"]
+
+        # Create new dataframe with updated records.
+
+        # Reproject structure and base geometries to original crs.
+        structures = helpers.reproject_gdf(gpd.GeoDataFrame(structures, crs=3348), 3348, df.crs.to_epsg())
+        df_structs = helpers.reproject_gdf(df_structs, 3348, df.crs.to_epsg())
+
+        # Standardize fields and append non-structure records and structure base records.
+        df_non_structs = df[~df[self.base_fk].isin(set(structures[self.source_fk]))].copy(deep=True)
+        df_structs.drop(columns=set(df_structs)-set(df_non_structs), inplace=True)
+        new_df = df_structs.append(df_non_structs, ignore_index=True)
+        for new_col in {"structtype", "strunameen", "strunamefr"}:
+            new_df[new_col] = "None"
+
+        # Standardize fields for structure records and append records to new dataframe.
+        structures["revdate"] = structures[["revdate_x", "revdate_y"]].max(axis=1)
+        structures.drop(columns=set(structures)-set(new_df)-{"structtype", "strunameen", "strunamefr"}, inplace=True)
+        new_df = new_df.append(structures, ignore_index=True)
+
+        return new_df.copy(deep=True)
 
     def configure_valid_records(self):
         """Configures and keeps only records which link to valid records from the base dataset."""
@@ -834,7 +896,8 @@ class ORN:
 
 @click.command()
 @click.argument("src", type=click.Path(exists=True))
-@click.argument("dst", type=click.Path(exists=False))
+@click.option("--dst", type=click.Path(exists=False), default=os.path.abspath("../../../../data/raw/on/orn.gpkg"),
+              show_default=True)
 def main(src, dst):
     """Executes the ORN class."""
 
