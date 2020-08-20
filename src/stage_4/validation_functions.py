@@ -705,7 +705,7 @@ def nbrlanes(df):
 
 def nid_linkages(df, dfs_all):
     """
-    Validates the nid linkages for the input dataframe.
+    Validates the nid linkages for the input dataframe, excluding "None".
     Parameter dfs_all must be a dictionary of all nrn dataframes.
     """
 
@@ -755,8 +755,8 @@ def nid_linkages(df, dfs_all):
             # Retrieve column ids as lowercase.
             ids = set(df[col].map(str.lower))
 
-            # Compile invalid ids.
-            invalid_ids = ids - nids
+            # Compile invalid ids, excluding "None" (lower cased).
+            invalid_ids = ids - nids - {"none"}
 
             # Configure error properties.
             if len(invalid_ids):
