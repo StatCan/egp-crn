@@ -179,7 +179,7 @@ E00903
 E00904
 ^^^^^^
 
-:Description: IDs in UUID attribute column must not be the default value.
+:Description: IDs in UUID attribute column must not equal "None" nor the default value.
 
 E01001
 ------

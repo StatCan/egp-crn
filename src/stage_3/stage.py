@@ -96,10 +96,10 @@ class Stage:
         roadseg["structid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
         roadseg.loc[roadseg["structtype"] == "None", "structid"] = "None"
 
-        # Subset dataframes to structures (where structtype is not the default value nor "None").
-        # For previous vintage, further subset to records where structid is not the default value.]
+        # Subset dataframes to valid structures.
+        # Further subset previous vintage to records with valid IDs.
         roadseg = roadseg[roadseg["structtype"] != "None"]
-        roadseg_old = roadseg_old[~roadseg_old["structid"].isin(["None", self.defaults["structid"]])]
+        roadseg_old = roadseg_old[self.get_valid_ids(roadseg_old["structid"])]
 
         if len(roadseg):
 
@@ -153,7 +153,7 @@ class Stage:
 
             # Recover old structids.
             if len(recovery):
-                roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
+                roadseg.loc[recovery.index, "structid"] = recovery["structid_old"]
 
             # Store results.
             self.roadseg.loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
@@ -238,10 +238,10 @@ class Stage:
 
                     # Recover old nids.
                     if len(recovery):
-                        df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+                        df.loc[recovery.index, "nid"] = recovery["nid_old"]
 
                     # Store results.
-                    self.dframes[table]["nid"] = df["nid"].copy(deep=True)
+                    self.dframes[table].loc[df.index, "nid"] = df["nid"].copy(deep=True)
 
                     # Update confirmed nid classification.
                     classified_nids["confirmed"] = classified_nids["confirmed"]["nid"].to_list()
@@ -461,10 +461,10 @@ class Stage:
 
         # Recover old nids.
         if len(recovery):
-            self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+            self.roadseg.loc[recovery.index, "nid"] = recovery["nid_old"]
 
         # Store results.
-        self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
+        self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
         # Restore match fields.

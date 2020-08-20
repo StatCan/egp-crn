@@ -418,8 +418,8 @@ def ids(df):
     # Iterate fields which a) end with "id", b) are str type, and c) are not uuid.
     for col in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
 
-        # Subset dataframe to required column with non-default values.
-        series = df[df[col] != defaults[col]][col]
+        # Subset dataframe to required column with non-default and non-"None" values.
+        series = df[~df[col].isin([defaults[col], "None"])][col]
 
         if len(series):
 
@@ -449,9 +449,9 @@ def ids(df):
         for id in flag_uuids:
             errors[3].append(f"uuid: '{id}', based on attribute field: {col}.")
 
-        # Validation 4: ensure unique id fields are not the default field value.
+        # Validation 4: ensure unique id fields are not "None" nor the default field value.
         # Compile uuids of flagged records.
-        flag_uuids = series[series == defaults[col]].index.values
+        flag_uuids = series[series.isin([defaults[col], "None"])].index.values
         for id in flag_uuids:
             errors[4].append(f"uuid: '{id}', based on attribute field: {col}.")
 
