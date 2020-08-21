@@ -88,13 +88,14 @@ class Stage:
 
         logger.info("Generating structids for table: roadseg.")
 
+        # Overwrite any pre-existing structid.
+        self.dframes["roadseg"]["structid"] = [uuid.uuid4().hex for _ in range(len(self.dframes["roadseg"]))]
+        self.dframes["roadseg"].loc[self.dframes["roadseg"]["structtype"] == "None", "structid"] = "None"
+        self.roadseg.loc[self.dframes["roadseg"].index, "structid"] = self.dframes["roadseg"]["structid"]
+
         # Copy and filter dataframes.
         roadseg = self.dframes["roadseg"][["uuid", "structid", "structtype", "geometry"]].copy(deep=True)
         roadseg_old = self.dframes_old["roadseg"][["structid", "structtype", "geometry"]].copy(deep=True)
-
-        # Overwrite any pre-existing structid.
-        roadseg["structid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
-        roadseg.loc[roadseg["structtype"] == "None", "structid"] = "None"
 
         # Subset dataframes to valid structures.
         # Further subset previous vintage to records with valid IDs.
@@ -283,12 +284,13 @@ class Stage:
 
         logger.info("Generating nids for table: roadseg.")
 
+        # Overwrite any pre-existing nid.
+        self.dframes["roadseg"]["nid"] = [uuid.uuid4().hex for _ in range(len(self.dframes["roadseg"]))]
+        self.roadseg.loc[self.dframes["roadseg"].index, "nid"] = self.dframes["roadseg"]["nid"]
+
         # Copy and filter dataframes.
         roadseg = self.roadseg[[*self.match_fields, "uuid", "nid", "geometry"]].copy(deep=True)
         junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
-
-        # Overwrite any pre-existing structid.
-        roadseg["nid"] = [uuid.uuid4().hex for _ in range(len(roadseg))]
 
         # Subset dataframes to where at least one match field is not equal to the default value nor "None".
         default = self.defaults[self.match_fields[0]]
