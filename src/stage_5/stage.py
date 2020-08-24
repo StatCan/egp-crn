@@ -324,7 +324,8 @@ class Stage:
 
                     # Translate domain values.
                     if field in domains[table]:
-                        series = helpers.apply_domain(series, domains[table]["lookup"], defaults_fr[table][field])
+                        series = helpers.apply_domain(series, domains[table][field]["lookup"],
+                                                      defaults_fr[table][field])
 
                     # Translate default values and Nones.
                     series.loc[series == defaults_en[table][field]] = defaults_fr[table][field]
