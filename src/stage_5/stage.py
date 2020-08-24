@@ -308,7 +308,7 @@ class Stage:
         defaults_fr = helpers.compile_default_values(lang="fr")
         domains = helpers.compile_domains(mapped_lang="fr")
 
-        # Map field domains to French equivalents.
+        # Apply French translations to field values.
         table = None
         field = None
 
@@ -316,22 +316,25 @@ class Stage:
 
             # Iterate dataframes and fields.
             for table, df in dframes["fr"].items():
-                for field, domain in domains[table].items():
+                for field in set(df.columns) - {"uuid", "geometry"}:
 
-                    logger.info(f"Applying domain to table: {table}, field: {field}.")
+                    logger.info(f"Applying French translations for table: {table}, field: {field}.")
 
-                    # Apply domain to series.
                     series = df[field].copy(deep=True)
-                    series = helpers.apply_domain(series, domain["lookup"], defaults_fr[table][field])
 
-                    # Convert defaults to French equivalents.
+                    # Translate domain values.
+                    if field in domains[table]:
+                        series = helpers.apply_domain(series, domains[table]["lookup"], defaults_fr[table][field])
+
+                    # Translate default values and Nones.
                     series.loc[series == defaults_en[table][field]] = defaults_fr[table][field]
+                    series.loc[series == "None"] = "Aucun"
 
                     # Store results to dataframe.
                     self.dframes["fr"][table][field] = series.copy(deep=True)
 
         except (AttributeError, KeyError, ValueError):
-            logger.exception(f"Unable to apply French domain mapping for table: {table}, field: {field}.")
+            logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
             sys.exit(1)
 
     def gen_output_schemas(self):
