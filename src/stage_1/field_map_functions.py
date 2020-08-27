@@ -92,6 +92,15 @@ def incrementor(series, start=1, step=1):
     return pd.Series(range(start, stop, step), index=series.index)
 
 
+def map_values(series, lookup):
+    """Maps values in a series based on values in a lookup dictionary. Non-matches preserve their original value."""
+
+    if not isinstance(lookup, dict):
+        logger.exception(f"Invalid lookup. Input must be a dictionary.")
+
+    return series.map(lookup).fillna(series)
+
+
 def regex_find(series, pattern, match_index, group_index, strip_result=False, sub_inplace=None):
     """
     For each value in a series, extracts the nth match (index) from the nth match group (index) based on a regular
