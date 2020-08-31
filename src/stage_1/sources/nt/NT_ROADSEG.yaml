@@ -67,6 +67,21 @@ conform:
     l_hnumf:
     r_hnumf:
     roadclass:
+      fields: FEATURECOD
+      functions:
+        - function: map_values
+          lookup:
+            "RARTLIN": "Arterial",
+            "RBRGLIN": "Unknown",
+            "RFERLIN": "Unknown",
+            "RHPOLIN": "Expressway / Highway",
+            "RHWYLIN": "Expressway / Highway",
+            "RLANLIN": "Alleyway / Lane",
+            "RRESLIN": "Resource / Recreation",
+            "RRMPLIN": "Ramp",
+            "RSTRLIN": "Local / Street",
+            "RTRLLIN": "Resource / Recreation",
+            "RWINLIN": "Winter"
     l_hnuml:
     r_hnuml:
     nid:

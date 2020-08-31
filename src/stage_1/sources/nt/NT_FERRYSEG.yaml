@@ -30,6 +30,21 @@ conform:
     closing:
     ferrysegid:
     roadclass:
+      fields: FEATURECOD
+      functions:
+        - function: map_values
+          lookup:
+            "RARTLIN": "Arterial",
+            "RBRGLIN": "Unknown",
+            "RFERLIN": "Unknown",
+            "RHPOLIN": "Expressway / Highway",
+            "RHWYLIN": "Expressway / Highway",
+            "RLANLIN": "Alleyway / Lane",
+            "RRESLIN": "Resource / Recreation",
+            "RRMPLIN": "Ramp",
+            "RSTRLIN": "Local / Street",
+            "RTRLLIN": "Resource / Recreation",
+            "RWINLIN": "Winter"
     nid:
     rtename1en:
     rtename2en:

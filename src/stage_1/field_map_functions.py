@@ -92,13 +92,21 @@ def incrementor(series, start=1, step=1):
     return pd.Series(range(start, stop, step), index=series.index)
 
 
-def map_values(series, lookup):
-    """Maps values in a series based on values in a lookup dictionary. Non-matches preserve their original value."""
+def map_values(series, lookup, case_sensitive=False):
+    """
+    Maps values in a series based on values in a lookup dictionary. Non-matches preserve their original value.
+    Optionally maps with or without case sensitivity.
+    """
 
     if not isinstance(lookup, dict):
         logger.exception(f"Invalid lookup. Input must be a dictionary.")
 
-    return series.map(lookup).fillna(series)
+    if case_sensitive:
+        return series.map(lookup).fillna(series)
+
+    else:
+        lookup = {str(k).lower(): v for k, v in lookup.items()}
+        return series.map(lambda val: lookup[str(val).lower()]).fillna(series)
 
 
 def regex_find(series, pattern, match_index, group_index, strip_result=False, sub_inplace=None):
