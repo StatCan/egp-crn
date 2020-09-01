@@ -19,14 +19,69 @@ data:
   query:
 conform:
   addrange:
-    acqtech:
+    acqtech: &acqtech
+      fields: ACQTECH
+      functions:
+        - function: map_values
+          lookup:
+            "None": "None",
+            "15cm GSD Aerial Photography": "Aerial Photo",
+            "2006 SPOT informed by registry documents": "Orthoimage",
+            "2006 SPOT, LUP map": "Orthoimage",
+            "2007 SPOT": "Orthoimage",
+            "Aerial Photography": "Aerial Photo",
+            "Air Photo": "Aerial Photo",
+            "Centre of Road Parcels": "Vector Data",
+            "Existing QC with high resolution imagery": "Orthoimage",
+            "Exsisting, QC with high resolution imagery": "Orthoimage",
+            "GPS": "GPS",
+            "GPS tract": "GPS",
+            "GPS tract from regional Lands officer": "GPS",
+            "GPS; Air photo alighnment": "GPS",
+            "GPS; Air photo alignment": "GPS",
+            "Registry maps and documentation": "Paper Map",
+            "SPOT and registry maps": "Orthoimage",
+            "SPOT and registry maps and documentation": "Orthoimage",
+            "Screen digitization off 1.5 metre SPOT imagery": "Orthoimage"
     metacover:
-    credate:
-    datasetnam:
-    accuracy:
-    provider:
+    credate: &credate
+      fields: DC_ENDDATE
+      functions:
+        - function: regex_sub
+          pattern: "-"
+          repl: ""
+    datasetnam: "Northwest Territories"
+    accuracy: ACCURACY
+    provider: &provider
+      fields: DATAPROVID
+      functions:
+        - function: map_values
+          lookup:
+            "None": "None",
+            "BHP Billiton; WLWBfrom NWTCG/CIMP": "Provincial / Territorial",
+            "CARD; WLWBfrom NWTCG/CIMP": "Provincial / Territorial",
+            "City of Yellowknife": "Municipal",
+            "De Beers Canada; MVLWBfrom NWTCG/CIMP": "Provincial / Territorial",
+            "Dehcho LUPfrom NWTCG/CIMP": "Provincial / Territorial",
+            "Federal;Territorial Lands Adm. ROfrom NWTCG/CIMP": "Federal",
+            "Federal;Territorial Lands Adm.ROfrom NWTCG/CIMP": "Federal",
+            "Federalfrom NWTCG/CIMP": "Federal",
+            "GNWT/INF": "Provincial / Territorial",
+            "GNWT/LANDS/Lands Administration Division": "Provincial / Territorial",
+            "NWT Centre for Geomatics": "Provincial / Territorial",
+            "NWT Metis Nationfrom NWTCG/CIMP": "Provincial / Territorial",
+            "NWT Power Corp.; MVLWBfrom NWTCG/CIMP": "Provincial / Territorial",
+            "NWTCG screen digitized from each end point": "Provincial / Territorial",
+            "Privatefrom NWTCG/CIMP": "Provincial / Territorial",
+            "Sahtu Land Use Planning Board": "Provincial / Territorial",
+            "Teritorial DOTfrom NWTCG/CIMP": "Provincial / Territorial",
+            "Territorial Atlasfrom NWTCG/CIMP": "Provincial / Territorial",
+            "Territorial DOTfrom NWTCG/CIMP": "Provincial / Territorial",
+            "Territorial Regional Landsfrom NWTCG/CIMP": "Provincial / Territorial",
+            "Tli Cho Landtran; WLWBfrom NWTCG/CIMP": "Provincial / Territorial",
+            "Tyhee Development; MVLWBfrom NWTCG/CIMP": "Provincial / Territorial"
     revdate:
-    specvers:
+    specvers: 2.0
     l_altnanid:
     r_altnanid:
     l_digdirfg:
@@ -51,18 +106,18 @@ conform:
     l_rfsysind:
     r_rfsysind:
   roadseg:
-    acqtech:
+    acqtech: *acqtech
     metacover:
-    credate:
-    datasetnam:
-    accuracy:
-    provider:
+    credate: *credate
+    datasetnam: "Northwest Territories"
+    accuracy: ACCURACY
+    provider: *provider
     revdate:
-    specvers:
+    specvers: 2.0
     l_adddirfg:
     r_adddirfg:
     adrangenid:
-    closing:
+    closing: CLOSING
     exitnbr:
     l_hnumf:
     r_hnumf:
@@ -71,9 +126,10 @@ conform:
       functions:
         - function: map_values
           lookup:
+            "None": "None",
             "RARTLIN": "Arterial",
             "RBRGLIN": "Unknown",
-            "RFERLIN": "Unknown",
+            "RFERLIN": "Arterial",
             "RHPOLIN": "Expressway / Highway",
             "RHWYLIN": "Expressway / Highway",
             "RLANLIN": "Alleyway / Lane",
@@ -86,17 +142,17 @@ conform:
     r_hnuml:
     nid:
     nbrlanes:
-    l_placenam:
-    r_placenam:
-    l_stname_c:
-    r_stname_c:
+    l_placenam: COMMUNITY
+    r_placenam: COMMUNITY
+    l_stname_c: ROADNAME
+    r_stname_c: ROADNAME
     pavsurf:
     pavstatus:
     roadjuris:
     roadsegid:
-    rtename1en:
-    rtename2en:
-    rtename3en:
+    rtename1en: PHA_ROADNA
+    rtename2en: RTENAME2EN
+    rtename3en: RTENAME3EN
     rtename4en:
     rtename1fr:
     rtename2fr:
@@ -115,21 +171,21 @@ conform:
     trafficdir:
     unpavsurf:
   strplaname:
-    acqtech:
+    acqtech: *acqtech
     metacover:
-    credate:
-    datasetnam:
-    accuracy:
-    provider:
+    credate: *credate
+    datasetnam: "Northwest Territories"
+    accuracy: ACCURACY
+    provider: *provider
     revdate:
-    specvers:
+    specvers: 2.0
     dirprefix:
     dirsuffix:
     muniquad:
     nid:
-    placename:
+    placename: COMMUNITY
     placetype:
-    province:
+    province: "Northwest Territories"
     starticle:
     namebody:
     strtypre:
