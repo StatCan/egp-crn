@@ -26,6 +26,10 @@ def concatenate(df, columns, separator=" "):
 
     try:
 
+        # Unpack nested series.
+        if isinstance(df, pd.Series):
+            df = pd.DataFrame(df.tolist(), columns=columns, index=df.index)
+
         # Validate columns.
         invalid = set(columns) - set(df.columns)
         if len(invalid):
@@ -98,8 +102,8 @@ def map_values(series, lookup, case_sensitive=False):
     Optionally maps with or without case sensitivity.
     """
 
-    if not isinstance(lookup, dict):
-        logger.exception(f"Invalid lookup. Input must be a dictionary.")
+    # Validate inputs.
+    validate_dtypes("lookup", lookup, dict)
 
     if case_sensitive:
         return series.map(lookup).fillna(series)
@@ -107,6 +111,61 @@ def map_values(series, lookup, case_sensitive=False):
     else:
         lookup = {str(k).lower(): v for k, v in lookup.items()}
         return series.map(lambda val: lookup[str(val).lower()]).fillna(series)
+
+
+def query_assign(df, columns, lookup, engine="python", **kwargs):
+    """
+    Populates a series based on queries in a lookup dictionary.
+    Non-matches will be null.
+
+    Parameter lookup must be a dictionary of queries with the following dictionary format for values:
+        {
+        'value': str,
+        'type': 'column' or 'string'; defaults to 'string' if not present.
+        }
+    Parameter columns must be the list of column names to be assigned to the DataFrame, once unnested.
+    """
+
+    try:
+
+        # Validate inputs.
+        validate_dtypes("columns", columns, list)
+        columns = map(str.lower, columns)
+
+        validate_dtypes("lookup", lookup, dict)
+        for query, output in lookup.items():
+            validate_dtypes(f"lookup['{query}']", output, dict)
+            if "type" not in output.keys():
+                lookup[output]["type"] = "string"
+            if output["type"] == "column":
+                lookup[query]["value"] = lookup[query]["value"].lower()
+                if lookup[query]["value"] not in columns:
+                    logger.exception(f"Invalid column for lookup['{query}']: {lookup[query]['value']}.")
+
+        # Unpack nested series.
+        if isinstance(df, pd.Series):
+            df = pd.DataFrame(df.tolist(), columns=columns, index=df.index)
+
+        # Configure output series.
+        series = pd.Series(None, index=df.index)
+
+        # Iterate queries.
+        for query, output in lookup.items():
+
+            # Retrieve indexes which match query.
+            indexes = df.query(query, engine=engine, **kwargs).index
+
+            # Update series with string or another dataframe column.
+            if output["type"] == "string":
+                series.loc[indexes] = output["value"]
+            else:
+                series.loc[indexes] = df.loc[indexes, output["value"]]
+
+        return series
+
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
 
 
 def regex_find(series, pattern, match_index, group_index, strip_result=False, sub_inplace=None):
