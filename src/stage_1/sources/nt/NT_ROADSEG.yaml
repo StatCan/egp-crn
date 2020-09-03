@@ -290,13 +290,77 @@ conform:
     revdate:
     specvers: 2.0
     dirprefix:
+      fields: ROADNAME
+      functions:
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
+          match_index: -1
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
+          match_index: 0
+          group_index: 0
     dirsuffix:
+      fields: ROADNAME
+      functions:
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
+          match_index: -1
+          group_index: 0
     muniquad:
     nid:
     placename: COMMUNITY
     placetype:
     province: Northwest Territories
     starticle:
+      fields: ROADNAME
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
     namebody:
+      fields: ROADNAME
+      functions:
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
+          match_index: -1
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
+          match_index: -1
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
+          match_index: 0
+          group_index: 0
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
     strtypre:
+      fields: ROADNAME
+      functions:
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
+          match_index: -1
+          group_index: 0
+          strip_result: True
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
+          match_index: 0
+          group_index: 0
     strtysuf:
+      fields: ROADNAME
+      functions:
+        - function: regex_find
+          pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
+          match_index: -1
+          group_index: 0
