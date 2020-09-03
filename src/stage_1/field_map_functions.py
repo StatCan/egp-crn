@@ -129,7 +129,8 @@ def query_assign(df, columns, lookup, engine="python", **kwargs):
     try:
 
         # Validate inputs.
-        validate_dtypes("columns", columns, list)
+        if not isinstance(columns, list):
+            columns = [columns]
         columns = map(str.lower, columns)
 
         validate_dtypes("lookup", lookup, dict)

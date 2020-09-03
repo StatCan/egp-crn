@@ -178,7 +178,19 @@ conform:
     l_stname_c: ROADNAME
     r_stname_c: ROADNAME
     pavsurf:
+      fields: SURFACE
+      functions:
+        - function: map_values
+          lookup:
+            Unpaved: "None"
     pavstatus:
+      fields: SURFACE
+      functions:
+        - function: map_values
+          lookup:
+            Gravel: Unpaved
+            Paved: Paved
+            Unpaved: Unpaved
     roadjuris:
     roadsegid:
     rtename1en:
@@ -229,11 +241,45 @@ conform:
     rtnumber5:
     speed:
     strunameen:
+      fields: [FEATURECOD, ROADNAME, PHA_ROADNA, RTENAME2EN, RTENAME3EN]
+      process_separately: False
+      functions:
+        - function: query_assign
+          columns: [featurecod, roadname, pha_roadna, rtename2en, rtename3en]
+          lookup:
+            featurecod=='RBRGLIN' and roadname.str.contains(r'(Bridge|Br)$', regex=True, case=False, na=False):
+              value: roadname
+              type: column
+            featurecod=='RBRGLIN' and pha_roadna.str.contains(r'(Bridge|Br)$', regex=True, case=False, na=False):
+              value: pha_roadna
+              type: column
+            featurecod=='RBRGLIN' and rtename2en.str.contains(r'(Bridge|Br)$', regex=True, case=False, na=False):
+              value: rtename2en
+              type: column
+            featurecod=='RBRGLIN' and rtename3en.str.contains(r'(Bridge|Br)$', regex=True, case=False, na=False):
+              value: rtename3en
+              type: column
+          engine: python
     strunamefr:
     structid:
     structtype:
+      fields: FEATURECOD
+      functions:
+        - function: query_assign
+          columns: featurecod
+          lookup:
+            featurecod=='RBRGLIN':
+              value: Bridge
+              type: string
+          engine: python
     trafficdir:
     unpavsurf:
+      fields: SURFACE
+      functions:
+        - function: map_values
+          lookup:
+            Gravel: Gravel
+            Paved: "None"
   strplaname:
     acqtech: *acqtech
     metacover:
