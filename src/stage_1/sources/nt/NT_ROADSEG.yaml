@@ -292,6 +292,50 @@ conform:
     dirprefix:
       fields: ROADNAME
       functions:
+        - &roadname_regex_sub
+          function: regex_sub
+          pattern: "(?!^St.)(?!^St)(?<!')\\b(Ave|Blvd|Cr|Cres|Crt|Dr|Ln|Pk|Pl|Pt|Rd|St|E|N|NE|NW|S|SE|SW|W)(\\.|\\b)"
+          repl:
+            Ave.: Avenue
+            Ave: Avenue
+            Blvd.: Boulevard
+            Blvd: Boulevard
+            Cr.: Crescent
+            Cr: Crescent
+            Cres.: Crescent
+            Cres: Crescent
+            Crt.: Court
+            Crt: Court
+            Dr.: Drive
+            Dr: Drive
+            Ln.: Lane
+            Ln: Lane
+            Pk.: Park
+            Pk: Park
+            Pl.: Place
+            Pl: Place
+            Pt.: Point
+            Pt: Point
+            Rd.: Road
+            Rd: Road
+            St.: Street
+            St: Street
+            E.: East
+            E: East
+            N.: North
+            N: North
+            NE.: Northeast
+            NE: Northeast
+            NW.: Northwest
+            NW: Northwest
+            S.: South
+            S: South
+            SE.: Southeast
+            SE: Southeast
+            SW.: Southwest
+            SW: Southwest
+            W.: West
+            W: West
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
           match_index: -1
@@ -304,6 +348,7 @@ conform:
     dirsuffix:
       fields: ROADNAME
       functions:
+        - *roadname_regex_sub
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
           match_index: -1
@@ -312,10 +357,47 @@ conform:
     nid:
     placename: COMMUNITY
     placetype:
+      fields: COMMUNITY
+      functions:
+        - function: map_values
+          lookup:
+            Aklavik: HAM
+            Behchokò̜: CG
+            Colville Lake: SET
+            Délįne: CC
+            Enterprise: HAM
+            Fort Good Hope: CC
+            Fort McPherson: HAM
+            Fort Providence: HAM
+            Fort Resolution: HAM
+            Fort Simpson: VL
+            Fort Smith: T
+            Gamètì: CG
+            Gwich'in: Unknown
+            Hay River: T
+            Inuvialuit: Unknown
+            Inuvik: T
+            Kakisa: SET
+            Ndilǫ: Unknown
+            Norman Wells: T
+            Northwest Territories: NO
+            Northwest Territories, unorganized: NO
+            Paulatuk: HAM
+            Sachs Harbour: HAM
+            Sahtu Dene and Metis: Unknown
+            Tsiigehtchic: CC
+            Tuktoyaktuk: HAM
+            Tulita: HAM
+            Ulukhaktok: HAM
+            Wekweètì: CG
+            Whatì: CG
+            Yellowknife: CY
+            Łutselk’e: SET
     province: Northwest Territories
     starticle:
       fields: ROADNAME
       functions:
+        - *roadname_regex_sub
         - function: regex_find
           pattern: "\\b(domain_strplaname_starticle)\\b"
           match_index: 0
@@ -323,6 +405,7 @@ conform:
     namebody:
       fields: ROADNAME
       functions:
+        - *roadname_regex_sub
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_dirsuffix)\\b"
           match_index: -1
@@ -348,6 +431,7 @@ conform:
     strtypre:
       fields: ROADNAME
       functions:
+        - *roadname_regex_sub
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
           match_index: -1
@@ -360,6 +444,7 @@ conform:
     strtysuf:
       fields: ROADNAME
       functions:
+        - *roadname_regex_sub
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
           match_index: -1

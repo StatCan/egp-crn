@@ -5,6 +5,7 @@ import pandas as pd
 import re
 import sys
 import uuid
+from copy import deepcopy
 from operator import attrgetter, itemgetter
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -271,16 +272,24 @@ def regex_find(series, pattern, match_index, group_index, strip_result=False, su
 
 
 def regex_sub(series, **kwargs):
-    """Applies value substitution via re.sub."""
+    """
+    Applies value substitution via re.sub.
+    kwarg 'repl' can be a regex string or lookup dictionary.
+    """
 
     # Validate inputs.
     validate_dtypes("kwargs", kwargs, dict)
-    if {"pattern", "repl"}.issubset(set(kwargs.keys())):
-        kwargs["pattern"] = validate_regex(kwargs["pattern"])
+    kwargs["pattern"] = validate_regex(kwargs["pattern"])
+    if isinstance(kwargs["repl"], str):
         kwargs["repl"] = validate_regex(kwargs["repl"])
-        kwargs["flags"] = re.I
+    elif isinstance(kwargs["repl"], dict):
+
+        # Lowercase keys and overwrite repl with lambda function.
+        lookup = {k.lower(): v for k, v in deepcopy(kwargs["repl"]).items()}
+        kwargs["repl"] = lambda match: lookup[match.string[match.start(): match.end()].lower()]
+
     else:
-        logger.exception("Invalid input. Missing one or more required re.sub kwargs: pattern, repl.")
+        logger.exception("Invalid input. 'repl' must be a regex string or lookup dictionary.")
 
     # Replace empty or nan values with numpy nan.
     series.loc[(series == "") | (series.isna())] = np.nan
@@ -289,7 +298,7 @@ def regex_sub(series, **kwargs):
     series_valid = series[~series.isna()].copy(deep=True)
 
     # Apply regex substitution.
-    series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(**kwargs, string=val))
+    series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(**kwargs, string=val, flags=re.I))
 
     return series
 
