@@ -19,6 +19,38 @@ data:
   query:
 conform:
   addrange:
+    acqtech:
+    metacover:
+    credate:
+    datasetnam: Northwest Territories
+    accuracy:
+    provider:
+    revdate:
+    specvers: 2.0
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg:
+    r_digdirfg:
+    l_hnumf:
+    r_hnumf:
+    l_hnumsuff:
+    r_hnumsuff:
+    l_hnumtypf:
+    r_hnumtypf:
+    l_hnumstr:
+    r_hnumstr:
+    l_hnuml:
+    r_hnuml:
+    l_hnumsufl:
+    r_hnumsufl:
+    l_hnumtypl:
+    r_hnumtypl:
+    nid:
+    l_offnanid:
+    r_offnanid:
+    l_rfsysind:
+    r_rfsysind:
+  roadseg:
     acqtech: &acqtech
       fields: ACQTECH
       functions:
@@ -97,38 +129,6 @@ conform:
             Territorial Regional Landsfrom NWTCG/CIMP: Provincial / Territorial
             Tli Cho Landtran; WLWBfrom NWTCG/CIMP: Provincial / Territorial
             Tyhee Development; MVLWBfrom NWTCG/CIMP: Provincial / Territorial
-    revdate:
-    specvers: 2.0
-    l_altnanid:
-    r_altnanid:
-    l_digdirfg:
-    r_digdirfg:
-    l_hnumf:
-    r_hnumf:
-    l_hnumsuff:
-    r_hnumsuff:
-    l_hnumtypf:
-    r_hnumtypf:
-    l_hnumstr:
-    r_hnumstr:
-    l_hnuml:
-    r_hnuml:
-    l_hnumsufl:
-    r_hnumsufl:
-    l_hnumtypl:
-    r_hnumtypl:
-    nid:
-    l_offnanid:
-    r_offnanid:
-    l_rfsysind:
-    r_rfsysind:
-  roadseg:
-    acqtech: *acqtech
-    metacover:
-    credate: *credate
-    datasetnam: Northwest Territories
-    accuracy: ACCURACY
-    provider: *provider
     revdate:
     specvers: 2.0
     l_adddirfg:

@@ -1,0 +1,53 @@
+coverage:
+  country: ca
+  province: nt
+  ISO3166:
+    alpha2: CA-NT
+    country: Canada
+    subdivision: Northwest Territories
+  website: https://batch.openaddresses.io/data
+license:
+  City of Yellowknife:
+    url: https://www.yellowknife.ca/en/discovering-yellowknife/resources/geomatic_services/City_of_Yellowknife_Open_Data_LIcence__Terms_of_Use.pdf
+    text: City of Yellowknife Open Data License & Terms of Use
+language: en
+data:
+  filename: OpenAddresses/addresses.geojson
+  layer:
+  driver: GeoJSON
+  crs: "EPSG:3857"
+  spatial: True
+  query:
+conform:
+  addrange:
+    acqtech:
+    metacover:
+    credate:
+    datasetnam: Northwest Territories
+    accuracy:
+    provider:
+    revdate:
+    specvers: 2.0
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg:
+    r_digdirfg:
+    l_hnumf:
+    r_hnumf:
+    l_hnumsuff:
+    r_hnumsuff:
+    l_hnumtypf:
+    r_hnumtypf:
+    l_hnumstr:
+    r_hnumstr:
+    l_hnuml:
+    r_hnuml:
+    l_hnumsufl:
+    r_hnumsufl:
+    l_hnumtypl:
+    r_hnumtypl:
+    nid:
+    l_offnanid:
+    r_offnanid:
+    l_rfsysind:
+    r_rfsysind:
