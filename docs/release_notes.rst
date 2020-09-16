@@ -16,12 +16,12 @@ Province / Territory       Edition  Release Date  Validity Date  Number of kilom
 =========================  =======  ============  =============  ====================
 British Columbia           14.0     2017-05       2017-03        93,961
 Alberta                    14.0     2017-05       2017-02        237,811
-Saskatchewan               10.0     2019-04       2019-03        251,510
+Saskatchewan               11.0     2020-07       2020-05        251,860
 Manitoba                   6.0      2013-04       2012-04        89,003
 Ontario                    13.0     2020-08       2020-08        261,714
 Quebec                     9.0      2016-08       2016-02        162,768
 New Brunswick              10.0     2020-07       2020-05        35,710
-Prince Edward Island       19.0     2020-06       2020-04        6,961
+Prince Edward Island       19.0     2020-07       2020-04        6,961
 Nova Scotia                13.0     2016-05       2016-02        50,266
 Newfoundland and Labrador  7.0      2013-04       2012-09        23,026
 Yukon                      15.0     2019-06       2019-04        6,560
