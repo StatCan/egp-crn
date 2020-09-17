@@ -38,7 +38,7 @@ conform:
       - function: direct
         cast_type: int
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     l_altnanid:
     r_altnanid:
     l_digdirfg:
@@ -82,7 +82,7 @@ conform:
       - function: direct
         cast_type: int
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     l_adddirfg:
     r_adddirfg:
     adrangenid: uuid
@@ -163,7 +163,7 @@ conform:
         - function: direct
           cast_type: int
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     dirprefix:
       fields: POSTEDNAME
       functions:

@@ -26,7 +26,7 @@ conform:
     accuracy: Element_Planimetric_Accuracy
     provider: Element_Provider
     revdate: Element_Revision_Date
-    specvers:
+    specvers: 2.0
     closing: Closing_Period
     ferrysegid:
     roadclass: Functional_Road_Class

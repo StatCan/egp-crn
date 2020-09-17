@@ -26,7 +26,7 @@ conform:
     accuracy: Element_Planimetric_Accuracy
     provider: Element_Provider
     revdate: Element_Revision_Date
-    specvers:
+    specvers: 2.0
     l_altnanid:
     r_altnanid:
     l_digdirfg: Digitizing_Direction_Flag_Left
@@ -82,7 +82,7 @@ conform:
     accuracy: Element_Planimetric_Accuracy
     provider: Element_Provider
     revdate: Element_Revision_Date
-    specvers:
+    specvers: 2.0
     l_adddirfg: Digitizing_Direction_Flag_Left
     r_adddirfg: Digitizing_Direction_Flag_Right
     adrangenid: uuid
@@ -131,7 +131,7 @@ conform:
     accuracy: Element_Planimetric_Accuracy
     provider: Element_Provider
     revdate: Element_Revision_Date
-    specvers:
+    specvers: 2.0
     dirprefix:
       fields: [SPN_L_Directional_Prefix, SPN_R_Directional_Prefix]
       process_separately: True

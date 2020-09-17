@@ -19,37 +19,69 @@ data:
   query:
 conform:
   addrange:
-    acqtech:
+    acqtech: Vector Data
     metacover:
     credate:
+      fields: [DC_ENDDATE, CAPDATE, CAPYEAR]
+      process_separately: False
+      functions:
+        - function: query_assign
+          columns: [DC_ENDDATE, CAPDATE, CAPYEAR]
+          lookup:
+            ~dc_enddate.isna():
+              value: dc_enddate
+              type: column
+            dc_enddate.isna() and ~capdate.isna():
+              value: capdate
+              type: column
+            dc_endate.isna() and capdate.isna() and capyear != 0:
+              value: capyear
+              type: column
+            dc_endate.isna() and capdate.isna() and capyear == 0:
+              value: 2006
+              type: string
+          engine: python
+        - function: regex_sub
+          pattern: "-"
+          repl: ""
+        - function: query_assign
+          columns: credate
+          lookup:
+            credate.astype('int') > 2006:
+              value: credate
+              type: column
+            credate.astype('int') <= 2006:
+              value: 2006
+              type: string
+          engine: python
     datasetnam: Northwest Territories
-    accuracy:
-    provider:
+    accuracy: 1
+    provider: Municipal
     revdate:
     specvers: 2.0
     l_altnanid:
     r_altnanid:
-    l_digdirfg:
-    r_digdirfg:
-    l_hnumf:
-    r_hnumf:
-    l_hnumsuff:
-    r_hnumsuff:
-    l_hnumtypf:
-    r_hnumtypf:
-    l_hnumstr:
-    r_hnumstr:
-    l_hnuml:
-    r_hnuml:
-    l_hnumsufl:
-    r_hnumsufl:
-    l_hnumtypl:
-    r_hnumtypl:
-    nid:
-    l_offnanid:
-    r_offnanid:
-    l_rfsysind:
-    r_rfsysind:
+    l_digdirfg: l_digdirfg
+    r_digdirfg: r_digdirfg
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    l_hnumsuff: l_hnumsuff
+    r_hnumsuff: r_hnumsuff
+    l_hnumtypf: l_hnumtypf
+    r_hnumtypf: r_hnumtypf
+    l_hnumstr: l_hnumstr
+    r_hnumstr: r_hnumstr
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    l_hnumsufl: l_hnumsufl
+    r_hnumsufl: r_hnumsufl
+    l_hnumtypl: l_hnumtypl
+    r_hnumtypl: r_hnumtypl
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind: Civic
+    r_rfsysind: Civic
   roadseg:
     acqtech: &acqtech
       fields: ACQTECH
@@ -89,10 +121,10 @@ conform:
             dc_enddate.isna() and ~capdate.isna():
               value: capdate
               type: column
-            dc_endate.isna() and capdate.isna() and ~capyear.isna() and capyear != 0:
+            dc_endate.isna() and capdate.isna() and capyear != 0:
               value: capyear
               type: column
-            dc_endate.isna() and capdate.isna() and ~capyear.isna() and capyear == 0:
+            dc_endate.isna() and capdate.isna() and capyear == 0:
               value: Unknown
               type: string
           engine: python
@@ -131,9 +163,9 @@ conform:
             Tyhee Development; MVLWBfrom NWTCG/CIMP: Provincial / Territorial
     revdate:
     specvers: 2.0
-    l_adddirfg:
-    r_adddirfg:
-    adrangenid:
+    l_adddirfg: l_digdirfg
+    r_adddirfg: r_digdirfg
+    adrangenid: uuid
     closing:
       fields: [ROADNAME, PHA_ROADNA, RTENAME2EN, RTENAME3EN]
       process_separately: False
@@ -150,8 +182,8 @@ conform:
               type: string
           engine: python
     exitnbr:
-    l_hnumf:
-    r_hnumf:
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
     roadclass:
       fields: FEATURECOD
       functions:
@@ -169,9 +201,9 @@ conform:
             RSTRLIN: Local / Street
             RTRLLIN: Resource / Recreation
             RWINLIN: Winter
-    l_hnuml:
-    r_hnuml:
-    nid:
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    nid: uuid
     nbrlanes:
     l_placenam: COMMUNITY
     r_placenam: COMMUNITY
@@ -354,7 +386,7 @@ conform:
           match_index: -1
           group_index: 0
     muniquad:
-    nid:
+    nid: uuid
     placename: COMMUNITY
     placetype:
       fields: COMMUNITY

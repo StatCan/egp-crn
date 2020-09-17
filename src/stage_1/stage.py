@@ -620,18 +620,6 @@ class Stage:
 
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
 
-    # def interpolate_addresses(self):
-    #     """Interpolates address points to segmented roadseg attributes."""
-    #
-    #     logger.info("Interpolating addresses.")
-    #
-    #     # Compile required datasets.
-    #     addresses = self.source_gdframes["addrange"].copy(deep=True)
-    #     roadseg = self.target_gdframes["roadseg"].copy(deep=True)
-    #
-    #     # Filter addresses to only those with street name matches with roadseg.
-    #     # TODO: finish.
-
     def recover_missing_datasets(self):
         """
         Recovers missing NRN datasets in the current vintage from the previous vintage.
@@ -671,6 +659,37 @@ class Stage:
 
                     # Store result.
                     self.target_gdframes[table] = df.copy(deep=True)
+
+    def segment_addresses(self):
+        """
+        Converts address points into segmented addrange attributes, joining the results to the roadseg source dataset.
+        """
+
+        logger.info("Determining address segmentation requirement.")
+
+        addresses = None
+        kwargs = None
+        roadseg = None
+
+        # Identify segmentation requirement and source datasets for roadseg and address points.
+        for source, source_yaml in self.source_attributes.items():
+
+            if "segment" in source_yaml["data"]:
+                addresses = self.source_gdframes[source].copy(deep=True)
+                kwargs = source_yaml["data"]["segment"]
+
+            if "roadseg" in source_yaml["conform"]:
+                roadseg = self.source_gdframes[source].copy(deep=True)
+
+        # Segment addresses.
+        if all([addresses, kwargs, roadseg]):
+
+            logger.info(f"Address segmentation required. Beginning segmentation process.")
+
+            # . . .
+
+        else:
+            logger.info("Address segmentation not required. Skipping segmentation process.")
 
     def split_strplaname(self):
         """
@@ -764,6 +783,7 @@ class Stage:
         self.compile_source_attributes()
         self.compile_target_attributes()
         self.gen_source_dataframes()
+        self.segment_addresses()
         self.gen_target_dataframes()
         self.apply_field_mapping()
         self.split_strplaname()

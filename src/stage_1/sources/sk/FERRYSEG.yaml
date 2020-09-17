@@ -42,7 +42,7 @@ conform:
         - function: direct
           cast_type: int
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     closing:
     ferrysegid:
     roadclass: ROADCLASS
