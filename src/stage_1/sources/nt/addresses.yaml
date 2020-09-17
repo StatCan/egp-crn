@@ -19,3 +19,13 @@ data:
   spatial: True
   query:
   segment:
+    address_fields:
+      street: street
+      number: number
+      suffix:
+    address_join_field: street
+    roadseg_join_field: street
+    units_filter:
+      subset: [street, number]
+      keep: first
+    suffix_regex: ""

@@ -668,25 +668,35 @@ class Stage:
         logger.info("Determining address segmentation requirement.")
 
         addresses = None
-        kwargs = None
+        segment_kwargs = None
         roadseg = None
 
-        # Identify segmentation requirement and source datasets for roadseg and address points.
+        # Identify segmentation parameters and source datasets for roadseg and address points.
         for source, source_yaml in self.source_attributes.items():
 
             if "segment" in source_yaml["data"]:
                 addresses = self.source_gdframes[source].copy(deep=True)
-                kwargs = source_yaml["data"]["segment"]
+                segment_kwargs = source_yaml["data"]["segment"]
 
             if "roadseg" in source_yaml["conform"]:
                 roadseg = self.source_gdframes[source].copy(deep=True)
 
         # Segment addresses.
-        if all([addresses, kwargs, roadseg]):
+        if all([addresses, segment_kwargs, roadseg]):
 
             logger.info(f"Address segmentation required. Beginning segmentation process.")
 
-            # . . .
+            # Remove invalid address numbers (has no integers).
+            # TODO
+
+            # Create suffix field from number field, if required.
+            # TODO
+
+            # Filter unit-level addresses.
+            if "units_filter" in segment_kwargs:
+                addresses.drop_duplicates(**segment_kwargs["units_filter"], inplace=True)
+
+            # TODO: rest of functionality.
 
         else:
             logger.info("Address segmentation not required. Skipping segmentation process.")
