@@ -20,6 +20,7 @@ from operator import itemgetter
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
 import helpers
+from segment_addresses import Segmentor
 
 
 # Suppress pandas chained assignment warning.
@@ -678,6 +679,12 @@ class Stage:
                 addresses = self.source_gdframes[source].copy(deep=True)
                 segment_kwargs = source_yaml["data"]["segment"]
 
+                # Remove address source from attributes and dataframes references.
+                # Note: segmented addresses will be joined to roadseg, therefore addrange and roadseg field mapping
+                # should be defined within the same yaml.
+                del self.source_attributes[source]
+                del self.source_gdframes[source]
+
             if "roadseg" in source_yaml["conform"]:
                 roadseg = self.source_gdframes[source].copy(deep=True)
 
@@ -685,18 +692,8 @@ class Stage:
         if all([addresses, segment_kwargs, roadseg]):
 
             logger.info(f"Address segmentation required. Beginning segmentation process.")
-
-            # Remove invalid address numbers (has no integers).
-            # TODO
-
-            # Create suffix field from number field, if required.
-            # TODO
-
-            # Filter unit-level addresses.
-            if "units_filter" in segment_kwargs:
-                addresses.drop_duplicates(**segment_kwargs["units_filter"], inplace=True)
-
-            # TODO: rest of functionality.
+            segmentor = Segmentor(addresses, roadseg, **segment_kwargs)
+            self.source_gdframes["roadseg"] = segmentor()
 
         else:
             logger.info("Address segmentation not required. Skipping segmentation process.")

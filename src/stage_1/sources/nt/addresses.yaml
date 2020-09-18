@@ -21,11 +21,15 @@ data:
   segment:
     address_fields:
       street: street
-      number: number
+      number:
+        field: number
+        regex_sub:
+          pattern: "[^\\d]"
+          repl: ""
       suffix:
+        field: number
+        regex_sub:
+          pattern: "\\d+"
+          repl: ""
     address_join_field: street
     roadseg_join_field: street
-    units_filter:
-      subset: [street, number]
-      keep: first
-    suffix_regex: ""
