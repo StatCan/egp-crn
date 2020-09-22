@@ -53,33 +53,31 @@ class Stage:
 
         # Configure previous NRN vintage path and clear namespace.
         self.nrn_old_path = os.path.abspath(f"../../data/interim/{self.source}_old")
-        path = f"{self.nrn_old_path}.gpkg"
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-            except OSError as e:
-                logger.warning(f"Unable to remove file: {path}.")
-                logger.warning(e)
 
-        # Validate and conditionally clear output namespace.
+        # Configure output path.
         self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
+
+        # Conditionally clear output namespace.
         if os.path.exists(self.output_path):
+            namespace = [os.path.abspath(f) for f in os.listdir(self.output_path) if f.startswith(f"{self.source}_")]
+            if len(namespace):
+                logger.warning("Output namespace already occupied.")
 
-            logger.warning(f"Output namespace already occupied: \"{self.output_path}\".")
+                if self.overwrite:
+                    logger.warning("Parameter --overwrite=True: removing conflicting files.")
 
-            if self.overwrite:
-                logger.info(f"--overwrite=True. Removing conflicting file: \"{self.output_path}\".")
+                    for f in namespace:
+                        logger.info(f"Removing conflicting file: \"{f}\".")
 
-                try:
-                    os.remove(self.output_path)
-                except OSError as e:
-                    logger.exception(f"Unable to remove file: {path}.")
-                    logger.exception(e)
-                    sys.exit(1)
+                        try:
+                            os.remove(f)
+                        except OSError as e:
+                            logger.exception(f"Unable to remove file: \"{f}\".")
+                            logger.exception(e)
+                            sys.exit(1)
 
-            else:
-                logger.exception("--overwrite=False. Unable to proceed.")
-                sys.exit(1)
+                else:
+                    logger.warning("Parameter --overwrite=False: unable to proceed.")
 
         # Configure field defaults, dtypes, and domains.
         self.defaults = helpers.compile_default_values()
@@ -829,7 +827,7 @@ class Stage:
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--overwrite / --no-overwrite", "-o", default=False, show_default=True,
-              help="Overwrite the interim NRN dataset.")
+              help="Overwrite the interim NRN datasets.")
 def main(source, overwrite):
     """Executes an NRN stage."""
 
