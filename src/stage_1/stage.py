@@ -14,6 +14,7 @@ import sys
 import uuid
 import zipfile
 from collections import Counter
+from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
 
@@ -39,9 +40,10 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, overwrite):
         self.stage = 1
         self.source = source.lower()
+        self.overwrite = overwrite
 
         # Configure raw data path.
         self.data_path = os.path.abspath("../../data/raw/{}".format(self.source))
@@ -49,14 +51,35 @@ class Stage:
         # Configure source attribute path.
         self.source_attribute_path = os.path.abspath("sources/{}".format(self.source))
 
-        # Configure previous NRN vintage path.
+        # Configure previous NRN vintage path and clear namespace.
         self.nrn_old_path = os.path.abspath(f"../../data/interim/{self.source}_old")
+        path = f"{self.nrn_old_path}.gpkg"
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError as e:
+                logger.warning(f"Unable to remove file: {path}.")
+                logger.warning(e)
 
-        # Validate output namespace.
+        # Validate and conditionally clear output namespace.
         self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
         if os.path.exists(self.output_path):
-            logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
-            sys.exit(1)
+
+            logger.warning(f"Output namespace already occupied: \"{self.output_path}\".")
+
+            if self.overwrite:
+                logger.info(f"--overwrite=True. Removing conflicting file: \"{self.output_path}\".")
+
+                try:
+                    os.remove(self.output_path)
+                except OSError as e:
+                    logger.exception(f"Unable to remove file: {path}.")
+                    logger.exception(e)
+                    sys.exit(1)
+
+            else:
+                logger.exception("--overwrite=False. Unable to proceed.")
+                sys.exit(1)
 
         # Configure field defaults, dtypes, and domains.
         self.defaults = helpers.compile_default_values()
@@ -673,7 +696,7 @@ class Stage:
         segment_kwargs = None
 
         # Identify segmentation parameters and source datasets for roadseg and address points.
-        for source, source_yaml in self.source_attributes.items():
+        for source, source_yaml in deepcopy(self.source_attributes).items():
 
             if "segment" in source_yaml["data"]:
                 addresses = self.source_gdframes[source].copy(deep=True)
@@ -685,8 +708,10 @@ class Stage:
                 del self.source_attributes[source]
                 del self.source_gdframes[source]
 
-            if "roadseg" in source_yaml["conform"]:
-                roadseg = self.source_gdframes[source].copy(deep=True)
+            if "conform" in source_yaml:
+                if isinstance(source_yaml["conform"], dict):
+                    if "roadseg" in source_yaml["conform"]:
+                        roadseg = self.source_gdframes[source].copy(deep=True)
 
         # Segment addresses.
         if all(val is not None for val in [addresses, roadseg, segment_kwargs]):
@@ -803,13 +828,15 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
+@click.option("--overwrite / --no-overwrite", "-o", default=False, show_default=True,
+              help="Overwrite the interim NRN dataset.")
+def main(source, overwrite):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, overwrite)
             stage.execute()
 
     except KeyboardInterrupt:
