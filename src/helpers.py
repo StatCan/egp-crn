@@ -141,9 +141,9 @@ def compile_default_values(lang="en"):
 def compile_domains(mapped_lang="en"):
     """
     Returns a dictionary containing the following for each field in each table:
-    1) 'values': all English and French values and numeric keys flattened into a single list.
-    2) 'lookup': a lookup dictionary mapping each English and French value and numeric key to the value of the given
-    map language.
+    1) 'values': all English and French values and keys flattened into a single list.
+    2) 'lookup': a lookup dictionary mapping each English and French value and key to the value of the given map
+    language.
     """
 
     # Compile field domains.
@@ -185,7 +185,11 @@ def compile_domains(mapped_lang="en"):
                     }
 
                     # Add integer keys as floats to accommodate incorrectly casted data.
-                    domains[table][field]["lookup"].update({str(float(k)): v for k, v in domain_mapped.items()})
+                    for k, v in domain_mapped.items():
+                        try:
+                            domains[table][field]["lookup"].update({str(float(k)): v})
+                        except ValueError:
+                            continue
 
                 else:
                     raise TypeError

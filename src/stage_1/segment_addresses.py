@@ -71,12 +71,18 @@ class Segmentor:
         # Drop unit-level addresses, keeping only first instance.
         self.addresses.drop_duplicates(subset=["street", "number", "suffix"], keep="first", inplace=True)
 
+        logger.info("Input data is ready for segmentation.")
+
     def __call__(self):
         """Executes the address segmentation methods."""
+
+        logger.info("Segmentation initiated.")
 
         self.configure_roadseg_linkages()
         self.configure_address_parity()
         self.configure_addrange_attributes()
+
+        logger.info("Segmentation completed.")
 
         return self.roadseg.copy(deep=True)
 
@@ -87,6 +93,8 @@ class Segmentor:
 
         def get_digdirfg(sequence):
             """Returns the digdirfg attribute for the given sequence of address numbers."""
+
+            sequence = list(sequence)
 
             # Return digitizing direction for single addresses.
             if len(sequence) == 1:
@@ -100,6 +108,8 @@ class Segmentor:
 
         def get_hnumstr(sequence):
             """Returns the hnumstr attribute for the given sequence of address numbers."""
+
+            sequence = list(sequence)
 
             # Validate structure for single addresses.
             if len(sequence) == 1:
@@ -123,8 +133,11 @@ class Segmentor:
             else:
                 return "Irregular"
 
-        def get_number_sequence(numbers, suffixes, distances):
+        def get_number_sequence(addresses):
             """Returns the filtered number sequence for the given addresses."""
+
+            # Separate address components.
+            numbers, suffixes, distances = tuple(zip(*addresses))
 
             # Reduce addresses at a duplicated intersection distance to only the first instance.
             if len(distances) == len(set(distances)):
@@ -208,20 +221,20 @@ class Segmentor:
         # Get address number sequence.
         logger.info("Configuring address number sequence.")
 
-        addresses_l["sequence"] = addresses_l.map(lambda row: get_number_sequence(*row))
-        addresses_r["sequence"] = addresses_r.map(lambda row: get_number_sequence(*row))
+        address_sequence_l = addresses_l.map(get_number_sequence)
+        address_sequence_r = addresses_r.map(get_number_sequence)
 
         # Configure addrange attributes - hnumstr.
         logger.info("Configuring addrange attributes: hnumstr.")
 
-        addrange.loc[addresses_l.index, "l_hnumstr"] = addresses_l["sequence"].map(get_hnumstr)
-        addrange.loc[addresses_r.index, "r_hnumstr"] = addresses_r["sequence"].map(get_hnumstr)
+        addrange.loc[addresses_l.index, "l_hnumstr"] = address_sequence_l.map(get_hnumstr)
+        addrange.loc[addresses_r.index, "r_hnumstr"] = address_sequence_r.map(get_hnumstr)
 
         # Configure addrange attributes - digdirfg.
         logger.info("Configuring addrange attributes: digdirfg.")
 
-        addrange.loc[addresses_l.index, "l_digdirfg"] = addresses_l["sequence"].map(get_digdirfg)
-        addrange.loc[addresses_r.index, "r_digdirfg"] = addresses_r["sequence"].map(get_digdirfg)
+        addrange.loc[addresses_l.index, "l_digdirfg"] = address_sequence_l.map(get_digdirfg)
+        addrange.loc[addresses_r.index, "r_digdirfg"] = address_sequence_r.map(get_digdirfg)
 
         # Merge addrange attributes with roadseg.
         logger.info("Merging addrange attributes with roadseg.")
@@ -286,7 +299,7 @@ class Segmentor:
 
         # Get intersection point between each address and linked roadseg segment.
         self.addresses["intersection"] = self.addresses[["geometry", "roadseg_geometry"]].apply(
-            lambda row: shapely.ops.nearest_points(*row), axis=1)
+            lambda row: itemgetter(-1)(shapely.ops.nearest_points(*row)), axis=1)
 
         # Get the distance and road segment vector which bounds the intersection point.
         results = self.addresses[["intersection", "roadseg_geometry"]].apply(lambda row: get_road_vector(*row), axis=1)
@@ -324,6 +337,10 @@ class Segmentor:
         flag_multi = self.addresses["roadseg_index"].map(len) > 1
         self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses[flag_multi][["geometry", "roadseg_index"]]\
             .apply(lambda row: get_nearest_linkage(*row), axis=1)
+
+        # Unpack first roadseg linkage for single-linkage addresses.
+        self.addresses.loc[~flag_multi, "roadseg_index"] = self.addresses[~flag_multi]["roadseg_index"].map(
+            itemgetter(0))
 
         # Compile linked roadseg geometry for each address.
         self.addresses["roadseg_geometry"] = self.addresses.merge(

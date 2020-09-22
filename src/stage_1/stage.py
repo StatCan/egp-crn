@@ -669,8 +669,8 @@ class Stage:
         logger.info("Determining address segmentation requirement.")
 
         addresses = None
-        segment_kwargs = None
         roadseg = None
+        segment_kwargs = None
 
         # Identify segmentation parameters and source datasets for roadseg and address points.
         for source, source_yaml in self.source_attributes.items():
@@ -689,10 +689,10 @@ class Stage:
                 roadseg = self.source_gdframes[source].copy(deep=True)
 
         # Segment addresses.
-        if all([addresses, segment_kwargs, roadseg]):
+        if all(val is not None for val in [addresses, roadseg, segment_kwargs]):
 
             logger.info(f"Address segmentation required. Beginning segmentation process.")
-            segmentor = Segmentor(addresses, roadseg, **segment_kwargs)
+            segmentor = Segmentor(addresses=addresses, roadseg=roadseg, **segment_kwargs)
             self.source_gdframes["roadseg"] = segmentor()
 
         else:
