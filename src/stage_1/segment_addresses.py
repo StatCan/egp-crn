@@ -15,17 +15,7 @@ sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
 
 
-# Suppress pandas chained assignment warning.
-pd.options.mode.chained_assignment = None
-
-
-# Set logger.
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
-logger.addHandler(handler)
 
 
 class Segmentor:
