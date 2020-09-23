@@ -287,6 +287,24 @@ class Stage:
 
         logger.info(f"Applying data cleanup functions.")
 
+        def enforce_accuracy_limits(table, df):
+            """Enforces upper and lower limits for 'accuracy'."""
+
+            logger.info(f"Applying data cleanup \"enforce accuracy limits\" to dataset: {table}.")
+
+            # Enforce accuracy limits.
+            series_orig = df["accuracy"].copy(deep=True)
+            df.loc[df["accuracy"].between(-1, 1, inclusive=False), "accuracy"] = self.defaults[table]["accuracy"]
+
+            # Quantify and log modifications.
+            mods = (series_orig != df["accuracy"]).sum()
+            if mods:
+                logger.warning(f"Modified {mods} record(s) in table {table}, column: accuracy."
+                               f"\nModification details: Accuracy set to default value for values between -1 and 1, "
+                               f"exclusively.")
+
+            return df.copy(deep=True)
+
         def lower_case_ids(table, df):
             """Sets all ID fields to lower case."""
 
@@ -407,7 +425,7 @@ class Stage:
 
             # Iterate cleanup functions.
             for func in (lower_case_ids, strip_whitespace, standardize_nones, overwrite_segment_ids,
-                         title_case_route_names):
+                         title_case_route_names, enforce_accuracy_limits):
                 df = func(table, df)
 
             # Store updated dataframe.
