@@ -34,10 +34,10 @@ conform:
             dc_enddate.isna() and ~capdate.isna():
               value: capdate
               type: column
-            dc_endate.isna() and capdate.isna() and capyear != 0:
+            dc_enddate.isna() and capdate.isna() and capyear != 0:
               value: capyear
               type: column
-            dc_endate.isna() and capdate.isna() and capyear == 0:
+            dc_enddate.isna() and capdate.isna() and capyear == 0:
               value: 2006
               type: string
           engine: python
@@ -121,10 +121,10 @@ conform:
             dc_enddate.isna() and ~capdate.isna():
               value: capdate
               type: column
-            dc_endate.isna() and capdate.isna() and capyear != 0:
+            dc_enddate.isna() and capdate.isna() and capyear != 0:
               value: capyear
               type: column
-            dc_endate.isna() and capdate.isna() and capyear == 0:
+            dc_enddate.isna() and capdate.isna() and capyear == 0:
               value: Unknown
               type: string
           engine: python

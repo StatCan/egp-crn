@@ -40,10 +40,10 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, overwrite):
+    def __init__(self, source, remove):
         self.stage = 1
         self.source = source.lower()
-        self.overwrite = overwrite
+        self.remove = remove
 
         # Configure raw data path.
         self.data_path = os.path.abspath("../../data/raw/{}".format(self.source))
@@ -58,26 +58,28 @@ class Stage:
         self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
 
         # Conditionally clear output namespace.
-        if os.path.exists(self.output_path):
-            namespace = [os.path.abspath(f) for f in os.listdir(self.output_path) if f.startswith(f"{self.source}_")]
-            if len(namespace):
-                logger.warning("Output namespace already occupied.")
+        output_dir = os.path.dirname(self.output_path)
+        namespace = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.startswith(f"{self.source}_")]
 
-                if self.overwrite:
-                    logger.warning("Parameter --overwrite=True: removing conflicting files.")
+        if len(namespace):
+            logger.warning("Output namespace already occupied.")
 
-                    for f in namespace:
-                        logger.info(f"Removing conflicting file: \"{f}\".")
+            if self.remove:
+                logger.warning("Parameter remove=True: removing conflicting files.")
 
-                        try:
-                            os.remove(f)
-                        except OSError as e:
-                            logger.exception(f"Unable to remove file: \"{f}\".")
-                            logger.exception(e)
-                            sys.exit(1)
+                for f in namespace:
+                    logger.info(f"Removing conflicting file: \"{f}\".")
 
-                else:
-                    logger.warning("Parameter --overwrite=False: unable to proceed.")
+                    try:
+                        os.remove(f)
+                    except OSError as e:
+                        logger.exception(f"Unable to remove file: \"{f}\".")
+                        logger.exception(e)
+                        sys.exit(1)
+
+            else:
+                logger.exception("Parameter remove=False: unable to proceed.")
+                sys.exit(1)
 
         # Configure field defaults, dtypes, and domains.
         self.defaults = helpers.compile_default_values()
@@ -156,7 +158,8 @@ class Stage:
                         logger.info(f"Target field {target_field}: No mapping provided.")
 
                     # Raw value mapping.
-                    elif isinstance(source_field, str) and (source_field.lower() not in source_gdf.columns):
+                    elif isinstance(source_field, (str, int, float)) and str(source_field).lower() not in \
+                            source_gdf.columns:
                         logger.info(f"Target field {target_field}: Applying raw value.")
 
                         # Update target dataframe with raw value.
@@ -166,14 +169,12 @@ class Stage:
                     else:
                         logger.info(f"Target field {target_field}: Identifying function chain.")
 
-                        # Restructure dict for direct field mapping in case of string or list input.
-                        if isinstance(source_field, str) or isinstance(source_field, list):
-                            source_field = {"fields": [source_field] if isinstance(source_field, str) else source_field,
-                                            "functions": [{"function": "direct"}]}
-
-                        # Convert single field attribute to list.
-                        if isinstance(source_field["fields"], str):
-                            source_field["fields"] = [source_field["fields"]]
+                        # Restructure mapping dict for direct field mapping in case of string or list input.
+                        if isinstance(source_field, (str, list)):
+                            source_field = {
+                                "fields": source_field if isinstance(source_field, list) else [source_field],
+                                "functions": [{"function": "direct"}]
+                            }
 
                         # Convert field to lowercase.
                         source_field["fields"] = list(map(str.lower, source_field["fields"]))
@@ -735,7 +736,7 @@ class Stage:
 
         # Compile nested column names.
         sample_value = self.target_gdframes["strplaname"].iloc[0]
-        nested_flags = list(map(lambda val: isinstance(val, np.ndarray) or isinstance(val, list), sample_value))
+        nested_flags = list(map(lambda val: isinstance(val, (np.ndarray, list)), sample_value))
         cols = sample_value.index[nested_flags].to_list()
 
         if len(cols):
@@ -826,15 +827,15 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-@click.option("--overwrite / --no-overwrite", "-o", default=False, show_default=True,
-              help="Overwrite the interim NRN datasets.")
-def main(source, overwrite):
+@click.option("--remove / --no-remove", "-r", default=False, show_default=True,
+              help="Remove pre-existing files within the data/interim directory for the specified source.")
+def main(source, remove):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source, overwrite)
+            stage = Stage(source, remove)
             stage.execute()
 
     except KeyboardInterrupt:

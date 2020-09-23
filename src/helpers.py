@@ -623,7 +623,7 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
 
     logger.info(f"Reprojecting geometry from EPSG:{epsg_source} to EPSG:{epsg_target}.")
 
-    series_flag = True if isinstance(gdf, gpd.GeoSeries) else False
+    series_flag = isinstance(gdf, gpd.GeoSeries)
 
     # Return empty dataframe.
     if not len(gdf):

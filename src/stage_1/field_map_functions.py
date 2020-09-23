@@ -132,7 +132,7 @@ def query_assign(df, columns, lookup, engine="python", **kwargs):
         # Validate inputs.
         if not isinstance(columns, list):
             columns = [columns]
-        columns = map(str.lower, columns)
+        columns = list(map(str.lower, columns))
 
         validate_dtypes("lookup", lookup, dict)
         for query, output in lookup.items():
@@ -257,7 +257,7 @@ def regex_find(series, pattern, match_index, group_index, strip_result=False, su
     series_valid = series[~series.isna()].copy(deep=True)
 
     # Compile regex results, based on required group indexes.
-    if isinstance(group_index, int) or isinstance(group_index, np.int_):
+    if isinstance(group_index, (int, np.int_)):
         results = series_valid.map(lambda val: regex_find_single_idx(val, pattern))
     else:
         results = series_valid.map(lambda val: regex_find_multiple_idx(val, pattern))
