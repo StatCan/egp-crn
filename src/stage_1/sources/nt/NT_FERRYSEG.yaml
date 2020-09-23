@@ -57,10 +57,10 @@ conform:
             dc_enddate.isna() and ~capdate.isna():
               value: capdate
               type: column
-            dc_enddate.isna() and capdate.isna() and ~capyear.isna() and capyear != 0:
+            dc_endate.isna() and capdate.isna() and ~capyear.isna() and capyear != 0:
               value: capyear
               type: column
-            dc_enddate.isna() and capdate.isna() and ~capyear.isna() and capyear == 0:
+            dc_endate.isna() and capdate.isna() and ~capyear.isna() and capyear == 0:
               value: Unknown
               type: string
           engine: python
@@ -74,7 +74,7 @@ conform:
       functions:
         - function: map_values
           lookup:
-            "None": "None"
+            "None": Unknown
             BHP Billiton; WLWBfrom NWTCG/CIMP: Provincial / Territorial
             CARD; WLWBfrom NWTCG/CIMP: Provincial / Territorial
             City of Yellowknife: Municipal
@@ -106,7 +106,7 @@ conform:
       functions:
         - function: map_values
           lookup:
-            "None": "None"
+            "None": Unknown
             RARTLIN: Arterial
             RBRGLIN: Unknown
             RFERLIN: Arterial
@@ -122,19 +122,19 @@ conform:
     rtename1en:
       fields: PHA_ROADNA
       functions:
-        - function: regex_sub
+        - function: regex_find
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename2en:
       fields: RTENAME2EN
       functions:
-        - function: regex_sub
+        - function: regex_find
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename3en:
       fields: RTENAME3EN
       functions:
-        - function: regex_sub
+        - function: regex_find
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename4en:
@@ -164,4 +164,4 @@ conform:
           match_index: 0
           group_index: 0
     rtnumber4:
-    rtnumber5:
+    rtnumber5

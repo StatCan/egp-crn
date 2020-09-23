@@ -111,7 +111,7 @@ def map_values(series, lookup, case_sensitive=False):
 
     else:
         lookup = {str(k).lower(): v for k, v in lookup.items()}
-        return series.map(lambda val: lookup[str(val).lower()]).fillna(series)
+        return series.map(lambda val: str(val).lower()).map(lookup).fillna(series)
 
 
 def query_assign(df, columns, lookup, engine="python", **kwargs):
@@ -258,9 +258,9 @@ def regex_find(series, pattern, match_index, group_index, strip_result=False, su
 
     # Compile regex results, based on required group indexes.
     if isinstance(group_index, (int, np.int_)):
-        results = series_valid.map(lambda val: regex_find_single_idx(val, pattern))
+        results = series_valid.map(lambda val: regex_find_single_idx(str(val), pattern))
     else:
-        results = series_valid.map(lambda val: regex_find_multiple_idx(val, pattern))
+        results = series_valid.map(lambda val: regex_find_multiple_idx(str(val), pattern))
 
     # Strip leading and trailing whitespaces and hyphens.
     results = results.map(lambda val: str(val).strip(" -"))
@@ -298,7 +298,7 @@ def regex_sub(series, **kwargs):
     series_valid = series[~series.isna()].copy(deep=True)
 
     # Apply regex substitution.
-    series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(**kwargs, string=val, flags=re.I))
+    series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(**kwargs, string=str(val), flags=re.I))
 
     return series
 

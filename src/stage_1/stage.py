@@ -89,6 +89,22 @@ class Stage:
     def apply_domains(self):
         """Applies domain restrictions to each column in the target dataframes."""
 
+        def cast_dtype(val, dtype, default):
+            """
+            Casts the value to the given numpy dtype.
+            Returns the default parameter for invalid or Null values.
+            """
+
+            try:
+
+                if pd.isna(val) or val == "":
+                    return default
+                else:
+                    return itemgetter(0)(np.array([val]).astype(dtype))
+
+            except (TypeError, ValueError):
+                return default
+
         logging.info("Applying field domains.")
         table = None
         field = None
@@ -107,8 +123,12 @@ class Stage:
                     series_new = helpers.apply_domain(series_orig, domain=domain["lookup"],
                                                       default=self.defaults[table][field])
 
+                    # Compile original and new dtype names (for logging).
+                    dtype_orig = self.target_gdframes[table][field].dtype.name
+                    dtype_new = self.dtypes[table][field]
+
                     # Force adjust data type.
-                    series_new = series_new.astype(self.dtypes[table][field])
+                    series_new = series_new.map(lambda val: cast_dtype(val, dtype_new, self.defaults[table][field]))
 
                     # Store results to target dataframe.
                     self.target_gdframes[table][field] = series_new.copy(deep=True)
@@ -125,7 +145,7 @@ class Stage:
                         for vals in df[~df.duplicated(keep="first")].values:
 
                             logger.warning(f"Modified {counts[-99] if pd.isna(vals[0]) else counts[vals[0]]} "
-                                           f"instance(s) of {vals[0]} to {vals[1]}.")
+                                           f"instance(s) of {vals[0]} ({dtype_orig}) to {vals[1]} ({dtype_new}).")
 
         except (AttributeError, KeyError, ValueError):
             logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
@@ -693,34 +713,40 @@ class Stage:
 
         logger.info("Determining address segmentation requirement.")
 
-        addresses = None
-        roadseg = None
+        address_source = None
+        roadseg_source = None
         segment_kwargs = None
 
         # Identify segmentation parameters and source datasets for roadseg and address points.
         for source, source_yaml in deepcopy(self.source_attributes).items():
 
             if "segment" in source_yaml["data"]:
-                addresses = self.source_gdframes[source].copy(deep=True)
+                address_source = source
                 segment_kwargs = source_yaml["data"]["segment"]
-
-                # Remove address source from attributes and dataframes references.
-                # Note: segmented addresses will be joined to roadseg, therefore addrange and roadseg field mapping
-                # should be defined within the same yaml.
-                del self.source_attributes[source]
-                del self.source_gdframes[source]
 
             if "conform" in source_yaml:
                 if isinstance(source_yaml["conform"], dict):
                     if "roadseg" in source_yaml["conform"]:
-                        roadseg = self.source_gdframes[source].copy(deep=True)
+                        roadseg_source = source
 
-        # Segment addresses.
-        if all(val is not None for val in [addresses, roadseg, segment_kwargs]):
+        # Trigger address segmentor.
+        if all(val is not None for val in [address_source, roadseg_source, segment_kwargs]):
 
             logger.info(f"Address segmentation required. Beginning segmentation process.")
+
+            # Copy data sources.
+            addresses = self.source_gdframes[address_source].copy(deep=True)
+            roadseg = self.source_gdframes[roadseg_source].copy(deep=True)
+
+            # Execute segmentor.
             segmentor = Segmentor(addresses=addresses, roadseg=roadseg, **segment_kwargs)
-            self.source_gdframes["roadseg"] = segmentor()
+            self.source_gdframes[roadseg_source] = segmentor()
+
+            # Remove address source from attributes and dataframes references.
+            # Note: segmented addresses will be joined to roadseg, therefore addrange and roadseg field mapping should
+            # be defined within the same yaml.
+            del self.source_attributes[address_source]
+            del self.source_gdframes[address_source]
 
         else:
             logger.info("Address segmentation not required. Skipping segmentation process.")
