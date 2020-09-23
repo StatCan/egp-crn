@@ -176,8 +176,11 @@ class Stage:
                                 "functions": [{"function": "direct"}]
                             }
 
-                        # Convert field to lowercase.
-                        source_field["fields"] = list(map(str.lower, source_field["fields"]))
+                        # Convert fields to lowercase.
+                        if isinstance(source_field["fields"], list):
+                            source_field["fields"] = list(map(str.lower, source_field["fields"]))
+                        else:
+                            source_field["fields"] = list(map(str.lower, [source_field["fields"]]))
 
                         # Create mapped dataframe from source and target dataframes, keeping only the source fields.
                         mapped_df = pd.DataFrame({field: target_gdf["uuid"].map(

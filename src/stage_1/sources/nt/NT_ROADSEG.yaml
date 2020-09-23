@@ -228,19 +228,19 @@ conform:
     rtename1en:
       fields: PHA_ROADNA
       functions:
-        - function: regex_find
+        - function: regex_sub
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename2en:
       fields: RTENAME2EN
       functions:
-        - function: regex_find
+        - function: regex_sub
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename3en:
       fields: RTENAME3EN
       functions:
-        - function: regex_find
+        - function: regex_sub
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename4en:
@@ -447,6 +447,7 @@ conform:
           pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
           match_index: 0
           group_index: 0
+          strip_result: True
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
           match_index: -1
@@ -456,10 +457,12 @@ conform:
           pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
           match_index: 0
           group_index: 0
+          strip_result: True
         - function: regex_find
           pattern: "\\b(domain_strplaname_starticle)\\b"
           match_index: 0
           group_index: 0
+          strip_result: True
     strtypre:
       fields: ROADNAME
       functions:
