@@ -336,7 +336,7 @@ def encoding(df):
     errors = {1: list()}
 
     # Iterate string columns.
-    for col in df.select_dtypes(include="object", exclude="geometry").columns.values:
+    for col in set(df.select_dtypes(include="object").columns) - {"geometry", "uuid", "nid"}:
 
         # Validation: identify values containing one or more question mark ("?"), which may be the result of invalid
         # character encoding.
@@ -347,6 +347,8 @@ def encoding(df):
         # Compile error properties.
         for id, val in df.loc[flag, col].iteritems():
             errors[1].append(f"uuid: '{id}', attribute: '{val}', based on attribute field: {col}.")
+
+    return errors
 
 
 def exitnbr_roadclass_relationship(df):
