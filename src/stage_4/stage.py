@@ -66,7 +66,8 @@ class Stage:
             "self_intersecting_elements": 20,
             "self_intersecting_structures": 21,
             "route_contiguity": 22,
-            "speed": 23
+            "speed": 23,
+            "encoding": 24
         }
 
     def classify_tables(self):
@@ -132,7 +133,8 @@ class Stage:
                 "self_intersecting_elements": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "self_intersecting_structures": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "speed": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "structure_attributes": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()}
+                "structure_attributes": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()},
+                "encoding": {"tables": self.dframes.keys(), "iterate": True, "args": ()}
             }
 
             # Iterate functions and datasets.

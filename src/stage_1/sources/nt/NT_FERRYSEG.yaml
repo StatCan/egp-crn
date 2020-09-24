@@ -122,19 +122,19 @@ conform:
     rtename1en:
       fields: PHA_ROADNA
       functions:
-        - function: regex_find
+        - function: regex_sub
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename2en:
       fields: RTENAME2EN
       functions:
-        - function: regex_find
+        - function: regex_sub
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename3en:
       fields: RTENAME3EN
       functions:
-        - function: regex_find
+        - function: regex_sub
           pattern: r"\b(No. [1-9][0-9]*)\b"
           repl: ""
     rtename4en:

@@ -319,3 +319,9 @@ E02302
 ^^^^^^
 
 :Description: Attribute "speed" must be a multiple of 5.
+
+E02401
+------
+
+:Validation: Encoding.
+:Description: Attribute contains one or more question mark ("?"), which may be the result of invalid character encoding.

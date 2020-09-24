@@ -330,6 +330,25 @@ def duplicated_points(df):
     return errors
 
 
+def encoding(df):
+    """Identifies potential encoding errors within string fields."""
+
+    errors = {1: list()}
+
+    # Iterate string columns.
+    for col in df.select_dtypes(include="object", exclude="geometry").columns.values:
+
+        # Validation: identify values containing one or more question mark ("?"), which may be the result of invalid
+        # character encoding.
+
+        # Flag invalid records.
+        flag = df[col].str.contains("?", regex=False)
+
+        # Compile error properties.
+        for id, val in df.loc[flag, col].iteritems():
+            errors[1].append(f"uuid: '{id}', attribute: '{val}', based on attribute field: {col}.")
+
+
 def exitnbr_roadclass_relationship(df):
     """Applies a set of validations to exitnbr and roadclass fields."""
 
@@ -750,7 +769,7 @@ def nid_linkages(df, dfs_all):
         for col in linkages[nid_table][id_table]:
 
             # Validation: ensure all nid linkages are valid.
-            print(f"Validating nid linkage: {nid_table}.nid - {id_table}.{col}.")
+            logger.info(f"Validating nid linkage: {nid_table}.nid - {id_table}.{col}.")
 
             # Retrieve column ids as lowercase.
             ids = set(df[col].map(str.lower))
