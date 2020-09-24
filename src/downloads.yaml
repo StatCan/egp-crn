@@ -17,3 +17,4 @@ previous_nrn_vintage:
 provincial_boundaries:
   url: http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip
   filename: lpr_000a16a_e.shp
+  crs: "EPSG:3347"

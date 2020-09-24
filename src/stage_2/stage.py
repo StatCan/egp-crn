@@ -94,15 +94,33 @@ class Stage:
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
             sys.exit(1)
 
-    def divide_polygon(self, poly, threshold, count=0):
-        """Divides a polygon into 2 parts until the size <= threshold or the max recursions is reached."""
+    def divide_polygon(self, poly, threshold, pts_x, pts_y, ref_bounds=None, count=0):
+        """
+        Divides a polygon into 2 parts until the size <= threshold or the max recursions is reached or no points exist
+        within the current bounds.
+        ref_bounds: Reference bounds (bbox tuple) can be used to reduce the processing extent of the original polygon.
+        """
 
-        bounds = poly.bounds
+        bounds = list(poly.bounds)
+
+        # Conditionally update bounds to smaller, reference bounds.
+        if ref_bounds:
+            for index, coord in enumerate(bounds):
+                if index in (0, 1):
+                    if ref_bounds[index] > bounds[index]:
+                        bounds[index] = ref_bounds[index]
+                else:
+                    if ref_bounds[index] < bounds[index]:
+                        bounds[index] = ref_bounds[index]
+
+        # Configure bounds dimensions.
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
 
         # Exit recursion once limits are reached.
-        if max(width, height) <= threshold or count == 250:
+        if max(width, height) <= threshold or count == 250 or (
+                not pts_x.between(bounds[0], bounds[2], inclusive=True).any() and
+                not pts_y.between(bounds[1], bounds[3], inclusive=True).any()):
             return [poly]
 
         # Conditionally split polygon by height or width.
@@ -121,7 +139,7 @@ class Stage:
                 c = [c]
             for e in c:
                 if isinstance(e, (Polygon, MultiPolygon)):
-                    result.extend(self.divide_polygon(e, threshold, count + 1))
+                    result.extend(self.divide_polygon(e, threshold, pts_x, pts_y, count=count + 1))
 
         if count > 0:
             return result
@@ -129,10 +147,11 @@ class Stage:
         # Compile final result as a single-part polygon.
         final_result = []
         for g in result:
-            if isinstance(g, MultiPolygon):
-                final_result.extend(g)
-            else:
-                final_result.append(g)
+            if g:
+                if isinstance(g, MultiPolygon):
+                    final_result.extend(g)
+                else:
+                    final_result.append(g)
 
         return final_result
 
@@ -284,11 +303,19 @@ class Stage:
         # points from other junctypes.
         logger.info("Configuring junctype: NatProvTer.")
 
-        # Split administrative boundary into smaller polygons.
-        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1))
-
         # Compile all junctions as Point geometries.
         merged_pts = gpd.GeoSeries(map(Point, chain.from_iterable([deadend, ferry, intersection])))
+        #TEST
+        pts_x = pd.Series(list(set(merged_pts.map(lambda g: g.x))))
+        pts_y = pd.Series(list(set(merged_pts.map(lambda g: g.y))))
+        #TEST
+
+        # Split administrative boundary into smaller polygons.
+        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1, pts_x, pts_y,
+                                                           ref_bounds=tuple(merged_pts.total_bounds)))
+        #TEST
+        gpd.GeoDataFrame({'val': range(len(boundary_polys))}, geometry=boundary_polys, crs="EPSG:4617").to_file("C:/Users/jesse/Downloads/boundaries.gpkg", driver="GPKG", layer="nt")
+        #TEST
 
         # Use the junctions' spatial indexes to query points within the split boundary polygons.
         pts_sindex = merged_pts.sindex
@@ -296,6 +323,9 @@ class Stage:
             lambda poly: merged_pts.iloc[list(pts_sindex.intersection(poly.bounds))].within(poly))
         pts_within = pts_within.map(lambda series: series.index[series].values)
         pts_within = set(chain.from_iterable(pts_within.to_list()))
+        #TEST
+        sys.exit(1)
+        #TEST
 
         # Invert query and compile resulting points as NatProvTer.
         natprovter = set(merged_pts[~merged_pts.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
@@ -337,7 +367,7 @@ class Stage:
         # Download administrative boundaries.
         logger.info("Downloading administrative boundary file.")
         source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
-        download_url, filename = itemgetter("url", "filename")(source)
+        download_url, filename, source_crs = itemgetter("url", "filename", "crs")(source)
 
         try:
 
@@ -366,7 +396,7 @@ class Stage:
                  "qc": 24, "sk": 47, "yt": 60}[self.source]),
             "dest": os.path.abspath("../../data/interim/boundaries.geojson"),
             "src": os.path.abspath("../../data/interim/boundaries/{}".format(filename)),
-            "options": "-t_srs EPSG:4617 -nlt MULTIPOLYGON"
+            "options": f"-s_srs {source_crs} -t_srs EPSG:4617 -nlt MULTIPOLYGON"
         })
 
         # Load boundaries as a single geometry object.
