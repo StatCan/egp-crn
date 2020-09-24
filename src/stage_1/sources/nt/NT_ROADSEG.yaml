@@ -34,10 +34,10 @@ conform:
             dc_enddate.isna() and ~capdate.isna():
               value: capdate
               type: column
-            dc_endate.isna() and capdate.isna() and capyear != 0:
+            dc_enddate.isna() and capdate.isna() and capyear != 0:
               value: capyear
               type: column
-            dc_endate.isna() and capdate.isna() and capyear == 0:
+            dc_enddate.isna() and capdate.isna() and capyear == 0:
               value: 2006
               type: string
           engine: python
@@ -121,10 +121,10 @@ conform:
             dc_enddate.isna() and ~capdate.isna():
               value: capdate
               type: column
-            dc_endate.isna() and capdate.isna() and capyear != 0:
+            dc_enddate.isna() and capdate.isna() and capyear != 0:
               value: capyear
               type: column
-            dc_endate.isna() and capdate.isna() and capyear == 0:
+            dc_enddate.isna() and capdate.isna() and capyear == 0:
               value: Unknown
               type: string
           engine: python
@@ -447,6 +447,7 @@ conform:
           pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
           match_index: 0
           group_index: 0
+          strip_result: True
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
           match_index: -1
@@ -456,10 +457,12 @@ conform:
           pattern: "\\b(domain_strplaname_strtypre)\\b(?!$)"
           match_index: 0
           group_index: 0
+          strip_result: True
         - function: regex_find
           pattern: "\\b(domain_strplaname_starticle)\\b"
           match_index: 0
           group_index: 0
+          strip_result: True
     strtypre:
       fields: ROADNAME
       functions:
@@ -480,4 +483,4 @@ conform:
         - function: regex_find
           pattern: "(?<!^)\\b(domain_strplaname_strtysuf)\\b"
           match_index: -1
-          group_index: 0                                                                                             
+          group_index: 0

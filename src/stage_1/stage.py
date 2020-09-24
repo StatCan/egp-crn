@@ -59,13 +59,14 @@ class Stage:
 
         # Conditionally clear output namespace.
         output_dir = os.path.dirname(self.output_path)
-        namespace = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.startswith(f"{self.source}_")]
+        namespace = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if
+                     f.startswith(f"{self.source}_") or f.startswith(f"{self.source}.")]
 
         if len(namespace):
             logger.warning("Output namespace already occupied.")
 
             if self.remove:
-                logger.warning("Parameter remove=True: removing conflicting files.")
+                logger.warning("Parameter remove=True: Removing conflicting files.")
 
                 for f in namespace:
                     logger.info(f"Removing conflicting file: \"{f}\".")
@@ -78,7 +79,8 @@ class Stage:
                         sys.exit(1)
 
             else:
-                logger.exception("Parameter remove=False: unable to proceed.")
+                logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                                 "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
         # Configure field defaults, dtypes, and domains.

@@ -31,6 +31,32 @@ Stage      Time
 **Total**  **25:49.70**
 =========  ====
 
+Northwest Territories (NT)
+==========================
+
+September 24, 2020
+------------------
+
+:Source: data/raw/nt/NTRN
+:Environment:
+    :OS: Windows 10 64-bit
+    :CPU: Intel Core i7 4700HQ @ 2.40GHz
+    :RAM: 16.0GB
+    :Python: 3.6.8
+:Runtimes:
+
+=========  ====
+Stage      Time
+=========  ====
+1          00:00.00
+2          00:00.00
+3          00:00.00
+4          00:00.00
+5          00:00.00
+---------  ----
+**Total**  **00:00.00**
+=========  ====
+
 Ontario (ON)
 ============
 
