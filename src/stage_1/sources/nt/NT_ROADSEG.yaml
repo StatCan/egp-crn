@@ -214,6 +214,7 @@ conform:
       functions:
         - function: map_values
           lookup:
+            Gravel: "None"
             Unpaved: "None"
     pavstatus:
       fields: SURFACE

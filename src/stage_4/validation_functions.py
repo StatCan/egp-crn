@@ -249,12 +249,20 @@ def duplicated_lines(df):
         s_filtered = s_filtered[s_filtered.map(
             lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
-        # Identify duplicate geometries.
         if len(s_filtered):
-            mask = s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
 
-            # Compile uuids of flagged records.
-            errors[1] = s_filtered[mask].index.values
+            # Identify duplicate geometries.
+            dups = s_filtered[s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)]
+
+            # Configure duplicate groups and their uuids.
+            uuid_groups = set(dups.map(lambda geom1:
+                                       tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+
+            # Compile error properties.
+            if len(uuid_groups):
+                for uuid_group in uuid_groups:
+                    vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
+                    errors[1].append(f"Duplicated geometries identified for uuids: {vals}.")
 
     # Validation 2: ensure line segments do not have repeated adjacent points.
 
@@ -305,7 +313,7 @@ def duplicated_lines(df):
 
     # Compile error properties.
     for code, vals in errors.items():
-        if code in {1, 2} and len(vals):
+        if code in {2} and len(vals):
             errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
 
     return errors
@@ -316,16 +324,23 @@ def duplicated_points(df):
 
     errors = {1: list()}
 
+    # Extract coordinates of points.
+    pts = df["geometry"].map(lambda g: itemgetter(0)(g.coords))
+
     # Identify duplicated geometries.
-    mask = df["geometry"].map(lambda geom: geom.coords[0]).duplicated(keep=False)
+    dups = pts[pts.duplicated(keep=False)]
 
-    # Compile uuids of flagged records.
-    errors[1] = df[mask].index.values
+    if len(dups):
 
-    # Compile error properties.
-    for code, vals in errors.items():
-        if len(vals):
-            errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
+        # Configure duplicated groups and their uuids.
+        uuid_groups = set(dups.map(lambda geom1:
+                                   tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+
+        # Compile error properties.
+        if len(uuid_groups):
+            for uuid_group in uuid_groups:
+                vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
+                errors[1].append(f"Duplicated geometries identified for uuids: {vals}.")
 
     return errors
 
