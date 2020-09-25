@@ -94,42 +94,34 @@ class Stage:
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
             sys.exit(1)
 
-    def divide_polygon(self, poly, threshold, pts_x, pts_y, ref_bounds=None, count=0):
+    def divide_polygon(self, poly, threshold, pts, count=0):
         """
-        Divides a polygon into 2 parts until the size <= threshold or the max recursions is reached or no points exist
-        within the current bounds.
-        ref_bounds: Reference bounds (bbox tuple) can be used to reduce the processing extent of the original polygon.
+        Recursively divides a polygon into 2 parts until any of the following limits are reached:
+        a) both dimensions (height and width) are <= threshold.
+        b) the custom implemented recursion depth (250) is reached.
+        c) no point tuples exist within the current bounds.
         """
 
-        bounds = list(poly.bounds)
-
-        # Conditionally update bounds to smaller, reference bounds.
-        if ref_bounds:
-            for index, coord in enumerate(bounds):
-                if index in (0, 1):
-                    if ref_bounds[index] > bounds[index]:
-                        bounds[index] = ref_bounds[index]
-                else:
-                    if ref_bounds[index] < bounds[index]:
-                        bounds[index] = ref_bounds[index]
+        xmin, ymin, xmax, ymax = poly.bounds
 
         # Configure bounds dimensions.
-        width = bounds[2] - bounds[0]
-        height = bounds[3] - bounds[1]
+        width = xmax - xmin
+        height = ymax - ymin
 
         # Exit recursion once limits are reached.
-        if max(width, height) <= threshold or count == 250 or (
-                not pts_x.between(bounds[0], bounds[2], inclusive=True).any() and
-                not pts_y.between(bounds[1], bounds[3], inclusive=True).any()):
-            return [poly]
+        if max(width, height) <= threshold or count == 250 or not len(pts):
+            if len(pts):
+                return [poly]
+            else:
+                return [None]
 
         # Conditionally split polygon by height or width.
         if height >= width:
-            a = box(bounds[0], bounds[1], bounds[2], bounds[1] + (height / 2))
-            b = box(bounds[0], bounds[1] + (height / 2), bounds[2], bounds[3])
+            a = box(xmin, ymin, xmax, ymin + (height / 2))
+            b = box(xmin, ymin + (height / 2), xmax, ymax)
         else:
-            a = box(bounds[0], bounds[1], bounds[0] + (width / 2), bounds[3])
-            b = box(bounds[0] + (width / 2), bounds[1], bounds[2], bounds[3])
+            a = box(xmin, ymin, xmin + (width / 2), ymax)
+            b = box(xmin + (width / 2), ymin, xmax, ymax)
         result = []
 
         # Compile split results, further recurse.
@@ -139,7 +131,8 @@ class Stage:
                 c = [c]
             for e in c:
                 if isinstance(e, (Polygon, MultiPolygon)):
-                    result.extend(self.divide_polygon(e, threshold, pts_x, pts_y, count=count + 1))
+                    pts_subset = pts[pts.map(lambda pt: (xmin <= pt[0] <= xmax) and (ymin <= pt[1] <= ymax))]
+                    result.extend(self.divide_polygon(e, threshold, pts_subset, count=count + 1))
 
         if count > 0:
             return result
@@ -303,32 +296,22 @@ class Stage:
         # points from other junctypes.
         logger.info("Configuring junctype: NatProvTer.")
 
-        # Compile all junctions as Point geometries.
-        merged_pts = gpd.GeoSeries(map(Point, chain.from_iterable([deadend, ferry, intersection])))
-        #TEST
-        pts_x = pd.Series(list(set(merged_pts.map(lambda g: g.x))))
-        pts_y = pd.Series(list(set(merged_pts.map(lambda g: g.y))))
-        #TEST
+        # Compile all junction as coordinate tuples and Point geometries.
+        pts = pd.Series(chain.from_iterable([deadend, ferry, intersection]))
+        pts_geoms = gpd.GeoSeries(pts.map(Point))
 
         # Split administrative boundary into smaller polygons.
-        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1, pts_x, pts_y,
-                                                           ref_bounds=tuple(merged_pts.total_bounds)))
-        #TEST
-        gpd.GeoDataFrame({'val': range(len(boundary_polys))}, geometry=boundary_polys, crs="EPSG:4617").to_file("C:/Users/jesse/Downloads/boundaries.gpkg", driver="GPKG", layer="nt")
-        #TEST
+        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1, pts))
 
         # Use the junctions' spatial indexes to query points within the split boundary polygons.
-        pts_sindex = merged_pts.sindex
+        pts_sindex = pts_geoms.sindex
         pts_within = boundary_polys.map(
-            lambda poly: merged_pts.iloc[list(pts_sindex.intersection(poly.bounds))].within(poly))
+            lambda poly: pts_geoms.iloc[list(pts_sindex.intersection(poly.bounds))].within(poly))
         pts_within = pts_within.map(lambda series: series.index[series].values)
         pts_within = set(chain.from_iterable(pts_within.to_list()))
-        #TEST
-        sys.exit(1)
-        #TEST
 
         # Invert query and compile resulting points as NatProvTer.
-        natprovter = set(merged_pts[~merged_pts.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
+        natprovter = set(pts_geoms[~pts_geoms.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
 
         # Remove conflicting points from other junctypes.
         deadend = deadend.difference(natprovter)
