@@ -3,7 +3,7 @@
 2. Install wheel via pip.  
     ```
     cd path_to_whl
-    py -m pip install GDAL-3.0.4-cp36-cp36m-win_amd64.whl
+    py -m pip install GDAL-3.1.3-cp36-cp36m-win_amd64.whl
     ```
 3. Configure environment variables (example python path `C:\Program Files\Python36`):  
 i) Add to Path: `C:\Program Files\Python36\Lib\site-packages\osgeo`  
