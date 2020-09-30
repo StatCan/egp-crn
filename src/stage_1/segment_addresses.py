@@ -297,7 +297,7 @@ class Segmentor:
         self.addresses["road_vector"] = results.map(itemgetter(1))
 
         # Get address parity.
-        self.addresses["parity"] = self.addresses[["intersection", "road_vector"]].apply(
+        self.addresses["parity"] = self.addresses[["geometry", "road_vector"]].apply(
             lambda row: get_parity(*row), axis=1)
 
     def configure_roadseg_linkages(self):
