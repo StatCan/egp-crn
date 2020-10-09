@@ -320,8 +320,19 @@ class Segmentor:
             return roadseg_index
 
         # Link addresses on join fields.
-        self.addresses["roadseg_index"] = self.addresses["join"].map(
-            lambda val: tuple(set(self.roadseg[self.roadseg["join"] == val].index)))
+        self.addresses["addresses_index"] = self.addresses.index
+        self.roadseg["roadseg_index"] = self.roadseg.index
+
+        merge = self.addresses.merge(self.roadseg[["roadseg_index", "join"]], how="left", on="join")
+        self.addresses["roadseg_index"] = helpers.groupby_to_list(merge, "addresses_index", "roadseg_index").map(
+            lambda val: tuple(set(val)))
+
+        self.addresses.drop(columns=["addresses_index"], inplace=True)
+        self.roadseg.drop(columns=["roadseg_index"], inplace=True)
+
+        # Discard non-linked addresses.
+        self.addresses.drop(self.addresses[self.addresses["roadseg_index"].map(itemgetter(0)).isna()].index, axis=0,
+                            inplace=True)
 
         # Filter multi-linkage addresses to roadseg linkage with nearest geometric distance.
         flag_multi = self.addresses["roadseg_index"].map(len) > 1
