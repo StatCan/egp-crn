@@ -51,7 +51,7 @@ class Stage:
         self.output_path = os.path.abspath(f"../../data/processed/{self.source}/{self.source}_change_logs")
 
         # Conditionally clear output namespace.
-        namespace = set(os.listdir(self.output_path))
+        namespace = set(map(lambda f: os.path.join(self.output_path, f), os.listdir(self.output_path)))
 
         if len(namespace):
             logger.warning("Output namespace already occupied.")
