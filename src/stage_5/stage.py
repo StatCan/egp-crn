@@ -35,9 +35,10 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, remove):
         self.stage = 5
         self.source = source.lower()
+        self.remove = remove
         self.major_version = None
         self.minor_version = None
 
@@ -47,11 +48,35 @@ class Stage:
             logger.exception(f"Input data not found: {self.data_path}.")
             sys.exit(1)
 
-        # Configure and validate output data path. Only one directory source_change_logs can pre-exist in out dir.
+        # Configure output path.
         self.output_path = os.path.abspath(f"../../data/processed/{self.source}")
-        if os.path.exists(self.output_path):
-            if not set(os.listdir(self.output_path)).issubset({f"{self.source}_change_logs"}):
-                logger.exception(f"Output namespace already occupied: {self.output_path}.")
+
+        # Conditionally clear output namespace.
+        namespace = set(os.listdir(self.output_path)) - {f"{self.source}_change_logs"}
+
+        if len(namespace):
+            logger.warning("Output namespace already occupied.")
+
+            if self.remove:
+                logger.warning("Parameter remove=True: Removing conflicting files.")
+
+                for f in namespace:
+                    logger.info(f"Removing conflicting file: \"{f}\".")
+
+                    try:
+                        if os.path.isdir(f):
+                            shutil.rmtree(f)
+                        else:
+                            os.remove(f)
+                    except OSError as e:
+                        logger.exception(f"Unable to remove file: \"{f}\".")
+                        logger.exception(e)
+                        sys.exit(1)
+
+            else:
+                logger.exception(
+                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                    "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
         # Compile output formats.
@@ -452,13 +477,16 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
+@click.option("--remove / --no-remove", "-r", default=False, show_default=True,
+              help="Remove pre-existing files within the data/processed directory for the specified source, excluding "
+                   "change logs.")
+def main(source, remove):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, remove)
             stage.execute()
 
     except KeyboardInterrupt:

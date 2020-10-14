@@ -36,15 +36,44 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, remove):
         self.stage = 3
         self.source = source.lower()
+        self.remove = remove
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
+        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
         if not os.path.exists(self.data_path):
-            logger.exception("Input data not found: \"{}\".".format(self.data_path))
+            logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
+
+        # Configure output path.
+        self.output_path = os.path.abspath(f"../../data/processed/{self.source}/{self.source}_change_logs")
+
+        # Conditionally clear output namespace.
+        namespace = set(os.listdir(self.output_path))
+
+        if len(namespace):
+            logger.warning("Output namespace already occupied.")
+
+            if self.remove:
+                logger.warning("Parameter remove=True: Removing conflicting files.")
+
+                for f in namespace:
+                    logger.info(f"Removing conflicting file: \"{f}\".")
+
+                    try:
+                        os.remove(f)
+                    except OSError as e:
+                        logger.exception(f"Unable to remove file: \"{f}\".")
+                        logger.exception(e)
+                        sys.exit(1)
+
+            else:
+                logger.exception(
+                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                    "remove=True (-r) or manually clear the output namespace.")
+                sys.exit(1)
 
         # Compile match fields (fields which must be equal across records).
         self.match_fields = ["r_stname_c"]
@@ -58,18 +87,17 @@ class Stage:
     def export_change_logs(self):
         """Exports the dataset differences as logs - based on nids."""
 
-        change_logs_dir = os.path.abspath("../../data/processed/{0}/{0}_change_logs".format(self.source))
-        logger.info("Writing change logs to: \"{}\".".format(change_logs_dir))
+        logger.info(f"Writing change logs to: \"{self.output_path}\".")
 
         # Create change logs directory.
-        pathlib.Path(change_logs_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.output_path).mkdir(parents=True, exist_ok=True)
 
         # Iterate tables and change types.
         for table in self.change_logs:
             for change, log in self.change_logs[table].items():
 
                 # Configure log path.
-                log_path = os.path.join(change_logs_dir, "{}_{}_{}.log".format(self.source, table, change))
+                log_path = os.path.join(self.output_path, f"{self.source}_{table}_{change}.log")
 
                 # Write log.
                 with helpers.TempHandlerSwap(logger, log_path):
@@ -569,13 +597,15 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
+@click.option("--remove / --no-remove", "-r", default=False, show_default=True,
+              help="Remove pre-existing change logs within the data/processed directory for the specified source.")
+def main(source, remove):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, remove)
             stage.execute()
 
     except KeyboardInterrupt:
