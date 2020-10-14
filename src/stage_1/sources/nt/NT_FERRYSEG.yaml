@@ -11,12 +11,12 @@ license:
   text:
 language: en
 data:
-  filename: NTRN/NT_FERRYSEG.shp
+  filename: NTRN/NT_ROADSEG.shp
   layer:
   driver: ESRI Shapefile
   crs: "EPSG:3857"
   spatial: True
-  query:
+  query: "FEATURECOD == 'RFERLIN'"
 conform:
   ferryseg:
     acqtech:
@@ -109,7 +109,7 @@ conform:
             "None": Unknown
             RARTLIN: Arterial
             RBRGLIN: Unknown
-            RFERLIN: Arterial
+            RFERLIN: Unknown
             RHPOLIN: Expressway / Highway
             RHWYLIN: Expressway / Highway
             RLANLIN: Alleyway / Lane

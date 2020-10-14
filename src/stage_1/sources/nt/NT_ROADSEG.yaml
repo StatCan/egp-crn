@@ -16,7 +16,7 @@ data:
   driver: ESRI Shapefile
   crs: "EPSG:3857"
   spatial: True
-  query:
+  query: "FEATURECOD not in ('RTRLLIN', 'RFERLIN')"
 conform:
   addrange:
     acqtech: Vector Data
@@ -192,7 +192,7 @@ conform:
             "None": Unknown
             RARTLIN: Arterial
             RBRGLIN: Unknown
-            RFERLIN: Arterial
+            RFERLIN: Unknown
             RHPOLIN: Expressway / Highway
             RHWYLIN: Expressway / Highway
             RLANLIN: Alleyway / Lane

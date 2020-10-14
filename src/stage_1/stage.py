@@ -620,7 +620,12 @@ class Stage:
 
             # Query dataframe.
             if source_yaml["data"]["query"]:
-                df.query(source_yaml["data"]["query"], inplace=True)
+                try:
+                    df.query(source_yaml["data"]["query"], inplace=True)
+                except ValueError as e:
+                    logger.exception(f"Invalid query: \"{source_yaml['data']['query']}\".")
+                    logger.exception(e)
+                    sys.exit(1)
 
             # Force lowercase column names.
             df.columns = map(str.lower, df.columns)
@@ -665,7 +670,8 @@ class Stage:
 
                     # Generate target dataframe from source uuid and geometry fields.
                     gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
-                                           geometry=self.source_gdframes[source].geometry)
+                                           geometry=self.source_gdframes[source].geometry,
+                                           crs="EPSG:4617")
 
                 # Tabular.
                 else:

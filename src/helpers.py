@@ -294,8 +294,8 @@ def export_gpkg(dataframes, output_path, export_schemas=None):
                 if len(df.geom_type.unique()) > 1:
                     raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
                                      f"{', '.join(map(str, df.geom_type.unique()))}.")
-                elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                    shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
+                elif df.geom_type.iloc[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
+                    shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
                 else:
                     raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
                                      f"{', '.join(map(str, df.geom_type.unique()))}.")

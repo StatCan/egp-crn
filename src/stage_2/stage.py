@@ -234,7 +234,7 @@ class Stage:
         self.dframes["junction"]["acqtech"] = "Computed"
         self.dframes["junction"]["metacover"] = "Complete"
         self.dframes["junction"]["credate"] = datetime.today().strftime("%Y%m%d")
-        self.dframes["junction"]["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
+        self.dframes["junction"]["datasetnam"] = self.dframes["roadseg"]["datasetnam"].iloc[0]
         self.dframes["junction"]["provider"] = "Federal"
         self.dframes["junction"]["revdate"] = self.defaults["revdate"]
         connected_attributes = compute_connected_attributes(["accuracy", "exitnbr"])
@@ -385,7 +385,7 @@ class Stage:
         # Load boundaries as a single geometry object.
         logger.info("Loading administrative boundaries' geometry.")
         self.boundary = gpd.read_file("../../data/interim/boundaries.geojson",
-                                      crs=self.dframes["roadseg"].crs)["geometry"][0]
+                                      crs=self.dframes["roadseg"].crs)["geometry"].iloc[0]
 
         # Remove temporary files.
         logger.info("Removing temporary administrative boundary files and directories.")

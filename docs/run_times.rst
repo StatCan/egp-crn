@@ -34,7 +34,7 @@ Stage      Time
 Northwest Territories (NT)
 ==========================
 
-September 24, 2020
+October 14, 2020
 ------------------
 
 :Source: data/raw/nt/NTRN
@@ -42,7 +42,7 @@ September 24, 2020
     :OS: Windows 10 64-bit
     :CPU: Intel Core i7 4700HQ @ 2.40GHz
     :RAM: 16.0GB
-    :Python: 3.6.8
+    :Python: 3.6.11
 :Runtimes:
 
 =========  ====
