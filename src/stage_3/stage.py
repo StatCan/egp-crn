@@ -51,29 +51,30 @@ class Stage:
         self.output_path = os.path.abspath(f"../../data/processed/{self.source}/{self.source}_change_logs")
 
         # Conditionally clear output namespace.
-        namespace = set(map(lambda f: os.path.join(self.output_path, f), os.listdir(self.output_path)))
+        if os.path.exists(self.output_path):
+            namespace = set(map(lambda f: os.path.join(self.output_path, f), os.listdir(self.output_path)))
 
-        if len(namespace):
-            logger.warning("Output namespace already occupied.")
+            if len(namespace):
+                logger.warning("Output namespace already occupied.")
 
-            if self.remove:
-                logger.warning("Parameter remove=True: Removing conflicting files.")
+                if self.remove:
+                    logger.warning("Parameter remove=True: Removing conflicting files.")
 
-                for f in namespace:
-                    logger.info(f"Removing conflicting file: \"{f}\".")
+                    for f in namespace:
+                        logger.info(f"Removing conflicting file: \"{f}\".")
 
-                    try:
-                        os.remove(f)
-                    except OSError as e:
-                        logger.exception(f"Unable to remove file: \"{f}\".")
-                        logger.exception(e)
-                        sys.exit(1)
+                        try:
+                            os.remove(f)
+                        except OSError as e:
+                            logger.exception(f"Unable to remove file: \"{f}\".")
+                            logger.exception(e)
+                            sys.exit(1)
 
-            else:
-                logger.exception(
-                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
-                    "remove=True (-r) or manually clear the output namespace.")
-                sys.exit(1)
+                else:
+                    logger.exception(
+                        "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                        "remove=True (-r) or manually clear the output namespace.")
+                    sys.exit(1)
 
         # Compile match fields (fields which must be equal across records).
         self.match_fields = ["r_stname_c"]
