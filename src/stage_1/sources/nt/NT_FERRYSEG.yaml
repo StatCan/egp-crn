@@ -39,6 +39,7 @@ conform:
             GPS tract from regional Lands officer: GPS
             GPS; Air photo alighnment: GPS
             GPS; Air photo alignment: GPS
+            Orthoimage: Orthoimage
             Registry maps and documentation: Paper Map
             SPOT and registry maps: Orthoimage
             SPOT and registry maps and documentation: Orthoimage
@@ -80,6 +81,7 @@ conform:
             City of Yellowknife: Municipal
             De Beers Canada; MVLWBfrom NWTCG/CIMP: Provincial / Territorial
             Dehcho LUPfrom NWTCG/CIMP: Provincial / Territorial
+            Federal: Federal
             Federal;Territorial Lands Adm. ROfrom NWTCG/CIMP: Federal
             Federal;Territorial Lands Adm.ROfrom NWTCG/CIMP: Federal
             Federalfrom NWTCG/CIMP: Federal
