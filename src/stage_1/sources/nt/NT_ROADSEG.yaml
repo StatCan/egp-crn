@@ -232,19 +232,19 @@ conform:
       fields: PHA_ROADNA
       functions:
         - function: regex_sub
-          pattern: r"\b(No. [1-9][0-9]*)\b"
+          pattern: "\\b(No. [1-9][0-9]*)\\b"
           repl: ""
     rtename2en:
       fields: RTENAME2EN
       functions:
         - function: regex_sub
-          pattern: r"\b(No. [1-9][0-9]*)\b"
+          pattern: "\\b(No. [1-9][0-9]*)\\b"
           repl: ""
     rtename3en:
       fields: RTENAME3EN
       functions:
         - function: regex_sub
-          pattern: r"\b(No. [1-9][0-9]*)\b"
+          pattern: "\\b(No. [1-9][0-9]*)\\b"
           repl: ""
     rtename4en:
     rtename1fr:
@@ -255,21 +255,21 @@ conform:
       fields: PHA_ROADNA
       functions:
         - function: regex_find
-          pattern: r"\b([1-9][0-9]*)\b"
+          pattern: "\\b([1-9][0-9]*)\\b"
           match_index: 0
           group_index: 0
     rtnumber2:
       fields: RTENAME2EN
       functions:
         - function: regex_find
-          pattern: r"\b([1-9][0-9]*)\b"
+          pattern: "\\b([1-9][0-9]*)\\b"
           match_index: 0
           group_index: 0
     rtnumber3:
       fields: RTENAME3EN
       functions:
         - function: regex_find
-          pattern: r"\b([1-9][0-9]*)\b"
+          pattern: "\\b([1-9][0-9]*)\\b"
           match_index: 0
           group_index: 0
     rtnumber4:
