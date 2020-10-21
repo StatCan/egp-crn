@@ -119,7 +119,8 @@ class Stage:
 
         # Overwrite any pre-existing structid.
         self.dframes["roadseg"]["structid"] = [uuid.uuid4().hex for _ in range(len(self.dframes["roadseg"]))]
-        self.dframes["roadseg"].loc[self.dframes["roadseg"]["structtype"] == "None", "structid"] = "None"
+        self.dframes["roadseg"].loc[self.dframes["roadseg"]["structtype"].isin({"None", self.defaults["structtype"]}),
+                                    "structid"] = "None"
         self.roadseg.loc[self.dframes["roadseg"].index, "structid"] = self.dframes["roadseg"]["structid"]
 
         # Copy and filter dataframes.
@@ -128,7 +129,7 @@ class Stage:
 
         # Subset dataframes to valid structures.
         # Further subset previous vintage to records with valid IDs.
-        roadseg = roadseg[roadseg["structtype"] != "None"]
+        roadseg = roadseg[~roadseg["structtype"].isin({"None", self.defaults["structtype"]})]
         roadseg_old = roadseg_old[self.get_valid_ids(roadseg_old["structid"])]
 
         if len(roadseg):
