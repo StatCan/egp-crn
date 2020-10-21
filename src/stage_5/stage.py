@@ -83,6 +83,10 @@ class Stage:
         # Compile output formats.
         self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
 
+        # Configure field defaults and domains.
+        self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
+        self.domains = helpers.compile_domains(mapped_lang="fr")
+
     def configure_release_version(self):
         """Configures the major and minor release versions for the current NRN vintage."""
 
@@ -157,6 +161,15 @@ class Stage:
                 # Sanitize placenames for sql syntax.
                 placenames = placenames.map(lambda name: name.replace("'", "''"))
                 placenames_exceeded = set(map(lambda name: name.replace("'", "''"), placenames_exceeded))
+
+            # Swap English-French default placename.
+            else:
+                default_add = self.defaults[lang]["roadseg"]["l_placenam"]
+                default_rm = self.defaults["en" if lang == "fr" else "fr"]["roadseg"]["l_placenam"]
+                if default_rm in placenames:
+                    placenames = {*placenames - {default_rm}, default_add}
+                else:
+                    placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
             # Generate dataframe with export parameters.
             # names: Conform placenames to valid file names.
@@ -329,11 +342,6 @@ class Stage:
         }
         self.dframes = deepcopy(dframes)
 
-        # Compile defaults and domains.
-        defaults_en = helpers.compile_default_values(lang="en")
-        defaults_fr = helpers.compile_default_values(lang="fr")
-        domains = helpers.compile_domains(mapped_lang="fr")
-
         # Apply French translations to field values.
         table = None
         field = None
@@ -349,12 +357,12 @@ class Stage:
                     series = df[field].copy(deep=True)
 
                     # Translate domain values.
-                    if field in domains[table]:
-                        series = helpers.apply_domain(series, domains[table][field]["lookup"],
-                                                      defaults_fr[table][field])
+                    if field in self.domains[table]:
+                        series = helpers.apply_domain(series, self.domains[table][field]["lookup"],
+                                                      self.defaults["fr"][table][field])
 
                     # Translate default values and Nones.
-                    series.loc[series == defaults_en[table][field]] = defaults_fr[table][field]
+                    series.loc[series == self.defaults["en"][table][field]] = self.defaults["fr"][table][field]
                     series.loc[series == "None"] = "Aucun"
 
                     # Store results to dataframe.
