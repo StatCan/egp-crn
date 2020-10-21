@@ -240,6 +240,9 @@ conform:
         - function: regex_sub
           pattern: "\\b(No. [1-9][0-9]*)\\b"
           repl: ""
+        - function: regex_sub
+          pattern: "PRIVATE"
+          repl: "Unknown"
     rtename3en:
       fields: RTENAME3EN
       functions:
