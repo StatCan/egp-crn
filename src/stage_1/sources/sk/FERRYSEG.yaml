@@ -42,11 +42,11 @@ conform:
         - function: direct
           cast_type: int
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     closing:
-    ferrysegid: FERRYSEGID
+    ferrysegid:
     roadclass: ROADCLASS
-    nid: NID
+    nid: uuid
     rtename1en: RTENAME1EN
     rtename2en: RTENAME2EN
     rtename3en: RTENAME3EN

@@ -291,25 +291,89 @@ tables:
     nid:
     placename:
     placetype:
-      [Aucun, Borough / Borough, Chartered Community, City / Cité, City / Ville, Community / Communauté,
-      County (Municipality) / Comté (Municipalité), Cree Village / Village Cri, Crown Colony / Colonie de la couronne,
-      District (Municipality) / District (Municipalité), Hamlet / Hameau, Improvement District,
-      Indian Government District, Indian Reserve / Réserve indienne, Indian Settlement / Établissement indien,
-      Island Municipality, Local Government District, Lot / Lot, Municipal District / District municipal,
-      Municipality / Municipalité, Naskapi Village / Village Naskapi, Nisga'a land / Terre Nisga'a,
-      Nisga'a Village / Village Nisga'a, Northern Hamlet / Hameau nordique, Northern Town / Ville nordique,
-      Northern Village / Village nordique, Parish (Municipality) / Paroisse (Municipalité), Parish / Paroisse,
-      Region / Région, Regional District Electoral Area, Regional Municipality / Municipalité régionale,
-      Resort Village / Centre de villégiature, Rural Community, Rural Municipality / Municipalité rurale,
-      Settlement / Établissement, Special Area, Specialized Municipality / Municipalité spécialisée,
-      Subdivision of County Municipality, Subdivision of Regional District, Subdivision of Unorganized,
-      Summer Village / Village estival, Terre inuite, Terres réservées, Teslin land / Terre Teslin, Town / Ville,
-      Township (Municipality) / Canton (Municipalité), Township / Canton,
-      United Township (Municipality) / Cantons-unis (Municipalité), Unorganized / Non-organisé, Village / Village,
-      Without Designation (Municipality) / Sans désignation (Municipalité)]
+      0: Aucun
+      C: City / Cité
+      CC: Chartered community
+      CÉ: Cité
+      CG: Community government
+      CM: County (municipality)
+      CN: Crown colony / Colonie de la couronne
+      COM: Community
+      CT: Canton (municipalité de)
+      CU: Cantons unis (municipalité de)
+      CV: City / Ville
+      CY: City
+      DM: District municipality
+      FD: Fire district
+      HAM: Hamlet
+      ID: Improvement district
+      IGD: Indian government district
+      IM: Island municipality
+      IRI: Indian reserve / Réserve indienne
+      LGD: Local government district
+      LOT: Township and royalty
+      M: Municipality / Municipalité
+      MD: Municipal district
+      MÉ: Municipalité
+      MRM: Regional municipality / Municipalité régionale
+      MU: Municipality
+      NH: Northern hamlet
+      NL: Nisga'a land
+      NO: Unorganized / Non organisé
+      NV: Northern village
+      NVL: Nisga'a village
+      P: Parish / Paroisse (municipalité de)
+      PE: Paroisse (municipalité de)
+      RCR: Rural community / Communauté rurale
+      RDA: Regional district electoral area
+      RG: Region
+      RGM: Regional municipality
+      RM: Rural municipality
+      RMU: Resort municipality
+      RV: Resort village
+      SA: Special area
+      SC: Subdivision of county municipality / Subdivision municipalité de comté
+      SÉ: Settlement / Établissement
+      S-É: Indian settlement / Établissement indien
+      SET: Settlement
+      SG: Self-government / Autonomie gouvernementale
+      SM: Specialized municipality
+      SNO: Subdivision of unorganized / Subdivision non organisée
+      SV: Summer village
+      T: Town
+      TC: Terres réservées aux cris
+      TI: Terre inuite
+      TK: Terres réservées aux naskapis
+      TL: Teslin land
+      TP: Township
+      TV: Town / Ville
+      V: Ville
+      VC: Village cri
+      VK: Village naskapi
+      VL: Village
+      VN: Village nordique
     province: *datasetnam
     starticle:
-      [Aucun, à, à l', à la, au, aux, by the, chez, d', de, de l', de la, des, du, l', la, le, les, of the, the]
+      - Aucun
+      - à
+      - à l'
+      - à la
+      - au
+      - aux
+      - by the
+      - chez
+      - d'
+      - de
+      - de l'
+      - de la
+      - des
+      - du
+      - l'
+      - la
+      - le
+      - les
+      - of the
+      - the
     namebody:
     strtypre: &strtypre
       0: Aucun

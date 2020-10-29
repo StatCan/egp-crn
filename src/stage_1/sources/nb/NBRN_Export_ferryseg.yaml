@@ -26,9 +26,9 @@ conform:
     accuracy: Element_Planimetric_Accuracy
     provider: Element_Provider
     revdate: Element_Revision_Date
-    specvers:
+    specvers: 2.0
     closing: Closing_Period
-    ferrysegid: Ferry_Segment_ID
+    ferrysegid:
     roadclass: Functional_Road_Class
     nid: uuid
     rtename1en: Route_Name_English_1

@@ -141,9 +141,9 @@ def compile_default_values(lang="en"):
 def compile_domains(mapped_lang="en"):
     """
     Returns a dictionary containing the following for each field in each table:
-    1) 'values': all English and French values and numeric keys flattened into a single list.
-    2) 'lookup': a lookup dictionary mapping each English and French value and numeric key to the value of the given
-    map language.
+    1) 'values': all English and French values and keys flattened into a single list.
+    2) 'lookup': a lookup dictionary mapping each English and French value and key to the value of the given map
+    language.
     """
 
     # Compile field domains.
@@ -185,7 +185,11 @@ def compile_domains(mapped_lang="en"):
                     }
 
                     # Add integer keys as floats to accommodate incorrectly casted data.
-                    domains[table][field]["lookup"].update({str(float(k)): v for k, v in domain_mapped.items()})
+                    for k, v in domain_mapped.items():
+                        try:
+                            domains[table][field]["lookup"].update({str(float(k)): v})
+                        except ValueError:
+                            continue
 
                 else:
                     raise TypeError
@@ -290,8 +294,8 @@ def export_gpkg(dataframes, output_path, export_schemas=None):
                 if len(df.geom_type.unique()) > 1:
                     raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
                                      f"{', '.join(map(str, df.geom_type.unique()))}.")
-                elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                    shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
+                elif df.geom_type.iloc[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
+                    shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
                 else:
                     raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
                                      f"{', '.join(map(str, df.geom_type.unique()))}.")
@@ -431,6 +435,9 @@ def groupby_to_list(df, group_field, list_field):
     """
 
     if isinstance(group_field, list):
+        for field in group_field:
+            if df[field].dtype.name != "geometry":
+                df[field] = df[field].astype("U")
         transpose = df.sort_values(group_field)[[*group_field, list_field]].values.T
         keys, vals = np.column_stack(transpose[:-1]), transpose[-1]
         keys_unique, keys_indexes = np.unique(keys.astype("U") if isinstance(keys, np.object) else keys,
@@ -515,6 +522,9 @@ def load_gpkg(gpkg_path, find=False, layers=None):
                 # Drop fid field (this field is automatically generated and not part of the NRN).
                 if "fid" in df.columns:
                     df.drop(columns=["fid"], inplace=True)
+
+                # Fill nulls with string "None".
+                df.fillna("None", inplace=True)
 
                 # Store result.
                 dframes[table_name] = df.copy(deep=True)
@@ -613,7 +623,7 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
 
     logger.info(f"Reprojecting geometry from EPSG:{epsg_source} to EPSG:{epsg_target}.")
 
-    series_flag = True if isinstance(gdf, gpd.GeoSeries) else False
+    series_flag = isinstance(gdf, gpd.GeoSeries)
 
     # Return empty dataframe.
     if not len(gdf):

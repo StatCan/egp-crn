@@ -10,7 +10,7 @@ import string
 import sys
 from collections import Counter
 from datetime import datetime
-from itertools import chain, permutations
+from itertools import chain, groupby, permutations, tee
 from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
@@ -231,12 +231,14 @@ def deadend_proximity(junction, roadseg):
 
 
 def duplicated_lines(df):
-    """Identifies the uuids of duplicate line geometries."""
+    """Identifies the uuids of duplicate and overlapping line geometries."""
 
-    errors = {1: list()}
+    errors = {i: list() for i in range(1, 3+1)}
 
     # Keep only required fields.
     series = df["geometry"]
+
+    # Validation 1: ensure line segments are not duplicated.
 
     # Filter geometries to those with duplicate lengths.
     s_filtered = series[series.length.duplicated(keep=False)]
@@ -247,16 +249,71 @@ def duplicated_lines(df):
         s_filtered = s_filtered[s_filtered.map(
             lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
-        # Identify duplicate geometries.
         if len(s_filtered):
-            mask = s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)
 
-            # Compile uuids of flagged records.
-            errors[1] = s_filtered[mask].index.values
+            # Identify duplicate geometries.
+            dups = s_filtered[s_filtered.map(lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)]
+
+            # Configure duplicate groups and their uuids.
+            uuid_groups = set(dups.map(lambda geom1:
+                                       tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+
+            # Compile error properties.
+            if len(uuid_groups):
+                for uuid_group in uuid_groups:
+                    vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
+                    errors[1].append(f"Duplicated geometries identified for uuids: {vals}.")
+
+    # Validation 2: ensure line segments do not have repeated adjacent points.
+
+    # Filter geometries to those with duplicated coordinates.
+    s_filtered = series[series.map(lambda g: len(g.coords) != len(set(g.coords)))]
+
+    if len(s_filtered):
+
+        # Identify geometries with repeated adjacent coordinates.
+        mask = s_filtered.map(lambda g: len(g.coords) != len(list(groupby(g.coords))))
+
+        # Compile uuids of flagged records.
+        errors[2] = s_filtered[mask].index.values
+
+    # Validation 3: ensure line segments do not overlap (i.e. contain duplicated adjacent points).
+
+    # Extract coordinates from geometries (used multiple times).
+    series_coords = series.map(attrgetter("coords")).map(tuple)
+
+    # Create ordered coordinate pairs, sorted.
+    def ordered_pairs(coords):
+        coords_1, coords_2 = tee(coords)
+        next(coords_2, None)
+        return sorted(zip(coords_1, coords_2))
+    coord_pairs = series_coords.map(ordered_pairs).explode()
+
+    # Remove invalid pairs (duplicated adjacent coordinates).
+    coord_pairs = coord_pairs[coord_pairs.map(lambda pair: pair[0] != pair[1])]
+
+    # Group uuids of matching pairs.
+    coord_pairs_df = coord_pairs.reset_index(drop=False)
+    coord_pairs_grouped = helpers.groupby_to_list(coord_pairs_df, "geometry", "uuid")
+    coord_pairs_grouped = pd.DataFrame({"pairs": coord_pairs_grouped.index, "uuid": coord_pairs_grouped.values})
+
+    # Filter to duplicated pairs.
+    coord_pairs_dup = coord_pairs_grouped[coord_pairs_grouped["uuid"].map(len) > 1]
+    if len(coord_pairs_dup):
+
+        # Group duplicated pairs by sorted uuid groups.
+        coord_pairs_dup["uuid"] = coord_pairs_dup["uuid"].map(sorted).map(tuple)
+        coord_pairs_dup_grouped = helpers.groupby_to_list(coord_pairs_dup, "uuid", "pairs")
+
+        # Compile error properties.
+        if len(coord_pairs_dup_grouped):
+            for uuid_group, pairs in coord_pairs_dup_grouped.iteritems():
+                vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
+                errors[3].append(f"Overlap identified for uuids: {vals}; number of overlapping segments: {len(pairs)}.")
 
     # Compile error properties.
     for code, vals in errors.items():
-        if len(vals):
+        if code in {2} and len(vals):
             errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
 
     return errors
@@ -267,16 +324,44 @@ def duplicated_points(df):
 
     errors = {1: list()}
 
+    # Extract coordinates of points.
+    pts = df["geometry"].map(lambda g: itemgetter(0)(g.coords))
+
     # Identify duplicated geometries.
-    mask = df["geometry"].map(lambda geom: geom.coords[0]).duplicated(keep=False)
+    dups = pts[pts.duplicated(keep=False)]
 
-    # Compile uuids of flagged records.
-    errors[1] = df[mask].index.values
+    if len(dups):
 
-    # Compile error properties.
-    for code, vals in errors.items():
-        if len(vals):
-            errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
+        # Configure duplicated groups and their uuids.
+        uuid_groups = set(dups.map(lambda geom1:
+                                   tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+
+        # Compile error properties.
+        if len(uuid_groups):
+            for uuid_group in uuid_groups:
+                vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
+                errors[1].append(f"Duplicated geometries identified for uuids: {vals}.")
+
+    return errors
+
+
+def encoding(df):
+    """Identifies potential encoding errors within string fields."""
+
+    errors = {1: list()}
+
+    # Iterate string columns.
+    for col in set(df.select_dtypes(include="object").columns) - {"geometry", "uuid", "nid"}:
+
+        # Validation: identify values containing one or more question mark ("?"), which may be the result of invalid
+        # character encoding.
+
+        # Flag invalid records.
+        flag = df[col].str.contains("?", regex=False)
+
+        # Compile error properties.
+        for id, val in df.loc[flag, col].iteritems():
+            errors[1].append(f"uuid: '{id}', attribute: '{val}', based on attribute field: {col}.")
 
     return errors
 
@@ -369,8 +454,8 @@ def ids(df):
     # Iterate fields which a) end with "id", b) are str type, and c) are not uuid.
     for col in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
 
-        # Subset dataframe to required column with non-default values.
-        series = df[df[col] != defaults[col]][col]
+        # Subset dataframe to required column with non-default and non-"None" values.
+        series = df[~df[col].isin([defaults[col], "None"])][col]
 
         if len(series):
 
@@ -400,9 +485,9 @@ def ids(df):
         for id in flag_uuids:
             errors[3].append(f"uuid: '{id}', based on attribute field: {col}.")
 
-        # Validation 4: ensure unique id fields are not the default field value.
+        # Validation 4: ensure unique id fields are not "None" nor the default field value.
         # Compile uuids of flagged records.
-        flag_uuids = series[series == defaults[col]].index.values
+        flag_uuids = series[series.isin([defaults[col], "None"])].index.values
         for id in flag_uuids:
             errors[4].append(f"uuid: '{id}', based on attribute field: {col}.")
 
@@ -656,7 +741,7 @@ def nbrlanes(df):
 
 def nid_linkages(df, dfs_all):
     """
-    Validates the nid linkages for the input dataframe.
+    Validates the nid linkages for the input dataframe, excluding "None".
     Parameter dfs_all must be a dictionary of all nrn dataframes.
     """
 
@@ -701,13 +786,13 @@ def nid_linkages(df, dfs_all):
         for col in linkages[nid_table][id_table]:
 
             # Validation: ensure all nid linkages are valid.
-            print(f"Validating nid linkage: {nid_table}.nid - {id_table}.{col}.")
+            logger.info(f"Validating nid linkage: {nid_table}.nid - {id_table}.{col}.")
 
             # Retrieve column ids as lowercase.
             ids = set(df[col].map(str.lower))
 
-            # Compile invalid ids.
-            invalid_ids = ids - nids
+            # Compile invalid ids, excluding "None" (lower cased).
+            invalid_ids = ids - nids - {"none"}
 
             # Configure error properties.
             if len(invalid_ids):
@@ -889,17 +974,19 @@ def self_intersecting_elements(df):
         flagged_nids = segments_multi[segments_multi["geometry"].map(
             lambda g: len(set(itemgetter(0, -1)(g.coords)).intersection(valid_coords)) > 0)]["nid"].unique()
 
-        # Compile dataframe records with a flagged nid.
-        flagged_df = df[df["nid"].isin(flagged_nids)]
+        if len(flagged_nids):
 
-        # Group geometries by nid.
-        grouped_segments = helpers.groupby_to_list(flagged_df, "nid", "geometry")
+            # Compile dataframe records with a flagged nid.
+            flagged_df = df[df["nid"].isin(flagged_nids)]
 
-        # Dissolve road segments.
-        elements = grouped_segments.map(shapely.ops.linemerge)
+            # Group geometries by nid.
+            grouped_segments = helpers.groupby_to_list(flagged_df, "nid", "geometry")
 
-        # Identify self-intersections and store nids.
-        flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
+            # Dissolve road segments.
+            elements = grouped_segments.map(shapely.ops.linemerge)
+
+            # Identify self-intersections and store nids.
+            flag_nids.extend(elements[elements.map(lambda element: element.is_ring or not element.is_simple)].values)
 
     # Compile uuids of road segments with flagged nid and invalid roadclass.
     errors[1] = df[(df["nid"].isin(flag_nids)) & (~df["roadclass"].isin(valid))].index.values

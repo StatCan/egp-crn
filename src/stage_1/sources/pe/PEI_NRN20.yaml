@@ -26,7 +26,7 @@ conform:
     accuracy: ACCURACY
     provider: PROVIDER
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     l_altnanid:
     r_altnanid:
     l_digdirfg: L_DIGDIRFG
@@ -82,7 +82,7 @@ conform:
     accuracy: ACCURACY
     provider: PROVIDER
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     l_adddirfg: L_DIGDIRFG
     r_adddirfg: R_DIGDIRFG
     adrangenid: uuid
@@ -108,7 +108,7 @@ conform:
     r_hnuml:
       fields: R_HNUML
       functions: *l_hnumf
-    nid: NID
+    nid: uuid
     nbrlanes: NBRLANES
     l_placenam:
       fields: PLACE_L
@@ -132,11 +132,6 @@ conform:
     pavstatus: PAVSTATUS
     roadjuris: ROADJURIS
     roadsegid:
-      fields: uuid
-      functions:
-        - function: incrementor
-          start: 1
-          step: 1
     rtename1en:
       fields: RTENAME1EN
       functions: &rtename1en
@@ -201,7 +196,7 @@ conform:
     accuracy: ACCURACY
     provider: PROVIDER
     revdate: REVDATE
-    specvers: SPECVERS
+    specvers: 2.0
     dirprefix: DIRPREFIX
     dirsuffix: DIRSUFFIX
     muniquad:

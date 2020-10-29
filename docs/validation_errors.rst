@@ -46,11 +46,25 @@ All validations have been assigned a unique error code with the following compos
 Errors
 ======
 
-E00101
-------
+E001
+----
 
 :Validation: Duplicated lines.
+
+E00101
+^^^^^^
+
 :Description: Line segments within the same dataset must not be duplicated.
+
+E00102
+^^^^^^
+
+:Description: Line segments must not contain repeated adjacent coordinates.
+
+E00103
+^^^^^^
+
+:Description: Line segments within the same dataset must not overlap (i.e. contain duplicated adjacent points).
 
 E00201
 ------
@@ -165,7 +179,7 @@ E00903
 E00904
 ^^^^^^
 
-:Description: IDs in UUID attribute column must not be the default value.
+:Description: IDs in UUID attribute column must not equal "None" nor the default value.
 
 E01001
 ------
@@ -305,3 +319,9 @@ E02302
 ^^^^^^
 
 :Description: Attribute "speed" must be a multiple of 5.
+
+E02401
+------
+
+:Validation: Encoding.
+:Description: Attribute contains one or more question mark ("?"), which may be the result of invalid character encoding.

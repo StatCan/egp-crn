@@ -1,7 +1,7 @@
 data:
   dir: NRN_RRN_<source>_<major_version>_<minor_version>_KML/RRN_<source>_<major_version>_<minor_version>_KML_fr
   file: <name>.kmz
-  driver: LIBKML
+  driver: KML
 conform:
   roadseg:
     name: SegmentRoutier

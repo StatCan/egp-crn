@@ -19,13 +19,13 @@ data:
   query:
 conform:
   blkpassage:
-    nid: NID
+    nid: uuid
     datasetnam:
       fields: DATASETNAM
       functions:
         - function: direct
           cast_type: int
-    specvers: SPECVERS
+    specvers: 2.0
     accuracy: ACCURACY
     acqtech:
       fields: ACQTECH

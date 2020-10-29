@@ -35,9 +35,10 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, remove):
         self.stage = 5
         self.source = source.lower()
+        self.remove = remove
         self.major_version = None
         self.minor_version = None
 
@@ -47,34 +48,74 @@ class Stage:
             logger.exception(f"Input data not found: {self.data_path}.")
             sys.exit(1)
 
-        # Configure and validate output data path. Only one directory source_change_logs can pre-exist in out dir.
+        # Configure output path.
         self.output_path = os.path.abspath(f"../../data/processed/{self.source}")
-        if os.path.exists(self.output_path):
-            if not set(os.listdir(self.output_path)).issubset({f"{self.source}_change_logs"}):
-                logger.exception(f"Output namespace already occupied: {self.output_path}.")
+
+        # Conditionally clear output namespace.
+        namespace = set(map(lambda f: os.path.join(self.output_path, f),
+                            set(os.listdir(self.output_path)) - {f"{self.source}_change_logs"}))
+
+        if len(namespace):
+            logger.warning("Output namespace already occupied.")
+
+            if self.remove:
+                logger.warning("Parameter remove=True: Removing conflicting files.")
+
+                for f in namespace:
+                    logger.info(f"Removing conflicting file: \"{f}\".")
+
+                    try:
+                        if os.path.isdir(f):
+                            shutil.rmtree(f)
+                        else:
+                            os.remove(f)
+                    except OSError as e:
+                        logger.exception(f"Unable to remove file: \"{f}\".")
+                        logger.exception(e)
+                        sys.exit(1)
+
+            else:
+                logger.exception(
+                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                    "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
         # Compile output formats.
         self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
 
+        # Configure field defaults and domains.
+        self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
+        self.domains = helpers.compile_domains(mapped_lang="fr")
+
     def configure_release_version(self):
         """Configures the major and minor release versions for the current NRN vintage."""
 
         logger.info("Configuring NRN release version.")
-        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+
+        logger.info("Retrieving metadata for previous NRN vintage.")
 
         # Retrieve metadata for previous NRN vintage.
-        logger.info("Retrieving metadata for previous NRN vintage.")
-        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
+        metadata_url = source["metadata_url"]
+        nrn_id = source["ids"][self.source]
 
         # Get metadata from url.
         metadata = helpers.get_url(metadata_url, timeout=30)
+        metadata = json.loads(metadata.content)
+
+        # Extract download url from metadata.
+        download_url, timestamp = None, None
+        for product in metadata["result"]["resources"]:
+            if product["id"] == nrn_id:
+                download_url, timestamp = itemgetter("url", "created")(product)
+
+        if not download_url:
+            logger.exception(f"Unable to find previous NRN product from metadata: {metadata_url}.")
+            sys.exit(1)
 
         # Extract release year and version numbers from metadata.
-        metadata = json.loads(metadata.content)
-        release_year = int(metadata["result"]["metadata_created"][:4])
-        self.major_version, self.minor_version = list(
-            map(int, re.findall(r"\d+", metadata["result"]["resources"][0]["url"])[-2:]))
+        release_year = int(timestamp[:4])
+        self.major_version, self.minor_version = list(map(int, re.findall(r"\d+", download_url)[-2:]))
 
         # Conditionally set major and minor version numbers.
         if release_year == datetime.now().year:
@@ -120,6 +161,15 @@ class Stage:
                 # Sanitize placenames for sql syntax.
                 placenames = placenames.map(lambda name: name.replace("'", "''"))
                 placenames_exceeded = set(map(lambda name: name.replace("'", "''"), placenames_exceeded))
+
+            # Swap English-French default placename.
+            else:
+                default_add = self.defaults[lang]["roadseg"]["l_placenam"]
+                default_rm = self.defaults["en" if lang == "fr" else "fr"]["roadseg"]["l_placenam"]
+                if default_rm in placenames:
+                    placenames = {*placenames - {default_rm}, default_add}
+                else:
+                    placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
             # Generate dataframe with export parameters.
             # names: Conform placenames to valid file names.
@@ -292,12 +342,7 @@ class Stage:
         }
         self.dframes = deepcopy(dframes)
 
-        # Compile defaults and domains.
-        defaults_en = helpers.compile_default_values(lang="en")
-        defaults_fr = helpers.compile_default_values(lang="fr")
-        domains = helpers.compile_domains(mapped_lang="fr")
-
-        # Map field domains to French equivalents.
+        # Apply French translations to field values.
         table = None
         field = None
 
@@ -305,22 +350,26 @@ class Stage:
 
             # Iterate dataframes and fields.
             for table, df in dframes["fr"].items():
-                for field, domain in domains[table].items():
+                for field in set(df.columns) - {"uuid", "geometry"}:
 
-                    logger.info(f"Applying domain to table: {table}, field: {field}.")
+                    logger.info(f"Applying French translations for table: {table}, field: {field}.")
 
-                    # Apply domain to series.
                     series = df[field].copy(deep=True)
-                    series = helpers.apply_domain(series, domain["lookup"], defaults_fr[table][field])
 
-                    # Convert defaults to French equivalents.
-                    series.loc[series == defaults_en[table][field]] = defaults_fr[table][field]
+                    # Translate domain values.
+                    if field in self.domains[table]:
+                        series = helpers.apply_domain(series, self.domains[table][field]["lookup"],
+                                                      self.defaults["fr"][table][field])
+
+                    # Translate default values and Nones.
+                    series.loc[series == self.defaults["en"][table][field]] = self.defaults["fr"][table][field]
+                    series.loc[series == "None"] = "Aucun"
 
                     # Store results to dataframe.
                     self.dframes["fr"][table][field] = series.copy(deep=True)
 
         except (AttributeError, KeyError, ValueError):
-            logger.exception(f"Unable to apply French domain mapping for table: {table}, field: {field}.")
+            logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
             sys.exit(1)
 
     def gen_output_schemas(self):
@@ -437,13 +486,16 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
+@click.option("--remove / --no-remove", "-r", default=False, show_default=True,
+              help="Remove pre-existing files within the data/processed directory for the specified source, excluding "
+                   "change logs.")
+def main(source, remove):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, remove)
             stage.execute()
 
     except KeyboardInterrupt:

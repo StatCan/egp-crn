@@ -28,9 +28,10 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, remove):
         self.stage = 4
         self.source = source.lower()
+        self.remove = remove
         self.errors = defaultdict(dict)
 
         # Configure and validate input data path.
@@ -41,6 +42,30 @@ class Stage:
 
         # Compile default field values.
         self.defaults = helpers.compile_default_values()
+
+        # Configure output path.
+        self.output_path = os.path.abspath(f"../../data/interim/{self.source}_validation_errors.log")
+
+        # Conditionally clear output namespace.
+        if os.path.exists(self.output_path):
+            logger.warning("Output namespace already occupied.")
+
+            if self.remove:
+                logger.warning("Parameter remove=True: Removing conflicting files.")
+                logger.info(f"Removing conflicting file: \"{self.output_path}\".")
+
+                try:
+                    os.remove(self.output_path)
+                except OSError as e:
+                    logger.exception(f"Unable to remove file: \"{self.output_path}\".")
+                    logger.exception(e)
+                    sys.exit(1)
+
+            else:
+                logger.exception(
+                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                    "remove=True (-r) or manually clear the output namespace.")
+                sys.exit(1)
 
         # Compile error codes.
         self.error_codes = {
@@ -66,7 +91,8 @@ class Stage:
             "self_intersecting_elements": 20,
             "self_intersecting_structures": 21,
             "route_contiguity": 22,
-            "speed": 23
+            "speed": 23,
+            "encoding": 24
         }
 
     def classify_tables(self):
@@ -87,8 +113,7 @@ class Stage:
 
         logger.info("Writing error logs.")
 
-        log_path = os.path.abspath("../../data/interim/{}_validation_errors.log".format(self.source))
-        with helpers.TempHandlerSwap(logger, log_path):
+        with helpers.TempHandlerSwap(logger, self.output_path):
 
             # Iterate and log errors.
             for heading, errors in sorted(self.errors.items()):
@@ -132,7 +157,8 @@ class Stage:
                 "self_intersecting_elements": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "self_intersecting_structures": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "speed": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "structure_attributes": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()}
+                "structure_attributes": {"tables": ["roadseg", "junction"], "iterate": False, "args": ()},
+                "encoding": {"tables": self.dframes.keys(), "iterate": True, "args": ()}
             }
 
             # Iterate functions and datasets.
@@ -190,13 +216,15 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
+@click.option("--remove / --no-remove", "-r", default=False, show_default=True,
+              help="Remove pre-existing validation log within the data/processed directory for the specified source.")
+def main(source, remove):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, remove)
             stage.execute()
 
     except KeyboardInterrupt:

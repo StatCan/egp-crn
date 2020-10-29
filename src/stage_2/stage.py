@@ -94,24 +94,34 @@ class Stage:
             logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
             sys.exit(1)
 
-    def divide_polygon(self, poly, threshold, count=0):
-        """Divides a polygon into 2 parts until the size <= threshold or the max recursions is reached."""
+    def divide_polygon(self, poly, threshold, pts, count=0):
+        """
+        Recursively divides a polygon into 2 parts until any of the following limits are reached:
+        a) both dimensions (height and width) are <= threshold.
+        b) the custom implemented recursion depth (250) is reached.
+        c) no point tuples exist within the current bounds.
+        """
 
-        bounds = poly.bounds
-        width = bounds[2] - bounds[0]
-        height = bounds[3] - bounds[1]
+        xmin, ymin, xmax, ymax = poly.bounds
+
+        # Configure bounds dimensions.
+        width = xmax - xmin
+        height = ymax - ymin
 
         # Exit recursion once limits are reached.
-        if max(width, height) <= threshold or count == 250:
-            return [poly]
+        if max(width, height) <= threshold or count == 250 or not len(pts):
+            if len(pts):
+                return [poly]
+            else:
+                return [None]
 
         # Conditionally split polygon by height or width.
         if height >= width:
-            a = box(bounds[0], bounds[1], bounds[2], bounds[1] + (height / 2))
-            b = box(bounds[0], bounds[1] + (height / 2), bounds[2], bounds[3])
+            a = box(xmin, ymin, xmax, ymin + (height / 2))
+            b = box(xmin, ymin + (height / 2), xmax, ymax)
         else:
-            a = box(bounds[0], bounds[1], bounds[0] + (width / 2), bounds[3])
-            b = box(bounds[0] + (width / 2), bounds[1], bounds[2], bounds[3])
+            a = box(xmin, ymin, xmin + (width / 2), ymax)
+            b = box(xmin + (width / 2), ymin, xmax, ymax)
         result = []
 
         # Compile split results, further recurse.
@@ -121,7 +131,8 @@ class Stage:
                 c = [c]
             for e in c:
                 if isinstance(e, (Polygon, MultiPolygon)):
-                    result.extend(self.divide_polygon(e, threshold, count + 1))
+                    pts_subset = pts[pts.map(lambda pt: (xmin <= pt[0] <= xmax) and (ymin <= pt[1] <= ymax))]
+                    result.extend(self.divide_polygon(e, threshold, pts_subset, count=count + 1))
 
         if count > 0:
             return result
@@ -129,10 +140,11 @@ class Stage:
         # Compile final result as a single-part polygon.
         final_result = []
         for g in result:
-            if isinstance(g, MultiPolygon):
-                final_result.extend(g)
-            else:
-                final_result.append(g)
+            if g:
+                if isinstance(g, MultiPolygon):
+                    final_result.extend(g)
+                else:
+                    final_result.append(g)
 
         return final_result
 
@@ -222,7 +234,7 @@ class Stage:
         self.dframes["junction"]["acqtech"] = "Computed"
         self.dframes["junction"]["metacover"] = "Complete"
         self.dframes["junction"]["credate"] = datetime.today().strftime("%Y%m%d")
-        self.dframes["junction"]["datasetnam"] = self.dframes["roadseg"]["datasetnam"][0]
+        self.dframes["junction"]["datasetnam"] = self.dframes["roadseg"]["datasetnam"].iloc[0]
         self.dframes["junction"]["provider"] = "Federal"
         self.dframes["junction"]["revdate"] = self.defaults["revdate"]
         connected_attributes = compute_connected_attributes(["accuracy", "exitnbr"])
@@ -284,21 +296,22 @@ class Stage:
         # points from other junctypes.
         logger.info("Configuring junctype: NatProvTer.")
 
-        # Split administrative boundary into smaller polygons.
-        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1))
+        # Compile all junction as coordinate tuples and Point geometries.
+        pts = pd.Series(chain.from_iterable([deadend, ferry, intersection]))
+        pts_geoms = gpd.GeoSeries(pts.map(Point))
 
-        # Compile all junctions as Point geometries.
-        merged_pts = gpd.GeoSeries(map(Point, chain.from_iterable([deadend, ferry, intersection])))
+        # Split administrative boundary into smaller polygons.
+        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1, pts))
 
         # Use the junctions' spatial indexes to query points within the split boundary polygons.
-        pts_sindex = merged_pts.sindex
+        pts_sindex = pts_geoms.sindex
         pts_within = boundary_polys.map(
-            lambda poly: merged_pts.iloc[list(pts_sindex.intersection(poly.bounds))].within(poly))
+            lambda poly: pts_geoms.iloc[list(pts_sindex.intersection(poly.bounds))].within(poly))
         pts_within = pts_within.map(lambda series: series.index[series].values)
         pts_within = set(chain.from_iterable(pts_within.to_list()))
 
         # Invert query and compile resulting points as NatProvTer.
-        natprovter = set(merged_pts[~merged_pts.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
+        natprovter = set(pts_geoms[~pts_geoms.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
 
         # Remove conflicting points from other junctypes.
         deadend = deadend.difference(natprovter)
@@ -337,7 +350,7 @@ class Stage:
         # Download administrative boundaries.
         logger.info("Downloading administrative boundary file.")
         source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
-        download_url, filename = itemgetter("url", "filename")(source)
+        download_url, filename, source_crs = itemgetter("url", "filename", "crs")(source)
 
         try:
 
@@ -366,13 +379,13 @@ class Stage:
                  "qc": 24, "sk": 47, "yt": 60}[self.source]),
             "dest": os.path.abspath("../../data/interim/boundaries.geojson"),
             "src": os.path.abspath("../../data/interim/boundaries/{}".format(filename)),
-            "options": "-t_srs EPSG:4617 -nlt MULTIPOLYGON"
+            "options": f"-s_srs {source_crs} -t_srs EPSG:4617 -nlt MULTIPOLYGON"
         })
 
         # Load boundaries as a single geometry object.
         logger.info("Loading administrative boundaries' geometry.")
         self.boundary = gpd.read_file("../../data/interim/boundaries.geojson",
-                                      crs=self.dframes["roadseg"].crs)["geometry"][0]
+                                      crs=self.dframes["roadseg"].crs)["geometry"].iloc[0]
 
         # Remove temporary files.
         logger.info("Removing temporary administrative boundary files and directories.")

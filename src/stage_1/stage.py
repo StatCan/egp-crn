@@ -14,12 +14,14 @@ import sys
 import uuid
 import zipfile
 from collections import Counter
+from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
 import helpers
+from segment_addresses import Segmentor
 
 
 # Suppress pandas chained assignment warning.
@@ -38,9 +40,10 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, remove):
         self.stage = 1
         self.source = source.lower()
+        self.remove = remove
 
         # Configure raw data path.
         self.data_path = os.path.abspath("../../data/raw/{}".format(self.source))
@@ -48,14 +51,37 @@ class Stage:
         # Configure source attribute path.
         self.source_attribute_path = os.path.abspath("sources/{}".format(self.source))
 
-        # Configure previous NRN vintage path.
+        # Configure previous NRN vintage path and clear namespace.
         self.nrn_old_path = os.path.abspath(f"../../data/interim/{self.source}_old")
 
-        # Validate output namespace.
+        # Configure output path.
         self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
-        if os.path.exists(self.output_path):
-            logger.exception("Output namespace already occupied: \"{}\".".format(self.output_path))
-            sys.exit(1)
+
+        # Conditionally clear output namespace.
+        output_dir = os.path.dirname(self.output_path)
+        namespace = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if
+                     f.startswith(f"{self.source}_") or f.startswith(f"{self.source}.")]
+
+        if len(namespace):
+            logger.warning("Output namespace already occupied.")
+
+            if self.remove:
+                logger.warning("Parameter remove=True: Removing conflicting files.")
+
+                for f in namespace:
+                    logger.info(f"Removing conflicting file: \"{f}\".")
+
+                    try:
+                        os.remove(f)
+                    except OSError as e:
+                        logger.exception(f"Unable to remove file: \"{f}\".")
+                        logger.exception(e)
+                        sys.exit(1)
+
+            else:
+                logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                                 "remove=True (-r) or manually clear the output namespace.")
+                sys.exit(1)
 
         # Configure field defaults, dtypes, and domains.
         self.defaults = helpers.compile_default_values()
@@ -64,6 +90,22 @@ class Stage:
 
     def apply_domains(self):
         """Applies domain restrictions to each column in the target dataframes."""
+
+        def cast_dtype(val, dtype, default):
+            """
+            Casts the value to the given numpy dtype.
+            Returns the default parameter for invalid or Null values.
+            """
+
+            try:
+
+                if pd.isna(val) or val == "":
+                    return default
+                else:
+                    return itemgetter(0)(np.array([val]).astype(dtype))
+
+            except (TypeError, ValueError):
+                return default
 
         logging.info("Applying field domains.")
         table = None
@@ -83,8 +125,12 @@ class Stage:
                     series_new = helpers.apply_domain(series_orig, domain=domain["lookup"],
                                                       default=self.defaults[table][field])
 
+                    # Compile original and new dtype names (for logging).
+                    dtype_orig = self.target_gdframes[table][field].dtype.name
+                    dtype_new = self.dtypes[table][field]
+
                     # Force adjust data type.
-                    series_new = series_new.astype(self.dtypes[table][field])
+                    series_new = series_new.map(lambda val: cast_dtype(val, dtype_new, self.defaults[table][field]))
 
                     # Store results to target dataframe.
                     self.target_gdframes[table][field] = series_new.copy(deep=True)
@@ -101,7 +147,7 @@ class Stage:
                         for vals in df[~df.duplicated(keep="first")].values:
 
                             logger.warning(f"Modified {counts[-99] if pd.isna(vals[0]) else counts[vals[0]]} "
-                                           f"instance(s) of {vals[0]} to {vals[1]}.")
+                                           f"instance(s) of {vals[0]} ({dtype_orig}) to {vals[1]} ({dtype_new}).")
 
         except (AttributeError, KeyError, ValueError):
             logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
@@ -134,7 +180,8 @@ class Stage:
                         logger.info(f"Target field {target_field}: No mapping provided.")
 
                     # Raw value mapping.
-                    elif isinstance(source_field, str) and (source_field.lower() not in source_gdf.columns):
+                    elif isinstance(source_field, (str, int, float)) and str(source_field).lower() not in \
+                            source_gdf.columns:
                         logger.info(f"Target field {target_field}: Applying raw value.")
 
                         # Update target dataframe with raw value.
@@ -144,17 +191,18 @@ class Stage:
                     else:
                         logger.info(f"Target field {target_field}: Identifying function chain.")
 
-                        # Restructure dict for direct field mapping in case of string or list input.
-                        if isinstance(source_field, str) or isinstance(source_field, list):
-                            source_field = {"fields": [source_field] if isinstance(source_field, str) else source_field,
-                                            "functions": [{"function": "direct"}]}
+                        # Restructure mapping dict for direct field mapping in case of string or list input.
+                        if isinstance(source_field, (str, list)):
+                            source_field = {
+                                "fields": source_field if isinstance(source_field, list) else [source_field],
+                                "functions": [{"function": "direct"}]
+                            }
 
-                        # Convert single field attribute to list.
-                        if isinstance(source_field["fields"], str):
-                            source_field["fields"] = [source_field["fields"]]
-
-                        # Convert field to lowercase.
-                        source_field["fields"] = list(map(str.lower, source_field["fields"]))
+                        # Convert fields to lowercase.
+                        if isinstance(source_field["fields"], list):
+                            source_field["fields"] = list(map(str.lower, source_field["fields"]))
+                        else:
+                            source_field["fields"] = list(map(str.lower, [source_field["fields"]]))
 
                         # Create mapped dataframe from source and target dataframes, keeping only the source fields.
                         mapped_df = pd.DataFrame({field: target_gdf["uuid"].map(
@@ -241,6 +289,24 @@ class Stage:
 
         logger.info(f"Applying data cleanup functions.")
 
+        def enforce_accuracy_limits(table, df):
+            """Enforces upper and lower limits for 'accuracy'."""
+
+            logger.info(f"Applying data cleanup \"enforce accuracy limits\" to dataset: {table}.")
+
+            # Enforce accuracy limits.
+            series_orig = df["accuracy"].copy(deep=True)
+            df.loc[df["accuracy"].between(-1, 1, inclusive=False), "accuracy"] = self.defaults[table]["accuracy"]
+
+            # Quantify and log modifications.
+            mods = (series_orig != df["accuracy"]).sum()
+            if mods:
+                logger.warning(f"Modified {mods} record(s) in table {table}, column: accuracy."
+                               f"\nModification details: Accuracy set to default value for values between -1 and 1, "
+                               f"exclusively.")
+
+            return df.copy(deep=True)
+
         def lower_case_ids(table, df):
             """Sets all ID fields to lower case."""
 
@@ -264,12 +330,41 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def overwrite_roadsegid(series):
-            """Populates the series with incrementing integer values from 1-n."""
+        def overwrite_segment_ids(table, df):
+            """Populates the DataFrame's 'ferrysegid' or 'roadsegid' with incrementing integer values from 1-n."""
 
-            logger.info(f"Applying data cleanup \"overwrite roadsegid\" to dataset: roadseg.")
+            if table in {"ferryseg", "roadseg"}:
 
-            return pd.Series(range(1, len(series) + 1), index=series.index)
+                logger.info(f"Applying data cleanup \"overwrite segment IDs\" to dataset: {table}.")
+
+                # Overwrite column.
+                col = {"ferryseg": "ferrysegid", "roadseg": "roadsegid"}[table]
+                df[col] = range(1, len(df) + 1)
+
+            return df.copy(deep=True)
+
+        def standardize_nones(table, df):
+            """Standardizes None string values (different from nulls)."""
+
+            logger.info(f"Applying data cleanup \"standardize_nones\" to dataset: {table}.")
+
+            # Compile valid columns.
+            cols = df.select_dtypes(include="object", exclude="geometry").columns.values
+
+            # Iterate columns.
+            for col in cols:
+
+                # Apply modifications.
+                series_orig = df[col].copy(deep=True)
+                df.loc[df[col].map(str.lower) == "none", col] = "None"
+
+                # Quantify and log modifications.
+                mods = (series_orig != df[col]).sum()
+                if mods:
+                    logger.warning(f"Modified {mods} record(s) in table {table}, column {col}."
+                                   f"\nModification details: Column values standardized to \"None\".")
+
+            return df.copy(deep=True)
 
         def strip_whitespace(table, df):
             """Strips leading, trailing, and multiple internal whitespace for each dataframe column."""
@@ -283,7 +378,7 @@ class Stage:
             for col in cols:
 
                 # Apply modifications.
-                series_orig = df[col]
+                series_orig = df[col].copy(deep=True)
                 df[col] = df[col].map(lambda val: re.sub(r" +", " ", str(val.strip())))
 
                 # Quantify and log modifications.
@@ -302,45 +397,41 @@ class Stage:
                 rtename1fr, rtename2fr, rtename3fr, rtename4fr.
             """
 
-            logger.info(f"Applying data cleanup \"title case route names\" to dataset: {table}.")
+            if table in {"ferryseg", "roadseg"}:
 
-            # Identify columns to iterate.
-            cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
-                                    "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
+                logger.info(f"Applying data cleanup \"title case route names\" to dataset: {table}.")
 
-            # Iterate columns.
-            for col in cols:
+                # Identify columns to iterate.
+                cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
+                                        "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
 
-                # Filter records to non-default values which are not already title case.
-                default = self.defaults[table][col]
-                s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
+                # Iterate columns.
+                for col in cols:
 
-                # Apply modifications, if required.
-                if len(s_filtered):
-                    df.loc[s_filtered.index, col] = s_filtered.map(str.title)
+                    # Filter records to non-default values which are not already title case.
+                    default = self.defaults[table][col]
+                    s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
 
-                    # Quantify and log modifications.
-                    logger.warning(f"Modified {len(s_filtered)} record(s) in table {table}, column {col}."
-                                   "\nModification details: Column values set to title case.")
+                    # Apply modifications, if required.
+                    if len(s_filtered):
+                        df.loc[s_filtered.index, col] = s_filtered.map(str.title)
+
+                        # Quantify and log modifications.
+                        logger.warning(f"Modified {len(s_filtered)} record(s) in table {table}, column {col}."
+                                       "\nModification details: Column values set to title case.")
 
             return df.copy(deep=True)
 
-        # Cleanup: lower case IDs.
+        # Apply cleanup functions.
         for table, df in self.target_gdframes.items():
-            self.target_gdframes.update({table: lower_case_ids(table, df.copy(deep=True))})
 
-        # Cleanup: overwrite roadsegid.
-        roadsegid = self.target_gdframes["roadseg"]["roadsegid"].copy(deep=True)
-        self.target_gdframes["roadseg"].loc[roadsegid.index, "roadsegid"] = overwrite_roadsegid(roadsegid)
+            # Iterate cleanup functions.
+            for func in (lower_case_ids, strip_whitespace, standardize_nones, overwrite_segment_ids,
+                         title_case_route_names, enforce_accuracy_limits):
+                df = func(table, df)
 
-        # Cleanup: strip whitespace.
-        for table, df in self.target_gdframes.items():
-            self.target_gdframes.update({table: strip_whitespace(table, df.copy(deep=True))})
-
-        # Cleanup: title case route text.
-        for table in ("ferryseg", "roadseg"):
-            df = self.target_gdframes[table].copy(deep=True)
-            self.target_gdframes.update({table: title_case_route_names(table, df)})
+            # Store updated dataframe.
+            self.target_gdframes.update({table: df.copy(deep=True)})
 
     def compile_source_attributes(self):
         """Compiles the yaml files in the sources' directory into a dictionary."""
@@ -382,17 +473,26 @@ class Stage:
 
         logger.info("Retrieving previous NRN vintage.")
 
-        # Retrieve metadata for previous NRN vintage.
         logger.info("Retrieving metadata for previous NRN vintage.")
+
+        # Retrieve metadata for previous NRN vintage.
         source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
-        metadata_url = source["metadata_url"].replace("<id>", source["ids"][self.source])
+        metadata_url = source["metadata_url"]
+        nrn_id = source["ids"][self.source]
 
         # Get metadata from url.
         metadata = helpers.get_url(metadata_url, timeout=30)
+        metadata = json.loads(metadata.content)
 
         # Extract download url from metadata.
-        metadata = json.loads(metadata.content)
-        download_url = metadata["result"]["resources"][0]["url"]
+        download_url = None
+        for product in metadata["result"]["resources"]:
+            if product["id"] == nrn_id:
+                download_url = product["url"]
+
+        if not download_url:
+            logger.exception(f"Unable to find previous NRN product from metadata: {metadata_url}.")
+            sys.exit(1)
 
         # Download previous NRN vintage.
         logger.info("Downloading previous NRN vintage.")
@@ -415,7 +515,7 @@ class Stage:
         logger.info("Extracting zipped data for previous NRN vintage.")
 
         gpkg_path = [f for f in zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r").namelist() if
-                     f.endswith(".gpkg")][0]
+                     f.lower().endswith("en.gpkg")][0]
 
         with zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r") as zip_f:
             with zip_f.open(gpkg_path) as zsrc, open(f"{self.nrn_old_path}.gpkg", "wb") as zdest:
@@ -520,7 +620,12 @@ class Stage:
 
             # Query dataframe.
             if source_yaml["data"]["query"]:
-                df.query(source_yaml["data"]["query"], inplace=True)
+                try:
+                    df.query(source_yaml["data"]["query"], inplace=True)
+                except ValueError as e:
+                    logger.exception(f"Invalid query: \"{source_yaml['data']['query']}\".")
+                    logger.exception(e)
+                    sys.exit(1)
 
             # Force lowercase column names.
             df.columns = map(str.lower, df.columns)
@@ -565,7 +670,8 @@ class Stage:
 
                     # Generate target dataframe from source uuid and geometry fields.
                     gdf = gpd.GeoDataFrame(self.source_gdframes[source][["uuid"]],
-                                           geometry=self.source_gdframes[source].geometry)
+                                           geometry=self.source_gdframes[source].geometry,
+                                           crs="EPSG:4617")
 
                 # Tabular.
                 else:
@@ -585,18 +691,6 @@ class Stage:
         for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
 
             logger.warning("Source data provides no field mappings for table: {}.".format(table))
-
-    # def interpolate_addresses(self):
-    #     """Interpolates address points to segmented roadseg attributes."""
-    #
-    #     logger.info("Interpolating addresses.")
-    #
-    #     # Compile required datasets.
-    #     addresses = self.source_gdframes["addrange"].copy(deep=True)
-    #     roadseg = self.target_gdframes["roadseg"].copy(deep=True)
-    #
-    #     # Filter addresses to only those with street name matches with roadseg.
-    #     # TODO: finish.
 
     def recover_missing_datasets(self):
         """
@@ -638,6 +732,51 @@ class Stage:
                     # Store result.
                     self.target_gdframes[table] = df.copy(deep=True)
 
+    def segment_addresses(self):
+        """
+        Converts address points into segmented addrange attributes, joining the results to the roadseg source dataset.
+        """
+
+        logger.info("Determining address segmentation requirement.")
+
+        address_source = None
+        roadseg_source = None
+        segment_kwargs = None
+
+        # Identify segmentation parameters and source datasets for roadseg and address points.
+        for source, source_yaml in deepcopy(self.source_attributes).items():
+
+            if "segment" in source_yaml["data"]:
+                address_source = source
+                segment_kwargs = source_yaml["data"]["segment"]
+
+            if "conform" in source_yaml:
+                if isinstance(source_yaml["conform"], dict):
+                    if "roadseg" in source_yaml["conform"]:
+                        roadseg_source = source
+
+        # Trigger address segmentor.
+        if all(val is not None for val in [address_source, roadseg_source, segment_kwargs]):
+
+            logger.info(f"Address segmentation required. Beginning segmentation process.")
+
+            # Copy data sources.
+            addresses = self.source_gdframes[address_source].copy(deep=True)
+            roadseg = self.source_gdframes[roadseg_source].copy(deep=True)
+
+            # Execute segmentor.
+            segmentor = Segmentor(addresses=addresses, roadseg=roadseg, **segment_kwargs)
+            self.source_gdframes[roadseg_source] = segmentor()
+
+            # Remove address source from attributes and dataframes references.
+            # Note: segmented addresses will be joined to roadseg, therefore addrange and roadseg field mapping should
+            # be defined within the same yaml.
+            del self.source_attributes[address_source]
+            del self.source_gdframes[address_source]
+
+        else:
+            logger.info("Address segmentation not required. Skipping segmentation process.")
+
     def split_strplaname(self):
         """
         For strplaname:
@@ -652,7 +791,7 @@ class Stage:
 
         # Compile nested column names.
         sample_value = self.target_gdframes["strplaname"].iloc[0]
-        nested_flags = list(map(lambda val: isinstance(val, np.ndarray) or isinstance(val, list), sample_value))
+        nested_flags = list(map(lambda val: isinstance(val, (np.ndarray, list)), sample_value))
         cols = sample_value.index[nested_flags].to_list()
 
         if len(cols):
@@ -730,6 +869,7 @@ class Stage:
         self.compile_source_attributes()
         self.compile_target_attributes()
         self.gen_source_dataframes()
+        self.segment_addresses()
         self.gen_target_dataframes()
         self.apply_field_mapping()
         self.split_strplaname()
@@ -742,13 +882,15 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
+@click.option("--remove / --no-remove", "-r", default=False, show_default=True,
+              help="Remove pre-existing files within the data/interim directory for the specified source.")
+def main(source, remove):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, remove)
             stage.execute()
 
     except KeyboardInterrupt:

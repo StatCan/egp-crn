@@ -36,37 +36,69 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source, remove):
         self.stage = 3
         self.source = source.lower()
+        self.remove = remove
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
+        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
         if not os.path.exists(self.data_path):
-            logger.exception("Input data not found: \"{}\".".format(self.data_path))
+            logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
+        # Configure output path.
+        self.output_path = os.path.abspath(f"../../data/processed/{self.source}/{self.source}_change_logs")
+
+        # Conditionally clear output namespace.
+        if os.path.exists(self.output_path):
+            namespace = set(map(lambda f: os.path.join(self.output_path, f), os.listdir(self.output_path)))
+
+            if len(namespace):
+                logger.warning("Output namespace already occupied.")
+
+                if self.remove:
+                    logger.warning("Parameter remove=True: Removing conflicting files.")
+
+                    for f in namespace:
+                        logger.info(f"Removing conflicting file: \"{f}\".")
+
+                        try:
+                            os.remove(f)
+                        except OSError as e:
+                            logger.exception(f"Unable to remove file: \"{f}\".")
+                            logger.exception(e)
+                            sys.exit(1)
+
+                else:
+                    logger.exception(
+                        "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                        "remove=True (-r) or manually clear the output namespace.")
+                    sys.exit(1)
+
         # Compile match fields (fields which must be equal across records).
-        self.match_fields = ["namebody", "strtypre", "strtysuf", "dirprefix", "dirsuffix", "starticle"]
+        self.match_fields = ["r_stname_c"]
 
         # Define change logs dictionary.
         self.change_logs = dict()
 
+        # Load default field values.
+        self.defaults = helpers.compile_default_values()["roadseg"]
+
     def export_change_logs(self):
         """Exports the dataset differences as logs - based on nids."""
 
-        change_logs_dir = os.path.abspath("../../data/processed/{0}/{0}_change_logs".format(self.source))
-        logger.info("Writing change logs to: \"{}\".".format(change_logs_dir))
+        logger.info(f"Writing change logs to: \"{self.output_path}\".")
 
         # Create change logs directory.
-        pathlib.Path(change_logs_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.output_path).mkdir(parents=True, exist_ok=True)
 
         # Iterate tables and change types.
         for table in self.change_logs:
             for change, log in self.change_logs[table].items():
 
                 # Configure log path.
-                log_path = os.path.join(change_logs_dir, "{}_{}_{}.log".format(self.source, table, change))
+                log_path = os.path.join(self.output_path, f"{self.source}_{table}_{change}.log")
 
                 # Write log.
                 with helpers.TempHandlerSwap(logger, log_path):
@@ -85,21 +117,20 @@ class Stage:
 
         logger.info("Generating structids for table: roadseg.")
 
-        # Load default field values.
-        defaults = helpers.compile_default_values()["roadseg"]
+        # Overwrite any pre-existing structid.
+        self.dframes["roadseg"]["structid"] = [uuid.uuid4().hex for _ in range(len(self.dframes["roadseg"]))]
+        self.dframes["roadseg"].loc[self.dframes["roadseg"]["structtype"].isin({"None", self.defaults["structtype"]}),
+                                    "structid"] = "None"
+        self.roadseg.loc[self.dframes["roadseg"].index, "structid"] = self.dframes["roadseg"]["structid"]
 
         # Copy and filter dataframes.
         roadseg = self.dframes["roadseg"][["uuid", "structid", "structtype", "geometry"]].copy(deep=True)
         roadseg_old = self.dframes_old["roadseg"][["structid", "structtype", "geometry"]].copy(deep=True)
 
-        # Overwrite any pre-existing structid.
-        roadseg['structid'] = defaults["structid"]
-
-        # Subset dataframes to structures (where structtype is not the default value nor "None").
-        # For previous vintage, further subset to records where structid is not the default value.]
-        roadseg = roadseg[~roadseg["structtype"].isin(["None", defaults["structtype"]])]
-        roadseg_old = roadseg_old[(~roadseg_old["structtype"].isin(["None", defaults["structtype"]])) &
-                                  (roadseg_old["structid"] != defaults["structid"])]
+        # Subset dataframes to valid structures.
+        # Further subset previous vintage to records with valid IDs.
+        roadseg = roadseg[~roadseg["structtype"].isin({"None", self.defaults["structtype"]})]
+        roadseg_old = roadseg_old[self.get_valid_ids(roadseg_old["structid"])]
 
         if len(roadseg):
 
@@ -117,7 +148,7 @@ class Stage:
             structids = pd.Series(structids.index.values, index=structids)
 
             # Assign structids to dataframe.
-            roadseg["structid"] = structids
+            roadseg.loc[structids.index, "structid"] = structids
 
             # Recovery old structids.
             logger.info("Recovering old structids for table: roadseg.")
@@ -153,10 +184,11 @@ class Stage:
 
             # Recover old structids.
             if len(recovery):
-                roadseg.loc[roadseg["structid"].isin(recovery["structid"]), "structid"] = recovery["structid_old"]
+                roadseg.loc[recovery.index, "structid"] = recovery["structid_old"]
 
             # Store results.
-            self.dframes["roadseg"].loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
+            self.roadseg.loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
+            self.dframes["roadseg"].loc[self.roadseg.index, "structid"] = self.roadseg["structid"].copy(deep=True)
 
     def get_valid_ids(self, series):
         """
@@ -237,10 +269,10 @@ class Stage:
 
                     # Recover old nids.
                     if len(recovery):
-                        df.loc[df["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+                        df.loc[recovery.index, "nid"] = recovery["nid_old"]
 
                     # Store results.
-                    self.dframes[table]["nid"] = df["nid"].copy(deep=True)
+                    self.dframes[table].loc[df.index, "nid"] = df["nid"].copy(deep=True)
 
                     # Update confirmed nid classification.
                     classified_nids["confirmed"] = classified_nids["confirmed"]["nid"].to_list()
@@ -270,43 +302,30 @@ class Stage:
 
         logger.info("Generating full roadseg representation.")
 
-        # roadseg
-
-        # Copy and filter dataframes.
-        roadseg = self.dframes["roadseg"][["uuid", "nid", "adrangenid", "geometry"]].copy(deep=True)
-        addrange = self.dframes["addrange"][["nid", "r_offnanid"]].copy(deep=True)
-        strplaname = self.dframes["strplaname"][["nid", *self.match_fields]].copy(deep=True)
-
-        # Merge dataframes to assemble full roadseg representation.
-        self.roadseg = roadseg.merge(
-            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
-
+        # Copy and filter dataframe - current vintage.
+        self.roadseg = self.dframes["roadseg"][["uuid", "nid", "geometry", *self.match_fields]].copy(deep=True)
         self.roadseg.index = self.roadseg["uuid"]
 
-        # roadseg - previous vintage
-
-        # Copy and filter dataframes.
-        # Filter duplicates (may exist due to differences between previous and current generation process).
-        roadseg = self.dframes_old["roadseg"][["nid", "adrangenid", "geometry"]].copy(deep=True)
-        addrange = self.dframes_old["addrange"][["nid", "r_offnanid"]].copy(deep=True)
-        addrange = addrange[~addrange.duplicated(keep="first")]
-        strplaname = self.dframes_old["strplaname"][["nid", *self.match_fields]].copy(deep=True)
-        strplaname = strplaname[~strplaname.duplicated(keep="first")]
-
-        # Merge dataframes to assemble full roadseg representation.
-        self.roadseg_old = roadseg.merge(
-            addrange, how="left", left_on="adrangenid", right_on="nid", suffixes=("", "_addrange")).merge(
-            strplaname, how="left", left_on="r_offnanid", right_on="nid", suffixes=("", "_strplaname"))
+        # Copy and filter dataframe - previous vintage.
+        self.roadseg_old = self.dframes_old["roadseg"][["nid", "geometry", *self.match_fields]].copy(deep=True)
 
     def roadseg_gen_nids(self):
         """Groups roadseg records and assigns nid values."""
 
         logger.info("Generating nids for table: roadseg.")
 
+        # Overwrite any pre-existing nid.
+        self.dframes["roadseg"]["nid"] = [uuid.uuid4().hex for _ in range(len(self.dframes["roadseg"]))]
+        self.roadseg.loc[self.dframes["roadseg"].index, "nid"] = self.dframes["roadseg"]["nid"]
+
         # Copy and filter dataframes.
         roadseg = self.roadseg[[*self.match_fields, "uuid", "nid", "geometry"]].copy(deep=True)
         junction = self.dframes["junction"][["uuid", "geometry"]].copy(deep=True)
+
+        # Subset dataframes to where at least one match field is not equal to the default value nor "None".
+        default = self.defaults[self.match_fields[0]]
+        roadseg = roadseg[~((roadseg[self.match_fields].eq(roadseg[self.match_fields].iloc[:, 0], axis=0).all(axis=1)) &
+                            (roadseg[self.match_fields[0]].isin(["None", default])))]
 
         # Group uuids and geometry by match fields.
         # To reduce processing, only duplicated records are grouped.
@@ -421,8 +440,8 @@ class Stage:
         # Assign nids to roadseg.
         # Store results.
         nid_groups.index = nid_groups["uuid"]
-        self.dframes["roadseg"]["nid"] = nid_groups["nid"].copy(deep=True)
-        self.roadseg["nid"] = nid_groups["nid"].copy(deep=True)
+        self.roadseg.loc[nid_groups.index, "nid"] = nid_groups["nid"].copy(deep=True)
+        self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
     def roadseg_recover_and_classify_nids(self):
         """
@@ -474,10 +493,10 @@ class Stage:
 
         # Recover old nids.
         if len(recovery):
-            self.roadseg.loc[self.roadseg["nid"].isin(recovery["nid"]), "nid"] = recovery["nid_old"]
+            self.roadseg.loc[recovery.index, "nid"] = recovery["nid_old"]
 
         # Store results.
-        self.dframes["roadseg"]["nid"] = self.roadseg["nid"].copy(deep=True)
+        self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
         # Restore match fields.
@@ -547,6 +566,7 @@ class Stage:
 
             # Retrieve associated record geometries for each record index.
             df["roadsegs"] = df["roadseg_idxs"].map(lambda idxs: itemgetter(*idxs)(roadseg_geometry_lookup))
+            df["roadsegs"] = df["roadsegs"].map(lambda vals: vals if isinstance(vals, tuple) else (vals,))
 
             # Retrieve the local roadsegs index of the nearest roadsegs geometry.
             df["nearest_local_idx"] = np.vectorize(
@@ -579,13 +599,15 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
+@click.option("--remove / --no-remove", "-r", default=False, show_default=True,
+              help="Remove pre-existing change logs within the data/processed directory for the specified source.")
+def main(source, remove):
     """Executes an NRN stage."""
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source)
+            stage = Stage(source, remove)
             stage.execute()
 
     except KeyboardInterrupt:
