@@ -12,20 +12,91 @@ available on the open government data portal (https://open.canada.ca/en).
 
 The NRN content largely conforms to ISO 14825 (https://www.iso.org/standard/54610.html).
 
-# Redevelopment
+### Table of Contents
 
-This project aims to redevelop the NRN processing module as a fully automated pipeline purely in open-source Python and
-SQL. This redevelopment was agreed upon due to the poor documentation, outdated technology, and only semi-automation of
-the pre-existing NRN module inherited by Statistics Canada.
+- [Developments - NRNv3 (working title)](#developments---nrnv3--working-title-)
+- [Setup](#setup)
+  * [Prerequisites](#prerequisites)
+  * [Installation](#installation)
+- [Usage](#usage)
 
-# Usage
+### Developments - NRNv3 (working title)
 
-The pipeline is implemented as a directly callable python module, executed as a command line interface.
+Since the acquisition of the NRN by Statistics Canada from Natural Resources Canada in 2018, numerous modernization 
+initiatives have been conceived, facilitating significant redevelopment of the NRN. The following outlines the primary
+initiatives and developments impacting the NRN:
 
-## Installation
+* [X] Streamline NRN processing. Migrate away from the semi-automated and outdated processes of the inherited project.
+  * [X] Develop a fully automated data processing pipeline.
+  * [X] Develop a python-based project using exclusively open source tools.
+  * [X] Develop a simplified feedback look with data providers (process &#8594; fix errors &#8594; process).
 
-TBD.
+* [ ] NRN simplification. Simplify the NRN schema and output requirements.
 
-## Execution
+* [ ] NRN - NGD integration. Redevelop the NRN to facilitate the merging of the NRN and NGD road networks into a single 
+product.
 
-TBD.
+* [ ] GeoBase integration. Redevelop the NRN to facilitate integration between the NRN and other GeoBase projects 
+(National Address Register and National Building Layer).
+
+* [ ] Updated documentation following NRN simplification and integration tasks.
+
+### Setup
+
+The pipeline is divided into fives stages where each stage is implemented as a directly callable python module, executed 
+as a command line interface.
+
+#### Prerequisites
+
+- Anaconda with conda >= 4.9.
+  - Note: the latest version of Anaconda 3 should satisfy this requirement.
+  - Download: https://docs.anaconda.com/anaconda/install/
+  - Validate the conda version in the command line with `conda -V`
+
+#### Installation
+
+1. Download and unzip the repository: https://github.com/jessestewart1/nrn-rrn
+
+2. Create a virtual conda environment from the file `src/environment.yml`:
+
+   `conda env create -f <path to environment.yml>`
+
+3. Validate the successful creation of the virtual environment by listing all available environments:
+
+   `conda env list`
+
+### Usage
+
+1. Activate the conda virtual environment:
+
+   `conda activate nrn-rrn`
+
+2. For each stage, navigate to the `src/stage_#` directory and use the command line interface `--help` command for 
+stage-specific options:
+
+   ```
+   cd <path to project/src/stage_#>
+   python stage.py --help
+   ```
+
+Example:
+
+  ```
+  C:\Windows\system32>conda activate nrn-rrn
+  
+  (nrn-rrn) C:\Windows\system32>cd C:/nrn-rrn/src/stage_1
+  
+  (nrn-rrn) C:\nrn-rrn\src\stage_1>python stage.py --help
+  Usage: stage.py [OPTIONS] [ab|bc|mb|nb|nl|ns|nt|nu|on|pe|qc|sk|yt]
+  
+    Executes an NRN stage.
+  
+  Options:
+    -r, --remove / --no-remove  Remove pre-existing files within the
+                                data/interim directory for the specified source.
+                                [default: False]
+  
+    --help                      Show this message and exit.
+  
+  (nrn-rrn) C:\nrn-rrn\src\stage_1>
+  ```
