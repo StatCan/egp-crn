@@ -250,7 +250,7 @@ class Stage:
         # Separate unique and non-unique points.
         logger.info("Separating unique and non-unique points.")
 
-        # Construct a uuid series aligned to the series of endpoints.
+        # Construct a uuid series aligned to the series of points.
         pts_uuid = np.concatenate([[id] * count for id, count in df["geometry"].map(
             lambda geom: len(geom.coords)).iteritems()])
 
