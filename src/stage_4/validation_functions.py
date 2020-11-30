@@ -1088,8 +1088,8 @@ def structure_attributes(roadseg, junction):
 
     # Validation 2: ensure structid is contiguous.
 
-    # Compile records with duplicated structids, excluding default value.
-    structids_df = roadseg[(roadseg["structid"] != defaults["structid"]) &
+    # Compile records with duplicated structids, excluding "None" and the default field value.
+    structids_df = roadseg[(~roadseg["structid"].isin({"None", defaults["structid"]})) &
                            (roadseg["structid"].duplicated(keep=False))]
 
     if len(structids_df):

@@ -164,10 +164,9 @@ class Stage:
 
             # Convert series to geodataframes.
             # Restore structid index as column.
-            roadseg_grouped = gpd.GeoDataFrame({"structid": roadseg_grouped.index,
-                                                "geometry": roadseg_grouped.reset_index(drop=True)})
-            roadseg_old_grouped = gpd.GeoDataFrame({"structid": roadseg_old_grouped,
-                                                    "geometry": roadseg_old_grouped.reset_index(drop=True)})
+            roadseg_grouped = gpd.GeoDataFrame({"structid": roadseg_grouped.index}, geometry=roadseg_grouped.values)
+            roadseg_old_grouped = gpd.GeoDataFrame({"structid": roadseg_old_grouped.index},
+                                                   geometry=roadseg_old_grouped.values)
 
             # Merge current and old dataframes on geometry.
             merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
@@ -465,10 +464,8 @@ class Stage:
 
         # Convert series to geodataframes.
         # Restore nid index as column.
-        roadseg_grouped = gpd.GeoDataFrame({"nid": roadseg_grouped.index,
-                                            "geometry": roadseg_grouped.reset_index(drop=True)})
-        roadseg_old_grouped = gpd.GeoDataFrame({"nid": roadseg_old_grouped,
-                                                "geometry": roadseg_old_grouped.reset_index(drop=True)})
+        roadseg_grouped = gpd.GeoDataFrame({"nid": roadseg_grouped.index}, geometry=roadseg_grouped.values)
+        roadseg_old_grouped = gpd.GeoDataFrame({"nid": roadseg_old_grouped.index}, geometry=roadseg_old_grouped.values)
 
         # Merge current and old dataframes on geometry.
         merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),

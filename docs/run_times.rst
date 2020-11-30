@@ -57,6 +57,32 @@ Stage      Time
 **Total**  **03:26.41**
 =========  ====
 
+Nunavut (NU)
+==========================
+
+November 30, 2020
+------------------
+
+:Source: data/raw/nu/nu.gpkg
+:Environment:
+    :OS: Windows 10 64-bit
+    :CPU: Intel Core i7 4700HQ @ 2.40GHz
+    :RAM: 16.0GB
+    :Python: 3.6.11
+:Runtimes:
+
+=========  ====
+Stage      Time
+=========  ====
+1          00:13.92
+2          00:09.45
+3          00:09.11
+4          00:08.03
+5          00:48.10
+---------  ----
+**Total**  **01:28.61**
+=========  ====
+
 Ontario (ON)
 ============
 
