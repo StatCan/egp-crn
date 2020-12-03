@@ -35,6 +35,7 @@ class LRS:
     def __init__(self, src, dst):
         self.nrn_datasets = dict()
         self.source_datasets = dict()
+        self.base_dataset = "tdylrs_centerline_sequence"
         self.event_measurement_fields = ["fromkm", "tokm"]
         self.schema = {
             "br_bridge_ln": {
@@ -81,7 +82,7 @@ class LRS:
             }
         }
         self.structure = {
-            "base": "tdylrs_centerline_sequence",
+            "base": self.base_dataset,
             "connections": {
                 "centerlineid": ["tdylrs_centerline_sequence"],
                 "routeid": ["br_bridge_ln", "sm_structure", "tdylrs_primary_rte", "td_lane_configuration",
@@ -133,7 +134,7 @@ class LRS:
         # Iterate LRS schema.
         for index, items in enumerate(self.schema.items()):
 
-            layer, cols = items
+            layer, attr = itemgetter(0, 1)(items)
 
             logger.info(f"Compiling source layer {index + 1} of {len(self.schema)}: {layer}.")
 
@@ -141,7 +142,13 @@ class LRS:
             df = gpd.read_file(self.src, driver="OpenFileGDB", layer=layers_lower[layer]).rename(columns=str.lower)
 
             # Filter columns.
-            df.drop(columns=df.columns.difference(cols), inplace=True)
+            df.drop(columns=df.columns.difference(attr["fields"]), inplace=True)
+
+            # Filter records with query.
+            if attr["query"]:
+                count = len(df)
+                df.query(attr["query"], inplace=True)
+                logger.info(f"Dropped {count - len(df)} of {count} records for data {layer} based on query.")
 
             # Update column names to match NRN.
             df.rename(columns=rename, inplace=True)
@@ -154,35 +161,30 @@ class LRS:
             self.source_datasets[layer] = df.copy(deep=True)
 
     def configure_valid_records(self):
-        """Applies dataset queries and keeps only records which link to valid records from the base dataset."""
+        """Filters records to only those which link to the base dataset."""
 
         logger.info(f"Configuring valid records.")
 
-        # Filter base dataset to valid records.
-        logger.info(f"Configuring valid records for base dataset: {self.base_dataset}.")
-
-        count = len(self.source_datasets[self.base_dataset])
-        self.source_datasets[self.base_dataset].query(self.base_query, inplace=True)
-        logger.info(f"Dropped {count - len(self.source_datasets[self.base_dataset])} of {count} records for base "
-                    f"dataset: {self.base_dataset}.")
-
-        # Compile base dataset foreign keys.
-        base_fkeys = set(self.source_datasets[self.base_dataset][self.base_fk])
-
         # Iterate dataframes and remove records which do not link to the base dataset.
-        for name, df in self.source_datasets.items():
-            if self.source_fk in df.columns:
+        for field, layers in self.structure["connections"].items():
 
-                logger.info(f"Configuring valid records for source dataset: {name}.")
+            # Compile valid IDs from base dataset for the given connection field.
+            valid_ids = set(self.source_datasets[self.base_dataset][field])
 
-                df_valid = df[df[self.source_fk].isin(base_fkeys)]
-                logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {name}.")
+            for layer in layers:
+
+                logger.info(f"Configuring valid records for source dataset: {layer}.")
+
+                df = self.source_datasets[layer]
+                df_valid = df.loc[df[field].isin(valid_ids)]
+                logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {layer}, based on ID "
+                            f"field: {field}.")
 
                 # Store or delete dataset.
                 if len(df_valid):
-                    self.source_datasets[name] = df_valid.copy(deep=True)
+                    self.source_datasets[layer] = df_valid.copy(deep=True)
                 else:
-                    del self.source_datasets[name]
+                    del self.source_datasets[layer]
 
     def export_gpkg(self):
         """Exports the NRN datasets to a GeoPackage."""
