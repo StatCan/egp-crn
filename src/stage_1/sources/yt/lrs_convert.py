@@ -36,49 +36,49 @@ class LRS:
         self.nrn_datasets = dict()
         self.source_datasets = dict()
         self.base_dataset = "tdylrs_centerline_sequence"
-        self.event_measurement_fields = ["fromkm", "tokm"]
+        self.event_measurement_fields = {"from": "fromkm", "to": "tokm"}
         self.schema = {
             "br_bridge_ln": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "bridge_name"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "sm_structure": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "surface_code"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "tdylrs_centerline": {
                 "fields": ["centerlineid", "geometry"],
-                "query": "todate.isna() and (networkid == 1)"
+                "query": None
             },
             "tdylrs_centerline_sequence": {
                 "fields": ["centerlineid", "fromdate", "todate", "networkid", "routeid", "centerlineid"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') and networkid==1"
             },
             "tdylrs_primary_rte": {
                 "fields": ["fromdate", "todate", "routeid", "planimetric_accuracy", "acquisition_technique_dv",
                            "acquired_by_dv", "acquisition_date"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "td_lane_configuration": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "lane_configuration"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "td_number_of_lanes": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "number_of_lanes"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "td_road_administration": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "administration"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "td_road_type": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "road_type"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "td_street_name": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "street_direction_prefix",
                            "street_type_prefix", "street_name", "street_type_suffix", "street_direction_suffix"],
-                "query": "todate.isna()"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             }
         }
         self.structure = {
@@ -103,6 +103,26 @@ class LRS:
             sys.exit(1)
         if os.path.exists(self.dst):
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
+
+    def clean_event_measurements(self):
+        """
+        Rounds and converts event measurement fields to match the unit of geometry length.
+        Simplifies field names to 'from' and 'to'.
+        """
+
+        logger.info("Cleaning event measurement fields.")
+        fields = self.event_measurement_fields
+
+        # Iterate dataframes with event measurement fields.
+        for layer, df in self.source_datasets.items():
+            if set(fields.values()).issubset(df.columns):
+
+                # Convert and round measurements.
+                df[fields.values()] = df[fields.values()].multiply(1000).round(0).astype(int)
+                df.rename(columns={fields["from"]: "from", fields["to"]: "to"}, inplace=True)
+
+                # Store results.
+                self.source_datasets[layer] = df.copy(deep=True)
 
     def compile_source_datasets(self):
         """Loads source layers into (Geo)DataFrames."""
@@ -272,6 +292,7 @@ class LRS:
 
         self.compile_source_datasets()
         self.configure_valid_records()
+        self.clean_event_measurements()
         self.export_gpkg()
 
 
