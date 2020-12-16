@@ -106,8 +106,11 @@ class LRS:
 
     def clean_event_measurements(self):
         """
-        Rounds and converts event measurement fields to match the unit of geometry length.
-        Simplifies field names to 'from' and 'to'.
+        Performs several cleanup operations on records based on event measurement:
+        1. Simplifies event measurement field names to 'from' and 'to'.
+        2. Converts measurements to crs unit and rounds to nearest int (current conversion = km to m).
+        3. Drops records with invalid measurements (from >= to).
+        4. Repairs gaps in event measurements along the same connected feature.
         """
 
         logger.info("Cleaning event measurement fields.")
@@ -117,9 +120,45 @@ class LRS:
         for layer, df in self.source_datasets.items():
             if set(fields.values()).issubset(df.columns):
 
+                logger.info(f"Converting and rounding event measurements for dataset: {layer}.")
+
                 # Convert and round measurements.
-                df[fields.values()] = df[fields.values()].multiply(1000).round(0).astype(int)
+                df[list(fields.values())] = df[fields.values()].multiply(1000).round(0).astype(int)
                 df.rename(columns={fields["from"]: "from", fields["to"]: "to"}, inplace=True)
+
+                # Remove records with invalid event measurements.
+                logger.info(f"Removing records with invalid event measurements.")
+
+                count = len(df)
+                df = df.loc[df["from"] < df["to"]].copy(deep=True)
+                logger.info(f"Dropped {count - len(df)} of {count} records for dataset: {layer}.")
+
+                # Repair gaps in measurement ranges.
+                logger.info(f"Repairing event measurement gaps for dataset: {layer}.")
+
+                # Identify connection field.
+                con_id_field = None
+                for con_field, df_names in self.structure["connections"].items():
+                    if layer in df_names:
+                        con_id_field = con_field
+                        break
+
+                # Iterate records with duplicated connection ids.
+                update_count = 0
+                for con_id in set(df.loc[df[con_id_field].duplicated(keep=False)][con_id_field]):
+                    records = df.loc[df[con_id_field] == con_id]
+                    to_max = records["to"].max()
+
+                    #
+                    for index, to_value in records.loc[records["to"] != to_max, "to"].iteritems():
+                        to_value_update = records[(records.index != index) &
+                                                  ((records["from"] - to_value).between(0, 3))]["from"].iloc[0]
+
+                        # Update record.
+                        df.loc[index, "to"] = to_value_update
+                        update_count += 1
+
+                logger.info(f"Repaired {update_count} event measurement gaps for dataset: {layer}.")
 
                 # Store results.
                 self.source_datasets[layer] = df.copy(deep=True)
@@ -156,7 +195,7 @@ class LRS:
 
             layer, attr = itemgetter(0, 1)(items)
 
-            logger.info(f"Compiling source layer {index + 1} of {len(self.schema)}: {layer}.")
+            logger.info(f"Compiling source dataset {index + 1} of {len(self.schema)}: {layer}.")
 
             # Load layer into dataframe, force lowercase column names.
             df = gpd.read_file(self.src, driver="OpenFileGDB", layer=layers_lower[layer]).rename(columns=str.lower)
@@ -168,7 +207,7 @@ class LRS:
             if attr["query"]:
                 count = len(df)
                 df.query(attr["query"], inplace=True)
-                logger.info(f"Dropped {count - len(df)} of {count} records for data {layer} based on query.")
+                logger.info(f"Dropped {count - len(df)} of {count} records for dataset: {layer}, based on query.")
 
             # Update column names to match NRN.
             df.rename(columns=rename, inplace=True)
