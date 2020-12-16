@@ -111,6 +111,7 @@ class LRS:
         2. Converts measurements to crs unit and rounds to nearest int (current conversion = km to m).
         3. Drops records with invalid measurements (from >= to).
         4. Repairs gaps in event measurements along the same connected feature.
+        5. Flags overlapping event measurements along the same connected feature.
         """
 
         logger.info("Cleaning event measurement fields.")
@@ -145,20 +146,44 @@ class LRS:
 
                 # Iterate records with duplicated connection ids.
                 update_count = 0
-                for con_id in set(df.loc[df[con_id_field].duplicated(keep=False)][con_id_field]):
+                dup_con_ids = set(df.loc[df[con_id_field].duplicated(keep=False)][con_id_field])
+                for con_id in dup_con_ids:
                     records = df.loc[df[con_id_field] == con_id]
                     to_max = records["to"].max()
 
-                    #
+                    # For any gaps, extend the 'to' measurement to the appropriate neighbouring 'from' measurement.
                     for index, to_value in records.loc[records["to"] != to_max, "to"].iteritems():
-                        to_value_update = records[(records.index != index) &
-                                                  ((records["from"] - to_value).between(0, 3))]["from"].iloc[0]
+                        neighbour = records[(records.index != index) & ((records["from"] - to_value).between(0, 3))]
+                        if len(neighbour):
 
-                        # Update record.
-                        df.loc[index, "to"] = to_value_update
-                        update_count += 1
+                            # Update record.
+                            df.loc[index, "to"] = neighbour["from"].iloc[0]
+                            update_count += 1
 
                 logger.info(f"Repaired {update_count} event measurement gaps for dataset: {layer}.")
+
+                # Flag overlapping measurement ranges.
+                logger.info(f"Identifying overlapping event measurement ranges for dataset: {layer}.")
+
+                # Iterate records with duplicated connection ids.
+                for con_id in dup_con_ids:
+                    overlap_flag = False
+
+                    # Create intervals from event measurements.
+                    intervals = df.loc[df[con_id_field] == con_id][["from", "to"]].apply(
+                        lambda row: pd.Interval(*row), axis=1).to_list()
+
+                    # Flag connection id if overlapping intervals are detected.
+                    for idx, i1 in enumerate(intervals):
+                        for i2 in intervals[idx + 1:]:
+                            if i1.overlaps(i2):
+                                overlap_flag = True
+                                break
+                        if overlap_flag:
+                            break
+
+                    if overlap_flag:
+                        logger.info(f"Overlap detected for layer: {layer}, {con_id_field}={con_id}.")
 
                 # Store results.
                 self.source_datasets[layer] = df.copy(deep=True)
