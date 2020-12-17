@@ -34,8 +34,9 @@ class LRS:
 
     def __init__(self, src, dst):
         self.nrn_datasets = dict()
-        self.source_datasets = dict()
+        self.src_datasets = dict()
         self.base_dataset = "tdylrs_centerline_sequence"
+        self.geometry_dataset = "tdylrs_centerline"
         self.event_measurement_fields = {"from": "fromkm", "to": "tokm"}
         self.schema = {
             "br_bridge_ln": {
@@ -84,7 +85,7 @@ class LRS:
         self.structure = {
             "base": self.base_dataset,
             "connections": {
-                "centerlineid": ["tdylrs_centerline_sequence"],
+                "centerlineid": ["tdylrs_centerline"],
                 "routeid": ["br_bridge_ln", "sm_structure", "tdylrs_primary_rte", "td_lane_configuration",
                             "td_number_of_lanes", "td_road_administration", "td_road_type", "td_street_name"]
             }
@@ -104,6 +105,20 @@ class LRS:
         if os.path.exists(self.dst):
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
 
+    def assemble_segmented_network(self):
+        """Assembles a segmented network from the distributed datasets."""
+
+        logger.info("Assembling segmented network.")
+
+        # Assemble base - geometry connection.
+        if self.base_dataset != self.geometry_dataset:
+            logger.info(f"Assembling base - geometry connection: {self.base_dataset} - {self.geometry_dataset}.")
+
+            # Identify connection field.
+            #...
+
+            # Assemble datasets.
+
     def clean_event_measurements(self):
         """
         Performs several cleanup operations on records based on event measurement:
@@ -118,7 +133,7 @@ class LRS:
         fields = self.event_measurement_fields
 
         # Iterate dataframes with event measurement fields.
-        for layer, df in self.source_datasets.items():
+        for layer, df in self.src_datasets.items():
             if set(fields.values()).issubset(df.columns):
 
                 logger.info(f"Converting and rounding event measurements for dataset: {layer}.")
@@ -138,15 +153,11 @@ class LRS:
                 logger.info(f"Repairing event measurement gaps for dataset: {layer}.")
 
                 # Identify connection field.
-                con_id_field = None
-                for con_field, df_names in self.structure["connections"].items():
-                    if layer in df_names:
-                        con_id_field = con_field
-                        break
+                con_id_field = self.get_con_id_field(layer)
 
                 # Iterate records with duplicated connection ids.
                 update_count = 0
-                dup_con_ids = set(df.loc[df[con_id_field].duplicated(keep=False)][con_id_field])
+                dup_con_ids = set(df.loc[df[con_id_field].duplicated(keep=False), con_id_field])
                 for con_id in dup_con_ids:
                     records = df.loc[df[con_id_field] == con_id]
                     to_max = records["to"].max()
@@ -170,7 +181,7 @@ class LRS:
                     overlap_flag = False
 
                     # Create intervals from event measurements.
-                    intervals = df.loc[df[con_id_field] == con_id][["from", "to"]].apply(
+                    intervals = df.loc[df[con_id_field] == con_id, ["from", "to"]].apply(
                         lambda row: pd.Interval(*row), axis=1).to_list()
 
                     # Flag connection id if overlapping intervals are detected.
@@ -183,10 +194,10 @@ class LRS:
                             break
 
                     if overlap_flag:
-                        logger.info(f"Overlap detected for layer: {layer}, {con_id_field}={con_id}.")
+                        logger.warning(f"Overlap detected for layer: {layer}, {con_id_field}={con_id}.")
 
                 # Store results.
-                self.source_datasets[layer] = df.copy(deep=True)
+                self.src_datasets[layer] = df.copy(deep=True)
 
     def compile_source_datasets(self):
         """Loads source layers into (Geo)DataFrames."""
@@ -242,10 +253,26 @@ class LRS:
                 df = pd.DataFrame(df)
 
             # Store results.
-            self.source_datasets[layer] = df.copy(deep=True)
+            self.src_datasets[layer] = df.copy(deep=True)
 
     def configure_valid_records(self):
-        """Filters records to only those which link to the base dataset."""
+        """
+        Filters records to only those which link to the base dataset.
+        Flags many-to-one linkages between the base and geometry datasets.
+        """
+
+        # Flag many-to-one linkages between base and geometry datasets.
+        logger.info(f"Identifying many-to-one linkages between base and geometry datasets: {self.base_dataset} - "
+                    f"{self.geometry_dataset}.")
+
+        # Identify connection field.
+        con_id_field = self.get_con_id_field(self.geometry_dataset)
+
+        # Compile and flag all many-to-one linkages.
+        base = self.src_datasets[self.base_dataset]
+        for con_id, count in Counter(base.loc[base[con_id_field].duplicated(keep=False), con_id_field]).items():
+            logger.warning(f"Many-to-one linkage identified between base and geometry datasets: "
+                           f"{con_id_field}={con_id}; count={count}.")
 
         logger.info(f"Configuring valid records.")
 
@@ -253,22 +280,24 @@ class LRS:
         for field, layers in self.structure["connections"].items():
 
             # Compile valid IDs from base dataset for the given connection field.
-            valid_ids = set(self.source_datasets[self.base_dataset][field])
+            valid_ids = set(self.src_datasets[self.base_dataset][field])
 
             for layer in layers:
 
                 logger.info(f"Configuring valid records for source dataset: {layer}.")
 
-                df = self.source_datasets[layer]
+                df = self.src_datasets[layer]
+
+                # Remove records with invalid connection IDs.
                 df_valid = df.loc[df[field].isin(valid_ids)]
                 logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {layer}, based on ID "
                             f"field: {field}.")
 
                 # Store or delete dataset.
                 if len(df_valid):
-                    self.source_datasets[layer] = df_valid.copy(deep=True)
+                    self.src_datasets[layer] = df_valid.copy(deep=True)
                 else:
-                    del self.source_datasets[layer]
+                    del self.src_datasets[layer]
 
     def export_gpkg(self):
         """Exports the NRN datasets to a GeoPackage."""
@@ -351,12 +380,20 @@ class LRS:
             logger.exception(e)
             sys.exit(1)
 
+    def get_con_id_field(self, name):
+        """Returns the connection ID field, relative to the base dataset, for the given dataset name."""
+
+        for con_field, df_names in self.structure["connections"].items():
+            if name in df_names:
+                return con_field
+
     def execute(self):
         """Executes class functionality."""
 
         self.compile_source_datasets()
         self.configure_valid_records()
         self.clean_event_measurements()
+        self.assemble_segmented_network()
         self.export_gpkg()
 
 
