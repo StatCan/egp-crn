@@ -38,6 +38,12 @@ class LRS:
         self.base_dataset = "tdylrs_centerline_sequence"
         self.geometry_dataset = "tdylrs_centerline"
         self.event_measurement_fields = {"from": "fromkm", "to": "tokm"}
+        self.event_offsets = {
+            "dataset": "tdylrs_calibration_point",
+            "id_field": "routeid",
+            "offset_field": "measure",
+            "ids": ["004097", "004307", "004349"]
+        }
         self.schema = {
             "br_bridge_ln": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "bridge_name"],
@@ -47,13 +53,17 @@ class LRS:
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "surface_code"],
                 "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
+            "tdylrs_calibration_point": {
+                "fields": ["routeid", "fromdate", "todate", "networkid", "measure"],
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1"
+            },
             "tdylrs_centerline": {
                 "fields": ["centerlineid", "geometry"],
                 "query": None
             },
             "tdylrs_centerline_sequence": {
                 "fields": ["centerlineid", "fromdate", "todate", "networkid", "routeid", "centerlineid"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') and networkid==1"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1"
             },
             "tdylrs_primary_rte": {
                 "fields": ["fromdate", "todate", "routeid", "planimetric_accuracy", "acquisition_technique_dv",
@@ -86,8 +96,9 @@ class LRS:
             "base": self.base_dataset,
             "connections": {
                 "centerlineid": ["tdylrs_centerline"],
-                "routeid": ["br_bridge_ln", "sm_structure", "tdylrs_primary_rte", "td_lane_configuration",
-                            "td_number_of_lanes", "td_road_administration", "td_road_type", "td_street_name"]
+                "routeid": ["br_bridge_ln", "sm_structure", "tdylrs_calibration_point", "tdylrs_primary_rte",
+                            "td_lane_configuration", "td_number_of_lanes", "td_road_administration", "td_road_type",
+                            "td_street_name"]
             }
         }
 
@@ -125,35 +136,57 @@ class LRS:
         1. Simplifies event measurement field names to 'from' and 'to'.
         2. Converts measurements to crs unit and rounds to nearest int (current conversion = km to m).
         3. Drops records with invalid measurements (from >= to).
-        4. Repairs gaps in event measurements along the same connected feature.
-        5. Flags overlapping event measurements along the same connected feature.
+        4. Removes event measurement offsets for out-of-scope records: some records do not start at zero because they
+        begin outside of the territory. The event measurements on these records must be reduced according to the
+        starting offset.
+        5. Repairs gaps in event measurements along the same connected feature.
+        6. Flags overlapping event measurements along the same connected feature.
         """
 
         logger.info("Cleaning event measurement fields.")
         fields = self.event_measurement_fields
 
+        # Compile offsets for event measurements.
+        offsets = dict()
+        id_field, offset_field = itemgetter("id_field", "offset_field")(self.event_offsets)
+        offsets_df = self.src_datasets[self.event_offsets["dataset"]]
+        offsets_df = offsets_df.loc[offsets_df[id_field].isin(self.event_offsets["ids"])]
+        for offset_id in set(offsets_df[id_field]):
+            offsets[offset_id] = offsets_df.loc[offsets_df[id_field] == offset_id, offset_field].min()
+
         # Iterate dataframes with event measurement fields.
         for layer, df in self.src_datasets.items():
             if set(fields.values()).issubset(df.columns):
 
-                logger.info(f"Converting and rounding event measurements for dataset: {layer}.")
+                logger.info(f"Cleaning event measurements for dataset: {layer}.")
+
+                # Identify connection field.
+                con_id_field = self.get_con_id_field(layer)
 
                 # Convert and round measurements.
+                logger.info("Converting and rounding event measurements.")
+
                 df[list(fields.values())] = df[fields.values()].multiply(1000).round(0).astype(int)
                 df.rename(columns={fields["from"]: "from", fields["to"]: "to"}, inplace=True)
 
                 # Remove records with invalid event measurements.
-                logger.info(f"Removing records with invalid event measurements.")
+                logger.info("Removing records with invalid event measurements.")
 
                 count = len(df)
                 df = df.loc[df["from"] < df["to"]].copy(deep=True)
-                logger.info(f"Dropped {count - len(df)} of {count} records for dataset: {layer}.")
+                logger.info(f"Dropped {count - len(df)} of {count} records.")
+
+                # Update out-of-scope offsets.
+                logger.info("Updating out-of-scope offsets for events measurements.")
+
+                for offset_id, offset in offsets.items():
+                    flag = df[con_id_field] == offset_id
+                    df.loc[flag, ["from", "to"]] = df.loc[flag, ["from", "to"]].subtract(offset)
+
+                    logger.info(f"Updated {flag.sum()} offset event measurements for {con_id_field}={offset_id}.")
 
                 # Repair gaps in measurement ranges.
-                logger.info(f"Repairing event measurement gaps for dataset: {layer}.")
-
-                # Identify connection field.
-                con_id_field = self.get_con_id_field(layer)
+                logger.info("Repairing event measurement gaps.")
 
                 # Iterate records with duplicated connection ids.
                 update_count = 0
@@ -171,10 +204,10 @@ class LRS:
                             df.loc[index, "to"] = neighbour["from"].iloc[0]
                             update_count += 1
 
-                logger.info(f"Repaired {update_count} event measurement gaps for dataset: {layer}.")
+                logger.info(f"Repaired {update_count} event measurement gaps.")
 
                 # Flag overlapping measurement ranges.
-                logger.info(f"Identifying overlapping event measurement ranges for dataset: {layer}.")
+                logger.info("Identifying overlapping event measurement ranges.")
 
                 # Iterate records with duplicated connection ids.
                 for con_id in dup_con_ids:
@@ -194,7 +227,7 @@ class LRS:
                             break
 
                     if overlap_flag:
-                        logger.warning(f"Overlap detected for layer: {layer}, {con_id_field}={con_id}.")
+                        logger.warning(f"Overlap detected: {con_id_field}={con_id}.")
 
                 # Store results.
                 self.src_datasets[layer] = df.copy(deep=True)
