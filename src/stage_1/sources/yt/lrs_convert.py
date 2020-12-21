@@ -14,6 +14,7 @@ from itertools import chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, MultiLineString
+from shapely.ops import linemerge
 from tqdm import tqdm
 
 sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
@@ -38,10 +39,10 @@ class LRS:
         self.base_dataset = "tdylrs_centerline_sequence"
         self.geometry_dataset = "tdylrs_centerline"
         self.event_measurement_fields = {"from": "fromkm", "to": "tokm"}
-        self.event_offsets = {
+        self.calibrations = {
             "dataset": "tdylrs_calibration_point",
             "id_field": "routeid",
-            "offset_field": "measure",
+            "measurement_field": "measure",
             "ids": ["004097", "004307", "004349"]
         }
         self.schema = {
@@ -122,13 +123,75 @@ class LRS:
         logger.info("Assembling segmented network.")
 
         # Assemble base - geometry connection.
-        if self.base_dataset != self.geometry_dataset:
-            logger.info(f"Assembling base - geometry connection: {self.base_dataset} - {self.geometry_dataset}.")
+        logger.info(f"Assembling base - geometry connection: {self.base_dataset} - {self.geometry_dataset}.")
 
-            # Identify connection field.
-            #...
+        # Assemble datasets.
+        base = gpd.GeoDataFrame(self.src_datasets[self.base_dataset].merge(
+            self.src_datasets[self.geometry_dataset], how="left", on=self.get_con_id_field(self.geometry_dataset)))
 
-            # Assemble datasets.
+        # Explode geometries to singlepart.
+        base = helpers.explode_geometry(base)
+
+        # Merge geometries for many-to-one links; keep only the first record but keep the entire merged geometry.
+        con_id_field = self.calibrations["id_field"]
+        flag = base[con_id_field].duplicated(keep=False)
+        geom_links = dict(helpers.groupby_to_list(base.loc[flag], con_id_field, "geometry").map(linemerge))
+        base = base.loc[~base[con_id_field].duplicated(keep="first")]
+        base.loc[flag, "geometry"] = base.loc[flag, con_id_field].map(geom_links)
+
+        # Iterate datasets and assemble all event measurements for each base geometry.
+        logger.info(f"Compiling all event measurements as breakpoints.")
+
+        for name, df in self.src_datasets.items():
+            if name not in {self.base_dataset, self.geometry_dataset} and {"from", "to"}.issubset(set(df.columns)):
+                logger.info(f"Compiling breakpoints for dataset: {name}.")
+
+                # Identify connection field.
+                con_id_field = self.get_con_id_field(name)
+
+                # Compile breakpoints as flattened list.
+                df["breakpts"] = df[["from", "to"]].apply(lambda row: [*row], axis=1)
+                breakpts = helpers.groupby_to_list(df, con_id_field, "breakpts").map(chain.from_iterable).map(list)
+
+                # Merge breakpoints with base dataset.
+                breakpts.name = f"{name}_breakpts"
+                base = base.merge(breakpts, how="left", left_on=con_id_field, right_index=True)
+
+        # Reduce and sort breakpoints into flattened lists.
+        logger.info(f"Reducing and sorting breakpoints.")
+
+        breakpt_cols = [col for col in base.columns if col.endswith("_breakpts")]
+        base["breakpts"] = base[breakpt_cols].apply(
+            lambda row: chain.from_iterable(r for r in row if isinstance(r, list)), axis=1).map(set).map(sorted)
+
+        # Remove extraneous columns.
+        base.drop(columns=breakpt_cols, inplace=True)
+
+        # Add geometry start and end breakpoints.
+        logger.info(f"Adding geometry start and end to breakpoints.")
+
+        # Populate empty breakpoints.
+        flag = base["breakpts"].map(len) == 0
+        base.loc[flag, "breakpts"] = base.loc[flag, "geometry"].map(lambda g: [0, g.length])
+
+        # Add starting breakpoints.
+        base["breakpts"] = base["breakpts"].map(lambda pts: pts if pts[0] == 0 else [0, *pts])
+
+        # Add ending breakpoints.
+        base["breakpts"] = base[["breakpts", "geometry"]].apply(
+            lambda row: [*row[0][:-1], row[1].length] if row[0][-1] == round(row[1].length, 0)
+            else [*row[0], row[1].length], axis=1)
+
+        # Split record geometries on breakpoints.
+        logger.info(f"Splitting records on geometry breakpoints.")
+
+        # Nest breakpoints into groups of 2.
+        base["breakpts"] = base["breakpts"].map(lambda pts: [[pts[i], pts[i+1]] for i in range(len(pts)-1)])
+
+        # Explode dataframe on breakpoints and extract geometry based on each breakpoint range.
+        # Note: must convert to pandas dataframe since geodataframe.explode is geometry based.
+        base = gpd.GeoDataFrame(pd.DataFrame(base).explode("breakpts", ignore_index=True))
+        #... extract geometry.
 
     def clean_event_measurements(self):
         """
@@ -148,9 +211,15 @@ class LRS:
 
         # Compile offsets for event measurements.
         offsets = dict()
-        id_field, offset_field = itemgetter("id_field", "offset_field")(self.event_offsets)
-        offsets_df = self.src_datasets[self.event_offsets["dataset"]]
-        offsets_df = offsets_df.loc[offsets_df[id_field].isin(self.event_offsets["ids"])]
+        id_field, offset_field = itemgetter("id_field", "measurement_field")(self.calibrations)
+
+        # Convert unit of offsets identically to event measurements, do not round.
+        self.src_datasets[self.calibrations["dataset"]][offset_field] = self.src_datasets[
+            self.calibrations["dataset"]][offset_field].multiply(1000)
+
+        # Compile offsets for out-of-scope events.
+        offsets_df = self.src_datasets[self.calibrations["dataset"]]
+        offsets_df = offsets_df.loc[offsets_df[id_field].isin(self.calibrations["ids"])]
         for offset_id in set(offsets_df[id_field]):
             offsets[offset_id] = offsets_df.loc[offsets_df[id_field] == offset_id, offset_field].min()
 
@@ -294,43 +363,38 @@ class LRS:
         Flags many-to-one linkages between the base and geometry datasets.
         """
 
-        # Flag many-to-one linkages between base and geometry datasets.
-        logger.info(f"Identifying many-to-one linkages between base and geometry datasets: {self.base_dataset} - "
-                    f"{self.geometry_dataset}.")
-
-        # Identify connection field.
-        con_id_field = self.get_con_id_field(self.geometry_dataset)
-
-        # Compile and flag all many-to-one linkages.
-        base = self.src_datasets[self.base_dataset]
-        for con_id, count in Counter(base.loc[base[con_id_field].duplicated(keep=False), con_id_field]).items():
-            logger.warning(f"Many-to-one linkage identified between base and geometry datasets: "
-                           f"{con_id_field}={con_id}; count={count}.")
-
         logger.info(f"Configuring valid records.")
 
         # Iterate dataframes and remove records which do not link to the base dataset.
-        for field, layers in self.structure["connections"].items():
+        for name, df in {k: v for k, v in self.src_datasets.items() if k != self.base_dataset}.items():
 
-            # Compile valid IDs from base dataset for the given connection field.
-            valid_ids = set(self.src_datasets[self.base_dataset][field])
+            logger.info(f"Configuring valid records for source dataset: {name}.")
 
-            for layer in layers:
+            # Identify connection field.
+            con_id_field = self.get_con_id_field(name)
 
-                logger.info(f"Configuring valid records for source dataset: {layer}.")
+            # Compile valid IDs from base dataset for the identified connection field.
+            valid_ids = set(self.src_datasets[self.base_dataset][con_id_field])
 
-                df = self.src_datasets[layer]
+            # Remove records with invalid connection IDs.
+            df_valid = df.loc[df[con_id_field].isin(valid_ids)]
+            logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {name}, based on ID "
+                        f"field: {con_id_field}.")
 
-                # Remove records with invalid connection IDs.
-                df_valid = df.loc[df[field].isin(valid_ids)]
-                logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {layer}, based on ID "
-                            f"field: {field}.")
+            # Flag many-to-one linkages between base and geometry datasets.
+            if name == self.geometry_dataset:
 
-                # Store or delete dataset.
-                if len(df_valid):
-                    self.src_datasets[layer] = df_valid.copy(deep=True)
-                else:
-                    del self.src_datasets[layer]
+                # Compile and flag many-to-one linkages.
+                base = self.src_datasets[self.base_dataset]
+                for con_id, count in Counter(base.loc[base[con_id_field].duplicated(keep=False), con_id_field]).items():
+                    logger.warning(f"Many-to-one linkage identified between base ({self.base_dataset}) and geometry "
+                                   f"({self.geometry_dataset}) datasets: {con_id_field}={con_id}, count={count}.")
+
+            # Store or remove dataset.
+            if len(df_valid):
+                self.src_datasets[name] = df_valid.copy(deep=True)
+            else:
+                del self.src_datasets[name]
 
     def export_gpkg(self):
         """Exports the NRN datasets to a GeoPackage."""
