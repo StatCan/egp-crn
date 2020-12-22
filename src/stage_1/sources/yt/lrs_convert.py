@@ -14,7 +14,7 @@ from itertools import chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, MultiLineString
-from shapely.ops import linemerge
+from shapely.ops import linemerge, split
 from tqdm import tqdm
 
 sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
@@ -55,7 +55,7 @@ class LRS:
                 "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "tdylrs_calibration_point": {
-                "fields": ["routeid", "fromdate", "todate", "networkid", "measure"],
+                "fields": ["routeid", "fromdate", "todate", "networkid", "measure", "geometry"],
                 "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1"
             },
             "tdylrs_centerline": {
@@ -120,6 +120,47 @@ class LRS:
     def assemble_segmented_network(self):
         """Assembles a segmented network from the distributed datasets."""
 
+        calibrations_df = self.src_datasets[self.calibrations["dataset"]]
+
+        def get_line_segment(breakpts, geom):
+            """
+            Returns the segment of the given LineString between the given breakpoints (distances).
+            To increase splitting accuracy, breakpoints which correspond to the beginning or end of the LineString will
+            use the natural beginning and end rather than the explicit breakpoint measurement.
+            """
+
+            if isinstance(geom, LineString):
+
+                # Beginning segment.
+                if breakpts[0] == 0:
+                    return
+
+                # Ending segment.
+                elif round(breakpts[-1]) == round(geom.length):
+                    return
+
+                # Middle segment.
+                else:
+                    return
+
+            else:
+
+                return
+
+        def sort_multilinestring(con_id, geom):
+            """Sorts a MultiLineString into the correct LineString ordering based on calibration points."""
+
+            # Compile sorted calibration points for connection ID.
+            calibration_pts = calibrations_df.loc[calibrations_df[self.calibrations["id_field"]] == con_id] \
+                .sort_values(self.calibrations["measurement_field"])
+
+            # Get LineString index order by intersecting calibration points with LineStrings.
+            index_order = list(dict.fromkeys(chain.from_iterable(calibration_pts["geometry"].map(
+                lambda pt: [index for index, line in enumerate(geom) if pt.intersects(line)]).to_list())))
+
+            # Get LineStrings by index order.
+            return itemgetter(*index_order)(geom)
+
         logger.info("Assembling segmented network.")
 
         # Assemble base - geometry connection.
@@ -138,6 +179,14 @@ class LRS:
         geom_links = dict(helpers.groupby_to_list(base.loc[flag], con_id_field, "geometry").map(linemerge))
         base = base.loc[~base[con_id_field].duplicated(keep="first")]
         base.loc[flag, "geometry"] = base.loc[flag, con_id_field].map(geom_links)
+
+        # Sort MultiLineStrings into proper LineString ordering.
+        logger.info(f"Sorting MultiLineStrings into proper LineString ordering.")
+
+        con_id_field = self.calibrations["id_field"]
+        flag = base.geom_type == "MultiLineString"
+        base.loc[flag, "geometry"] = base.loc[flag, [con_id_field, "geometry"]].apply(
+            lambda row: sort_multilinestring(*row), axis=1)
 
         # Iterate datasets and assemble all event measurements for each base geometry.
         logger.info(f"Compiling all event measurements as breakpoints.")
@@ -179,7 +228,7 @@ class LRS:
 
         # Add ending breakpoints.
         base["breakpts"] = base[["breakpts", "geometry"]].apply(
-            lambda row: [*row[0][:-1], row[1].length] if row[0][-1] == round(row[1].length, 0)
+            lambda row: [*row[0][:-1], row[1].length] if abs(row[0][-1] - row[1].length) <= 1
             else [*row[0], row[1].length], axis=1)
 
         # Split record geometries on breakpoints.
@@ -188,23 +237,43 @@ class LRS:
         # Nest breakpoints into groups of 2.
         base["breakpts"] = base["breakpts"].map(lambda pts: [[pts[i], pts[i+1]] for i in range(len(pts)-1)])
 
-        # Explode dataframe on breakpoints and extract geometry based on each breakpoint range.
+        # Explode dataframe on breakpoints.
         # Note: must convert to pandas dataframe since geodataframe.explode is geometry based.
         base = gpd.GeoDataFrame(pd.DataFrame(base).explode("breakpts", ignore_index=True))
-        #... extract geometry.
+
+        # Extract geometry segment corresponding to breakpoints.
+        # Note: for unique connection IDs, keep the entire geometry.
+        con_id_field = self.calibrations["id_field"]
+        flag = base[con_id_field].duplicated(keep=False)
+        # ...split geoms
 
     def clean_event_measurements(self):
         """
         Performs several cleanup operations on records based on event measurement:
         1. Simplifies event measurement field names to 'from' and 'to'.
-        2. Converts measurements to crs unit and rounds to nearest int (current conversion = km to m).
+        2. Converts measurements to crs unit (current conversion = km to m).
         3. Drops records with invalid measurements (from >= to).
-        4. Removes event measurement offsets for out-of-scope records: some records do not start at zero because they
+        4. Matches event measurements to any corresponding calibration point measurements (for improved accuracy).
+        5. Removes event measurement offsets for out-of-scope records: some records do not start at zero because they
         begin outside of the territory. The event measurements on these records must be reduced according to the
         starting offset.
-        5. Repairs gaps in event measurements along the same connected feature.
-        6. Flags overlapping event measurements along the same connected feature.
+        6. Repairs gaps in event measurements along the same connected feature.
+        7. Flags overlapping event measurements along the same connected feature.
         """
+
+        def match_calibration_pts(con_id, event):
+            """Swaps an event measurement for a corresponding calibration point measurements, if possible."""
+
+            # Filter calibration point to connection ID.
+            measurements = calibrations_df.loc[calibrations_df[self.calibrations["id_field"]] == con_id,
+                                               self.calibrations["measurement_field"]]
+
+            # Identify matching calibration points for event (tolerance = 1 unit).
+            matching_measurements = measurements.loc[measurements.subtract(event).abs() <= 1]
+            if len(matching_measurements):
+                return matching_measurements.iloc[0]
+            else:
+                return event
 
         logger.info("Cleaning event measurement fields.")
         fields = self.event_measurement_fields
@@ -213,15 +282,15 @@ class LRS:
         offsets = dict()
         id_field, offset_field = itemgetter("id_field", "measurement_field")(self.calibrations)
 
-        # Convert unit of offsets identically to event measurements, do not round.
+        # Convert calibration point measurement units identically to event measurements.
         self.src_datasets[self.calibrations["dataset"]][offset_field] = self.src_datasets[
             self.calibrations["dataset"]][offset_field].multiply(1000)
 
         # Compile offsets for out-of-scope events.
-        offsets_df = self.src_datasets[self.calibrations["dataset"]]
-        offsets_df = offsets_df.loc[offsets_df[id_field].isin(self.calibrations["ids"])]
-        for offset_id in set(offsets_df[id_field]):
-            offsets[offset_id] = offsets_df.loc[offsets_df[id_field] == offset_id, offset_field].min()
+        calibrations_df = self.src_datasets[self.calibrations["dataset"]]
+        calibrations_df = calibrations_df.loc[calibrations_df[id_field].isin(self.calibrations["ids"])]
+        for offset_id in set(calibrations_df[id_field]):
+            offsets[offset_id] = calibrations_df.loc[calibrations_df[id_field] == offset_id, offset_field].min()
 
         # Iterate dataframes with event measurement fields.
         for layer, df in self.src_datasets.items():
@@ -232,10 +301,10 @@ class LRS:
                 # Identify connection field.
                 con_id_field = self.get_con_id_field(layer)
 
-                # Convert and round measurements.
-                logger.info("Converting and rounding event measurements.")
+                # Convert measurements.
+                logger.info("Converting event measurements.")
 
-                df[list(fields.values())] = df[fields.values()].multiply(1000).round(0).astype(int)
+                df[list(fields.values())] = df[fields.values()].multiply(1000)
                 df.rename(columns={fields["from"]: "from", fields["to"]: "to"}, inplace=True)
 
                 # Remove records with invalid event measurements.
@@ -244,6 +313,21 @@ class LRS:
                 count = len(df)
                 df = df.loc[df["from"] < df["to"]].copy(deep=True)
                 logger.info(f"Dropped {count - len(df)} of {count} records.")
+
+                # Match event measurements to calibration points, if possible.
+                logger.info(f"Matching event measurements against calibration points.")
+
+                count = 0
+                for fld in {"from", "to"}:
+                    orig = df[fld]
+
+                    flag = df[fld] != 0
+                    df.loc[flag, fld] = df.loc[flag, [con_id_field, fld]].apply(
+                        lambda row: match_calibration_pts(*row), axis=1)
+
+                    count += (orig != df[fld]).sum()
+
+                logger.info(f"Matched {count} event measurements to calibration points.")
 
                 # Update out-of-scope offsets.
                 logger.info("Updating out-of-scope offsets for events measurements.")
@@ -264,7 +348,8 @@ class LRS:
                     records = df.loc[df[con_id_field] == con_id]
                     to_max = records["to"].max()
 
-                    # For any gaps, extend the 'to' measurement to the appropriate neighbouring 'from' measurement.
+                    # For any gaps (tolerance = 3 units), extend the 'to' measurement to the appropriate neighbouring
+                    # 'from' measurement.
                     for index, to_value in records.loc[records["to"] != to_max, "to"].iteritems():
                         neighbour = records[(records.index != index) & ((records["from"] - to_value).between(0, 3))]
                         if len(neighbour):
