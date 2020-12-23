@@ -2,19 +2,17 @@ import click
 import fiona
 import geopandas as gpd
 import logging
-import numpy as np
 import os
 import pandas as pd
-import shapely
 import sqlite3
 import sys
-import uuid
+from bisect import bisect, bisect_left
 from collections import Counter
 from itertools import chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
-from shapely.geometry import LineString, MultiLineString
-from shapely.ops import linemerge, split
+from shapely.geometry import LineString, MultiLineString, Point
+from shapely.ops import linemerge
 from tqdm import tqdm
 
 sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
@@ -122,30 +120,58 @@ class LRS:
 
         calibrations_df = self.src_datasets[self.calibrations["dataset"]]
 
-        def get_line_segment(breakpts, geom):
+        def segment_geometry(breakpts, geom):
             """
-            Returns the segment of the given LineString between the given breakpoints (distances).
-            To increase splitting accuracy, breakpoints which correspond to the beginning or end of the LineString will
-            use the natural beginning and end rather than the explicit breakpoint measurement.
+            Returns a (Multi)LineString, representing the original geometry segmented at the given breakpoints.
+            To increase splitting accuracy, breakpoints will be snapped to pre-existing nodes in the geometry, where
+            possible.
             """
 
-            if isinstance(geom, LineString):
+            # Return entire geometry if breakpoints cover entire length.
+            if breakpts[0] == 0 and round(breakpts[-1]) == round(geom.length):
+                return [geom]
 
-                # Beginning segment.
-                if breakpts[0] == 0:
-                    return
+            # Linestring.
+            elif isinstance(geom, LineString):
 
-                # Ending segment.
-                elif round(breakpts[-1]) == round(geom.length):
-                    return
+                # Get LineString nodes and distances.
+                nodes = list(geom.coords)
+                nodes_dist = list(map(lambda node: geom.project(Point(node)), nodes))
 
-                # Middle segment.
-                else:
-                    return
+                # Compile all nodes between breakpoints.
+                rng = [bisect_left(nodes_dist, breakpts[0]), bisect(nodes_dist, breakpts[-1])]
+                nodes_keep = nodes[rng[0]: rng[-1]]
 
+                # Conditionally create start and end nodes if the breakpoints don't match any pre-existing node.
+                if round(breakpts[0]) < round(nodes_dist[rng[0]]):
+                    nodes_keep = [geom.interpolate(breakpts[0]), *nodes_keep]
+                if round(breakpts[-1]) > round(nodes_dist[rng[-1] - 1]):
+                    nodes_keep = [*nodes_keep, geom.interpolate(breakpts[-1])]
+
+                return LineString(nodes_keep)
+
+            # MultiLineString.
             else:
 
-                return
+                geoms = list()
+
+                # Compile individual LineString lengths, relative to the full MultiLineString.
+                lengths = [line.length for line in geom]
+                lengths_rng = [pd.Interval(sum(lengths[:i]), sum(lengths[:i+1])) for i in range(len(lengths))]
+                lengths = [sum(lengths[:i+1]) for i in range(len(lengths))]
+
+                # Add intermediary lengths (LineString transitions) to breakpoints.
+                breakpts = [breakpts[0], *[l for l in lengths if breakpts[0] < l < breakpts[-1]], breakpts[-1]]
+
+                # Iterate breakpoint pairs and segment corresponding LineString.
+                for index in range(len(breakpts)-1):
+                    breakpts_ = breakpts[index: index+2]
+                    geom_idx = [idx for idx, rng in enumerate(lengths_rng) if pd.Interval(*breakpts_).overlaps(rng)][0]
+                    geom_ = geom[geom_idx]
+
+                    geoms.append(segment_geometry(breakpts_, geom_))
+
+                return MultiLineString(geoms)
 
         def sort_multilinestring(con_id, geom):
             """Sorts a MultiLineString into the correct LineString ordering based on calibration points."""
@@ -158,8 +184,15 @@ class LRS:
             index_order = list(dict.fromkeys(chain.from_iterable(calibration_pts["geometry"].map(
                 lambda pt: [index for index, line in enumerate(geom) if pt.intersects(line)]).to_list())))
 
-            # Get LineStrings by index order.
-            return itemgetter(*index_order)(geom)
+            # Add missing indexes.
+            # Note: indexes will not be missing with topologically correct geometries, however, these errors have been
+            # identified in the data and it is preferred to accommodate them here and flag them collectively in the
+            # actual NRN pipeline.
+            missing = set(range(len(geom))) - set(index_order)
+            index_order.extend(missing)
+
+            # Create MultiLineString from LineString index ordering.
+            return MultiLineString(itemgetter(*index_order)(geom))
 
         logger.info("Assembling segmented network.")
 
@@ -238,14 +271,16 @@ class LRS:
         base["breakpts"] = base["breakpts"].map(lambda pts: [[pts[i], pts[i+1]] for i in range(len(pts)-1)])
 
         # Explode dataframe on breakpoints.
-        # Note: must convert to pandas dataframe since geodataframe.explode is geometry based.
+        # Note: must use pandas dataframe since geodataframe.explode is geometry based.
         base = gpd.GeoDataFrame(pd.DataFrame(base).explode("breakpts", ignore_index=True))
 
         # Extract geometry segment corresponding to breakpoints.
         # Note: for unique connection IDs, keep the entire geometry.
-        con_id_field = self.calibrations["id_field"]
-        flag = base[con_id_field].duplicated(keep=False)
-        # ...split geoms
+        self.base = base
+        base["geometry"] = base[["breakpts", "geometry"]].apply(lambda row: segment_geometry(*row), axis=1)
+
+        # Assemble matching attributes.
+        # Assemble datasets without segmentation....tdylrs_primary_rte.
 
     def clean_event_measurements(self):
         """
@@ -346,16 +381,16 @@ class LRS:
                 dup_con_ids = set(df.loc[df[con_id_field].duplicated(keep=False), con_id_field])
                 for con_id in dup_con_ids:
                     records = df.loc[df[con_id_field] == con_id]
-                    to_max = records["to"].max()
+                    from_min = records["from"].min()
 
-                    # For any gaps (tolerance = 3 units), extend the 'to' measurement to the appropriate neighbouring
-                    # 'from' measurement.
-                    for index, to_value in records.loc[records["to"] != to_max, "to"].iteritems():
-                        neighbour = records[(records.index != index) & ((records["from"] - to_value).between(0, 3))]
+                    # For any gaps (tolerance = 1 unit), reduce the 'from' measurement to the appropriate neighbouring
+                    # 'to' measurement.
+                    for index, from_value in records.loc[records["from"] != from_min, "from"].iteritems():
+                        neighbour = records[(records.index != index) & ((from_value - records["to"]).between(0, 1))]
                         if len(neighbour):
 
                             # Update record.
-                            df.loc[index, "to"] = neighbour["from"].iloc[0]
+                            df.loc[index, "from"] = neighbour["to"].iloc[0]
                             update_count += 1
 
                 logger.info(f"Repaired {update_count} event measurement gaps.")
@@ -576,7 +611,7 @@ class LRS:
         self.configure_valid_records()
         self.clean_event_measurements()
         self.assemble_segmented_network()
-        self.export_gpkg()
+        # self.export_gpkg()
 
 
 @click.command()
