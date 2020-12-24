@@ -129,7 +129,7 @@ class LRS:
 
             # Return entire geometry if breakpoints cover entire length.
             if breakpts[0] == 0 and round(breakpts[-1]) == round(geom.length):
-                return [geom]
+                return geom
 
             # Linestring.
             elif isinstance(geom, LineString):
@@ -161,11 +161,13 @@ class LRS:
                 lengths = [sum(lengths[:i+1]) for i in range(len(lengths))]
 
                 # Add intermediary lengths (LineString transitions) to breakpoints.
-                breakpts = [breakpts[0], *[l for l in lengths if breakpts[0] < l < breakpts[-1]], breakpts[-1]]
+                breakpts_upd = list()
+                for breakpt in breakpts:
+                    breakpts_upd.append([*[l for l in lengths if abs(round(breakpt)-round(l)) <= 1], breakpt][0])
 
                 # Iterate breakpoint pairs and segment corresponding LineString.
-                for index in range(len(breakpts)-1):
-                    breakpts_ = breakpts[index: index+2]
+                for index in range(len(breakpts_upd)-1):
+                    breakpts_ = breakpts_upd[index: index+2]
                     geom_idx = [idx for idx, rng in enumerate(lengths_rng) if pd.Interval(*breakpts_).overlaps(rng)][0]
                     geom_ = geom[geom_idx]
 
@@ -254,7 +256,7 @@ class LRS:
         logger.info(f"Adding geometry start and end to breakpoints.")
 
         base["breakpts"] = base[["breakpts", "geometry"]].apply(
-            lambda row: [0, *[pt for pt in breakpts if 1 <= pt <= (row[1].length-1)], row[1].length], axis=1)
+            lambda row: [0, *[pt for pt in row[0] if 1 <= pt <= (row[1].length-1)], row[1].length], axis=1)
 
         # Filter breakpoints which are too close together.
         logger.info(f"Filtering breakpoints which are too close together.")
@@ -262,7 +264,7 @@ class LRS:
         # Filter breakpoints by keeping only those which are more than 1 unit distance from the next breakpoint.
         base["breakpts"] = base["breakpts"].map(
             lambda pts: [*[pt for index, pt in enumerate(pts[:-1])
-                           if abs(round(pt) - round(pts[index+1])) > 1], breakpts[-1]])
+                           if abs(round(pt) - round(pts[index+1])) > 1], pts[-1]])
 
         # Split record geometries on breakpoints.
         logger.info(f"Splitting records on geometry breakpoints.")
