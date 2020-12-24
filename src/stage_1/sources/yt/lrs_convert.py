@@ -250,19 +250,19 @@ class LRS:
         base.drop(columns=breakpt_cols, inplace=True)
 
         # Add geometry start and end breakpoints.
+        # Note: remove breakpoints which are within 1 unit distance from the start and end breakpoints.
         logger.info(f"Adding geometry start and end to breakpoints.")
 
-        # Populate empty breakpoints.
-        flag = base["breakpts"].map(len) == 0
-        base.loc[flag, "breakpts"] = base.loc[flag, "geometry"].map(lambda g: [0, g.length])
-
-        # Add starting breakpoints.
-        base["breakpts"] = base["breakpts"].map(lambda pts: pts if pts[0] == 0 else [0, *pts])
-
-        # Add ending breakpoints.
         base["breakpts"] = base[["breakpts", "geometry"]].apply(
-            lambda row: [*row[0][:-1], row[1].length] if abs(row[0][-1] - row[1].length) <= 1
-            else [*row[0], row[1].length], axis=1)
+            lambda row: [0, *[pt for pt in breakpts if 1 <= pt <= (row[1].length-1)], row[1].length], axis=1)
+
+        # Filter breakpoints which are too close together.
+        logger.info(f"Filtering breakpoints which are too close together.")
+
+        # Filter breakpoints by keeping only those which are more than 1 unit distance from the next breakpoint.
+        base["breakpts"] = base["breakpts"].map(
+            lambda pts: [*[pt for index, pt in enumerate(pts[:-1])
+                           if abs(round(pt) - round(pts[index+1])) > 1], breakpts[-1]])
 
         # Split record geometries on breakpoints.
         logger.info(f"Splitting records on geometry breakpoints.")
