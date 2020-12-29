@@ -42,10 +42,13 @@ class LRS:
             "measurement_field": "measure",
             "ids": ["004097", "004307", "004349"]
         }
+
+        # Dataset import specifications.
         self.schema = {
             "br_bridge_ln": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "bridge_name"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "link_attrs": ["bridge_name"],
             },
             "sm_structure": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "surface_code"],
@@ -90,6 +93,8 @@ class LRS:
                 "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             }
         }
+
+        # Connections between datasets to the main (base) dataset.
         self.structure = {
             "base": self.base_dataset,
             "connections": {
@@ -98,6 +103,26 @@ class LRS:
                             "td_lane_configuration", "td_number_of_lanes", "td_road_administration", "td_road_type",
                             "td_street_name"]
             }
+        }
+
+        # Input dataset columns to be renamed upon import.
+        self.rename = {
+            "acquired_by_dv": "provider",
+            "acquisition_date": "credate",
+            "acquisition_technique_dv": "acqtech",
+            "administration": "roadjuris",
+            "bridge_name": "strunameen",
+            "fromdate": "revdate",
+            "lane_configuration": "trafficdir",
+            "number_of_lanes": "nbrlanes",
+            "planimetric_accuracy": "accuracy",
+            "road_type": "roadclass",
+            "street_direction_prefix": "dirprefix",
+            "street_direction_suffix": "dirsuffix",
+            "street_name": "namebody",
+            "street_type_prefix": "strtypre",
+            "street_type_suffix": "strtysuf",
+            "surface_code": "pavstatus"
         }
 
         # Validate src.
@@ -305,6 +330,9 @@ class LRS:
         # Note: for unique connection IDs, keep the entire geometry.
         base["args"] = base[["breakpts", "geometry"]].apply(list, axis=1)
         base["geometry"] = base["args"].map(lambda args: segment_geometry(*args))
+
+        # Drop excess columns.
+        base.drop(columns=["breakpts", "args"], inplace=True)
         self.base = base
 
         # Assemble matching attributes.
@@ -454,25 +482,6 @@ class LRS:
 
         logger.info(f"Compiling source datasets from: {self.src}.")
 
-        rename = {
-            "acquired_by_dv": "provider",
-            "acquisition_date": "credate",
-            "acquisition_technique_dv": "acqtech",
-            "administration": "roadjuris",
-            "bridge_name": "strunameen",
-            "fromdate": "revdate",
-            "lane_configuration": "trafficdir",
-            "number_of_lanes": "nbrlanes",
-            "planimetric_accuracy": "accuracy",
-            "road_type": "roadclass",
-            "street_direction_prefix": "dirprefix",
-            "street_direction_suffix": "dirsuffix",
-            "street_name": "namebody",
-            "street_type_prefix": "strtypre",
-            "street_type_suffix": "strtysuf",
-            "surface_code": "pavstatus"
-        }
-
         # Compile layer names for lowercase lookup.
         layers_lower = {name.lower(): name for name in fiona.listlayers(self.src)}
 
@@ -496,7 +505,7 @@ class LRS:
                 logger.info(f"Dropped {count - len(df)} of {count} records for dataset: {layer}, based on query.")
 
             # Update column names to match NRN.
-            df.rename(columns=rename, inplace=True)
+            df.rename(columns=self.rename, inplace=True)
 
             # Convert tabular dataframes.
             if "geometry" not in df.columns:
