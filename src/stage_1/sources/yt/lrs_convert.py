@@ -6,7 +6,6 @@ import os
 import pandas as pd
 import sqlite3
 import sys
-from bisect import bisect, bisect_left
 from collections import Counter
 from itertools import chain
 from operator import attrgetter, itemgetter
@@ -134,18 +133,37 @@ class LRS:
             # Linestring.
             elif isinstance(geom, LineString):
 
-                # Get LineString nodes and distances.
-                nodes = list(geom.coords)
-                nodes_dist = list(map(lambda node: geom.project(Point(node)), nodes))
+                # Extract coordinates (nodes) from geometry.
+                nodes = list(attrgetter("coords")(geom))
 
-                # Compile all nodes between breakpoints.
-                rng = [bisect_left(nodes_dist, breakpts[0]), bisect(nodes_dist, breakpts[-1])]
-                nodes_keep = nodes[rng[0]: rng[-1]]
+                # Configure the index range for all nodes between breakpoints (using bisection search).
+                low, high = 0, len(nodes)-1
+                while abs(high - low) > 1:
+                    mid = int(low + ((high - low) / 2))
+                    if breakpts[0] > geom.project(Point(nodes[mid])):
+                        low = mid
+                    else:
+                        high = mid
+                from_idx = high
+
+                low, high = from_idx, len(nodes)-1
+                while abs(high - low) > 1:
+                    mid = int(low + ((high - low) / 2))
+                    if breakpts[-1] < geom.project(Point(nodes[mid])):
+                        high = mid
+                    else:
+                        low = mid
+                to_idx = high
+
+                # Compile nodes from indexes, conditionally populate nodes with breakpoints if empty.
+                nodes_keep = list(map(Point, nodes[from_idx: to_idx]))
+                if not len(nodes_keep):
+                    nodes_keep = [geom.interpolate(breakpts[0]), geom.interpolate(breakpts[-1])]
 
                 # Conditionally create start and end nodes if the breakpoints don't match any pre-existing node.
-                if round(breakpts[0]) < round(nodes_dist[rng[0]]):
+                if round(breakpts[0]) < round(geom.project(nodes_keep[0])):
                     nodes_keep = [geom.interpolate(breakpts[0]), *nodes_keep]
-                if round(breakpts[-1]) > round(nodes_dist[rng[-1] - 1]):
+                if round(breakpts[-1]) > round(geom.project(nodes_keep[-1])):
                     nodes_keep = [*nodes_keep, geom.interpolate(breakpts[-1])]
 
                 return LineString(nodes_keep)
@@ -171,6 +189,12 @@ class LRS:
                     geom_idx = [idx for idx, rng in enumerate(lengths_rng) if pd.Interval(*breakpts_).overlaps(rng)][0]
                     geom_ = geom[geom_idx]
 
+                    # Subtract from the breakpoints the distance of the LineString relative to the MultiLineString.
+                    if geom_idx > 0:
+                        sub = sum(g.length for g in geom[:geom_idx])
+                        breakpts_ = [breakpt - sub for breakpt in breakpts]
+
+                    # Call this function with the new parameters, append results to geometry list.
                     geoms.append(segment_geometry(breakpts_, geom_))
 
                 return MultiLineString(geoms)
@@ -277,9 +301,11 @@ class LRS:
         base = gpd.GeoDataFrame(pd.DataFrame(base).explode("breakpts", ignore_index=True))
 
         # Extract geometry segment corresponding to breakpoints.
+        # Nest geometry and breakpoints to use map.
         # Note: for unique connection IDs, keep the entire geometry.
+        base["args"] = base[["breakpts", "geometry"]].apply(list, axis=1)
+        base["geometry"] = base["args"].map(lambda args: segment_geometry(*args))
         self.base = base
-        base["geometry"] = base[["breakpts", "geometry"]].apply(lambda row: segment_geometry(*row), axis=1)
 
         # Assemble matching attributes.
         # Assemble datasets without segmentation....tdylrs_primary_rte.
