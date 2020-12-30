@@ -47,49 +47,62 @@ class LRS:
         self.schema = {
             "br_bridge_ln": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "bridge_name"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["fromdate", "bridge_name"]
             },
             "sm_structure": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "surface_code"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["from_date", "surface_code"]
             },
             "tdylrs_calibration_point": {
                 "fields": ["routeid", "fromdate", "todate", "networkid", "measure", "geometry"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1",
+                "output_fields": None
             },
             "tdylrs_centerline": {
                 "fields": ["centerlineid", "geometry"],
-                "query": None
+                "query": None,
+                "output_fields": None
             },
             "tdylrs_centerline_sequence": {
-                "fields": ["centerlineid", "fromdate", "todate", "networkid", "routeid", "centerlineid"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1"
+                "fields": ["routeid", "fromdate", "todate", "networkid", "centerlineid"],
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1",
+                "output_fields": ["fromdate"]
             },
             "tdylrs_primary_rte": {
                 "fields": ["fromdate", "todate", "routeid", "planimetric_accuracy", "acquisition_technique_dv",
                            "acquired_by_dv", "acquisition_date"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["fromdate", "planimetric_accuracy", "acquisition_technique_dv", "acquired_by_dv",
+                                  "acquisition_date"]
             },
             "td_lane_configuration": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "lane_configuration"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["fromdate", "lane_configuration"]
             },
             "td_number_of_lanes": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "number_of_lanes"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["fromdate", "number_of_lanes"]
             },
             "td_road_administration": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "administration"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["fromdate", "administration"]
             },
             "td_road_type": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "road_type"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["fromdate", "road_type"]
             },
             "td_street_name": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "street_direction_prefix",
                            "street_type_prefix", "street_name", "street_type_suffix", "street_direction_suffix"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
+                "output_fields": ["fromdate", "street_direction_prefix", "street_type_prefix", "street_name",
+                                  "street_type_suffix", "street_direction_suffix"]
             }
         }
 
@@ -334,11 +347,48 @@ class LRS:
         # Assemble attributes from source datasets.
         logger.info(f"Assembling attributes from source datasets.")
 
-        # Iterate source datasets connected to the base dataset and with available attribution.
+        # Convert breakpoints to pandas intervals.
+        base["interval"] = base["breakpts"].map(lambda vals: pd.Interval(*vals))
+
+        # Iterate source datasets that are connected to the base dataset and have columns to be keep on output.
         for con_id_field, names in self.structure["connections"].items():
-            for name in names:
+            for name in [n for n in names if self.schema[n]["output_fields"]]:
                 df = self.src_datasets[name].copy(deep=True)
 
+                # Compile required attributes with updated names. Add a suffix to columns already in base dataset.
+                cols_keep = list()
+                for col in self.schema[name]["output_fields"]:
+                    col = self.rename[col]
+                    while col in base.columns:
+                        col += "_"
+                        df.rename(columns={col[:-1]: col}, inplace=True)
+                    cols_keep.append(col)
+
+                    # Add new column to base dataset.
+                    base[col] = None
+
+                    # Handle segmented datasets.
+                    if "breakpts" in df.columns:
+
+                        # Convert breakpoints to pandas intervals.
+                        df["interval"] = df["breakpts"].map(lambda vals: pd.Interval(*vals))
+
+                        # Handle one-to-one matches.
+                        flag = base[con_id_field].isin(set(df[con_id_field])) & \
+                               ~base[con_id_field].duplicated(keep=False)
+
+                        # Fetch attributes...
+
+                        # Handle all other match types.
+                        flag = base[con_id_field].isin(set(df[con_id_field])) & \
+                               base[con_id_field].duplicated(keep=False)
+
+                        # Fetch attributes...
+
+                    # Handle non-segmented datasets.
+                    else:
+                        # ...
+                        pass
 
     def clean_event_measurements(self):
         """
