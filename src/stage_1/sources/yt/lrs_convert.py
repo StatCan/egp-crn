@@ -47,8 +47,7 @@ class LRS:
         self.schema = {
             "br_bridge_ln": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "bridge_name"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "link_attrs": ["bridge_name"],
+                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')"
             },
             "sm_structure": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "surface_code"],
@@ -328,29 +327,35 @@ class LRS:
         # Extract geometry segment corresponding to breakpoints.
         # Nest geometry and breakpoints to use map.
         # Note: for unique connection IDs, keep the entire geometry.
-        base["args"] = base[["breakpts", "geometry"]].apply(list, axis=1)
-        base["geometry"] = base["args"].map(lambda args: segment_geometry(*args))
-
-        # Drop excess columns.
-        base.drop(columns=["breakpts", "args"], inplace=True)
+        args_series = base[["breakpts", "geometry"]].apply(list, axis=1)
+        base["geometry"] = args_series.map(lambda args: segment_geometry(*args))
         self.base = base
 
-        # Assemble matching attributes.
-        # Assemble datasets without segmentation....tdylrs_primary_rte.
+        # Assemble attributes from source datasets.
+        logger.info(f"Assembling attributes from source datasets.")
+
+        # Iterate source datasets connected to the base dataset and with available attribution.
+        for con_id_field, names in self.structure["connections"].items():
+            for name in names:
+                df = self.src_datasets[name].copy(deep=True)
+
 
     def clean_event_measurements(self):
         """
         Performs several cleanup operations on records based on event measurement:
         1. Simplifies event measurement field names to 'from' and 'to'.
         2. Converts measurements to crs unit (current conversion = km to m).
-        3. Drops records with invalid measurements (from >= to).
-        4. Matches event measurements to any corresponding calibration point measurements (for improved accuracy).
-        5. Removes event measurement offsets for out-of-scope records: some records do not start at zero because they
+        3. Reduces event measurements which exceed the associated geometry length.
+        4. Drops records with invalid measurements (from >= to).
+        5. Matches event measurements to any corresponding calibration point measurements (for improved accuracy).
+        6. Removes event measurement offsets for out-of-scope records: some records do not start at zero because they
         begin outside of the territory. The event measurements on these records must be reduced according to the
         starting offset.
-        6. Repairs gaps in event measurements along the same connected feature.
-        7. Flags overlapping event measurements along the same connected feature.
+        7. Repairs gaps in event measurements along the same connected feature.
+        8. Flags overlapping event measurements along the same connected feature.
         """
+
+        calibrations_df = self.src_datasets[self.calibrations["dataset"]]
 
         def match_calibration_pts(con_id, event):
             """Swaps an event measurement for a corresponding calibration point measurements, if possible."""
@@ -378,10 +383,9 @@ class LRS:
             self.calibrations["dataset"]][offset_field].multiply(1000)
 
         # Compile offsets for out-of-scope events.
-        calibrations_df = self.src_datasets[self.calibrations["dataset"]]
-        calibrations_df = calibrations_df.loc[calibrations_df[id_field].isin(self.calibrations["ids"])]
-        for offset_id in set(calibrations_df[id_field]):
-            offsets[offset_id] = calibrations_df.loc[calibrations_df[id_field] == offset_id, offset_field].min()
+        offsets_df = calibrations_df.loc[calibrations_df[id_field].isin(self.calibrations["ids"])]
+        for offset_id in set(offsets_df[id_field]):
+            offsets[offset_id] = offsets_df.loc[offsets_df[id_field] == offset_id, offset_field].min()
 
         # Iterate dataframes with event measurement fields.
         for layer, df in self.src_datasets.items():
@@ -398,6 +402,20 @@ class LRS:
                 df[list(fields.values())] = df[fields.values()].multiply(1000)
                 df.rename(columns={fields["from"]: "from", fields["to"]: "to"}, inplace=True)
 
+                # Reduce event measurements which exceed geometry length.
+                logger.info(f"Reducing event 'to' measurements which exceed the geometry length.")
+
+                # Compile maximum calibration point measurements.
+                calibrations_max = dict(helpers.groupby_to_list(
+                    calibrations_df, self.calibrations["id_field"], self.calibrations["measurement_field"]).map(max))
+
+                # Use the calibration maximums to identify and adjust event measurements.
+                orig = df["to"].copy(deep=True)
+                flag = df[con_id_field].isin(calibrations_max)
+                flag2 = df.loc[flag]["to"] > df.loc[flag, con_id_field].map(calibrations_max)
+                df.loc[flag & flag2, "to"] = df.loc[flag & flag2, con_id_field].map(calibrations_max)
+                logger.info(f"Reduced {sum(df['to'] != orig)} length-exceeding event measurements.")
+
                 # Remove records with invalid event measurements.
                 logger.info("Removing records with invalid event measurements.")
 
@@ -410,13 +428,13 @@ class LRS:
 
                 count = 0
                 for fld in {"from", "to"}:
-                    orig = df[fld]
+                    orig = df[fld].copy(deep=True)
 
                     flag = df[fld] != 0
                     df.loc[flag, fld] = df.loc[flag, [con_id_field, fld]].apply(
                         lambda row: match_calibration_pts(*row), axis=1)
 
-                    count += (orig != df[fld]).sum()
+                    count += sum(orig != df[fld])
 
                 logger.info(f"Matched {count} event measurements to calibration points.")
 
@@ -427,7 +445,7 @@ class LRS:
                     flag = df[con_id_field] == offset_id
                     df.loc[flag, ["from", "to"]] = df.loc[flag, ["from", "to"]].subtract(offset)
 
-                    logger.info(f"Updated {flag.sum()} offset event measurements for {con_id_field}={offset_id}.")
+                    logger.info(f"Updated {sum(flag)} offset event measurements for {con_id_field}={offset_id}.")
 
                 # Repair gaps in measurement ranges.
                 logger.info("Repairing event measurement gaps.")
