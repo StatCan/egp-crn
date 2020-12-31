@@ -356,6 +356,8 @@ class LRS:
                 df = self.src_datasets[name].copy(deep=True)
 
                 # Compile required attributes with updated names. Add a suffix to columns already in base dataset.
+                # Note: some fields, such as date fields, may exist on several source datasets and, therefore, creates
+                # naming conflicts.
                 cols_keep = list()
                 for col in self.schema[name]["output_fields"]:
                     col = self.rename[col]
@@ -367,28 +369,50 @@ class LRS:
                     # Add new column to base dataset.
                     base[col] = None
 
-                    # Handle segmented datasets.
-                    if "breakpts" in df.columns:
+                # Handle segmented datasets.
+                if "breakpts" in df.columns:
 
-                        # Convert breakpoints to pandas intervals.
-                        df["interval"] = df["breakpts"].map(lambda vals: pd.Interval(*vals))
+                    # Convert breakpoints to pandas intervals.
+                    df["interval"] = df["breakpts"].map(lambda vals: pd.Interval(*vals))
 
-                        # Handle one-to-one matches.
-                        flag = base[con_id_field].isin(set(df[con_id_field])) & \
-                               ~base[con_id_field].duplicated(keep=False)
+                    # Handle one-to-one matches.
+                    # Flag base records and filter attributes dataframe to relevant records.
+                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
+                                ~base[con_id_field].duplicated(keep=False)
+                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
+                                    [con_id_field, *cols_keep]]
 
-                        # Fetch attributes...
+                    # Update base dataset with attributes.
+                    base.loc[flag_base, cols_keep] = base.loc[flag_base, [con_id_field]].merge(
+                        df_sub, how="left", on=con_id_field)[cols_keep].values
 
-                        # Handle all other match types.
-                        flag = base[con_id_field].isin(set(df[con_id_field])) & \
-                               base[con_id_field].duplicated(keep=False)
+                    # Handle all other match types.
+                    # Flag base records and filter attributes dataframe to relevant records.
+                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
+                                base[con_id_field].duplicated(keep=False)
+                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
+                                    [con_id_field, "interval", *cols_keep]]
 
-                        # Fetch attributes...
+                    # Further filter flag to those records with a breakpoint interval match in the attributes dataframe.
+                    def fetch_indexes(con_id, interval):
+                        df_filter = df_sub.loc[df_sub[con_id_field] == con_id]
+                        indexes = df_filter.loc[df_filter["interval"].map(lambda intv: intv.overlaps(interval))].index
+                        return indexes[0] if len(indexes) else None
 
-                    # Handle non-segmented datasets.
-                    else:
-                        # ...
-                        pass
+                    args = base.loc[flag_base, [con_id_field, "interval"]].apply(lambda row: [*row], axis=1)
+                    idx = args.map(lambda vals: fetch_indexes(*vals))
+                    flag_base = base.index.isin(set(idx.loc[~idx.isna()].index))
+
+                    # Update base dataset with attributes.
+                    base["idx"] = None
+                    base.loc[flag_base, "idx"] = idx
+                    base.loc[flag_base, cols_keep] = base.loc[flag_base, ["idx"]].merge(
+                        df_sub, how="left", left_on="idx", right_index=True)[cols_keep].values
+
+                # Handle non-segmented datasets.
+                else:
+                    # ...
+                    pass
 
     def clean_event_measurements(self):
         """
