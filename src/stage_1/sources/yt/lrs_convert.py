@@ -151,8 +151,83 @@ class LRS:
         if os.path.exists(self.dst):
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
 
+    def assemble_network_attribution(self):
+        """Assembles all required attributes from the source datasets to the segmented road network."""
+
+        # Assemble attributes from source datasets.
+        logger.info(f"Assembling attributes from source datasets.")
+
+        base = self.nrn_datasets["roadseg"].copy(deep=True)
+
+        # Convert breakpoints to pandas intervals.
+        base["interval"] = base["breakpts"].map(lambda vals: pd.Interval(*vals))
+
+        # Iterate source datasets that are connected to the base dataset and have columns to be keep on output.
+        for con_id_field, names in self.structure["connections"].items():
+            for name in [n for n in names if self.schema[n]["output_fields"]]:
+                df = self.src_datasets[name].copy(deep=True)
+
+                # Compile required attributes with updated names. Add a suffix to columns already in base dataset.
+                # Note: some fields, such as date fields, may exist on several source datasets and, therefore, creates
+                # naming conflicts.
+                cols_keep = list()
+                for col in self.schema[name]["output_fields"]:
+                    col = self.rename[col]
+                    while col in base.columns:
+                        col += "_"
+                        df.rename(columns={col[:-1]: col}, inplace=True)
+                    cols_keep.append(col)
+
+                    # Add new column to base dataset.
+                    base[col] = None
+
+                # Handle segmented datasets.
+                if "breakpts" in df.columns:
+
+                    # Convert breakpoints to pandas intervals.
+                    df["interval"] = df["breakpts"].map(lambda vals: pd.Interval(*vals))
+
+                    # Handle one-to-one matches.
+                    # Flag base records and filter attributes dataframe to relevant records.
+                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
+                                ~base[con_id_field].duplicated(keep=False)
+                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
+                                    [con_id_field, *cols_keep]]
+
+                    # Update base dataset with attributes.
+                    base.loc[flag_base, cols_keep] = base.loc[flag_base, [con_id_field]].merge(
+                        df_sub, how="left", on=con_id_field)[cols_keep].values
+
+                    # Handle all other match types.
+                    # Flag base records and filter attributes dataframe to relevant records.
+                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
+                                base[con_id_field].duplicated(keep=False)
+                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
+                                    [con_id_field, "interval", *cols_keep]]
+
+                    # Further filter flag to those records with a breakpoint interval match in the attributes dataframe.
+                    def fetch_indexes(con_id, interval):
+                        df_filter = df_sub.loc[df_sub[con_id_field] == con_id]
+                        indexes = df_filter.loc[df_filter["interval"].map(lambda intv: intv.overlaps(interval))].index
+                        return indexes[0] if len(indexes) else None
+
+                    args = base.loc[flag_base, [con_id_field, "interval"]].apply(lambda row: [*row], axis=1)
+                    idx = args.map(lambda vals: fetch_indexes(*vals))
+                    flag_base = base.index.isin(set(idx.loc[~idx.isna()].index))
+
+                    # Update base dataset with attributes.
+                    base["idx"] = None
+                    base.loc[flag_base, "idx"] = idx
+                    base.loc[flag_base, cols_keep] = base.loc[flag_base, ["idx"]].merge(
+                        df_sub, how="left", left_on="idx", right_index=True)[cols_keep].values
+
+                # Handle non-segmented datasets.
+                else:
+                    # ...
+                    pass
+
     def assemble_segmented_network(self):
-        """Assembles a segmented network from the distributed datasets."""
+        """Assembles a segmented road network from the breakpoints (event measurements) of the source datasets."""
 
         calibrations_df = self.src_datasets[self.calibrations["dataset"]]
 
@@ -342,77 +417,9 @@ class LRS:
         # Note: for unique connection IDs, keep the entire geometry.
         args_series = base[["breakpts", "geometry"]].apply(list, axis=1)
         base["geometry"] = args_series.map(lambda args: segment_geometry(*args))
-        self.base = base
 
-        # Assemble attributes from source datasets.
-        logger.info(f"Assembling attributes from source datasets.")
-
-        # Convert breakpoints to pandas intervals.
-        base["interval"] = base["breakpts"].map(lambda vals: pd.Interval(*vals))
-
-        # Iterate source datasets that are connected to the base dataset and have columns to be keep on output.
-        for con_id_field, names in self.structure["connections"].items():
-            for name in [n for n in names if self.schema[n]["output_fields"]]:
-                df = self.src_datasets[name].copy(deep=True)
-
-                # Compile required attributes with updated names. Add a suffix to columns already in base dataset.
-                # Note: some fields, such as date fields, may exist on several source datasets and, therefore, creates
-                # naming conflicts.
-                cols_keep = list()
-                for col in self.schema[name]["output_fields"]:
-                    col = self.rename[col]
-                    while col in base.columns:
-                        col += "_"
-                        df.rename(columns={col[:-1]: col}, inplace=True)
-                    cols_keep.append(col)
-
-                    # Add new column to base dataset.
-                    base[col] = None
-
-                # Handle segmented datasets.
-                if "breakpts" in df.columns:
-
-                    # Convert breakpoints to pandas intervals.
-                    df["interval"] = df["breakpts"].map(lambda vals: pd.Interval(*vals))
-
-                    # Handle one-to-one matches.
-                    # Flag base records and filter attributes dataframe to relevant records.
-                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
-                                ~base[con_id_field].duplicated(keep=False)
-                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
-                                    [con_id_field, *cols_keep]]
-
-                    # Update base dataset with attributes.
-                    base.loc[flag_base, cols_keep] = base.loc[flag_base, [con_id_field]].merge(
-                        df_sub, how="left", on=con_id_field)[cols_keep].values
-
-                    # Handle all other match types.
-                    # Flag base records and filter attributes dataframe to relevant records.
-                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
-                                base[con_id_field].duplicated(keep=False)
-                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
-                                    [con_id_field, "interval", *cols_keep]]
-
-                    # Further filter flag to those records with a breakpoint interval match in the attributes dataframe.
-                    def fetch_indexes(con_id, interval):
-                        df_filter = df_sub.loc[df_sub[con_id_field] == con_id]
-                        indexes = df_filter.loc[df_filter["interval"].map(lambda intv: intv.overlaps(interval))].index
-                        return indexes[0] if len(indexes) else None
-
-                    args = base.loc[flag_base, [con_id_field, "interval"]].apply(lambda row: [*row], axis=1)
-                    idx = args.map(lambda vals: fetch_indexes(*vals))
-                    flag_base = base.index.isin(set(idx.loc[~idx.isna()].index))
-
-                    # Update base dataset with attributes.
-                    base["idx"] = None
-                    base.loc[flag_base, "idx"] = idx
-                    base.loc[flag_base, cols_keep] = base.loc[flag_base, ["idx"]].merge(
-                        df_sub, how="left", left_on="idx", right_index=True)[cols_keep].values
-
-                # Handle non-segmented datasets.
-                else:
-                    # ...
-                    pass
+        # Store result.
+        self.nrn_datasets["roadseg"] = base.copy(deep=True)
 
     def clean_event_measurements(self):
         """
@@ -740,6 +747,7 @@ class LRS:
         self.configure_valid_records()
         self.clean_event_measurements()
         self.assemble_segmented_network()
+        self.assemble_network_attribution()
         # self.export_gpkg()
 
 
