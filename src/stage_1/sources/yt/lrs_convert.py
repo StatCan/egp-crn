@@ -175,11 +175,14 @@ class LRS:
         # Iterate source datasets that are connected to the base dataset and have columns to be keep on output.
         for con_id_field, names in self.structure["connections"].items():
             for name in [n for n in names if self.schema[n]["output_fields"]]:
+
+                logger.info(f"Assembling attributes from dataset: {name}.")
+
                 df = self.src_datasets[name].copy(deep=True)
 
                 # Compile required attributes with updated names. Add a suffix to columns already in base dataset.
-                # Note: some fields, such as date fields, may exist on several source datasets and, therefore, creates
-                # naming conflicts.
+                # Note: Underscore suffixes are applied to conflicting field names. For certain fields, such as dates,
+                # it may be useful to kept multiple instances.
                 cols_keep = list()
                 for col in self.schema[name]["output_fields"]:
                     col = self.rename[col]
@@ -191,29 +194,29 @@ class LRS:
                     # Add new column to base dataset.
                     base[col] = None
 
-                # Handle segmented datasets.
+                # Handle one-to-one (non-segmented) matches.
+                # Flag base records and filter attributes dataframe to relevant records.
+                # Note: No need to explicitly target non-duplicated records. Any plural matches will be overwritten in
+                # the following step.
+                flag_base = base[con_id_field].isin(set(df[con_id_field]))
+                df_sub = df.loc[(df[con_id_field].isin(set(base.loc[flag_base, con_id_field]))) &
+                                (~df[con_id_field].duplicated(keep="first")), [con_id_field, *cols_keep]]
+
+                # Update base dataset with attributes.
+                base.loc[flag_base, cols_keep] = base.loc[flag_base, [con_id_field]].merge(
+                    df_sub, how="left", on=con_id_field)[cols_keep].values
+
+                # Handle plural (segmented) matches.
                 if "breakpts" in df.columns:
 
-                    # Convert breakpoints to pandas intervals.
-                    df["interval"] = df["breakpts"].map(lambda vals: pd.Interval(*vals))
-
-                    # Handle one-to-one matches.
-                    # Flag base records and filter attributes dataframe to relevant records.
-                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
-                                ~base[con_id_field].duplicated(keep=False)
-                    df_sub = df.loc[(df[con_id_field].isin(set(base.loc[flag_base, con_id_field]))) &
-                                    (df[con_id_field].duplicated(keep="first")), [con_id_field, *cols_keep]]
-
-                    # Update base dataset with attributes.
-                    base.loc[flag_base, cols_keep] = base.loc[flag_base, [con_id_field]].merge(
-                        df_sub, how="left", on=con_id_field)[cols_keep].values
-
-                    # Handle all other match types.
                     # Flag base records and filter attributes dataframe to relevant records.
                     flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
                                 base[con_id_field].duplicated(keep=False)
                     df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
-                                    [con_id_field, "interval", *cols_keep]]
+                                    [con_id_field, "breakpts", *cols_keep]]
+
+                    # Convert breakpoints to pandas intervals.
+                    df_sub["interval"] = df_sub["breakpts"].map(lambda vals: pd.Interval(*vals))
 
                     # Fetch the indexes of the attribute dataset which correspond to the base dataset.
                     args = base.loc[flag_base, [con_id_field, "interval"]].apply(lambda row: [*row], axis=1)
@@ -227,13 +230,35 @@ class LRS:
                     base.loc[flag_idx, cols_keep] = base.loc[flag_idx, ["idx"]].merge(
                         df_sub, how="left", left_on="idx", right_index=True)[cols_keep].values
 
-                # Handle non-segmented datasets.
-                else:
-                    # ...
-                    pass
-                self.name = name
-                self.df = df.copy(deep=True)
-                self.test = base.copy(deep=True)
+        # Resolve conflicting attributes.
+        # Note: dates are likely the only attributes which require conflict resolution.
+        logger.info(f"Resolving conflicting attributes.")
+
+        # Iterate and compile fields with potential conflicts.
+        for field, params in {
+            "credate": {"func": min, "isdate": True},
+            "revdate": {"func": max, "isdate": True}
+        }.items():
+
+            cols = [col for col in base.columns if col.find(field) >= 0]
+            if len(cols) > 1:
+
+                logger.info(f"Resolving conflicting attributes for: {field}.")
+
+                # Convert date fields to datetime objects.
+                if params["isdate"]:
+                    base[cols] = base[cols].apply(pd.to_datetime)
+
+                # Resolve conflicts into a single attribute.
+                base[field] = base[cols].apply(lambda row: params["func"]([v for v in row if v]), axis=1)
+
+        # Remove excess fields (keep all defined output fields plus geometry, drop everything else).
+        cols_keep = set(map(lambda col: self.rename[col], chain.from_iterable(
+            props["output_fields"] for props in self.schema.values() if props["output_fields"]))).union({"geometry"})
+        base.drop(columns=set(base.columns)-cols_keep, inplace=True)
+
+        # Store result.
+        self.nrn_datasets["roadseg"] = base.copy(deep=True)
 
     def assemble_segmented_network(self):
         """Assembles a segmented road network from the breakpoints (event measurements) of the source datasets."""
@@ -757,7 +782,7 @@ class LRS:
         self.clean_event_measurements()
         self.assemble_segmented_network()
         self.assemble_network_attribution()
-        # self.export_gpkg()
+        self.export_gpkg()
 
 
 @click.command()
