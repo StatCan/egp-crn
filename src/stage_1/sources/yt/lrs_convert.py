@@ -53,7 +53,7 @@ class LRS:
             "sm_structure": {
                 "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "surface_code"],
                 "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["from_date", "surface_code"]
+                "output_fields": ["fromdate", "surface_code"]
             },
             "tdylrs_calibration_point": {
                 "fields": ["routeid", "fromdate", "todate", "networkid", "measure", "geometry"],
@@ -154,6 +154,16 @@ class LRS:
     def assemble_network_attribution(self):
         """Assembles all required attributes from the source datasets to the segmented road network."""
 
+        def fetch_attr_index(df_sub, con_id, interval):
+            """
+            Returns the first index from the provided dataset which matches the provided connection ID and overlaps the
+            provided breakpoint interval.
+            """
+
+            df_filter = df_sub.loc[df_sub[con_id_field] == con_id]
+            indexes = df_filter.loc[df_filter["interval"].map(lambda intv: intv.overlaps(interval))].index
+            return indexes[0] if len(indexes) else None
+
         # Assemble attributes from source datasets.
         logger.info(f"Assembling attributes from source datasets.")
 
@@ -191,8 +201,8 @@ class LRS:
                     # Flag base records and filter attributes dataframe to relevant records.
                     flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
                                 ~base[con_id_field].duplicated(keep=False)
-                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
-                                    [con_id_field, *cols_keep]]
+                    df_sub = df.loc[(df[con_id_field].isin(set(base.loc[flag_base, con_id_field]))) &
+                                    (df[con_id_field].duplicated(keep="first")), [con_id_field, *cols_keep]]
 
                     # Update base dataset with attributes.
                     base.loc[flag_base, cols_keep] = base.loc[flag_base, [con_id_field]].merge(
@@ -205,26 +215,25 @@ class LRS:
                     df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
                                     [con_id_field, "interval", *cols_keep]]
 
-                    # Further filter flag to those records with a breakpoint interval match in the attributes dataframe.
-                    def fetch_indexes(con_id, interval):
-                        df_filter = df_sub.loc[df_sub[con_id_field] == con_id]
-                        indexes = df_filter.loc[df_filter["interval"].map(lambda intv: intv.overlaps(interval))].index
-                        return indexes[0] if len(indexes) else None
-
+                    # Fetch the indexes of the attribute dataset which correspond to the base dataset.
                     args = base.loc[flag_base, [con_id_field, "interval"]].apply(lambda row: [*row], axis=1)
-                    idx = args.map(lambda vals: fetch_indexes(*vals))
-                    flag_base = base.index.isin(set(idx.loc[~idx.isna()].index))
+                    idx = args.map(lambda vals: fetch_attr_index(df_sub, *vals))
+                    idx = idx.loc[~idx.isna()]
 
-                    # Update base dataset with attributes.
+                    # Update base dataset with attributes by merging the base and attribute datasets.
+                    flag_idx = base.index.isin(set(idx.index))
                     base["idx"] = None
-                    base.loc[flag_base, "idx"] = idx
-                    base.loc[flag_base, cols_keep] = base.loc[flag_base, ["idx"]].merge(
+                    base.loc[flag_idx, "idx"] = idx
+                    base.loc[flag_idx, cols_keep] = base.loc[flag_idx, ["idx"]].merge(
                         df_sub, how="left", left_on="idx", right_index=True)[cols_keep].values
 
                 # Handle non-segmented datasets.
                 else:
                     # ...
                     pass
+                self.name = name
+                self.df = df.copy(deep=True)
+                self.test = base.copy(deep=True)
 
     def assemble_segmented_network(self):
         """Assembles a segmented road network from the breakpoints (event measurements) of the source datasets."""
