@@ -7,7 +7,7 @@ import pandas as pd
 import sqlite3
 import sys
 from collections import Counter
-from itertools import chain
+from itertools import accumulate, chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, MultiLineString, Point
@@ -219,7 +219,7 @@ class LRS:
                     df_sub["interval"] = df_sub["breakpts"].map(lambda vals: pd.Interval(*vals))
 
                     # Fetch the indexes of the attribute dataset which correspond to the base dataset.
-                    args = base.loc[flag_base, [con_id_field, "interval"]].apply(lambda row: [*row], axis=1)
+                    args = base.loc[flag_base, [con_id_field, "interval"]].apply(list, axis=1)
                     idx = args.map(lambda vals: fetch_attr_index(df_sub, *vals))
                     idx = idx.loc[~idx.isna()]
 
@@ -241,16 +241,19 @@ class LRS:
         }.items():
 
             cols = [col for col in base.columns if col.find(field) >= 0]
+
+            # Convert date fields to datetime objects.
+            if params["isdate"]:
+                for col in cols:
+                    base[col] = base[col].map(pd.to_datetime).dt.strftime("%Y%m%d")
+
+            # Apply function to conflicting columns, if required.
             if len(cols) > 1:
 
                 logger.info(f"Resolving conflicting attributes for: {field}.")
 
-                # Convert date fields to datetime objects.
-                if params["isdate"]:
-                    base[cols] = base[cols].apply(pd.to_datetime)
-
                 # Resolve conflicts into a single attribute.
-                base[field] = base[cols].apply(lambda row: params["func"]([v for v in row if v]), axis=1)
+                base[field] = base[cols].apply(lambda row: params["func"]([v for v in row if not pd.isna(v)]), axis=1)
 
         # Remove excess fields (keep all defined output fields plus geometry, drop everything else).
         cols_keep = set(map(lambda col: self.rename[col], chain.from_iterable(
@@ -264,6 +267,20 @@ class LRS:
         """Assembles a segmented road network from the breakpoints (event measurements) of the source datasets."""
 
         calibrations_df = self.src_datasets[self.calibrations["dataset"]]
+
+        def merge_breakpoints_endpoints(breakpts, geom):
+            """Reconfigures breakpts to include the endpoints of all LineStrings."""
+
+            # Compile cumulative geometry lengths as endpoints.
+            endpts = [0, geom.length] if isinstance(geom, LineString) else \
+                list(accumulate([0, *[g.length for g in geom]]))
+
+            # Remove breakpoints which are <= 1 unit from an endpoint.
+            breakpts = [breakpt for breakpt in breakpts if
+                        all([abs(round(breakpt) - round(endpt)) > 1 for endpt in endpts])]
+
+            # Return appended and sorted list of breakpoint and endpoints.
+            return sorted(chain(breakpts, endpts))
 
         def segment_geometry(breakpts, geom):
             """
@@ -319,23 +336,22 @@ class LRS:
 
                 geoms = list()
 
-                # Compile individual LineString lengths, relative to the full MultiLineString.
-                lengths = [line.length for line in geom]
-                lengths_rng = [pd.Interval(sum(lengths[:i]), sum(lengths[:i+1])) for i in range(len(lengths))]
-                lengths = [sum(lengths[:i+1]) for i in range(len(lengths))]
+                # Compile cumulative LineString lengths as endpoint ranges.
+                endpts = list(accumulate([0, *[g.length for g in geom]]))
+                endpts_rng = [pd.Interval(endpts[i], endpts[i+1]) for i in range(len(endpts)-1)]
 
-                # Add intermediary lengths (LineString transitions) to breakpoints.
-                breakpts_upd = list()
-                for breakpt in breakpts:
-                    breakpts_upd.append([*[l for l in lengths if abs(round(breakpt)-round(l)) <= 1], breakpt][0])
-
-                # Iterate breakpoint pairs and segment corresponding LineString.
-                for index in range(len(breakpts_upd)-1):
-                    breakpts_ = breakpts_upd[index: index+2]
-                    geom_idx = [idx for idx, rng in enumerate(lengths_rng) if pd.Interval(*breakpts_).overlaps(rng)][0]
+                # Iterate breakpoint pairs and extract the corresponding LineString from the MultiLineString.
+                for index in range(len(breakpts)-1):
+                    breakpts_ = breakpts[index: index+2]
+                    geom_idx = 0
+                    for idx, endpt_rng in enumerate(endpts_rng):
+                        if pd.Interval(*breakpts_).overlaps(endpt_rng):
+                            geom_idx = idx
+                            break
                     geom_ = geom[geom_idx]
 
-                    # Subtract from the breakpoints the distance of the LineString relative to the MultiLineString.
+                    # Subtract from the breakpoints the distance of the LineString start relative to the full
+                    # MultiLineString.
                     if geom_idx > 0:
                         sub = sum(g.length for g in geom[:geom_idx])
                         breakpts_ = [breakpt - sub for breakpt in breakpts]
@@ -404,7 +420,7 @@ class LRS:
                 con_id_field = self.get_con_id_field(name)
 
                 # Compile breakpoints as flattened list.
-                df["breakpts"] = df[["from", "to"]].apply(lambda row: [*row], axis=1)
+                df["breakpts"] = df[["from", "to"]].apply(list, axis=1)
                 breakpts = helpers.groupby_to_list(df, con_id_field, "breakpts").map(chain.from_iterable).map(list)
 
                 # Merge breakpoints with base dataset.
@@ -421,20 +437,20 @@ class LRS:
         # Remove extraneous columns.
         base.drop(columns=breakpt_cols, inplace=True)
 
-        # Add geometry start and end breakpoints.
-        # Note: remove breakpoints which are within 1 unit distance from the start and end breakpoints.
-        logger.info(f"Adding geometry start and end to breakpoints.")
-
-        base["breakpts"] = base[["breakpts", "geometry"]].apply(
-            lambda row: [0, *[pt for pt in row[0] if 1 <= pt <= (row[1].length-1)], row[1].length], axis=1)
-
         # Filter breakpoints which are too close together.
         logger.info(f"Filtering breakpoints which are too close together.")
 
         # Filter breakpoints by keeping only those which are more than 1 unit distance from the next breakpoint.
         base["breakpts"] = base["breakpts"].map(
-            lambda pts: [*[pt for index, pt in enumerate(pts[:-1])
-                           if abs(round(pt) - round(pts[index+1])) > 1], pts[-1]])
+            lambda pts: [*[pt for index, pt in enumerate(pts[:-1]) if
+                           abs(round(pt) - round(pts[index+1])) > 1], pts[-1]])
+
+        # Add geometry start- and endpoints (collectively referred to as endpoints), for all constituent LineStrings.
+        # Note: remove breakpoints which are within 1 unit distance from the endpoints.
+        logger.info(f"Adding geometry endpoints to breakpoints.")
+
+        args = base[["breakpts", "geometry"]].apply(list, axis=1)
+        base["breakpts"] = args.map(lambda vals: merge_breakpoints_endpoints(*vals))
 
         # Split record geometries on breakpoints.
         logger.info(f"Splitting records on geometry breakpoints.")
@@ -449,8 +465,10 @@ class LRS:
         # Extract geometry segment corresponding to breakpoints.
         # Nest geometry and breakpoints to use map.
         # Note: for unique connection IDs, keep the entire geometry.
-        args_series = base[["breakpts", "geometry"]].apply(list, axis=1)
-        base["geometry"] = args_series.map(lambda args: segment_geometry(*args))
+        args = base[["breakpts", "geometry"]].apply(list, axis=1)
+        self.test_example=base.loc[base.routeid=='004218'].copy(deep=True)
+        self.test=base.copy(deep=True)
+        base["geometry"] = args.map(lambda vals: segment_geometry(*vals))
 
         # Store result.
         self.nrn_datasets["roadseg"] = base.copy(deep=True)
@@ -487,7 +505,6 @@ class LRS:
                 return event
 
         logger.info("Cleaning event measurement fields.")
-        fields = self.event_measurement_fields
 
         # Compile offsets for event measurements.
         offsets = dict()
@@ -503,6 +520,8 @@ class LRS:
             offsets[offset_id] = offsets_df.loc[offsets_df[id_field] == offset_id, offset_field].min()
 
         # Iterate dataframes with event measurement fields.
+        fields = self.event_measurement_fields
+
         for layer, df in self.src_datasets.items():
             if set(fields.values()).issubset(df.columns):
 
@@ -711,8 +730,14 @@ class LRS:
                     srs.ImportFromEPSG(df.crs.to_epsg())
 
                     if len(df.geom_type.unique()) > 1:
-                        raise ValueError(f"Multiple geometry types detected for dataframe {name}: "
-                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
+                        geom_types = set(df.geom_type)
+                        if geom_types.issubset({"Point", "MultiPoint"}) or \
+                                geom_types.issubset({"LineString", "MultiLineString"}):
+                            df = helpers.explode_geometry(df).copy(deep=True)
+                            shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
+                        else:
+                            raise ValueError(f"Mixed geometry types detected for dataframe {name}: "
+                                             f"{', '.join(geom_types)}.")
                     elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
                         shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
                     else:
@@ -782,7 +807,7 @@ class LRS:
         self.clean_event_measurements()
         self.assemble_segmented_network()
         self.assemble_network_attribution()
-        self.export_gpkg()
+        # self.export_gpkg()
 
 
 @click.command()
