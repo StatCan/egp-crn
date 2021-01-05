@@ -441,7 +441,8 @@ class LRS:
         logger.info(f"Filtering breakpoints which are too close together.")
 
         # Filter breakpoints by keeping only those which are more than 1 unit distance from the next breakpoint.
-        base["breakpts"] = base["breakpts"].map(
+        flag = base["breakpts"].map(len) >= 2
+        base.loc[flag, "breakpts"] = base.loc[flag, "breakpts"].map(
             lambda pts: [*[pt for index, pt in enumerate(pts[:-1]) if
                            abs(round(pt) - round(pts[index+1])) > 1], pts[-1]])
 
@@ -466,8 +467,6 @@ class LRS:
         # Nest geometry and breakpoints to use map.
         # Note: for unique connection IDs, keep the entire geometry.
         args = base[["breakpts", "geometry"]].apply(list, axis=1)
-        self.test_example=base.loc[base.routeid=='004218'].copy(deep=True)
-        self.test=base.copy(deep=True)
         base["geometry"] = args.map(lambda vals: segment_geometry(*vals))
 
         # Store result.
@@ -807,7 +806,7 @@ class LRS:
         self.clean_event_measurements()
         self.assemble_segmented_network()
         self.assemble_network_attribution()
-        # self.export_gpkg()
+        self.export_gpkg()
 
 
 @click.command()
