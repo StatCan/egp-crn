@@ -275,9 +275,11 @@ class LRS:
             endpts = [0, geom.length] if isinstance(geom, LineString) else \
                 list(accumulate([0, *[g.length for g in geom]]))
 
-            # Remove breakpoints which are <= 1 unit from an endpoint.
-            breakpts = [breakpt for breakpt in breakpts if
-                        all([abs(round(breakpt) - round(endpt)) > 1 for endpt in endpts])]
+            # Remove breakpoints which are <= 1 unit from an endpoint or outside of the geometry length range (zero to
+            # max length). Endpoints include the start and end of every individual LineString in the geometry.
+            # Note: some breakpoints could be outside of the geometry length range due to incorrect calibration points.
+            breakpts = [breakpt for breakpt in breakpts if any(
+                [(endpts[i] + 1) < breakpt < (endpts[i + 1] - 1) for i in range(len(endpts) - 1)])]
 
             # Return appended and sorted list of breakpoint and endpoints.
             return sorted(chain(breakpts, endpts))
@@ -300,6 +302,8 @@ class LRS:
                 nodes = list(attrgetter("coords")(geom))
 
                 # Configure the index range for all nodes between breakpoints (using bisection search).
+                # Note: due to decimal differences, the safe limits are used such that kept nodes will always include
+                # one node which exists before and after the first and last breakpoints, respectively.
                 low, high = 0, len(nodes)-1
                 while abs(high - low) > 1:
                     mid = int(low + ((high - low) / 2))
@@ -307,7 +311,7 @@ class LRS:
                         low = mid
                     else:
                         high = mid
-                from_idx = high
+                from_idx = low
 
                 low, high = from_idx, len(nodes)-1
                 while abs(high - low) > 1:
@@ -316,18 +320,26 @@ class LRS:
                         high = mid
                     else:
                         low = mid
-                to_idx = high
+                to_idx = high + 1
 
-                # Compile nodes from indexes, conditionally populate nodes with breakpoints if empty.
+                # Compile nodes from indexes.
                 nodes_keep = list(map(Point, nodes[from_idx: to_idx]))
+
+                # Conditionally populate nodes with breakpoints if empty.
                 if not len(nodes_keep):
                     nodes_keep = [geom.interpolate(breakpts[0]), geom.interpolate(breakpts[-1])]
 
-                # Conditionally create start and end nodes if the breakpoints don't match any pre-existing node.
-                if round(breakpts[0]) < round(geom.project(nodes_keep[0])):
-                    nodes_keep = [geom.interpolate(breakpts[0]), *nodes_keep]
-                if round(breakpts[-1]) > round(geom.project(nodes_keep[-1])):
-                    nodes_keep = [*nodes_keep, geom.interpolate(breakpts[-1])]
+                # Conditionally remove nodes more than 1 unit outside the breakpoint range and replace breakpoints with
+                # nodes if those nodes are <= 1 unit from the breakpoint.
+                else:
+                    if abs(breakpts[0] - geom.project(nodes_keep[0])) > 1:
+                        nodes_keep = nodes_keep[1:]
+                        if abs(breakpts[0] - geom.project(nodes_keep[0])) > 1:
+                            nodes_keep = [geom.interpolate(breakpts[0]), *nodes_keep]
+                    if abs(breakpts[-1] - geom.project(nodes_keep[-1])) > 1:
+                        nodes_keep = nodes_keep[:-1]
+                        if abs(breakpts[-1] - geom.project(nodes_keep[-1])) > 1:
+                            nodes_keep = [*nodes_keep, geom.interpolate(breakpts[-1])]
 
                 return LineString(nodes_keep)
 
@@ -477,14 +489,13 @@ class LRS:
         Performs several cleanup operations on records based on event measurement:
         1. Simplifies event measurement field names to 'from' and 'to'.
         2. Converts measurements to crs unit (current conversion = km to m).
-        3. Reduces event measurements which exceed the associated geometry length.
-        4. Drops records with invalid measurements (from >= to).
-        5. Matches event measurements to any corresponding calibration point measurements (for improved accuracy).
-        6. Removes event measurement offsets for out-of-scope records: some records do not start at zero because they
+        3. Drops records with invalid measurements (from >= to).
+        4. Matches event measurements to any corresponding calibration point measurements (for improved accuracy).
+        5. Removes event measurement offsets for out-of-scope records: some records do not start at zero because they
         begin outside of the territory. The event measurements on these records must be reduced according to the
         starting offset.
-        7. Repairs gaps in event measurements along the same connected feature.
-        8. Flags overlapping event measurements along the same connected feature.
+        6. Repairs gaps in event measurements along the same connected feature.
+        7. Flags overlapping event measurements along the same connected feature.
         """
 
         calibrations_df = self.src_datasets[self.calibrations["dataset"]]
@@ -534,20 +545,6 @@ class LRS:
 
                 df[list(fields.values())] = df[fields.values()].multiply(1000)
                 df.rename(columns={fields["from"]: "from", fields["to"]: "to"}, inplace=True)
-
-                # Reduce event measurements which exceed geometry length.
-                logger.info(f"Reducing event 'to' measurements which exceed the geometry length.")
-
-                # Compile maximum calibration point measurements.
-                calibrations_max = dict(helpers.groupby_to_list(
-                    calibrations_df, self.calibrations["id_field"], self.calibrations["measurement_field"]).map(max))
-
-                # Use the calibration maximums to identify and adjust event measurements.
-                orig = df["to"].copy(deep=True)
-                flag = df[con_id_field].isin(calibrations_max)
-                flag2 = df.loc[flag]["to"] > df.loc[flag, con_id_field].map(calibrations_max)
-                df.loc[flag & flag2, "to"] = df.loc[flag & flag2, con_id_field].map(calibrations_max)
-                logger.info(f"Reduced {sum(df['to'] != orig)} length-exceeding event measurements.")
 
                 # Remove records with invalid event measurements.
                 logger.info("Removing records with invalid event measurements.")
