@@ -797,6 +797,22 @@ class LRS:
             if name in df_names:
                 return con_field
 
+    def split_at_intersections(self):
+        """
+        Splits geometries at nodes, excluding start and endpoints, which are shared by one or more other geometries.
+        Intersections without a common node will not be split since it is impossible to determine whether the geometries
+        actually intersect or just cross at different elevations.
+        """
+
+        logger.info(f"Splitting geometries at intersections.")
+
+        roads = self.nrn_datasets["roadseg"].copy(deep=True)
+
+        # copy logic from validation_functions.duplicated_lines validation 3
+
+        # Store result.
+        self.nrn_datasets["roadseg"] = roads.copy(deep=True)
+
     def execute(self):
         """Executes class functionality."""
 
@@ -805,7 +821,8 @@ class LRS:
         self.clean_event_measurements()
         self.assemble_segmented_network()
         self.assemble_network_attribution()
-        self.export_gpkg()
+        self.split_at_intersections()
+        # self.export_gpkg()
 
 
 @click.command()
