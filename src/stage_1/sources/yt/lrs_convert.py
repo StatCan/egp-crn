@@ -804,11 +804,52 @@ class LRS:
         actually intersect or just cross at different elevations.
         """
 
+        def split_geometry_indexes(geom, indexes):
+            """Returns a list of LineStrings representing the provided LineString split at the provided node indexes."""
+
+            # Compile LineString coordinates as splitting Points.
+            nodes = list(map(Point, attrgetter("coords")(geom)))
+
+            # Add start and end to indexes and create ordered pairs.
+            indexes = [0, *indexes, len(nodes)-1]
+            indexes = [[indexes[idx], indexes[idx+1]] for idx in range(len(indexes)-1)]
+
+            # Generate LineStrings from node index ranges.
+            return [LineString(nodes[idx_rng[0]: idx_rng[-1]+1]) for idx_rng in indexes]
+
         logger.info(f"Splitting geometries at intersections.")
 
         roads = self.nrn_datasets["roadseg"].copy(deep=True)
 
-        # copy logic from validation_functions.duplicated_lines validation 3
+        # Explode MultiLineStrings.
+        roads = helpers.explode_geometry(roads).copy(deep=True)
+
+        # Extract and explode LineStrings to points, filter to only duplicates.
+        pts = roads["geometry"].map(attrgetter("coords")).map(tuple).explode()
+        pts_dups = set(pts.loc[pts.duplicated(keep=False)])
+
+        # For each LineString, excluding endpoints, compile the point indexes which are duplicated.
+        # Note: it does not matter whether the point is duplicated by another LineString or by the same LineString, the
+        # geometry should be split regardless.
+        roads["node_idxs"] = roads["geometry"].map(
+            lambda g: [index + 1 for index, pt in enumerate(tuple(attrgetter("coords")(g))[1:-1]) if pt in pts_dups])
+
+        # Split segments at node indexes.
+        split_flag = roads["node_idxs"].map(len) > 0
+        args = roads.loc[split_flag, ["geometry", "node_idxs"]].apply(lambda row: [*row], axis=1)
+
+        roads_crs = roads.crs
+        roads = pd.DataFrame(roads)
+        roads["geometry"] = roads["geometry"].map(lambda g: [g])
+
+        roads.loc[split_flag, "geometry"] = args.map(lambda vals: split_geometry_indexes(*vals))
+        logger.info(f"Split {len(args)} records into {sum(roads.loc[split_flag, 'node_idxs'].map(len)+1)} records.")
+
+        # Explode segmented records.
+        roads = gpd.GeoDataFrame(roads.explode("geometry", ignore_index=True), crs=roads_crs)
+
+        # Drop excess fields.
+        roads.drop(columns=["node_idxs"], inplace=True)
 
         # Store result.
         self.nrn_datasets["roadseg"] = roads.copy(deep=True)
@@ -822,7 +863,7 @@ class LRS:
         self.assemble_segmented_network()
         self.assemble_network_attribution()
         self.split_at_intersections()
-        # self.export_gpkg()
+        self.export_gpkg()
 
 
 @click.command()
