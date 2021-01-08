@@ -5,11 +5,10 @@ import pandas as pd
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from operator import itemgetter
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
-import validation_functions
 import helpers
+from validation_functions import Validator
 
 
 # Suppress pandas chained assignment warning.
@@ -67,6 +66,13 @@ class Stage:
                     "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
+        # Load and classify data.
+        logger.info("Loading Geopackage layers.")
+
+        self.dframes = helpers.load_gpkg(self.data_path)
+        self.df_lines = ("ferryseg", "roadseg")
+        self.df_points = ("blkpassage", "junction", "tollpoint")
+
         # Compile error codes.
         self.error_codes = {
             "duplicated_lines": 1,
@@ -95,19 +101,6 @@ class Stage:
             "encoding": 24
         }
 
-    def classify_tables(self):
-        """Groups table names by geometry type."""
-
-        self.df_lines = ("ferryseg", "roadseg")
-        self.df_points = ("blkpassage", "junction", "tollpoint")
-
-    def load_gpkg(self):
-        """Loads input GeoPackage layers into dataframes."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path)
-
     def log_errors(self):
         """Outputs error logs returned by validation functions."""
 
@@ -127,6 +120,9 @@ class Stage:
 
         try:
 
+            # Instantiate validator class.
+            validator = Validator(self.dframes)
+
             # Define functions and parameters.
             # Note: List functions in order if execution order matters.
             funcs = {
@@ -142,18 +138,18 @@ class Stage:
                 "ids": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
                 "isolated_lines":
                     {"tables": ["roadseg", "junction"], "iterate": False,
-                     "args": (self.dframes["ferryseg"].copy(deep=True) if "ferryseg" in self.dframes else None,)},
+                     "args": ("ferryseg" if "ferryseg" in self.dframes else None,)},
                 "line_endpoint_clustering": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "line_length": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "line_merging_angle": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "line_proximity": {"tables": self.df_lines, "iterate": True, "args": ()},
                 "nbrlanes": {"tables": ["roadseg"], "iterate": True, "args": ()},
-                "nid_linkages": {"tables": self.dframes.keys(), "iterate": True, "args": (self.dframes,)},
+                "nid_linkages": {"tables": self.dframes.keys(), "iterate": True, "args": ()},
                 "point_proximity": {"tables": self.df_points, "iterate": True, "args": ()},
                 "roadclass_rtnumber_relationship": {"tables": ["ferryseg", "roadseg"], "iterate": True, "args": ()},
                 "route_contiguity":
                     {"tables": ["roadseg"], "iterate": False,
-                     "args": (self.dframes["ferryseg"].copy(deep=True) if "ferryseg" in self.dframes else None,)},
+                     "args": ("ferryseg" if "ferryseg" in self.dframes else None,)},
                 "self_intersecting_elements": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "self_intersecting_structures": {"tables": ["roadseg"], "iterate": True, "args": ()},
                 "speed": {"tables": ["roadseg"], "iterate": True, "args": ()},
@@ -173,20 +169,18 @@ class Stage:
                         if table not in self.dframes:
                             logger.warning(f"Skipping validation for missing dataset: {table}.")
                             continue
-                        args = (self.dframes[table].copy(deep=True), *params["args"])
+                        args = (table, *params["args"])
 
                     else:
                         missing = set(params["tables"]) - set(self.dframes)
                         if len(missing):
                             logger.warning(f"Skipping validation for missing dataset(s): {', '.join(missing)}.")
                             break
-                        if len(params["tables"]) == 1:
-                            args = (*map(deepcopy, (itemgetter(*params["tables"])(self.dframes),)), *params["args"])
                         else:
-                            args = (*map(deepcopy, itemgetter(*params["tables"])(self.dframes)), *params["args"])
+                            args = (*params["tables"], *params["args"])
 
                     # Call function.
-                    results = eval(f"validation_functions.{func}(*args)")
+                    results = eval(f"validator.{func}(*args)")
 
                     # Iterate results.
                     for code, errors in results.items():
@@ -208,8 +202,6 @@ class Stage:
     def execute(self):
         """Executes an NRN stage."""
 
-        self.load_gpkg()
-        self.classify_tables()
         self.validations()
         self.log_errors()
 
