@@ -1,14 +1,13 @@
 import click
+import fiona
 import geopandas as gpd
 import logging
 import numpy as np
 import os
 import pandas as pd
 import requests
-import shutil
 import sys
 import uuid
-import zipfile
 from collections import Counter
 from datetime import datetime
 from itertools import chain
@@ -301,7 +300,7 @@ class Stage:
         pts_geoms = gpd.GeoSeries(pts.map(Point))
 
         # Split administrative boundary into smaller polygons.
-        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1, pts))
+        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary["geometry"].iloc[0], 0.1, pts))
 
         # Use the junctions' spatial indexes to query points within the split boundary polygons.
         pts_sindex = pts_geoms.sindex
@@ -343,7 +342,7 @@ class Stage:
                                                      self.target_attributes["junction"]["fields"].items()})
 
     def load_boundaries(self):
-        """Downloads and loads the geometry of the administrative boundaries for the source province."""
+        """Downloads and compiles the administrative boundaries for the source province."""
 
         logger.info("Loading administrative boundaries.")
 
@@ -355,49 +354,25 @@ class Stage:
         try:
 
             # Get raw content stream from download url.
-            download = helpers.get_url(download_url, stream=True, timeout=30)
+            download = helpers.get_url(download_url, stream=True, timeout=30, verify=False).content
 
-            # Copy download content to file.
-            with open("../../data/interim/boundaries.zip", "wb") as f:
-                shutil.copyfileobj(download.raw, f)
+            # Load bytes collection into geodataframe.
+            with fiona.BytesCollection(bytes(download)) as f:
+                self.boundary = gpd.GeoDataFrame.from_features(f, crs=f.crs)
 
-        except (requests.exceptions.RequestException, shutil.Error) as e:
-            logger.exception("Unable to download administrative boundary file: \"{}\".".format(download_url))
+            # Filter boundaries.
+            pruid = {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
+                     "qc": 24, "sk": 47, "yt": 60}[self.source]
+            self.boundary = self.boundary.loc[self.boundary["PRUID"] == pruid]
+
+            # Reproject and export boundaries for current and later usage.
+            self.boundary = self.boundary.to_crs("EPSG:4617")
+            self.boundary.to_file("../../data/interim/boundaries.gpkg", driver="GPKG", layer=self.source)
+
+        except (fiona.errors, requests.exceptions.RequestException) as e:
+            logger.exception(f"Error encountered when compiling administrative boundary file: \"{download_url}\".")
             logger.exception(e)
             sys.exit(1)
-
-        # Extract zipped file.
-        logger.info("Extracting zipped administrative boundary file.")
-        with zipfile.ZipFile("../../data/interim/boundaries.zip", "r") as zip_f:
-            zip_f.extractall("../../data/interim/boundaries")
-
-        # Transform administrative boundary file to GeoPackage layer with crs EPSG:4617.
-        logger.info("Transforming administrative boundary file.")
-        helpers.ogr2ogr({
-            "query": "-where \"\\\"PRUID\\\"='{}'\"".format(
-                {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
-                 "qc": 24, "sk": 47, "yt": 60}[self.source]),
-            "dest": os.path.abspath("../../data/interim/boundaries.geojson"),
-            "src": os.path.abspath("../../data/interim/boundaries/{}".format(filename)),
-            "options": f"-s_srs {source_crs} -t_srs EPSG:4617 -nlt MULTIPOLYGON"
-        })
-
-        # Load boundaries as a single geometry object.
-        logger.info("Loading administrative boundaries' geometry.")
-        self.boundary = gpd.read_file("../../data/interim/boundaries.geojson",
-                                      crs=self.dframes["roadseg"].crs)["geometry"].iloc[0]
-
-        # Remove temporary files.
-        logger.info("Removing temporary administrative boundary files and directories.")
-        for f in os.listdir("../../data/interim"):
-            if os.path.splitext(f)[0] == "boundaries":
-                path = os.path.join("../../data/interim", f)
-                try:
-                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
-                except (OSError, shutil.Error) as e:
-                    logger.warning("Unable to remove directory or file: \"{}\".".format(os.path.abspath(path)))
-                    logger.warning(e)
-                    continue
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""

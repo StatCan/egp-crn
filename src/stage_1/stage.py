@@ -481,7 +481,7 @@ class Stage:
         nrn_id = source["ids"][self.source]
 
         # Get metadata from url.
-        metadata = helpers.get_url(metadata_url, timeout=30)
+        metadata = helpers.get_url(metadata_url, timeout=30, verify=False)
         metadata = json.loads(metadata.content)
 
         # Extract download url from metadata.
@@ -500,7 +500,7 @@ class Stage:
         try:
 
             # Get raw content stream from download url.
-            download = helpers.get_url(download_url, stream=True, timeout=30)
+            download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)
 
             # Copy download content to file.
             with open(f"{self.nrn_old_path}.zip", "wb") as f:
