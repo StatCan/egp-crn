@@ -8,7 +8,8 @@ import pandas as pd
 import shapely.ops
 import string
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
+from copy import deepcopy
 from datetime import datetime
 from itertools import chain, groupby, permutations, tee
 from operator import attrgetter, itemgetter
@@ -30,9 +31,15 @@ class Validator:
 
         logger.info("Configuring validation variables.")
 
+        self.errors = defaultdict(dict)
+
         # Compile default field values and dtypes.
         self.defaults_all = helpers.compile_default_values()
         self.dtypes_all = helpers.compile_dtypes()
+
+        # Classify dataframes by geometry type.
+        self.df_lines = ("ferryseg", "roadseg")
+        self.df_points = ("blkpassage", "junction", "tollpoint")
 
         # Compile dataframes in original and meter-based projections (EPSG:3348).
         self.dframes = dict()
@@ -50,10 +57,135 @@ class Validator:
             else:
                 self.dframes_m[name] = helpers.reproject_gdf(df, epsg, 3348).copy(deep=True)
 
+        # Define validation parameters.
+        # Note: List validations in order if execution order matters.
+        self.validations = {
+            self.duplicated_lines: {
+                "code": 1,
+                "datasets": self.df_lines,
+                "iterate": True
+            },
+            self.duplicated_points: {
+                "code": 2,
+                "datasets": self.df_points,
+                "iterate": True
+            },
+            self.isolated_lines: {
+                "code": 3,
+                "datasets": ["roadseg", "junction"],
+                "iterate": False
+            },
+            self.dates: {
+                "code": 4,
+                "datasets": self.dframes.keys(),
+                "iterate": True
+            },
+            self.deadend_proximity: {
+                "code": 5,
+                "datasets": ["junction", "roadseg"],
+                "iterate": False
+            },
+            self.conflicting_exitnbrs: {
+                "code": 6,
+                "datasets": ["roadseg"],
+                "iterate": True
+            },
+            self.exitnbr_roadclass_relationship: {
+                "code": 7,
+                "datasets": ["roadseg"],
+                "iterate": True
+            },
+            self.ferry_road_connectivity: {
+                "code": 8,
+                "datasets": ["ferryseg", "roadseg", "junction"],
+                "iterate": False
+            },
+            self.ids: {
+                "code": 9,
+                "datasets": self.dframes.keys(),
+                "iterate": True
+            },
+            self.line_endpoint_clustering: {
+                "code": 10,
+                "datasets": self.df_lines,
+                "iterate": True
+            },
+            self.line_length: {
+                "code": 11,
+                "datasets": self.df_lines,
+                "iterate": True
+            },
+            self.line_merging_angle: {
+                "code": 12,
+                "datasets": self.df_lines,
+                "iterate": True
+            },
+            self.line_proximity: {
+                "code": 13,
+                "datasets": self.df_lines,
+                "iterate": True
+            },
+            self.nbrlanes: {
+                "code": 14,
+                "datasets": ["roadseg"],
+                "iterate": True
+            },
+            self.nid_linkages: {
+                "code": 15,
+                "datasets": self.dframes.keys(),
+                "iterate": True
+            },
+            self.conflicting_pavement_status: {
+                "code": 16,
+                "datasets": ["roadseg"],
+                "iterate": True
+            },
+            self.point_proximity: {
+                "code": 17,
+                "datasets": self.df_points,
+                "iterate": True
+            },
+            self.structure_attributes: {
+                "code": 18,
+                "datasets": ["roadseg", "junction"],
+                "iterate": False
+            },
+            self.roadclass_rtnumber_relationship: {
+                "code": 19,
+                "datasets": ["ferryseg", "roadseg"],
+                "iterate": True
+            },
+            self.self_intersecting_elements: {
+                "code": 20,
+                "datasets": ["roadseg"],
+                "iterate": True
+            },
+            self.self_intersecting_structures: {
+                "code": 21,
+                "datasets": ["roadseg"],
+                "iterate": True
+            },
+            self.route_contiguity: {
+                "code": 22,
+                "datasets": ["roadseg"],
+                "iterate": False
+            },
+            self.speed: {
+                "code": 23,
+                "datasets": ["roadseg"],
+                "iterate": True
+            },
+            self.encoding: {
+                "code": 24,
+                "datasets": self.dframes.keys(),
+                "iterate": True
+            }
+        }
+
     def conflicting_exitnbrs(self, name):
         """Applies a set of validations to exitnbr field."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
         default = self.defaults_all[name]["exitnbr"]
 
@@ -80,7 +212,7 @@ class Validator:
     def conflicting_pavement_status(self, name):
         """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
 
-        errors = {i: list() for i in range(1, 4+1)}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Subset dataframe to non-default values, keep only required fields.
@@ -110,7 +242,7 @@ class Validator:
     def dates(self, name):
         """Applies a set of validations to credate and revdate fields."""
 
-        errors = {i: list() for i in range(1, 7+1)}
+        errors = defaultdict(list)
         df = self.dframes[name]
         defaults = helpers.compile_default_values()[name]
         df = df[["credate", "revdate"]].copy(deep=True)
@@ -196,7 +328,7 @@ class Validator:
         """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
 
         # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
-        errors = {1: list()}
+        errors = defaultdict(list)
         junction = self.dframes_m[junction]
         roadseg = self.dframes_m[roadseg]
 
@@ -254,7 +386,7 @@ class Validator:
     def duplicated_lines(self, name):
         """Identifies the uuids of duplicate and overlapping line geometries."""
 
-        errors = {i: list() for i in range(1, 3+1)}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Keep only required fields.
@@ -345,7 +477,7 @@ class Validator:
     def duplicated_points(self, name):
         """Identifies the uuids of duplicate point geometries."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Extract coordinates of points.
@@ -371,7 +503,7 @@ class Validator:
     def encoding(self, name):
         """Identifies potential encoding errors within string fields."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Iterate string columns.
@@ -392,7 +524,7 @@ class Validator:
     def exitnbr_roadclass_relationship(self, name):
         """Applies a set of validations to exitnbr and roadclass fields."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Subset dataframe to non-default and non-"None" values, keep only required fields.
@@ -418,7 +550,7 @@ class Validator:
     def ferry_road_connectivity(self, ferryseg="ferryseg", roadseg="roadseg", junction="junction"):
         """Validates the connectivity between ferry and road line segments."""
 
-        errors = {i: list() for i in range(1, 2+1)}
+        errors = defaultdict(list)
 
         # Filter dataframes to only required fields.
         ferryseg = self.dframes[ferryseg]["geometry"]
@@ -465,7 +597,7 @@ class Validator:
     def ids(self, name):
         """Applies a set of validations to all id fields."""
 
-        errors = {i: list() for i in range(1, 4+1)}
+        errors = defaultdict(list)
         df = self.dframes[name]
         dtypes, defaults = self.dtypes_all[name], self.defaults_all[name]
 
@@ -514,7 +646,7 @@ class Validator:
     def isolated_lines(self, roadseg="roadseg", junction="junction", ferryseg=None):
         """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         roadseg = self.dframes[roadseg]
         junction = self.dframes[junction]
 
@@ -549,7 +681,7 @@ class Validator:
         Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
         """
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         series = self.dframes_m[name]["geometry"]
 
         # Filter out records with <= 3 points or length < 83 meters.
@@ -582,7 +714,7 @@ class Validator:
     def line_length(self, name):
         """Validates the minimum feature length of line geometries."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         series = self.dframes_m[name]["geometry"]
 
         # Validation: ensure line segments are >= 2 meters in length.
@@ -601,7 +733,7 @@ class Validator:
         Validation: ensure line segments merge at angles >= 40 degrees.
         """
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         series = self.dframes_m[name]["geometry"]
 
         # Compile line endpoints and their neighbours, convert to uuid-neighbour lookup dict.
@@ -688,7 +820,7 @@ class Validator:
         """Validates the proximity of line segments."""
 
         # Validation: ensure line segments are >= 3 meters from each other, excluding connected segments.
-        errors = {1: list()}
+        errors = defaultdict(list)
         series = self.dframes_m[name]["geometry"]
 
         # Compile all unique segment coordinates.
@@ -726,7 +858,7 @@ class Validator:
     def nbrlanes(self, name):
         """Applies a set of validations to nbrlanes field."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Subset dataframe to non-default values, keep only required fields.
@@ -749,7 +881,7 @@ class Validator:
     def nid_linkages(self, name):
         """Validates the nid linkages for the input dataframe, excluding "None"."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Define nid linkages.
@@ -804,7 +936,7 @@ class Validator:
         """Validates the proximity of points."""
 
         # Validation: ensure points are >= 3 meters from each other.
-        errors = {1: list()}
+        errors = defaultdict(list)
         series = self.dframes_m[name]["geometry"]
 
         # Compile coordinates (used multiple times)
@@ -836,7 +968,7 @@ class Validator:
     def roadclass_rtnumber_relationship(self, name):
         """Applies a set of validations to roadclass and rtnumber1 fields."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Filter dataframe to only required fields.
@@ -866,7 +998,7 @@ class Validator:
             rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
         """
 
-        errors = {1: list()}
+        errors = defaultdict(list)
 
         # Define field groups.
         field_groups = [["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
@@ -927,7 +1059,7 @@ class Validator:
     def self_intersecting_elements(self, name):
         """Applies a set of validations to self-intersecting road elements."""
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         df = self.dframes[name]
         default = self.defaults_all[name]["nid"]
 
@@ -1000,7 +1132,7 @@ class Validator:
         Parameter 'name' can be a dataframe or string since this function may be called from another class function.
         """
 
-        errors = {1: list()}
+        errors = defaultdict(list)
         flag_segments = pd.DataFrame()
         df = self.dframes[name] if isinstance(name, str) else name.copy(deep=True)
         default = self.defaults_all["roadseg"]["nid"]
@@ -1035,7 +1167,7 @@ class Validator:
     def speed(self, name):
         """Applies a set of validations to speed field."""
 
-        errors = {i: list() for i in range(1, 2+1)}
+        errors = defaultdict(list)
         df = self.dframes[name]
 
         # Subset dataframe to non-default values, keep only required fields.
@@ -1061,7 +1193,7 @@ class Validator:
     def structure_attributes(self, roadseg="roadseg", junction="junction"):
         """Validates the structid and structtype attributes of road segments."""
 
-        errors = {i: list() for i in range(1, 4+1)}
+        errors = defaultdict(list)
         defaults = self.defaults_all[roadseg]
         roadseg = self.dframes[roadseg]
         junction = self.dframes[junction]
@@ -1162,3 +1294,40 @@ class Validator:
                 errors[4].append(f"Structure formed by uuids: {uuids} contains multiple structtypes: {structtypes}.")
 
         return errors
+
+    def execute(self):
+        """Orchestrates the execution of validation functions and compiles the resulting errors."""
+
+        try:
+
+            # Iterate validation definitions.
+            for func, params in self.validations.items():
+                for dataset in params["datasets"]:
+
+                    # Continue with single dataset or compile all if non-iterative.
+                    datasets = (dataset,) if params["iterate"] else (*params["datasets"],)
+
+                    logger.info(f"Applying validation \"{func.__name__}\" to dataset(s): {', '.join(datasets)}.")
+
+                    # Validate dataset availability.
+                    missing = set(datasets) - set(self.dframes)
+                    if missing:
+                        logger.warning(f"Skipping validation due to missing dataset(s): {', '.join(missing)}.")
+                        if params["iterate"]:
+                            continue
+                        else:
+                            break
+
+                    # Execute validation.
+                    results = func(*datasets)
+
+                    # Generate error heading and store results.
+                    for code, errors in results.items():
+                        if len(errors):
+                            heading = f"E{params['code']:03}{code:02} for dataset(s): {', '.join(datasets)}"
+                            self.errors[heading] = deepcopy(errors)
+
+        except (KeyError, SyntaxError, ValueError) as e:
+            logger.exception("Unable to apply validation.")
+            logger.exception(e)
+            sys.exit(1)
