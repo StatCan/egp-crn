@@ -34,6 +34,7 @@ class Stage:
     def __init__(self, source):
         self.stage = 2
         self.source = source.lower()
+        self.boundary = None
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -363,11 +364,10 @@ class Stage:
             # Filter boundaries.
             pruid = {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
                      "qc": 24, "sk": 47, "yt": 60}[self.source]
-            self.boundary = self.boundary.loc[self.boundary["PRUID"] == pruid]
+            self.boundary = self.boundary.loc[self.boundary["PRUID"] == str(pruid)]
 
-            # Reproject and export boundaries for current and later usage.
+            # Reproject boundaries to EPSG:4617.
             self.boundary = self.boundary.to_crs("EPSG:4617")
-            self.boundary.to_file("../../data/interim/boundaries.gpkg", driver="GPKG", layer=self.source)
 
         except (fiona.errors, requests.exceptions.RequestException) as e:
             logger.exception(f"Error encountered when compiling administrative boundary file: \"{download_url}\".")

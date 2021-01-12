@@ -179,6 +179,11 @@ class Validator:
                 "code": 24,
                 "datasets": self.dframes.keys(),
                 "iterate": True
+            },
+            self.out_of_scope: {
+                "code": 25,
+                "datasets": set(self.dframes.keys()) - {"junction"},
+                "iterate": True
             }
         }
 
@@ -929,6 +934,41 @@ class Validator:
                 if len(invalid_ids):
                     for invalid_id in invalid_ids:
                         errors[1].append(f"{id_table}.{col} '{invalid_id}' is not present in {nid_table}.nid.")
+
+        return errors
+
+    def out_of_scope(self, name, junction="junction"):
+        """
+        Validates the containment of geometries within the associated provincial / territorial boundaries.
+        NatProvTer junctions are used to infer boundaries, therefore, a record will only be flagged is one of it's
+        endpoints lies outside of the provincial / territorial boundaries.
+        """
+
+        # Validation: ensure geometries are completely within the associated provincial / territorial boundary.
+        errors = defaultdict(list)
+        series = self.dframes[name]["geometry"]
+        junction = self.dframes[junction]
+
+        # Compile out-of-scope junctions (natprovter).
+        natprovter = set(chain.from_iterable(junction.loc[junction["junctype"] == "NatProvTer", "geometry"].map(
+            lambda g: attrgetter("coords")(g))))
+
+        # Compile series points.
+        if series.iloc[0].geom_type == "LineString":
+            series_pts = series.map(lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g))))
+        else:
+            series_pts = series.map(lambda g: {itemgetter(0)(attrgetter("coords")(g))})
+
+        # Flag series points within the set of natprovter points.
+        mask = series_pts.map(lambda pts: len(pts.intersection(natprovter)) > 0)
+
+        # Compile uuids of flagged records.
+        errors[1] = series.loc[mask].index.values
+
+        # Compile error properties.
+        for code, vals in errors.items():
+            if len(vals):
+                errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
 
         return errors
 

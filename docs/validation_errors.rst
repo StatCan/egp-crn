@@ -325,3 +325,9 @@ E02401
 
 :Validation: Encoding.
 :Description: Attribute contains one or more question mark ("?"), which may be the result of invalid character encoding.
+
+E02501
+------
+
+:Validation: Out-of-scope.
+:Description: Geometry is partially or completely outside of the target area, based on Census provincial / territorial boundaries.
