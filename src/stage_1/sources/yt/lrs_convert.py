@@ -198,39 +198,42 @@ class LRS:
                 # Flag base records and filter attributes dataframe to relevant records.
                 # Note: No need to explicitly target non-duplicated records. Any plural matches will be overwritten in
                 # the following step.
-                flag_base = base[con_id_field].isin(set(df[con_id_field]))
-                df_sub = df.loc[(df[con_id_field].isin(set(base.loc[flag_base, con_id_field]))) &
+                flag_base_a = base[con_id_field].isin(set(df[con_id_field]))
+                df_sub = df.loc[(df[con_id_field].isin(set(base.loc[flag_base_a, con_id_field]))) &
                                 (~df[con_id_field].duplicated(keep="first")), [con_id_field, *cols_keep]]
 
                 # Update base dataset with attributes.
-                base.loc[flag_base, cols_keep] = base.loc[flag_base, [con_id_field]].merge(
+                base.loc[flag_base_a, cols_keep] = base.loc[flag_base_a, [con_id_field]].merge(
                     df_sub, how="left", on=con_id_field)[cols_keep].values
 
                 # Handle plural (segmented) matches.
+                flag_base_b = False
                 if "breakpts" in df.columns:
 
                     # Flag base records and filter attributes dataframe to relevant records.
-                    flag_base = base[con_id_field].isin(set(df[con_id_field])) & \
-                                base[con_id_field].duplicated(keep=False)
-                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base, con_id_field])),
+                    flag_base_b = base[con_id_field].isin(set(df[con_id_field])) & \
+                                  base[con_id_field].duplicated(keep=False)
+                    df_sub = df.loc[df[con_id_field].isin(set(base.loc[flag_base_b, con_id_field])),
                                     [con_id_field, "breakpts", *cols_keep]]
 
                     # Convert breakpoints to pandas intervals.
                     df_sub["interval"] = df_sub["breakpts"].map(lambda vals: pd.Interval(*vals))
 
                     # Fetch the indexes of the attribute dataset which correspond to the base dataset.
-                    args = base.loc[flag_base, [con_id_field, "interval"]].apply(list, axis=1)
+                    args = base.loc[flag_base_b, [con_id_field, "interval"]].apply(list, axis=1)
                     idx = args.map(lambda vals: fetch_attr_index(df_sub, *vals))
                     idx = idx.loc[~idx.isna()]
 
                     # Update base dataset with attributes by merging the base and attribute datasets.
-                    # Overwrite non-matching records with None.
                     flag_idx = base.index.isin(set(idx.index))
                     base["idx"] = None
                     base.loc[flag_idx, "idx"] = idx
                     base.loc[flag_idx, cols_keep] = base.loc[flag_idx, ["idx"]].merge(
                         df_sub, how="left", left_on="idx", right_index=True)[cols_keep].values
-                    base.loc[~flag_idx, cols_keep] = None
+
+                # Overwrite non-modified records with Nones to reverse autocasting.
+                flag_base = (flag_base_a | flag_base_b)
+                base.loc[flag_base, cols_keep] = None
 
         # Resolve conflicting attributes.
         # Note: dates are likely the only attributes which require conflict resolution.
