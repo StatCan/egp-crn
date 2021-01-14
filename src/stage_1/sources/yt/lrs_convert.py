@@ -194,11 +194,12 @@ class LRS:
                     # Add new column to base dataset.
                     base[col] = None
 
-                # Handle one-to-one (non-segmented) matches.
+                # Handle singular (non-segmented) matches.
                 # Flag base records and filter attributes dataframe to relevant records.
-                # Note: No need to explicitly target non-duplicated records. Any plural matches will be overwritten in
-                # the following step.
-                flag_base_a = base[con_id_field].isin(set(df[con_id_field]))
+                # Note: duplicated(keep='first') ensures that one-to-many matches between the base and attribute dataset
+                # will still have an attribute record to link to.
+                flag_base_a = base[con_id_field].isin(set(df[con_id_field])) & \
+                              ~base[con_id_field].duplicated(keep=False)
                 df_sub = df.loc[(df[con_id_field].isin(set(base.loc[flag_base_a, con_id_field]))) &
                                 (~df[con_id_field].duplicated(keep="first")), [con_id_field, *cols_keep]]
 
