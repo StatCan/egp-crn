@@ -1,0 +1,34 @@
+coverage:
+  country: ca
+  province: yt
+  ISO3166:
+    alpha2: CA-YT
+    country: Canada
+    subdivision: Yukon
+  website:
+license:
+  url:
+  text:
+language: en
+data:
+  filename: yt.gpkg
+  layer: addresses
+  driver: GPKG
+  crs: "EPSG:4617"
+  spatial: True
+  query:
+  segment:
+    address_fields:
+      street:
+      number:
+        field:
+        regex_sub:
+          pattern:
+          repl:
+      suffix:
+        field:
+        regex_sub:
+          pattern:
+          repl:
+    address_join_field:
+    roadseg_join_field:
