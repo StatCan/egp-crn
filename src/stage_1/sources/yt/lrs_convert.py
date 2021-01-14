@@ -225,15 +225,15 @@ class LRS:
                     idx = idx.loc[~idx.isna()]
 
                     # Update base dataset with attributes by merging the base and attribute datasets.
-                    flag_idx = base.index.isin(set(idx.index))
+                    flag_base_b = base.index.isin(set(idx.index))
                     base["idx"] = None
-                    base.loc[flag_idx, "idx"] = idx
-                    base.loc[flag_idx, cols_keep] = base.loc[flag_idx, ["idx"]].merge(
+                    base.loc[flag_base_b, "idx"] = idx
+                    base.loc[flag_base_b, cols_keep] = base.loc[flag_base_b, ["idx"]].merge(
                         df_sub, how="left", left_on="idx", right_index=True)[cols_keep].values
 
                 # Overwrite non-modified records with Nones to reverse autocasting.
                 flag_base = (flag_base_a | flag_base_b)
-                base.loc[flag_base, cols_keep] = None
+                base.loc[~flag_base, cols_keep] = None
 
         # Resolve conflicting attributes.
         # Note: dates are likely the only attributes which require conflict resolution.
