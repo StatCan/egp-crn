@@ -21,8 +21,10 @@ logger = logging.getLogger()
 class Segmentor:
     """Converts address points into segmented addrange attributes, joining the results to the roadseg source dataset."""
 
-    def __init__(self, addresses, roadseg, address_fields, address_join_field, roadseg_join_field):
+    def __init__(self, source, addresses, roadseg, address_fields, address_join_field, roadseg_join_field):
         """Validates and formats input data."""
+
+        self.source = source.lower()
 
         logger.info("Configuring address attributes.")
 
@@ -329,9 +331,18 @@ class Segmentor:
         self.addresses.drop(columns=["addresses_index"], inplace=True)
         self.roadseg.drop(columns=["roadseg_index"], inplace=True)
 
-        # Discard non-linked addresses.
-        self.addresses.drop(self.addresses.loc[self.addresses["roadseg_index"].map(itemgetter(0)).isna()].index, axis=0,
-                            inplace=True)
+        # Export non-linked addresses for review.
+        non_linked_flag = self.addresses["roadseg_index"].map(itemgetter(0)).isna()
+
+        if sum(non_linked_flag):
+            export_path = os.path.abspath("../../data/interim/non_linked_addresses.gpkg")
+            logger.info(f"Exporting {sum(non_linked_flag)} non-linked addresses for review: {export_path}.")
+
+            # Export addresses to GeoPackage.
+            self.addresses.loc[non_linked_flag].to_file(export_path, driver="GPKG", layer=self.source)
+
+            # Discard non-linked addresses.
+            self.addresses.drop(self.addresses.loc[non_linked_flag].index, axis=0, inplace=True)
 
         # Convert linkages to integer tuples, if possible.
         def as_int(val):
@@ -345,8 +356,13 @@ class Segmentor:
 
         # Filter multi-linkage addresses to roadseg linkage with nearest geometric distance.
         flag_multi = self.addresses["roadseg_index"].map(len) > 1
-        self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses[flag_multi][["geometry", "roadseg_index"]]\
-            .apply(lambda row: get_nearest_linkage(*row), axis=1)
+
+        if sum(flag_multi):
+            logger.info(f"Resolving many-to-one address-roadseg linkages for {sum(flag_multi)} address records.")
+
+            # Resolve many-to-one linkages.
+            self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses[flag_multi][["geometry", "roadseg_index"]]\
+                .apply(lambda row: get_nearest_linkage(*row), axis=1)
 
         # Unpack first roadseg linkage for single-linkage addresses.
         self.addresses.loc[~flag_multi, "roadseg_index"] = self.addresses[~flag_multi]["roadseg_index"].map(

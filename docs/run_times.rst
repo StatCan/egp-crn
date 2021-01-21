@@ -166,7 +166,7 @@ Stage      Time
 Yukon (YT)
 ============
 
-January 12, 2021
+January 21, 2021
 ----------------
 
 :Source: data/raw/yt/yt.gpkg

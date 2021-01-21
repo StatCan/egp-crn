@@ -765,7 +765,7 @@ class Stage:
             roadseg = self.source_gdframes[roadseg_source].copy(deep=True)
 
             # Execute segmentor.
-            segmentor = Segmentor(addresses=addresses, roadseg=roadseg, **segment_kwargs)
+            segmentor = Segmentor(source=self.source, addresses=addresses, roadseg=roadseg, **segment_kwargs)
             self.source_gdframes[roadseg_source] = segmentor()
 
             # Remove address source from attributes and dataframes references.
