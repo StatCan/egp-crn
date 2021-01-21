@@ -92,6 +92,19 @@ class Stage:
 
         logger.info("Configuring NRN release version.")
 
+        #TEST
+        version = None
+        release_notes = os.path.abspath("../../docs/release_notes.rst")
+        for line in open(release_notes, "r"):
+            if line.find(self.source.upper()) >= 0:
+                version = float([val for val in line.split(" ") if val != ""][2])
+                break
+
+        if not version:
+            logger.exception(f"Unable to extract version from \"{release_notes}\".")
+            sys.exit(1)
+        #TEST
+
         logger.info("Retrieving metadata for previous NRN vintage.")
 
         # Retrieve metadata for previous NRN vintage.
