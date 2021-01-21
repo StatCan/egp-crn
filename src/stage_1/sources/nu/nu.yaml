@@ -34,11 +34,11 @@ conform:
     acqtech: acqtech
     metacover: metacover
     credate: credate
-    datasetnam: datasetnam
+    datasetnam: Nunavut
     accuracy: accuracy
     provider: provider
     revdate: revdate
-    specvers: specvers
+    specvers: 2.0
     l_altnanid:
     r_altnanid:
     l_digdirfg: l_digdirfg
@@ -63,14 +63,113 @@ conform:
     l_rfsysind: l_rfsysind
     r_rfsysind: r_rfsysind
   roadseg:
-    acqtech: acqtech
+    acqtech:
+      fields: placename
+      functions:
+        - function: query_assign
+          columns: placename
+          lookup:
+            ? placename in ('Arctic Bay', 'Arviat', 'Baker Lake', 'Cambridge Bay', 'Chesterfield Inlet', 'Clyde River',
+              'Coral Harbour', 'Gjoa Haven', 'Igloolik', 'Kimmirut', 'Kinngait', 'Kugaaruk', 'Kugluktuk', 'Naujaat',
+              'Pangnirtung', 'Pond Inlet', 'Qikiqtarjuaq', 'Rankin Inlet', 'Resolute Bay', 'Sanikiluaq', 'Sanirajak',
+              'Taloyoak', 'Whale Cove')
+            : value: Orthoimage
+              type: string
+          engine: python
     metacover: metacover
-    credate: credate
-    datasetnam: datasetnam
-    accuracy: accuracy
+    credate:
+      fields: placename
+      functions:
+        - function: query_assign
+          columns: placename
+          lookup:
+            placename == 'Arctic Bay':
+              value: 20190701
+              type: string
+            placename == 'Arviat':
+              value: 20190808
+              type: string
+            placename == 'Baker Lake':
+              value: 20180702
+              type: string
+            placename == 'Cambridge Bay':
+              value: 20190727
+              type: string
+            placename == 'Chesterfield Inlet':
+              value: 20190704
+              type: string
+            placename == 'Clyde River':
+              value: 20180712
+              type: string
+            placename == 'Coral Harbour':
+              value: 20180826
+              type: string
+            placename == 'Gjoa Haven':
+              value: 20190701
+              type: string
+            placename == 'Igloolik':
+              value: 20190630
+              type: string
+            placename == 'Kimmirut':
+              value: 20180705
+              type: string
+            placename == 'Kinngait':
+              value: 20190703
+              type: string
+            placename == 'Kugaaruk':
+              value: 20180703
+              type: string
+            placename == 'Kugluktuk':
+              value: 20190702
+              type: string
+            placename == 'Naujaat':
+              value: 20180703
+              type: string
+            placename == 'Pangnirtung':
+              value: 20180701
+              type: string
+            placename == 'Pond Inlet':
+              value: 20180714
+              type: string
+            placename == 'Qikiqtarjuaq':
+              value: 20180705
+              type: string
+            placename == 'Rankin Inlet':
+              value: 20190715
+              type: string
+            placename == 'Resolute Bay':
+              value: 20190726
+              type: string
+            placename == 'Sanikiluaq':
+              value: 20180706
+              type: string
+            placename == 'Sanirajak':
+              value: 20190701
+              type: string
+            placename == 'Taloyoak':
+              value: 20190702
+              type: string
+            placename == 'Whale Cove':
+              value: 20190715
+              type: string
+          engine: python
+    datasetnam: Nunavut
+    accuracy:
+      fields: placename
+      functions:
+        - function: query_assign
+          columns: placename
+          lookup:
+            ? placename in ('Arctic Bay', 'Arviat', 'Baker Lake', 'Cambridge Bay', 'Chesterfield Inlet', 'Clyde River',
+              'Coral Harbour', 'Gjoa Haven', 'Igloolik', 'Kimmirut', 'Kinngait', 'Kugaaruk', 'Kugluktuk', 'Naujaat',
+              'Pangnirtung', 'Pond Inlet', 'Qikiqtarjuaq', 'Rankin Inlet', 'Resolute Bay', 'Sanikiluaq', 'Sanirajak',
+              'Taloyoak', 'Whale Cove')
+            : value: 1
+              type: string
+          engine: python
     provider: provider
     revdate: revdate
-    specvers: specvers
+    specvers: 2.0
     l_adddirfg: l_digdirfg
     r_adddirfg: r_digdirfg
     adrangenid: uuid
@@ -115,18 +214,18 @@ conform:
     acqtech: acqtech
     metacover: metacover
     credate: credate
-    datasetnam: datasetnam
+    datasetnam: Nunavut
     accuracy: accuracy
     provider: provider
     revdate: revdate
-    specvers: specvers
+    specvers: 2.0
     dirprefix: dirprefix
     dirsuffix: dirsuffix
     muniquad: muniquad
     nid: uuid
     placename: placename
     placetype: placetype
-    province: province
+    province: Nunavut
     starticle: starticle
     namebody: namebody
     strtypre: strtypre

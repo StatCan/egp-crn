@@ -19,16 +19,16 @@ data:
   query:
   segment:
     address_fields:
-      street:
+      street: street
       number:
-        field:
+        field: number
         regex_sub:
-          pattern:
-          repl:
+          pattern: "[^\\d]"
+          repl: ""
       suffix:
-        field:
+        field: number
         regex_sub:
-          pattern:
-          repl:
-    address_join_field:
-    roadseg_join_field:
+          pattern: "\\d+"
+          repl: ""
+    address_join_field: street
+    roadseg_join_field: street

@@ -330,7 +330,7 @@ class Segmentor:
         self.roadseg.drop(columns=["roadseg_index"], inplace=True)
 
         # Discard non-linked addresses.
-        self.addresses.drop(self.addresses[self.addresses["roadseg_index"].map(itemgetter(0)).isna()].index, axis=0,
+        self.addresses.drop(self.addresses.loc[self.addresses["roadseg_index"].map(itemgetter(0)).isna()].index, axis=0,
                             inplace=True)
 
         # Convert linkages to integer tuples, if possible.
@@ -339,7 +339,9 @@ class Segmentor:
                 return int(val)
             except ValueError:
                 return val
-        self.addresses["roadseg_index"] = self.addresses["roadseg_index"].map(lambda vals: tuple(set(map(as_int, vals))))
+
+        self.addresses["roadseg_index"] = self.addresses["roadseg_index"].map(
+            lambda vals: tuple(set(map(as_int, vals))))
 
         # Filter multi-linkage addresses to roadseg linkage with nearest geometric distance.
         flag_multi = self.addresses["roadseg_index"].map(len) > 1
