@@ -261,33 +261,39 @@ class Stage:
         pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "z": pts_z, "uuid": pts_uuid})
 
         # Query unique points (all) and endpoints.
-        pts_unique = pts_df[~pts_df[["x", "y", "z"]].duplicated(keep=False)][["x", "y", "z"]].values
-        endpoints_unique = np.unique(np.concatenate(
-            df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)
+        pts_unique = set(map(tuple, pts_df[~pts_df[["x", "y", "z"]].duplicated(keep=False)][["x", "y", "z"]].values))
+        endpoints_unique = set(map(tuple, np.unique(np.concatenate(
+            df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)))
 
         # Query non-unique points (all), keep only the first duplicated point from self-loops.
-        pts_dup = pts_df[(pts_df[["x", "y", "z"]].duplicated(keep=False)) & (~pts_df.duplicated(keep="first"))]
+        pts_dup = pts_df[(pts_df[["x", "y", "z"]].duplicated(keep=False)) &
+                         (~pts_df.duplicated(keep="first"))][["x", "y", "z"]].values
 
         # Query junctypes.
 
         # junctype: Dead End.
         # Process: Query unique points which also exist in unique endpoints.
         logger.info("Configuring junctype: Dead End.")
-        deadend = set(map(tuple, pts_unique)).intersection(set(map(tuple, endpoints_unique)))
+        deadend = pts_unique.intersection(endpoints_unique)
 
         # junctype: Intersection.
         # Process: Query non-unique points with >= 3 instances.
         logger.info("Configuring junctype: Intersection.")
-        counts = Counter(map(tuple, pts_dup[["x", "y", "z"]].values))
+        counts = Counter(map(tuple, pts_dup))
         intersection = {pt for pt, count in counts.items() if count >= 3}
 
         # junctype: Ferry.
-        # Process: Compile all unique ferryseg endpoints. Remove conflicting points from other junctypes.
+        # Process: Compile all unique ferryseg endpoints which intersect a roadseg point. Remove conflicting points
+        # from other junctypes.
         logger.info("Configuring junctype: Ferry.")
 
         ferry = set()
         if "ferryseg" in self.dframes:
-            ferry = set(chain.from_iterable(itemgetter(0, -1)(g.coords) for g in self.dframes["ferryseg"]["geometry"]))
+            pts_all = pts_unique.union(set(map(tuple, pts_dup)))
+            ferry = set(chain.from_iterable(self.dframes["ferryseg"]["geometry"].map(
+                lambda g: itemgetter(0, -1)(attrgetter("coords")(g)))))
+
+            ferry = ferry.intersection(pts_all)
             deadend = deadend.difference(ferry)
             intersection = intersection.difference(ferry)
 
