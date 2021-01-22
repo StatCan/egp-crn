@@ -11,7 +11,7 @@ import sys
 from collections import Counter, defaultdict
 from copy import deepcopy
 from datetime import datetime
-from itertools import chain, groupby, permutations, tee
+from itertools import chain, compress, groupby, permutations, tee
 from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
@@ -72,8 +72,8 @@ class Validator:
             },
             self.isolated_lines: {
                 "code": 3,
-                "datasets": ["roadseg", "junction"],
-                "iterate": False
+                "datasets": ["roadseg"],
+                "iterate": True
             },
             self.dates: {
                 "code": 4,
@@ -648,35 +648,62 @@ class Validator:
 
         return errors
 
-    def isolated_lines(self, roadseg="roadseg", junction="junction", ferryseg=None):
-        """Identifies the uuids of isolated road segments from the merged dataframe of road and ferry segments."""
+    def isolated_lines(self, name, junction="junction"):
+        """Identifies the uuids of isolated line segments."""
 
         errors = defaultdict(list)
-        roadseg = self.dframes[roadseg]
-        junction = self.dframes[junction]
 
-        # Concatenate ferryseg and roadseg dataframes, keeping only required fields.
-        if ferryseg is not None:
-            ferryseg = self.dframes[ferryseg]
-            df = gpd.GeoDataFrame(pd.concat([ferryseg[["uuid", "geometry"]], roadseg[["uuid", "geometry"]]],
-                                            ignore_index=False, sort=False))
-        else:
-            df = roadseg.copy(deep=True)
+        # Filter dataframes to only required fields.
+        df = self.dframes[name][["uuid", "geometry"]]
+        junction = self.dframes[junction][["junctype", "geometry"]]
 
-        # Compile dead end junctions.
-        deadends = set(chain([geom.coords[0] for geom in
-                              junction[junction["junctype"] == "Dead End"]["geometry"].values]))
+        # Validation 1: ensure line segments are connected to at least one other line segment.
+
+        # Compile junctions for 'Dead End' and 'Ferry'.
+        pts = set(chain([geom.coords[0] for geom in
+                         junction.loc[junction["junctype"].isin(["Dead End", "Ferry"]), "geometry"].values]))
 
         # Identify isolated segments.
-        mask = df["geometry"].map(lambda g: len(set(itemgetter(0, -1)(g.coords)) - deadends) == 0)
+        # Flag records where both endpoints are either 'Dead End' or 'Ferry'.
+        mask = df["geometry"].map(lambda g: all(map(lambda pt: pt in pts, itemgetter(0, -1)(g.coords))))
 
-        # Compile uuids of flagged records.
-        errors[1] = df[mask].index.values
+        # Compile uuids of flagged records, compile error properties.
+        if sum(mask):
+            errors[1] = list(map(lambda val: f"uuid: '{val}'", df.loc[mask].index.values))
 
-        # Compile error properties.
-        for code, vals in errors.items():
-            if len(vals):
-                errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
+        # Validation 2: identify line segments which connect to another line segment at intermediate / non-endpoint
+        # vertices.
+
+        # Compile all coordinates and their count from across the entire dataset.
+        df_nodes_all = df["geometry"].map(attrgetter("coords")).map(tuple)
+        nodes_count = Counter(chain.from_iterable(df_nodes_all.map(set)))
+
+        # Filter analysis records to those with > 2 constituent points.
+        df_nodes = df_nodes_all.loc[df_nodes_all.map(len) > 2]
+
+        # Configure duplicated non-endpoints for analysis records relative to the full dataframe.
+        def non_endpoint_dups(nodes):
+            """Returns intermediate / non-endpoint nodes and their dataframe counts if they are duplicated."""
+            counts = itemgetter(*nodes[1:-1])(nodes_count)
+            if not isinstance(counts, tuple):
+                counts = (counts,)
+            counts_valid = tuple(map(lambda count: count > 1, counts))
+
+            if any(counts_valid):
+                return tuple(compress(nodes[1:-1], counts_valid)), tuple(compress(counts, counts_valid))
+            else:
+                return None
+
+        dups = df_nodes.map(non_endpoint_dups)
+        dups = dups.loc[~dups.isna()]
+
+        # Nest nodes with counts and explode records.
+        dups = dups.map(lambda vals: tuple(zip(*vals))).explode()
+
+        # Compile uuids of flagged records, compile error properties.
+        for index, data in dups.iteritems():
+            errors[2].append(f"uuid: '{index}' intersects {data[1]} other line segment(s) at non-endpoint vertex: "
+                             f"{data[0]}.")
 
         return errors
 

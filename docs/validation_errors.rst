@@ -72,11 +72,20 @@ E00201
 :Validation: Duplicated points.
 :Description: Points within the same dataset must not be duplicated.
 
-E00301
-------
+E003
+----
 
 :Validation: Isolated lines.
+
+E00301
+^^^^^^
+
 :Description: Line segments must be connected to at least one other line segment.
+
+E00302
+^^^^^^
+
+:Description: Line segments must only connect at endpoint vertices.
 
 E004
 ----
