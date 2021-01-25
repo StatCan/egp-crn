@@ -2,7 +2,6 @@ import ast
 import click
 import fiona
 import geopandas as gpd
-import json
 import logging
 import numpy as np
 import os
@@ -473,31 +472,13 @@ class Stage:
 
         logger.info("Retrieving previous NRN vintage.")
 
-        logger.info("Retrieving metadata for previous NRN vintage.")
-
-        # Retrieve metadata for previous NRN vintage.
-        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
-        metadata_url = source["metadata_url"]
-        nrn_id = source["ids"][self.source]
-
-        # Get metadata from url.
-        metadata = helpers.get_url(metadata_url, timeout=30, verify=False)
-        metadata = json.loads(metadata.content)
-
-        # Extract download url from metadata.
-        download_url = None
-        for product in metadata["result"]["resources"]:
-            if product["id"] == nrn_id:
-                download_url = product["url"]
-
-        if not download_url:
-            logger.exception(f"Unable to find previous NRN product from metadata: {metadata_url}.")
-            sys.exit(1)
-
         # Download previous NRN vintage.
         logger.info("Downloading previous NRN vintage.")
 
         try:
+
+            # Get download url.
+            download_url = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"][self.source]
 
             # Get raw content stream from download url.
             download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)

@@ -1,19 +1,17 @@
 previous_nrn_vintage:
-  metadata_url: https://open.canada.ca/data/api/action/package_show?id=3d282116-e556-400c-9306-ca1a3cada77f
-  ids:
-    ab: 838e9648-02b5-4180-9abc-be764189bef7
-    bc: 098fbec1-f511-4215-904a-0a56de7f0776
-    mb: 9fbb1798-0460-42bb-9657-f15cfab7b056
-    nb: aef5c523-fb3b-4b08-8a1e-f7a147b3c72e
-    nl: d8621830-9a07-4d12-9ef4-f073ad85130d
-    ns: fa5567c1-e079-4a73-b9de-db853e2f235c
-    nt: 36057fb4-e519-49fd-846a-4cbd36a16267
-    nu: 38ab0c95-2a79-4933-bfce-9ea2f1530910
-    "on": e5078685-6b7a-4a5e-9f18-829c84bc5e5d
-    pe: 94a74c78-e5ef-4499-b9d2-3c553211ef73
-    qc: 2a77ee12-80d4-4306-9472-563b69508631
-    sk: 247d9f6c-1d7d-4283-be74-1da5bc521fbc
-    yt: 75b3723a-b20b-4079-a4ca-a8d70ba7f947
+  ab: https://geo.statcan.gc.ca/nrn_rrn/ab/nrn_rrn_ab_GPKG.zip
+  bc: https://geo.statcan.gc.ca/nrn_rrn/bc/nrn_rrn_bc_GPKG.zip
+  mb: https://geo.statcan.gc.ca/nrn_rrn/mb/nrn_rrn_mb_GPKG.zip
+  nb: https://geo.statcan.gc.ca/nrn_rrn/nb/nrn_rrn_nb_GPKG.zip
+  nl: https://geo.statcan.gc.ca/nrn_rrn/nl/nrn_rrn_nl_GPKG.zip
+  ns: https://geo.statcan.gc.ca/nrn_rrn/ns/nrn_rrn_ns_GPKG.zip
+  nt: https://geo.statcan.gc.ca/nrn_rrn/nt/nrn_rrn_nt_GPKG.zip
+  nu: https://geo.statcan.gc.ca/nrn_rrn/nu/nrn_rrn_nu_GPKG.zip
+  "on": https://geo.statcan.gc.ca/nrn_rrn/on/nrn_rrn_on_GPKG.zip
+  pe: https://geo.statcan.gc.ca/nrn_rrn/pe/nrn_rrn_pe_GPKG.zip
+  qc: https://geo.statcan.gc.ca/nrn_rrn/qc/nrn_rrn_qc_GPKG.zip
+  sk: https://geo.statcan.gc.ca/nrn_rrn/sk/nrn_rrn_sk_GPKG.zip
+  yt: https://geo.statcan.gc.ca/nrn_rrn/yt/nrn_rrn_yt_GPKG.zip
 provincial_boundaries:
   url: http://www12.statcan.gc.ca/census-recensement/2011/geo/bound-limit/files-fichiers/2016/lpr_000a16a_e.zip
   filename: lpr_000a16a_e.shp
