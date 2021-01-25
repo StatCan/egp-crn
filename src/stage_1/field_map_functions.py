@@ -7,6 +7,7 @@ import sys
 import uuid
 from copy import deepcopy
 from operator import attrgetter, itemgetter
+from typing import Any, List, Type, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -16,14 +17,26 @@ logger = logging.getLogger()
 domains = helpers.compile_domains(mapped_lang="en")
 
 
-def apply_domain(**kwargs):
-    """Calls helpers.apply_domains to allow it's usage as a field mapping function."""
+def apply_domain(**kwargs) -> pd.Series:
+    """
+    Calls :func:`~helpers.apply_domain` to allow it's usage as a field mapping function.
+
+    :param kwargs: keyword arguments passed to :func:`~helpers.apply_domain`.
+    :return pd.Series: Series with enforced field domain.
+    """
 
     return helpers.apply_domain(**kwargs)
 
 
-def concatenate(df, columns, separator=" "):
-    """Concatenates all non-null values across multiple columns into a single string, using the given separator."""
+def concatenate(df: pd.DataFrame, columns: List[str], separator: str = " ") -> pd.Series:
+    """
+    Concatenates all non-null values across multiple columns into a single string.
+
+    :param pd.DataFrame df: DataFrame.
+    :param List[str] columns: list of column names.
+    :param str separator: delimiter string used to join the column values.
+    :return pd.Series: Series of concatenated non-null column values.
+    """
 
     try:
 
@@ -45,18 +58,25 @@ def concatenate(df, columns, separator=" "):
         sys.exit(1)
 
 
-def direct(series, cast_type=None):
+def direct(series: pd.Series, cast_type: str = None) -> pd.Series:
     """
-    Returns the given series. Intended to provide a function call for direct (1:1) field mapping.
+    Returns the given series with optional dtype casting. Intended to provide a function call for direct (1:1) field
+    mapping.
     Parameter 'cast_type' expected to be a string representation of a python data type. Example: "str", "int", etc.
 
     Possible yaml construction of direct field mapping:
 
-    1) target_field:                                2) target_field: source_field or raw value
+    1) target_field:
          fields: source_field or raw value
          functions:
            - function: direct
              cast_type: 'int'
+
+    2) target_field: source_field
+
+    :param pd.Series series: Series.
+    :param str cast_type: python dtype to be casted to.
+    :return pd.Series: unaltered Series or Series with casted dtype.
     """
 
     try:
@@ -81,14 +101,26 @@ def direct(series, cast_type=None):
         sys.exit(1)
 
 
-def gen_uuid(series):
-    """Returns a uuid4 hexadecimal string for each record in the series."""
+def gen_uuid(series: pd.Series) -> pd.Series:
+    """
+    Generates a uuid4 hexadecimal string for each record in the Series.
+
+    :param pd.Series series: Series.
+    :return pd.Series: Series of uuid4 hexadecimal strings aligned to the original Series.
+    """
 
     return pd.Series([uuid.uuid4().hex for _ in range(len(series))], index=series.index)
 
 
-def incrementor(series, start=1, step=1):
-    """Returns an integer sequence series using the given start and step."""
+def incrementor(series: pd.Series, start: int = 1, step: int = 1) -> pd.Series:
+    """
+    Generates an integer sequence aligned to the Series, using the given start and step increment.
+
+    :param pd.Series series: Series.
+    :param int start: sequence start.
+    :param int step: sequence increment.
+    :return pd.Series: Series with an integer sequence aligned to the original Series.
+    """
 
     if not all(isinstance(param, int) for param in (start, step)):
         logger.exception(f"Unable to generate sequence. One or more input variables is not an integer.")
@@ -97,10 +129,14 @@ def incrementor(series, start=1, step=1):
     return pd.Series(range(start, stop, step), index=series.index)
 
 
-def map_values(series, lookup, case_sensitive=False):
+def map_values(series: pd.Series, lookup: dict, case_sensitive: bool = False) -> pd.Series:
     """
-    Maps values in a series based on values in a lookup dictionary. Non-matches preserve their original value.
-    Optionally maps with or without case sensitivity.
+    Maps Series values based on a lookup dictionary. Non-matches retain their original value.
+
+    :param pd.Series series: Series.
+    :param dict lookup: dictionary of value mappings.
+    :param bool case_sensitive: lookup keys are case sensitive, default False.
+    :return pd.Series: Series with mapped values.
     """
 
     # Validate inputs.
@@ -114,17 +150,27 @@ def map_values(series, lookup, case_sensitive=False):
         return series.map(lambda val: str(val).lower()).map(lookup).fillna(series)
 
 
-def query_assign(df, columns, lookup, engine="python", **kwargs):
+def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str], lookup: dict, engine: str = "python",
+                 **kwargs) -> pd.Series:
     """
-    Populates a series based on queries in a lookup dictionary.
-    Non-matches will be null.
+    Populates a Series based on a lookup dictionary of queries. Non-matches will be Null.
 
-    Parameter lookup must be a dictionary of queries with the following dictionary format for values:
-        {
-        'value': str,
-        'type': 'column' or 'string'; defaults to 'string' if not present.
-        }
-    Parameter columns must be the list of column names to be assigned to the DataFrame, once unnested.
+    :param Union[pd.DataFrame, pd.Series] df: DataFrame or Series.
+    :param List[str] columns: list of column names, once unnested if input is a nested Series.
+    :param dict lookup: dictionary of query-value mappings, where queries are stored as the dictionary keys. Each query
+        maps to a dictionary containing a 'value' key and 'type' key. 'type' can be either 'column' or 'string' and
+        indicates whether 'value' is to be taken as raw string or column name. If 'value' is a column name, then the
+        assigned value for each record selected by the query will be from the indicated column of that record. Format:
+
+        str (query):
+            {
+                'value': str
+                'type': 'column' | 'string' (default)
+            }
+
+    :param str engine: the engine used to evaluate the expression (see :func:`~pd.eval`), default 'python'.
+    :param kwargs: keyword arguments passed to :func:`~pd.DataFrame.query`.
+    :return pd.Series: Series populated with values based on queries.
     """
 
     try:
@@ -170,22 +216,34 @@ def query_assign(df, columns, lookup, engine="python", **kwargs):
         sys.exit(1)
 
 
-def regex_find(series, pattern, match_index, group_index, strip_result=False, sub_inplace=None):
+def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: Union[int, List[int]],
+               strip_result: bool = False, sub_inplace: dict = None) -> pd.Series:
     """
-    For each value in a series, extracts the nth match (index) from the nth match group (index) based on a regular
-    expression pattern.
-    Parameter 'group_index' can be an int or list of ints, the returned value will be at the first index with a match.
-    Parameter 'strip_result' returns the entire value except for the extracted substring.
-    Parameter 'sub_inplace' takes the same parameters as re.sub. This allows regex to match against a modified string
-    yet preserve the unmodified string. For example, to match 'de la' from the string 'Chemin-de-la-Grande-Rivière',
-    sub_inplace can call re.sub to replace '-' with ' ', then substitute the match's indexes from the original string
-    to preserve hyphens in the remainder of the string.
+    Populates a Series based on the selection or removal of a regular expression match.
+
+    :param pd.Series series: Series.
+    :param str pattern: regular expression.
+    :param int match_index: index of regular expression matches to be selected.
+    :param Union[int, List[int]] group_index: index(es) of match group(s) to be selected within the regular expression
+        matches.
+    :param bool strip_result: selected match value should be stripped from the original string, default False.
+    :param dict sub_inplace: keyword arguments passed to :func:`~re.sub`, default None. This allows the regular
+        expression to be matched against a modification of the original string, but still return the match as it appears
+        in the original string. This is useful when matching against French strings which may contain several hyphens.
+        For instance, to match 'de la' in 'Chemin-de-la-Grande-Rivière', sub_inplace can call :func:`~re.sub` to replace
+        '-' with ' '. If strip_result=False, then 'de la' will be returned, else 'Chemin-Grande-Rivière' will be
+        returned.
+    :return pd.Series: Series populated with the result of a regular expression.
     """
 
-    def regex_find_multiple_idx(val, pattern):
+    def regex_find_multiple_idx(val: str, pattern: str) -> Union[str, np.nan]:
         """
-        Return resulting regex string based on multiple group indexes. Returns the result from the first group index
-        with a match.
+        Returns the selected or removed result of a regular expression match. Non-matches will return Null.
+
+        :param str val: value.
+        :param str pattern: regular expression.
+        :return Union[str, np.nan]: Null or the string resulting from the regular expression match. Since there are
+            multiple group_index values, the first group_index with a match will be returned.
         """
 
         try:
@@ -195,13 +253,19 @@ def regex_find(series, pattern, match_index, group_index, strip_result=False, su
             result[0] = [grp for grp in result[0] if grp != "" and not pd.isna(grp)][0]
 
             # Return stripped result, if required.
-            return strip(val, result) if strip_result else itemgetter(0)(result)
+            return strip(val, *result[1:]) if strip_result else itemgetter(0)(result)
 
         except (IndexError, ValueError):
             return val if strip_result else np.nan
 
-    def regex_find_single_idx(val, pattern):
-        """Return resulting regex string based on a single group index."""
+    def regex_find_single_idx(val: str, pattern: str) -> Union[str, np.nan]:
+        """
+        Returns the selected or removed result of a regular expression match. Non-matches will return Null.
+
+        :param str val: value.
+        :param str pattern: regular expression.
+        :return Union[str, np.nan]: Null or the string resulting from the regular expression match.
+        """
 
         try:
 
@@ -209,17 +273,22 @@ def regex_find(series, pattern, match_index, group_index, strip_result=False, su
             result = [[m.groups()[group_index], m.start(), m.end()] for m in matches][match_index]
 
             # Return stripped result, if required.
-            return strip(val, result) if strip_result else itemgetter(0)(result)
+            return strip(val, *result[1:]) if strip_result else itemgetter(0)(result)
 
         except (IndexError, ValueError):
             return val if strip_result else np.nan
 
-    def strip(val, result):
-        """Strip result from original value."""
+    def strip(val: str, start: int, end: int) -> Union[str, np.nan]:
+        """
+        Strips the characters between the provided index range, inclusively, from the given string.
+
+        :param str val: value.
+        :param int start: the starting index of the character range to be removed.
+        :param int end: the ending index of the character range to be removed.
+        :return Union[str, np.nan]: Null or the provided string excluding the given character range.
+        """
 
         try:
-
-            start, end = result[1:]
 
             # Reset start index to avoid stacking spaces and hyphens.
             if start > 0 and end < len(val):
@@ -229,7 +298,7 @@ def regex_find(series, pattern, match_index, group_index, strip_result=False, su
             return "".join(map(str, [val[:start], val[end:]]))
 
         except (IndexError, ValueError):
-            return result if strip_result else np.nan
+            return val if strip_result else np.nan
 
     # Validate inputs.
     pattern = validate_regex(pattern)
@@ -271,10 +340,14 @@ def regex_find(series, pattern, match_index, group_index, strip_result=False, su
     return series
 
 
-def regex_sub(series, **kwargs):
+def regex_sub(series: pd.Series, **kwargs) -> pd.Series:
     """
-    Applies value substitution via re.sub.
-    kwarg 'repl' can be a regex string or lookup dictionary.
+    Populates a Series based on the substitution of a regular expression match.
+
+    :param pd.Series series: Series.
+    :param kwargs: keyword arguments passed to :func:`~re.sub`. kwarg 'repl' can be a regular expression or dictionary
+        of value mappings.
+    :return pd.Series: Series populated with the result of regular expression substitution.
     """
 
     # Validate inputs.
@@ -303,8 +376,16 @@ def regex_sub(series, **kwargs):
     return series
 
 
-def validate_dtypes(name, val, dtypes):
-    """Checks if the given value is from the given dtype(s)."""
+def validate_dtypes(name: str, val: Any, dtypes: Union[Type, List[Type]]) -> bool:
+    """
+    Validates the data type of the given value against a list of acceptable data type objects.
+
+    :param str name: name of the variable holding the provided value.
+    :param Any val: value.
+    :param Union[Type, List[Type]] dtypes: list of acceptable type objects against which the provided value will be
+        validated.
+    :return bool: whether the provided value is an instance of one of the acceptable type objects.
+    """
 
     if not isinstance(dtypes, list):
         dtypes = [dtypes]
@@ -318,11 +399,14 @@ def validate_dtypes(name, val, dtypes):
         sys.exit(1)
 
 
-def validate_regex(pattern):
+def validate_regex(pattern: str) -> str:
     """
     Validates a regular expression.
-    Replaces any keywords of format: 'domain_{table}_{field}' that are within curly braces () with the '|' joined
-    domain values of the parsed table and field names.
+
+    :param str pattern: regular expression. Any instances of the keyword format '(domain_{table}_{field})' will be
+        replaced with the domain values of the parsed table and field names, concatenated by the string '|'.
+        Example: (domain_roadseg_provider) --> (Other|Federal|Provincial / Territorial|Municipal).
+    :return str: validated regular expression.
     """
 
     try:
