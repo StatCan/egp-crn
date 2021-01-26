@@ -31,4 +31,6 @@ data:
           pattern: "\\d+"
           repl: ""
     address_join_field: street
-    roadseg_join_field: street
+    roadseg_join_field:
+      fields: [dirprefix, strtypre, namebody, strtysuf, dirsuffix]
+      separator: " "

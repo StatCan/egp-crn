@@ -21,7 +21,7 @@ def apply_domain(**kwargs) -> pd.Series:
     """
     Calls :func:`~helpers.apply_domain` to allow it's usage as a field mapping function.
 
-    :param kwargs: keyword arguments passed to :func:`~helpers.apply_domain`.
+    :param dict \*\*kwargs: keyword arguments passed to :func:`~helpers.apply_domain`.
     :return pd.Series: Series with enforced field domain.
     """
 
@@ -169,7 +169,7 @@ def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str], lookup:
             }
 
     :param str engine: the engine used to evaluate the expression (see :func:`~pd.eval`), default 'python'.
-    :param kwargs: keyword arguments passed to :func:`~pd.DataFrame.query`.
+    :param dict \*\*kwargs: keyword arguments passed to :func:`~pd.DataFrame.query`.
     :return pd.Series: Series populated with values based on queries.
     """
 
@@ -345,8 +345,8 @@ def regex_sub(series: pd.Series, **kwargs) -> pd.Series:
     Populates a Series based on the substitution of a regular expression match.
 
     :param pd.Series series: Series.
-    :param kwargs: keyword arguments passed to :func:`~re.sub`. kwarg 'repl' can be a regular expression or dictionary
-        of value mappings.
+    :param dict \*\*kwargs: keyword arguments passed to :func:`~re.sub`. kwarg 'repl' can be a regular expression or
+        dictionary of value mappings.
     :return pd.Series: Series populated with the result of regular expression substitution.
     """
 

@@ -20,6 +20,10 @@ data:
   segment:
     address_fields:
       street:
+        field:
+        regex_sub:
+          pattern:
+          repl:
       number:
         field:
         regex_sub:
@@ -31,4 +35,8 @@ data:
           pattern:
           repl:
     address_join_field:
+      fields:
+      separator:
     roadseg_join_field:
+      fields:
+      separator:
