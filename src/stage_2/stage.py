@@ -356,7 +356,7 @@ class Stage:
         # Download administrative boundaries.
         logger.info("Downloading administrative boundary file.")
         source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
-        download_url, filename, source_crs = itemgetter("url", "filename", "crs")(source)
+        download_url, source_crs = itemgetter("url", "crs")(source)
 
         try:
 
@@ -365,7 +365,7 @@ class Stage:
 
             # Load bytes collection into geodataframe.
             with fiona.BytesCollection(bytes(download)) as f:
-                self.boundary = gpd.GeoDataFrame.from_features(f, crs=f.crs)
+                self.boundary = gpd.GeoDataFrame.from_features(f, crs=source_crs)
 
             # Filter boundaries.
             pruid = {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
