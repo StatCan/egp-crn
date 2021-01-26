@@ -348,7 +348,13 @@ conform:
               value: 37
               type: string
           engine: python
-    rtnumber2: rtnumber2
+        - function: direct
+          cast_type: int
+    rtnumber2:
+      fields: rtnumber2
+      functions:
+        - function: direct
+          cast_type: int
     rtnumber3:
     rtnumber4:
     rtnumber5:
