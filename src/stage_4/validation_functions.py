@@ -41,7 +41,7 @@ class Validator:
         self.df_lines = ("ferryseg", "roadseg")
         self.df_points = ("blkpassage", "junction", "tollpoint")
 
-        # Compile dataframes in original and meter-based projections (EPSG:3348).
+        # Compile dataframes in original and meter-based projections (EPSG:3348; spatial datasets only).
         self.dframes = dict()
         self.dframes_m = dict()
 
@@ -51,11 +51,12 @@ class Validator:
             self.dframes[name] = df.copy(deep=True)
 
             # Store reprojected dataframe.
-            epsg = df.crs.to_epsg()
-            if epsg == 3348:
-                self.dframes_m[name] = df.copy(deep=True)
-            else:
-                self.dframes_m[name] = helpers.reproject_gdf(df, epsg, 3348).copy(deep=True)
+            if "geometry" in df.columns:
+                epsg = df.crs.to_epsg()
+                if epsg == 3348:
+                    self.dframes_m[name] = df.copy(deep=True)
+                else:
+                    self.dframes_m[name] = helpers.reproject_gdf(df, epsg, 3348).copy(deep=True)
 
         # Define validation parameters.
         # Note: List validations in order if execution order matters.
@@ -182,7 +183,7 @@ class Validator:
             },
             self.out_of_scope: {
                 "code": 25,
-                "datasets": set(self.dframes.keys()) - {"junction"},
+                "datasets": {*self.df_lines, *self.df_points} - {"junction"},
                 "iterate": True
             }
         }
