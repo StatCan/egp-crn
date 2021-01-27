@@ -703,7 +703,7 @@ class Validator:
 
         # Compile uuids of flagged records, compile error properties.
         for index, data in dups.iteritems():
-            errors[2].append(f"uuid: '{index}' intersects {data[1]} other line segment(s) at non-endpoint vertex: "
+            errors[2].append(f"uuid: '{index}' intersects {data[1] - 1} other line segment(s) at non-endpoint vertex: "
                              f"{data[0]}.")
 
         return errors
