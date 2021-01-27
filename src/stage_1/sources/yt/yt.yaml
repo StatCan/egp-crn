@@ -348,13 +348,29 @@ conform:
               value: 37
               type: string
           engine: python
-        - function: direct
-          cast_type: int
+        - function: query_assign
+          columns: rtnumber1
+          lookup:
+            rtnumber1.isna():
+              value: "None"
+              type: string
+            ~rtnumber1.isna():
+              value: rtnumber1
+              type: column
+          engine: python
     rtnumber2:
       fields: rtnumber2
       functions:
-        - function: direct
-          cast_type: int
+        - function: query_assign
+          columns: rtnumber2
+          lookup:
+            rtnumber2.isna():
+              value: "None"
+              type: string
+            ~rtnumber2.isna():
+              value: rtnumber2
+              type: column
+          engine: python
     rtnumber3:
     rtnumber4:
     rtnumber5:

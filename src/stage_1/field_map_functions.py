@@ -62,7 +62,7 @@ def direct(series: pd.Series, cast_type: str = None) -> pd.Series:
     """
     Returns the given series with optional dtype casting. Intended to provide a function call for direct (1:1) field
     mapping.
-    Parameter 'cast_type' expected to be a string representation of a python data type. Example: "str", "int", etc.
+    Note the following pandas casting bugs and workarounds: https://github.com/pandas-dev/pandas/issues/37626.
 
     Possible yaml construction of direct field mapping:
 
@@ -75,7 +75,8 @@ def direct(series: pd.Series, cast_type: str = None) -> pd.Series:
     2) target_field: source_field
 
     :param pd.Series series: Series.
-    :param str cast_type: python dtype to be casted to.
+    :param str cast_type: string representation of a python type class to be casted to. Must be one of: 'float', 'int',
+        'str'.
     :return pd.Series: unaltered Series or Series with casted dtype.
     """
 
@@ -87,9 +88,9 @@ def direct(series: pd.Series, cast_type: str = None) -> pd.Series:
 
         # Return casted series.
         elif cast_type == "float":
-            return series.astype(float)
+            return series.astype("category").astype(float)
         elif cast_type == "int":
-            return series.astype("Int32" if series.dtype.name[-2:] == "32" else "Int64")
+            return series.astype("float").astype("Int64")
         elif cast_type == "str":
             return series.astype(str).replace("nan", np.nan)
         else:
@@ -205,7 +206,7 @@ def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str], lookup:
 
             # Update series with string or another dataframe column.
             if output["type"] == "string":
-                series.loc[indexes] = output["value"]
+                series.loc[indexes] = str(output["value"])
             else:
                 series.loc[indexes] = df.loc[indexes, output["value"]]
 
