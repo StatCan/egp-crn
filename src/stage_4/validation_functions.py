@@ -106,7 +106,7 @@ class Validator:
                 "datasets": self.dframes.keys(),
                 "iterate": True
             },
-            self.line_endpoint_clustering: {
+            self.line_internal_clustering: {
                 "code": 10,
                 "datasets": self.df_lines,
                 "iterate": True
@@ -708,39 +708,47 @@ class Validator:
 
         return errors
 
-    def line_endpoint_clustering(self, name):
+    def line_internal_clustering(self, name):
         """
-        Validates the quantity of points clustered near the endpoints of line segments.
-        Validation: ensure line segments have <= 3 points within 83 meters of either endpoint, inclusively.
+        Validates the distance between adjacent coordinates of line segments.
+        Validation: line segments must have >= 1 meter distance between adjacent coordinates.
         """
 
         errors = defaultdict(list)
+        min_distance = 1
         series = self.dframes_m[name]["geometry"]
 
-        # Filter out records with <= 3 points or length < 83 meters.
-        s_filtered = series[series.length >= 83]
-        s_filtered = s_filtered[s_filtered.map(lambda geom: len(geom.coords) > 3)]
+        # Extract coordinates from geometries.
+        series_coords = series.map(attrgetter("coords")).map(tuple)
 
-        if len(s_filtered):
+        # Filter out records with only 2 constituent points.
+        series_coords = series_coords.loc[series_coords.map(len) > 2]
+        if len(series_coords):
 
-            # Identify invalid records.
-            # Process: either of the following must be true:
-            # a) The distance of the 4th point along the linestring is < 83 meters.
-            # b) The total linestring length minus the distance of the 4th-last point along the linestring is < 83
-            #    meters.
-            def endpoint_clustered(geom):
-                pts = itemgetter(3, -4)(geom.coords)
-                return (geom.project(Point(pts[0])) < 83) or ((geom.length - geom.project(Point(pts[1]))) < 83)
+            # Create ordered coordinate pairs, sorted.
+            def ordered_pairs(coords):
+                coords_1, coords_2 = tee(coords)
+                next(coords_2, None)
+                return sorted(zip(coords_1, coords_2))
+            coord_pairs = series_coords.map(ordered_pairs).explode()
 
-            flags = np.vectorize(endpoint_clustered)(s_filtered)
+            # Remove invalid pairs (duplicated adjacent coordinates).
+            coord_pairs = coord_pairs.loc[coord_pairs.map(lambda pair: pair[0] != pair[1])]
 
-            # Compile uuids of flagged records.
-            errors[1] = s_filtered[flags].index.values
+            # Calculate distance between coordinate pairs.
+            coord_dist = coord_pairs.map(lambda pair: Point(pair[0]).distance(Point(pair[-1])))
 
-        # Compile error properties.
-        for code, vals in errors.items():
-            if len(vals):
-                errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
+            # Flag invalid distances and create dataframe with invalid pairs and distances.
+            flag = coord_dist < min_distance
+            invalid_df = pd.DataFrame({"pair": coord_pairs.loc[flag], "distance": coord_dist.loc[flag]},
+                                      index=coord_dist.loc[flag].index)
+            if len(invalid_df):
+
+                # Compile error properties.
+                for record in invalid_df.sort_values(by=["uuid", "distance"]).itertuples(index=True):
+                    index, coords, distance = itemgetter("Index", "pair", "distance")(record)
+                    errors[1].append(f"uuid: '{index}' coordinates {coords[0]} and {coords[1]} are too close: "
+                                     f"{distance} meters.")
 
         return errors
 
@@ -748,10 +756,11 @@ class Validator:
         """Validates the minimum feature length of line geometries."""
 
         errors = defaultdict(list)
+        min_length = 5
         series = self.dframes_m[name]["geometry"]
 
-        # Validation: ensure line segments are >= 2 meters in length.
-        errors[1] = series[series.length < 2].index.values
+        # Validation: ensure line segments are >= 5 meters in length.
+        errors[1] = series[series.length < min_length].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -763,10 +772,11 @@ class Validator:
     def line_merging_angle(self, name):
         """
         Validates the merging angle of line segments.
-        Validation: ensure line segments merge at angles >= 40 degrees.
+        Validation: ensure line segments merge at angles >= 15 degrees.
         """
 
         errors = defaultdict(list)
+        merging_angle = 15
         series = self.dframes_m[name]["geometry"]
 
         # Compile line endpoints and their neighbours, convert to uuid-neighbour lookup dict.
@@ -829,7 +839,7 @@ class Validator:
                 angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
                 angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
 
-                return abs(angle_1 - angle_2) < 40
+                return abs(angle_1 - angle_2) < merging_angle
 
             # Calculate the angular degree between each reference point and each of their point permutations.
             # Return True if any angles are invalid.
@@ -852,8 +862,9 @@ class Validator:
     def line_proximity(self, name):
         """Validates the proximity of line segments."""
 
-        # Validation: ensure line segments are >= 3 meters from each other, excluding connected segments.
+        # Validation: ensure line segments are >= 5 meters from each other, excluding connected segments.
         errors = defaultdict(list)
+        prox_limit = 5
         series = self.dframes_m[name]["geometry"]
 
         # Compile all unique segment coordinates.
@@ -873,9 +884,9 @@ class Validator:
         # Compile uuids connected to each segment.
         uuids_exclude = pts.map(lambda points: set(chain.from_iterable(itemgetter(*points)(pts_uuids_lookup))))
 
-        # Compile indexes of segment points < 3 meters distance of each segment, retrieve uuids of returned indexes.
+        # Compile indexes of segment points < 5 meters distance of each segment, retrieve uuids of returned indexes.
         uuids_proxi = pts.map(
-            lambda points: set(itemgetter(*chain(*tree.query_ball_point(points, r=3)))(pts_idx_uuid_lookup)))
+            lambda points: set(itemgetter(*chain(*tree.query_ball_point(points, r=prox_limit)))(pts_idx_uuid_lookup)))
 
         # Remove connected uuids from each set of uuids, keep non-empty results.
         results = uuids_proxi - uuids_exclude
@@ -1003,8 +1014,9 @@ class Validator:
     def point_proximity(self, name):
         """Validates the proximity of points."""
 
-        # Validation: ensure points are >= 3 meters from each other.
+        # Validation: ensure points are >= 5 meters from each other.
         errors = defaultdict(list)
+        prox_limit = 5
         series = self.dframes_m[name]["geometry"]
 
         # Compile coordinates (used multiple times)
@@ -1013,8 +1025,8 @@ class Validator:
         # Generate kdtree.
         tree = cKDTree(pts.to_list())
 
-        # Compile indexes of points with other points within 3 meters distance. Only keep results with > 1 match.
-        proxi_idx_all = pts.map(lambda pt: set(chain(*tree.query_ball_point([pt], r=3))))
+        # Compile indexes of points with other points within 5 meters distance. Only keep results with > 1 match.
+        proxi_idx_all = pts.map(lambda pt: set(chain(*tree.query_ball_point([pt], r=prox_limit))))
         proxi_idx_all = proxi_idx_all[proxi_idx_all.map(len) > 1]
 
         # Compile and filter coincident index from each set of indexes for each point, keep non-empty results.
