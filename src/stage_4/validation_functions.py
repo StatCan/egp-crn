@@ -660,12 +660,12 @@ class Validator:
 
         # Validation 1: ensure line segments are connected to at least one other line segment.
 
-        # Compile junctions for 'Dead End' and 'Ferry'.
+        # Compile junctions for 'Dead End'.
         pts = set(chain([geom.coords[0] for geom in
-                         junction.loc[junction["junctype"].isin(["Dead End", "Ferry"]), "geometry"].values]))
+                         junction.loc[junction["junctype"] == "Dead End", "geometry"].values]))
 
         # Identify isolated segments.
-        # Flag records where both endpoints are either 'Dead End' or 'Ferry'.
+        # Flag records where both endpoints are 'Dead End'.
         mask = df["geometry"].map(lambda g: all(map(lambda pt: pt in pts, itemgetter(0, -1)(g.coords))))
 
         # Compile uuids of flagged records, compile error properties.
