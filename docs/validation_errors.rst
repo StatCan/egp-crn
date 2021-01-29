@@ -206,7 +206,7 @@ E01201
 ------
 
 :Validation: Line merging angle.
-:Description: Line segments must only merge at angles >= 15 degrees.
+:Description: Line segments must only merge at angles >= 5 degrees.
 
 E01301
 ------

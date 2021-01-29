@@ -772,11 +772,11 @@ class Validator:
     def line_merging_angle(self, name):
         """
         Validates the merging angle of line segments.
-        Validation: ensure line segments merge at angles >= 15 degrees.
+        Validation: ensure line segments merge at angles >= 5 degrees.
         """
 
         errors = defaultdict(list)
-        merging_angle = 15
+        merging_angle = 5
         series = self.dframes_m[name]["geometry"]
 
         # Compile line endpoints and their neighbours, convert to uuid-neighbour lookup dict.
