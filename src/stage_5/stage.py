@@ -109,7 +109,8 @@ class Stage:
             logger.exception(e)
             sys.exit(1)
 
-        if not all([self.major_version, self.minor_version, release_year]):
+        # Note: can't use 'not any' logic since 0 is an acceptable minor version value.
+        if any(val is None for val in [self.major_version, self.minor_version, release_year]):
             logger.exception(f"Unable to extract version number and / or release date from \"{release_notes}\".")
             sys.exit(1)
 
