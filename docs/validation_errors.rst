@@ -194,7 +194,7 @@ E01001
 ------
 
 :Validation: Line internal clustering.
-:Description: Line segments must have >= 1 meter distance between adjacent coordinates.
+:Description: Line segments must have >= 1x10:superscript:`-4` (0.0001) meters distance between adjacent coordinates.
 
 E01101
 ------

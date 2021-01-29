@@ -711,11 +711,11 @@ class Validator:
     def line_internal_clustering(self, name):
         """
         Validates the distance between adjacent coordinates of line segments.
-        Validation: line segments must have >= 1 meter distance between adjacent coordinates.
+        Validation: line segments must have >= 1x10^(-4) (0.0001) meters distance between adjacent coordinates.
         """
 
         errors = defaultdict(list)
-        min_distance = 1
+        min_distance = 0.0001
         series = self.dframes_m[name]["geometry"]
 
         # Extract coordinates from geometries.
