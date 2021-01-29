@@ -1,5 +1,4 @@
 import click
-import json
 import logging
 import os
 import pandas as pd
@@ -92,30 +91,28 @@ class Stage:
 
         logger.info("Configuring NRN release version.")
 
-        logger.info("Retrieving metadata for previous NRN vintage.")
+        # Iterate release notes to extract the version number and release year for current source.
+        release_year = None
+        release_notes = os.path.abspath("../../docs/release_notes.rst")
 
-        # Retrieve metadata for previous NRN vintage.
-        source = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"]
-        metadata_url = source["metadata_url"]
-        nrn_id = source["ids"][self.source]
+        try:
 
-        # Get metadata from url.
-        metadata = helpers.get_url(metadata_url, timeout=30)
-        metadata = json.loads(metadata.content)
+            for line in open(release_notes, "r"):
+                if line.find(self.source.upper()) >= 0:
+                    specs = [val for val in line.split(" ") if val != ""]
+                    self.major_version, self.minor_version = list(map(int, specs[2].split(".")))
+                    release_year = int(specs[3][:4])
+                    break
 
-        # Extract download url from metadata.
-        download_url, timestamp = None, None
-        for product in metadata["result"]["resources"]:
-            if product["id"] == nrn_id:
-                download_url, timestamp = itemgetter("url", "created")(product)
-
-        if not download_url:
-            logger.exception(f"Unable to find previous NRN product from metadata: {metadata_url}.")
+        except (IndexError, ValueError) as e:
+            logger.exception(f"Unable to extract version number and / or release date from \"{release_notes}\".")
+            logger.exception(e)
             sys.exit(1)
 
-        # Extract release year and version numbers from metadata.
-        release_year = int(timestamp[:4])
-        self.major_version, self.minor_version = list(map(int, re.findall(r"\d+", download_url)[-2:]))
+        # Note: can't use 'not any' logic since 0 is an acceptable minor version value.
+        if any(val is None for val in [self.major_version, self.minor_version, release_year]):
+            logger.exception(f"Unable to extract version number and / or release date from \"{release_notes}\".")
+            sys.exit(1)
 
         # Conditionally set major and minor version numbers.
         if release_year == datetime.now().year:

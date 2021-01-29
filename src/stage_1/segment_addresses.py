@@ -21,16 +21,18 @@ logger = logging.getLogger()
 class Segmentor:
     """Converts address points into segmented addrange attributes, joining the results to the roadseg source dataset."""
 
-    def __init__(self, addresses, roadseg, address_fields, address_join_field, roadseg_join_field):
+    def __init__(self, source, addresses, roadseg, address_fields, address_join_field, roadseg_join_field):
         """Validates and formats input data."""
+
+        self.source = source.lower()
 
         logger.info("Configuring address attributes.")
 
-        self.addresses = gpd.GeoDataFrame(columns=["street", "number", "suffix"], geometry=addresses["geometry"])
-        self.addresses["join"] = addresses[address_join_field].copy(deep=True)
-        self.roadseg = roadseg.rename(columns={roadseg_join_field: "join"}).copy(deep=True)
+        self.addresses = gpd.GeoDataFrame(columns=["street", "number", "suffix"], geometry=addresses["geometry"],
+                                          crs=addresses.crs)
+        self.roadseg = roadseg.copy(deep=True)
 
-        # Populate dataframe with required address source attributes.
+        # Configure and populate required address source attributes.
         for attribute, data in address_fields.items():
 
             # Apply regex substitution to field.
@@ -42,7 +44,24 @@ class Segmentor:
             else:
                 self.addresses[attribute] = addresses[data].copy(deep=True)
 
+        # Configure and populate address join attribute - optionally apply concatenation to input fields.
+        if isinstance(address_join_field, dict):
+            fields, separator = itemgetter("fields", "separator")(address_join_field)
+            self.addresses["join"] = addresses[fields].apply(
+                lambda row: separator.join([str(val) for val in row if val]), axis=1).copy(deep=True)
+        else:
+            self.addresses["join"] = addresses[address_join_field].copy(deep=True)
+
+        # Configure and populate roadseg join attribute - optionally apply concatenation to input fields.
+        if isinstance(roadseg_join_field, dict):
+            fields, separator = itemgetter("fields", "separator")(roadseg_join_field)
+            self.roadseg["join"] = roadseg[fields].apply(
+                lambda row: separator.join([str(val) for val in row if val]), axis=1).copy(deep=True)
+        else:
+            self.roadseg["join"] = roadseg[roadseg_join_field].copy(deep=True)
+
         logger.info("Validating address records.")
+
         try:
 
             # Convert address numbers to integer.
@@ -305,11 +324,14 @@ class Segmentor:
 
         logger.info("Linking addresses to roadseg records.")
 
+        # Configure roadseg geometry lookup dictionary.
+        roadseg_geom_lookup = self.roadseg["geometry"].to_dict()
+
         def get_nearest_linkage(pt, roadseg_indexes):
             """Returns the roadseg index associated with the nearest roadseg geometry to the given address point."""
 
             # Get roadseg geometries.
-            roadseg_geometries = tuple(map(lambda index: self.roadseg["geometry"].iloc[index], roadseg_indexes))
+            roadseg_geometries = itemgetter(*roadseg_indexes)(roadseg_geom_lookup)
 
             # Get roadseg distances from address point.
             roadseg_distances = tuple(map(lambda road: pt.distance(road), roadseg_geometries))
@@ -329,9 +351,19 @@ class Segmentor:
         self.addresses.drop(columns=["addresses_index"], inplace=True)
         self.roadseg.drop(columns=["roadseg_index"], inplace=True)
 
-        # Discard non-linked addresses.
-        self.addresses.drop(self.addresses[self.addresses["roadseg_index"].map(itemgetter(0)).isna()].index, axis=0,
-                            inplace=True)
+        # Export non-linked addresses for review.
+        non_linked_flag = self.addresses["roadseg_index"].map(itemgetter(0)).isna()
+
+        if sum(non_linked_flag):
+            export_path = os.path.abspath("../../data/interim/non_linked_addresses.gpkg")
+            logger.info(f"Exporting {sum(non_linked_flag)} non-linked addresses for review: {export_path}.")
+
+            # Export addresses to GeoPackage.
+            self.addresses.loc[non_linked_flag, ["street", "number", "suffix", "geometry"]].to_file(
+                export_path, driver="GPKG", layer=self.source)
+
+            # Discard non-linked addresses.
+            self.addresses.drop(self.addresses.loc[non_linked_flag].index, axis=0, inplace=True)
 
         # Convert linkages to integer tuples, if possible.
         def as_int(val):
@@ -339,12 +371,19 @@ class Segmentor:
                 return int(val)
             except ValueError:
                 return val
-        self.addresses["roadseg_index"] = self.addresses["roadseg_index"].map(lambda vals: tuple(set(map(as_int, vals))))
+
+        self.addresses["roadseg_index"] = self.addresses["roadseg_index"].map(
+            lambda vals: tuple(set(map(as_int, vals))))
 
         # Filter multi-linkage addresses to roadseg linkage with nearest geometric distance.
         flag_multi = self.addresses["roadseg_index"].map(len) > 1
-        self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses[flag_multi][["geometry", "roadseg_index"]]\
-            .apply(lambda row: get_nearest_linkage(*row), axis=1)
+
+        if sum(flag_multi):
+            logger.info(f"Resolving many-to-one address-roadseg linkages for {sum(flag_multi)} address records.")
+
+            # Resolve many-to-one linkages.
+            self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses[flag_multi][["geometry", "roadseg_index"]]\
+                .apply(lambda row: get_nearest_linkage(*row), axis=1)
 
         # Unpack first roadseg linkage for single-linkage addresses.
         self.addresses.loc[~flag_multi, "roadseg_index"] = self.addresses[~flag_multi]["roadseg_index"].map(

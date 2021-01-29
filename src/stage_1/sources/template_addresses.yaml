@@ -1,0 +1,42 @@
+coverage:
+  country:
+  province:
+  ISO3166:
+    alpha2:
+    country:
+    subdivision:
+  website:
+license:
+  url:
+  text:
+language:
+data:
+  filename:
+  layer:
+  driver:
+  crs:
+  spatial:
+  query:
+  segment:
+    address_fields:
+      street:
+        field:
+        regex_sub:
+          pattern:
+          repl:
+      number:
+        field:
+        regex_sub:
+          pattern:
+          repl:
+      suffix:
+        field:
+        regex_sub:
+          pattern:
+          repl:
+    address_join_field:
+      fields:
+      separator:
+    roadseg_join_field:
+      fields:
+      separator:

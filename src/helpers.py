@@ -1,15 +1,11 @@
 import datetime
 import fiona
 import geopandas as gpd
-import geoparquet as gpq
 import logging
 import networkx as nx
 import numpy as np
 import os
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
-import pyproj
 import re
 import requests
 import sqlite3
@@ -682,37 +678,3 @@ def round_coordinates(gdf, precision=7):
         logger.exception("Unable to round coordinates for GeoDataFrame.")
         logger.exception(e)
         sys.exit(1)
-
-
-def to_geoparquet(self: gpd.GeoDataFrame, path: str):
-    """
-    A copy of the geoparquet.to_geoparquet function as of commit: b09b12d.
-    Reference: https://github.com/darcy-r/geoparquet-python/blob/master/geoparquet/__init__.py
-
-    The current geoparquet release and, therefore, geopandas.GeoDataFrame.to_geoparquet, does not have the latest commit
-    which handles CRS in an acceptible way. This function overwrite geopandas.GeoDataFrame.to_parquet and should be
-    removed once GeoPandas updates to_parquet.
-    """
-
-    field_name = self.geometry.name
-    crs = pyproj.CRS.from_user_input(self.crs).to_wkt(version="WKT2_2018")
-    crs_format = "WKT2_2018"
-    geometry_types = self.geometry.geom_type.unique().tolist()
-    self = self._serialise_geometry(field_name)
-    self = pa.Table.from_pandas(self)
-    geometry_metadata = {
-        "geometry_fields": [
-            {
-                "field_name": field_name,
-                "geometry_format": "wkb",
-                "geometry_types": geometry_types,
-                "crs": crs,
-                "crs_format": crs_format,
-            }
-        ]
-    }
-    self = gpq._update_metadata(self, new_metadata=geometry_metadata)
-    pq.write_table(self, path)
-    return
-
-gpd.GeoDataFrame.to_parquet = to_geoparquet

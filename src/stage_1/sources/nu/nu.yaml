@@ -1,0 +1,232 @@
+coverage:
+  country: ca
+  province: nu
+  ISO3166:
+    alpha2: CA-NU
+    country: Canada
+    subdivision: Nunavut
+  website:
+    GIS data (Iqaluit):
+      contact: J.L. Richards & Associates Limited (GIS data, Iqaluit)
+      url:
+    Building numbers map:
+      contact: Planning and Development, City of Iqaluit
+      url: https://www.iqaluit.ca/content/building-numbers-map-june-2018
+    GIS data (excluding Iqaluit):
+      contact: Planning and Lands Division, Department of Community and Government Services, Government of Nunavut (GIS data, excluding Iqaluit)
+      url: https://cgs-pals.ca/downloads/gis/
+    ICSP Toolkit (community maps, except Iqaluit):
+      contact: Department of Community and Government Services (community maps, excluding Iqaluit)
+      url: http://www.buildingnunavut.com/en/communityprofiles/communityprofiles.asp
+license:
+  url:
+  text:
+language: en
+data:
+  filename: nu.gpkg
+  layer: data
+  driver: GPKG
+  crs: "EPSG:4617"
+  spatial: True
+  query:
+conform:
+  addrange:
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
+    datasetnam: Nunavut
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
+    specvers: 2.0
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg: l_digdirfg
+    r_digdirfg: r_digdirfg
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    l_hnumsuff: l_hnumsuff
+    r_hnumsuff: r_hnumsuff
+    l_hnumtypf: l_hnumtypf
+    r_hnumtypf: r_hnumtypf
+    l_hnumstr: l_hnumstr
+    r_hnumstr: r_hnumstr
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    l_hnumsufl: l_hnumsufl
+    r_hnumsufl: r_hnumsufl
+    l_hnumtypl: l_hnumtypl
+    r_hnumtypl: r_hnumtypl
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind: l_rfsysind
+    r_rfsysind: r_rfsysind
+  roadseg:
+    acqtech:
+      fields: placename
+      functions:
+        - function: query_assign
+          columns: placename
+          lookup:
+            ? placename in ('Arctic Bay', 'Arviat', 'Baker Lake', 'Cambridge Bay', 'Chesterfield Inlet', 'Clyde River',
+              'Coral Harbour', 'Gjoa Haven', 'Igloolik', 'Kimmirut', 'Kinngait', 'Kugaaruk', 'Kugluktuk', 'Naujaat',
+              'Pangnirtung', 'Pond Inlet', 'Qikiqtarjuaq', 'Rankin Inlet', 'Resolute Bay', 'Sanikiluaq', 'Sanirajak',
+              'Taloyoak', 'Whale Cove')
+            : value: Orthoimage
+              type: string
+          engine: python
+    metacover: metacover
+    credate:
+      fields: placename
+      functions:
+        - function: query_assign
+          columns: placename
+          lookup:
+            placename == 'Arctic Bay':
+              value: 20190701
+              type: string
+            placename == 'Arviat':
+              value: 20190808
+              type: string
+            placename == 'Baker Lake':
+              value: 20180702
+              type: string
+            placename == 'Cambridge Bay':
+              value: 20190727
+              type: string
+            placename == 'Chesterfield Inlet':
+              value: 20190704
+              type: string
+            placename == 'Clyde River':
+              value: 20180712
+              type: string
+            placename == 'Coral Harbour':
+              value: 20180826
+              type: string
+            placename == 'Gjoa Haven':
+              value: 20190701
+              type: string
+            placename == 'Igloolik':
+              value: 20190630
+              type: string
+            placename == 'Kimmirut':
+              value: 20180705
+              type: string
+            placename == 'Kinngait':
+              value: 20190703
+              type: string
+            placename == 'Kugaaruk':
+              value: 20180703
+              type: string
+            placename == 'Kugluktuk':
+              value: 20190702
+              type: string
+            placename == 'Naujaat':
+              value: 20180703
+              type: string
+            placename == 'Pangnirtung':
+              value: 20180701
+              type: string
+            placename == 'Pond Inlet':
+              value: 20180714
+              type: string
+            placename == 'Qikiqtarjuaq':
+              value: 20180705
+              type: string
+            placename == 'Rankin Inlet':
+              value: 20190715
+              type: string
+            placename == 'Resolute Bay':
+              value: 20190726
+              type: string
+            placename == 'Sanikiluaq':
+              value: 20180706
+              type: string
+            placename == 'Sanirajak':
+              value: 20190701
+              type: string
+            placename == 'Taloyoak':
+              value: 20190702
+              type: string
+            placename == 'Whale Cove':
+              value: 20190715
+              type: string
+          engine: python
+    datasetnam: Nunavut
+    accuracy:
+      fields: placename
+      functions:
+        - function: query_assign
+          columns: placename
+          lookup:
+            ? placename in ('Arctic Bay', 'Arviat', 'Baker Lake', 'Cambridge Bay', 'Chesterfield Inlet', 'Clyde River',
+              'Coral Harbour', 'Gjoa Haven', 'Igloolik', 'Kimmirut', 'Kinngait', 'Kugaaruk', 'Kugluktuk', 'Naujaat',
+              'Pangnirtung', 'Pond Inlet', 'Qikiqtarjuaq', 'Rankin Inlet', 'Resolute Bay', 'Sanikiluaq', 'Sanirajak',
+              'Taloyoak', 'Whale Cove')
+            : value: 1
+              type: string
+          engine: python
+    provider: provider
+    revdate: revdate
+    specvers: 2.0
+    l_adddirfg: l_digdirfg
+    r_adddirfg: r_digdirfg
+    adrangenid: uuid
+    closing:
+    exitnbr:
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    roadclass: roadclass
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    nid: uuid
+    nbrlanes:
+    l_placenam: placename
+    r_placenam: placename
+    l_stname_c: stname_c
+    r_stname_c: stname_c
+    pavsurf: pavsurf
+    pavstatus: pavstatus
+    roadjuris: roadjuris
+    roadsegid:
+    rtename1en:
+    rtename2en:
+    rtename3en:
+    rtename4en:
+    rtename1fr:
+    rtename2fr:
+    rtename3fr:
+    rtename4fr:
+    rtnumber1:
+    rtnumber2:
+    rtnumber3:
+    rtnumber4:
+    rtnumber5:
+    speed: speed
+    strunameen:
+    strunamefr:
+    structid:
+    structtype: structtype
+    trafficdir: trafficdir
+    unpavsurf: unpavsurf
+  strplaname:
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
+    datasetnam: Nunavut
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
+    specvers: 2.0
+    dirprefix: dirprefix
+    dirsuffix: dirsuffix
+    muniquad: muniquad
+    nid: uuid
+    placename: placename
+    placetype: placetype
+    province: Nunavut
+    starticle: starticle
+    namebody: namebody
+    strtypre: strtypre
+    strtysuf: strtysuf

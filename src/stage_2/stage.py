@@ -1,14 +1,13 @@
 import click
+import fiona
 import geopandas as gpd
 import logging
 import numpy as np
 import os
 import pandas as pd
 import requests
-import shutil
 import sys
 import uuid
-import zipfile
 from collections import Counter
 from datetime import datetime
 from itertools import chain
@@ -35,6 +34,7 @@ class Stage:
     def __init__(self, source):
         self.stage = 2
         self.source = source.lower()
+        self.boundary = None
 
         # Configure and validate input data path.
         self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
@@ -250,7 +250,7 @@ class Stage:
         # Separate unique and non-unique points.
         logger.info("Separating unique and non-unique points.")
 
-        # Construct a uuid series aligned to the series of endpoints.
+        # Construct a uuid series aligned to the series of points.
         pts_uuid = np.concatenate([[id] * count for id, count in df["geometry"].map(
             lambda geom: len(geom.coords)).iteritems()])
 
@@ -261,33 +261,39 @@ class Stage:
         pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "z": pts_z, "uuid": pts_uuid})
 
         # Query unique points (all) and endpoints.
-        pts_unique = pts_df[~pts_df[["x", "y", "z"]].duplicated(keep=False)][["x", "y", "z"]].values
-        endpoints_unique = np.unique(np.concatenate(
-            df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)
+        pts_unique = set(map(tuple, pts_df[~pts_df[["x", "y", "z"]].duplicated(keep=False)][["x", "y", "z"]].values))
+        endpoints_unique = set(map(tuple, np.unique(np.concatenate(
+            df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)))
 
         # Query non-unique points (all), keep only the first duplicated point from self-loops.
-        pts_dup = pts_df[(pts_df[["x", "y", "z"]].duplicated(keep=False)) & (~pts_df.duplicated(keep="first"))]
+        pts_dup = pts_df[(pts_df[["x", "y", "z"]].duplicated(keep=False)) &
+                         (~pts_df.duplicated(keep="first"))][["x", "y", "z"]].values
 
         # Query junctypes.
 
         # junctype: Dead End.
         # Process: Query unique points which also exist in unique endpoints.
         logger.info("Configuring junctype: Dead End.")
-        deadend = set(map(tuple, pts_unique)).intersection(set(map(tuple, endpoints_unique)))
+        deadend = pts_unique.intersection(endpoints_unique)
 
         # junctype: Intersection.
         # Process: Query non-unique points with >= 3 instances.
         logger.info("Configuring junctype: Intersection.")
-        counts = Counter(map(tuple, pts_dup[["x", "y", "z"]].values))
+        counts = Counter(map(tuple, pts_dup))
         intersection = {pt for pt, count in counts.items() if count >= 3}
 
         # junctype: Ferry.
-        # Process: Compile all unique ferryseg endpoints. Remove conflicting points from other junctypes.
+        # Process: Compile all unique ferryseg endpoints which intersect a roadseg point. Remove conflicting points
+        # from other junctypes.
         logger.info("Configuring junctype: Ferry.")
 
         ferry = set()
         if "ferryseg" in self.dframes:
-            ferry = set(chain.from_iterable(itemgetter(0, -1)(g.coords) for g in self.dframes["ferryseg"]["geometry"]))
+            pts_all = pts_unique.union(set(map(tuple, pts_dup)))
+            ferry = set(chain.from_iterable(self.dframes["ferryseg"]["geometry"].map(
+                lambda g: itemgetter(0, -1)(attrgetter("coords")(g)))))
+
+            ferry = ferry.intersection(pts_all)
             deadend = deadend.difference(ferry)
             intersection = intersection.difference(ferry)
 
@@ -301,7 +307,7 @@ class Stage:
         pts_geoms = gpd.GeoSeries(pts.map(Point))
 
         # Split administrative boundary into smaller polygons.
-        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary, 0.1, pts))
+        boundary_polys = gpd.GeoSeries(self.divide_polygon(self.boundary["geometry"].iloc[0], 0.1, pts))
 
         # Use the junctions' spatial indexes to query points within the split boundary polygons.
         pts_sindex = pts_geoms.sindex
@@ -343,61 +349,36 @@ class Stage:
                                                      self.target_attributes["junction"]["fields"].items()})
 
     def load_boundaries(self):
-        """Downloads and loads the geometry of the administrative boundaries for the source province."""
+        """Downloads and compiles the administrative boundaries for the source province."""
 
         logger.info("Loading administrative boundaries.")
 
         # Download administrative boundaries.
         logger.info("Downloading administrative boundary file.")
         source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
-        download_url, filename, source_crs = itemgetter("url", "filename", "crs")(source)
+        download_url, source_crs = itemgetter("url", "crs")(source)
 
         try:
 
             # Get raw content stream from download url.
-            download = helpers.get_url(download_url, stream=True, timeout=30)
+            download = helpers.get_url(download_url, stream=True, timeout=30, verify=False).content
 
-            # Copy download content to file.
-            with open("../../data/interim/boundaries.zip", "wb") as f:
-                shutil.copyfileobj(download.raw, f)
+            # Load bytes collection into geodataframe.
+            with fiona.BytesCollection(bytes(download)) as f:
+                self.boundary = gpd.GeoDataFrame.from_features(f, crs=source_crs)
 
-        except (requests.exceptions.RequestException, shutil.Error) as e:
-            logger.exception("Unable to download administrative boundary file: \"{}\".".format(download_url))
+            # Filter boundaries.
+            pruid = {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
+                     "qc": 24, "sk": 47, "yt": 60}[self.source]
+            self.boundary = self.boundary.loc[self.boundary["PRUID"] == str(pruid)]
+
+            # Reproject boundaries to EPSG:4617.
+            self.boundary = self.boundary.to_crs("EPSG:4617")
+
+        except (fiona.errors, requests.exceptions.RequestException) as e:
+            logger.exception(f"Error encountered when compiling administrative boundary file: \"{download_url}\".")
             logger.exception(e)
             sys.exit(1)
-
-        # Extract zipped file.
-        logger.info("Extracting zipped administrative boundary file.")
-        with zipfile.ZipFile("../../data/interim/boundaries.zip", "r") as zip_f:
-            zip_f.extractall("../../data/interim/boundaries")
-
-        # Transform administrative boundary file to GeoPackage layer with crs EPSG:4617.
-        logger.info("Transforming administrative boundary file.")
-        helpers.ogr2ogr({
-            "query": "-where \"\\\"PRUID\\\"='{}'\"".format(
-                {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35, "pe": 11,
-                 "qc": 24, "sk": 47, "yt": 60}[self.source]),
-            "dest": os.path.abspath("../../data/interim/boundaries.geojson"),
-            "src": os.path.abspath("../../data/interim/boundaries/{}".format(filename)),
-            "options": f"-s_srs {source_crs} -t_srs EPSG:4617 -nlt MULTIPOLYGON"
-        })
-
-        # Load boundaries as a single geometry object.
-        logger.info("Loading administrative boundaries' geometry.")
-        self.boundary = gpd.read_file("../../data/interim/boundaries.geojson",
-                                      crs=self.dframes["roadseg"].crs)["geometry"].iloc[0]
-
-        # Remove temporary files.
-        logger.info("Removing temporary administrative boundary files and directories.")
-        for f in os.listdir("../../data/interim"):
-            if os.path.splitext(f)[0] == "boundaries":
-                path = os.path.join("../../data/interim", f)
-                try:
-                    os.remove(path) if os.path.isfile(path) else shutil.rmtree(path)
-                except (OSError, shutil.Error) as e:
-                    logger.warning("Unable to remove directory or file: \"{}\".".format(os.path.abspath(path)))
-                    logger.warning(e)
-                    continue
 
     def load_gpkg(self):
         """Loads input GeoPackage layers into dataframes."""

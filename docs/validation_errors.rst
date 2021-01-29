@@ -72,11 +72,20 @@ E00201
 :Validation: Duplicated points.
 :Description: Points within the same dataset must not be duplicated.
 
-E00301
-------
+E003
+----
 
 :Validation: Isolated lines.
+
+E00301
+^^^^^^
+
 :Description: Line segments must be connected to at least one other line segment.
+
+E00302
+^^^^^^
+
+:Description: Line segments must only connect at endpoint vertices.
 
 E004
 ----
@@ -184,26 +193,26 @@ E00904
 E01001
 ------
 
-:Validation: Line endpoint clustering.
-:Description: Line segments must have <= 3 points within 83 meters of either endpoint, inclusively.
+:Validation: Line internal clustering.
+:Description: Line segments must have >= 1x10:superscript:`-4` (0.0001) meters distance between adjacent coordinates.
 
 E01101
 ------
 
 :Validation: Line length.
-:Description: Line segments must be >= 2 meters in length.
+:Description: Line segments must be >= 5 meters in length.
 
 E01201
 ------
 
 :Validation: Line merging angle.
-:Description: Line segments must only merge at angles >= 40 degrees.
+:Description: Line segments must only merge at angles >= 5 degrees.
 
 E01301
 ------
 
 :Validation: Line proximity.
-:Description: Line segments must be >= 3 meters from each other, excluding connected segments.
+:Description: Line segments must be >= 5 meters from each other, excluding connected segments.
 
 E01401
 ------
@@ -246,7 +255,7 @@ E01701
 ------
 
 :Validation: Point proximity.
-:Description: Points must be >= 3 meters from each other.
+:Description: Points must be >= 5 meters from each other.
 
 E018
 ----
@@ -325,3 +334,9 @@ E02401
 
 :Validation: Encoding.
 :Description: Attribute contains one or more question mark ("?"), which may be the result of invalid character encoding.
+
+E02501
+------
+
+:Validation: Out-of-scope.
+:Description: Geometry is partially or completely outside of the target area, based on Census provincial / territorial boundaries.
