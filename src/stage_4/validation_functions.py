@@ -746,7 +746,7 @@ class Validator:
 
                 # Compile error properties.
                 for record in invalid_df.sort_values(by=["uuid", "distance"]).itertuples(index=True):
-                    index, coords, distance = itemgetter("Index", "pair", "distance")(record)
+                    index, coords, distance = attrgetter("Index", "pair", "distance")(record)
                     errors[1].append(f"uuid: '{index}' coordinates {coords[0]} and {coords[1]} are too close: "
                                      f"{distance} meters.")
 
