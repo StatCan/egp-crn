@@ -216,7 +216,7 @@ class Stage:
 
         logger.info("Loading Geopackage layers - previous vintage.")
 
-        self.dframes_old = helpers.load_gpkg("../../data/interim/{}_old.gpkg".format(self.source), find=True)
+        self.dframes_old = helpers.load_gpkg(f"../../data/interim/{self.source}_old.gpkg", find=True)
 
     def recover_and_classify_nids(self):
         """
@@ -231,7 +231,7 @@ class Stage:
             # Check dataset existence.
             if table in self.dframes:
 
-                logger.info("Generating nids for table: {}.".format(table))
+                logger.info(f"Generating nids for table: {table}.")
 
                 # Assign nids to current vintage.
                 self.dframes[table]["nid"] = [uuid.uuid4().hex for _ in range(len(self.dframes[table]))]
@@ -240,7 +240,7 @@ class Stage:
                 # Classify nids.
                 if table in self.dframes_old:
 
-                    logger.info("Recovering old nids and classifying all nids for table: {}.".format(table))
+                    logger.info(f"Recovering old nids and classifying all nids for table: {table}.")
 
                     # Copy and filter dataframes.
                     df = self.dframes[table][["nid", "uuid", "geometry"]].copy(deep=True)
@@ -279,7 +279,7 @@ class Stage:
                 # Classify nids.
                 else:
 
-                    logger.info("Classifying all nids for table: {}. No old nid recovery required.".format(table))
+                    logger.info(f"Classifying all nids for table: {table}. No old nid recovery required.")
 
                     classified_nids = {
                         "added": self.dframes[table]["nid"].to_list(),
@@ -610,6 +610,7 @@ def main(source, remove):
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

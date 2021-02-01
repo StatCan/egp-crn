@@ -37,9 +37,9 @@ class Stage:
         self.boundary = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
+        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
         if not os.path.exists(self.data_path):
-            logger.exception("Input data not found: \"{}\".".format(self.data_path))
+            logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Compile field defaults, dtypes, and domains.
@@ -91,7 +91,7 @@ class Stage:
                     self.target_attributes[table]["fields"][field] = vals[0]
 
         except (AttributeError, KeyError, ValueError):
-            logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
+            logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
             sys.exit(1)
 
     def divide_polygon(self, poly, threshold, pts, count=0):
@@ -171,7 +171,7 @@ class Stage:
 
             # Validate input attributes.
             if not set(attributes).issubset({"accuracy", "exitnbr"}):
-                logger.exception("One or more unsupported attributes provided: {}.".format(", ".join(attributes)))
+                logger.exception(f"One or more unsupported attributes provided: {', '.join(attributes)}.")
                 sys.exit(1)
 
             # Concatenate ferryseg and roadseg, if possible.
@@ -414,6 +414,7 @@ def main(source):
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: exiting program.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -14,6 +14,8 @@ from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, MultiLineString
 from tqdm import tqdm
+from typing import Any, List, Tuple, Union
+# TODO: add docstrings and type hinting to remaining functions.
 
 sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
 import helpers
@@ -31,7 +33,14 @@ logger.addHandler(handler)
 class ORN:
     """Class to convert Ontario ORN data from Linear Reference System (LRS) to GeoPackage."""
 
-    def __init__(self, src, dst):
+    def __init__(self, src: str, dst: str) -> None:
+        """
+        Initializes the LRS conversion class.
+
+        :param str src: source path.
+        :param str dst: destination path.
+        """
+
         self.nrn_datasets = dict()
         self.source_datasets = dict()
         self.base_dataset = "orn_road_net_element"
@@ -300,7 +309,7 @@ class ORN:
         return df.copy(deep=True)
 
     def compile_source_datasets(self):
-        """Loads source layers into (Geo)DataFrames."""
+        """Loads raw source layers into (Geo)DataFrames."""
 
         logger.info(f"Compiling source datasets from: {self.src}.")
 
@@ -882,7 +891,7 @@ class ORN:
                 else:
                     self.source_datasets[name] = df.copy(deep=True)
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes class functionality."""
 
         self.compile_source_datasets()
@@ -898,8 +907,13 @@ class ORN:
 @click.argument("src", type=click.Path(exists=True))
 @click.option("--dst", type=click.Path(exists=False), default=os.path.abspath("../../../../data/raw/on/orn.gpkg"),
               show_default=True)
-def main(src, dst):
-    """Executes the ORN class."""
+def main(src: str, dst: str = os.path.abspath("../../../../data/raw/on/orn.gpkg")) -> None:
+    """
+    Executes the ORN class.
+
+    :param str src: source path.
+    :param str dst: destination path, default = '../../../../data/raw/on/orn.gpkg'.
+    """
 
     try:
 

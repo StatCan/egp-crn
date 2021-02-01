@@ -32,9 +32,9 @@ class Stage:
         self.Validator = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
+        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
         if not os.path.exists(self.data_path):
-            logger.exception("Input data not found: \"{}\".".format(self.data_path))
+            logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Configure output path.
@@ -110,6 +110,7 @@ def main(source, remove):
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

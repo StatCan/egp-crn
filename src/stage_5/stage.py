@@ -499,5 +499,6 @@ def main(source, remove):
         logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     main()
