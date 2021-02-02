@@ -34,7 +34,15 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, remove):
+    def __init__(self, source: str, remove: bool = False) -> None:
+        """
+        Initializes an NRN stage.
+
+        :param str source: abbreviation for the source province / territory.
+        :param bool remove: removes pre-existing files within the data/processed directory for the specified source,
+            excluding change logs, default False.
+        """
+
         self.stage = 5
         self.source = source.lower()
         self.remove = remove
@@ -86,7 +94,7 @@ class Stage:
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
         self.domains = helpers.compile_domains(mapped_lang="fr")
 
-    def configure_release_version(self):
+    def configure_release_version(self) -> None:
         """Configures the major and minor release versions for the current NRN vintage."""
 
         logger.info("Configuring NRN release version.")
@@ -121,7 +129,7 @@ class Stage:
             self.major_version += 1
             self.minor_version = 0
 
-    def define_kml_groups(self):
+    def define_kml_groups(self) -> None:
         """
         Defines groups by which to segregate the kml-bound input GeoDataFrame.
         This is required due to the low feature and size limitations of kml.
@@ -209,7 +217,7 @@ class Stage:
             # Store results.
             self.kml_groups[lang] = placenames_df
 
-    def export_data(self):
+    def export_data(self) -> None:
         """Exports and packages all data."""
 
         logger.info("Exporting output data.")
@@ -292,10 +300,10 @@ class Stage:
                     driver.DeleteDataSource(temp_path)
                     del driver
 
-    def export_temp_data(self):
+    def export_temp_data(self) -> None:
         """
         Exports temporary data as GeoPackages.
-        Temporary file is required since ogr2ogr, which is used for data transformation, is file based.
+        Temporary file is required since ogr2ogr (which is used for data transformation) is file based.
         """
 
         # Export temporary files.
@@ -312,8 +320,13 @@ class Stage:
                 # Export to GeoPackage.
                 helpers.export_gpkg(self.dframes[frmt][lang], temp_path, export_schemas_path)
 
-    def format_path(self, path):
-        """Formats a path with class variables: source, major_version, minor_version."""
+    def format_path(self, path: str) -> str:
+        """
+        Formats a path with class variables: source, major_version, minor_version.
+
+        :param str path: string path requiring formatting.
+        :return str: formatted path.
+        """
 
         upper = True if os.path.basename(path)[0].isupper() else False
 
@@ -324,9 +337,9 @@ class Stage:
 
         return path
 
-    def gen_french_dataframes(self):
+    def gen_french_dataframes(self) -> None:
         """
-        Generate French equivalents of all dataframes.
+        Generate French equivalents of all NRN datasets.
         Note: Only the data values are updated, not the column names.
         """
 
@@ -369,8 +382,8 @@ class Stage:
             logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
             sys.exit(1)
 
-    def gen_output_schemas(self):
-        """Generate the output schema required for each dataframe and each output format."""
+    def gen_output_schemas(self) -> None:
+        """Generate the output schema required for each NRN dataset and each output format."""
 
         logger.info("Generating output schemas.")
         frmt, lang, table = None, None, None
@@ -415,14 +428,14 @@ class Stage:
             logger.exception(f"Unable to apply output schema for format: {frmt}, language: {lang}, table: {table}.")
             sys.exit(1)
 
-    def load_gpkg(self):
-        """Loads input GeoPackage layers into dataframes."""
+    def load_gpkg(self) -> None:
+        """Loads input GeoPackage layers into (Geo)DataFrames."""
 
         logger.info("Loading Geopackage layers.")
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-    def zip_data(self):
+    def zip_data(self) -> None:
         """Compresses all exported data directories into .zip files."""
 
         logger.info("Apply compression and zip to output data directories.")
@@ -468,7 +481,7 @@ class Stage:
                 logger.exception(e)
                 sys.exit(1)
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes an NRN stage."""
 
         self.load_gpkg()
@@ -486,8 +499,14 @@ class Stage:
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing files within the data/processed directory for the specified source, excluding "
                    "change logs.")
-def main(source, remove):
-    """Executes an NRN stage."""
+def main(source: str, remove: bool = False) -> None:
+    """
+    Executes an NRN stage.
+
+    :param str source: abbreviation for the source province / territory.
+    :param bool remove: removes pre-existing files within the data/processed directory for the specified source,
+        excluding change logs, default False.
+    """
 
     try:
 

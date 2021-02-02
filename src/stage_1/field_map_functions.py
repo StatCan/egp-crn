@@ -17,7 +17,7 @@ logger = logging.getLogger()
 domains = helpers.compile_domains(mapped_lang="en")
 
 
-def apply_domain(**kwargs) -> pd.Series:
+def apply_domain(**kwargs: dict) -> pd.Series:
     """
     Calls :func:`~helpers.apply_domain` to allow it's usage as a field mapping function.
 
@@ -152,7 +152,7 @@ def map_values(series: pd.Series, lookup: dict, case_sensitive: bool = False) ->
 
 
 def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str, ...], lookup: dict, engine: str = "python",
-                 **kwargs) -> pd.Series:
+                 **kwargs: dict) -> pd.Series:
     """
     Populates a Series based on a lookup dictionary of queries. Non-matches will be Null.
 
@@ -341,7 +341,7 @@ def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: U
     return series
 
 
-def regex_sub(series: pd.Series, **kwargs) -> pd.Series:
+def regex_sub(series: pd.Series, **kwargs: dict) -> pd.Series:
     """
     Populates a Series based on the substitution of a regular expression match.
 

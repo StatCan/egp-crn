@@ -20,6 +20,7 @@ from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
 from tqdm import tqdm
+from typing import Any, Dict, List, Tuple, Union
 
 
 logger = logging.getLogger()
@@ -27,9 +28,16 @@ ogr.UseExceptions()
 
 
 class TempHandlerSwap:
-    """Temporarily swaps all stream handlers with a file handler."""
+    """Temporarily swaps all Logger StreamHandlers with a FileHandler."""
 
-    def __init__(self, class_logger, log_path):
+    def __init__(self, class_logger: logging.Logger, log_path: str) -> None:
+        """
+        Initializes the TempHandlerSwap contextmanager class.
+
+        :param logging.Logger class_logger: Logger.
+        :param str log_path: path where the FileHandler will write logs to.
+        """
+
         self.logger = class_logger
         self.log_path = log_path
 
@@ -41,15 +49,24 @@ class TempHandlerSwap:
         self.file_handler.setLevel(logging.INFO)
         self.file_handler.setFormatter(self.logger.handlers[0].formatter)
 
-    def __enter__(self):
-        """Remove stream handlers and add file handler."""
+    def __enter__(self) -> None:
+        """Removes all StreamHandlers and adds a FileHandler."""
+
         logger.info(f"Temporarily redirecting stream logging to file: {self.log_path}.")
+
         for handler in self.stream_handlers:
             self.logger.removeHandler(handler)
         self.logger.addHandler(self.file_handler)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Remove file handler and add stream handlers."""
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """
+        Removes the FileHandler and restores the original StreamHandlers.
+
+        :param Any exc_type: required parameter for __exit__.
+        :param Any exc_val: required parameter for __exit__.
+        :param Any exc_tb: required parameter for __exit__.
+        """
+
         for handler in self.stream_handlers:
             self.logger.addHandler(handler)
         self.logger.removeHandler(self.file_handler)
@@ -60,26 +77,43 @@ class TempHandlerSwap:
 class Timer:
     """Tracks stage runtime."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initializes the Timer class."""
+
         self.start_time = None
 
-    def __enter__(self):
+    def __enter__(self) -> None:
+        """Starts the timer."""
+
         logger.info("Started.")
         self.start_time = time.time()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """
+        Computes and returns the elapsed time.
+
+        :param Any exc_type: required parameter for __exit__.
+        :param Any exc_val: required parameter for __exit__.
+        :param Any exc_tb: required parameter for __exit__.
+        """
+
         total_seconds = time.time() - self.start_time
         delta = datetime.timedelta(seconds=total_seconds)
         logger.info(f"Finished. Time elapsed: {delta}.")
 
 
-def apply_domain(series, domain, default):
+def apply_domain(series: pd.Series, domain: dict, default: Any) -> pd.Series:
     """
-    Applies a domain restriction to the given pandas series based on the provided domain dictionary.
-    Replaces missing or invalid values with the default parameter.
+    Applies a domain restriction to the given Series based on a domain dictionary.
+    Replaces missing or invalid values with the default value.
 
-    Non-dictionary domains are treated as null. Values are left as-is excluding null types and empty strings, which are
-    replaced with the default parameter.
+    Non-dictionary domains are treated as Null. Values are left as-is excluding Null types and empty strings, which are
+    replaced with the default value.
+
+    :param pd.Series series: Series.
+    :param dict domain: dictionary of acceptable domain values.
+    :param Any default: default value.
+    :return pd.Series: Series with enforced domain restriction.
     """
 
     # Validate against domain dictionary.
@@ -89,7 +123,14 @@ def apply_domain(series, domain, default):
         domain = {str(k).lower(): v for k, v in domain.items()}
 
         # Configure lookup function, convert invalid values to default.
-        def get_value(val):
+        def get_value(val: Any) -> Any:
+            """
+            Retrieves a domain dictionary value for a given key, non-matches return the default value.
+
+            :param Any val: lookup key.
+            :return Any: corresponding domain value or the default value.
+            """
+
             try:
                 return domain[str(val).lower()]
             except KeyError:
@@ -105,8 +146,13 @@ def apply_domain(series, domain, default):
         return series
 
 
-def compile_default_values(lang="en"):
-    """Compiles the default value for each field in each table."""
+def compile_default_values(lang: str = "en") -> dict:
+    """
+    Compiles the default value for each field in each NRN dataset.
+
+    :param str lang: output language: 'en', 'fr'.
+    :return dict: dictionary of default values for each attribute of each NRN dataset.
+    """
 
     dft_vals = load_yaml(os.path.abspath(f"../field_domains_{lang}.yaml"))["default"]
     dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
@@ -134,12 +180,16 @@ def compile_default_values(lang="en"):
     return defaults
 
 
-def compile_domains(mapped_lang="en"):
+def compile_domains(mapped_lang: str = "en") -> dict:
     """
-    Returns a dictionary containing the following for each field in each table:
+    Compiles the acceptable domain values for each field in each NRN dataset. Each domain will consist of the following
+    keys:
     1) 'values': all English and French values and keys flattened into a single list.
     2) 'lookup': a lookup dictionary mapping each English and French value and key to the value of the given map
     language.
+
+    :param str mapped_lang: output language: 'en', 'fr'.
+    :return dict: dictionary of domain values and lookup dictionary for each attribute of each NRN dataset.
     """
 
     # Compile field domains.
@@ -199,8 +249,13 @@ def compile_domains(mapped_lang="en"):
     return domains
 
 
-def compile_dtypes(length=False):
-    """Compiles the dtype for each field in each table. Optionally returns a list to include the field length."""
+def compile_dtypes(length: bool = False) -> dict:
+    """
+    Compiles the dtype for each field in each NRN dataset. Optionally includes the field length.
+
+    :param bool length: includes the length of the field in the returned data.
+    :return dict: dictionary of dtypes and, optionally, length for each attribute of each NRN dataset.
+    """
 
     dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
     dtypes = dict()
@@ -224,8 +279,13 @@ def compile_dtypes(length=False):
     return dtypes
 
 
-def explode_geometry(gdf):
-    """Explodes MultiLineStrings and MultiPoints to LineStrings and Points, respectively."""
+def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Explodes MultiLineStrings and MultiPoints to LineStrings and Points, respectively.
+
+    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :return gpd.GeoDataFrame: GeoDataFrame containing only single-part geometries.
+    """
 
     logger.info("Exploding multi-type geometries.")
 
@@ -247,10 +307,17 @@ def explode_geometry(gdf):
         return gdf.copy(deep=True)
 
 
-def export_gpkg(dataframes, output_path, export_schemas=None):
+def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: str,
+                export_schemas: Union[None, str] = None) -> None:
     """
-    Receives a dictionary of (Geo)pandas (Geo)DataFrames and exports them as GeoPackage layers.
+    Exports one or more (Geo)DataFrames as GeoPackage layers.
     Optionally accepts an export schemas yaml path which will override the default distribution format column names.
+
+    :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
+        (Geo)DataFrames.
+    :param str output_path: GeoPackage output path.
+    :param Union[None, str] export_schemas: optional dictionary mapping of field names for each field in each of the
+        provided datasets.
     """
 
     output_path = os.path.abspath(output_path)
@@ -361,8 +428,15 @@ def export_gpkg(dataframes, output_path, export_schemas=None):
         sys.exit(1)
 
 
-def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
-    """Converts a pandas dataframe to a networkx graph."""
+def gdf_to_nx(gdf: gpd.GeoDataFrame, keep_attributes: bool = True, endpoints_only: bool = False) -> nx.Graph:
+    """
+    Converts a GeoDataFrame to a networkx Graph.
+
+    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :param bool keep_attributes: keep the GeoDataFrame attributes on the networkx Graph, default True.
+    :param bool endpoints_only: keep only the endpoints of the GeoDataFrame LineStrings, default False.
+    :return nx.Graph: networkx Graph.
+    """
 
     logger.info("Loading GeoPandas GeoDataFrame into NetworkX graph.")
 
@@ -395,8 +469,15 @@ def gdf_to_nx(gdf, keep_attributes=True, endpoints_only=False):
     return g
 
 
-def get_url(url, max_attempts=10, **kwargs):
-    """Attempts to retrieve a url."""
+def get_url(url: str, max_attempts: int = 10, **kwargs: dict) -> requests.Response:
+    """
+    Fetches a response from a url.
+
+    :param str url: string url.
+    :param int max_attempts: maximum attempts to get a response from the url.
+    :param dict \*\*kwargs: keyword arguments passed to :func:`~requests.get`.
+    :return requests.Response: response from the url.
+    """
 
     attempt = 1
     while attempt <= max_attempts:
@@ -424,10 +505,17 @@ def get_url(url, max_attempts=10, **kwargs):
                 continue
 
 
-def groupby_to_list(df, group_field, list_field):
+def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str, ...], str],
+                    list_field: str) -> pd.Series:
     """
-    Faster alternative to pandas groupby.apply/agg(list).
+    Faster alternative to :func:`~pd.groupby.apply/agg(list)`.
     Groups records by one or more fields and compiles an output field into a list for each group.
+
+    :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame.
+    :param Union[List[str, ...], str] group_field: field or list of fields by which the (Geo)DataFrame records will be
+        grouped.
+    :param str list_field: (Geo)DataFrame field to output, based on the record groupings.
+    :return pd.Series: Series of grouped values.
     """
 
     if isinstance(group_field, list):
@@ -448,12 +536,17 @@ def groupby_to_list(df, group_field, list_field):
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
-def load_gpkg(gpkg_path, find=False, layers=None):
+def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str, ...]] = None) -> \
+        Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
     """
-    Returns a dictionary of geopackage layers as pandas or geopandas (geo)dataframes.
-    Parameter find will creating a mapping for geopackage layer names which contain, but do not exactly match the
-    expected NRN layer names.
-    Parameter layers accepts an iterable of table names if only a subset of GeoPackage layers are required.
+    Compiles a dictionary of NRN dataset names and associated (Geo)DataFrame from GeoPackage layers.
+
+    :param str gpkg_path: path to the GeoPackage.
+    :param bool find: searches for NRN datasets in the GeoPackage based on non-exact matches with the expected dataset
+        names, default False.
+    :param Union[None, List[str, ...]] layers: layer name or list of layer names to return instead of all NRN datasets.
+    :return Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]: dictionary of NRN dataset names and associated
+        (Geo)DataFrames.
     """
 
     dframes = dict()
@@ -537,8 +630,13 @@ def load_gpkg(gpkg_path, find=False, layers=None):
     return dframes
 
 
-def load_yaml(path):
-    """Loads and returns a yaml file."""
+def load_yaml(path: str) -> Any:
+    """
+    Loads the content of a YAML file as a Python object.
+
+    :param str path: path to the YAML file.
+    :return Any: Python object consisting of the YAML content.
+    """
 
     with open(path, "r", encoding="utf8") as f:
 
@@ -550,8 +648,17 @@ def load_yaml(path):
             logger.exception(f"Unable to load yaml: {path}.")
 
 
-def nx_to_gdf(g, nodes=True, edges=True):
-    """Converts a networkx graph to pandas dataframe."""
+def nx_to_gdf(g: nx.Graph, nodes: bool = True, edges: bool = True) -> \
+        Union[gpd.GeoDataFrame, Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]]:
+    """
+    Converts a networkx Graph to a GeoDataFrame.
+
+    :param nx.Graph g: networkx Graph.
+    :param bool nodes: return a Point GeoDataFrame, derived from the network Graph nodes, default True.
+    :param bool edges: return a LineString GeoDataFrame, derived from the network Graph edges, default True.
+    :return Union[gpd.GeoDataFrame, Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]]: a Point GeoDataFrame and / or LineString
+        GeoDataFrame, derived from the networkx Graph nodes and / or edges, respectively.
+    """
 
     logger.info("Loading NetworkX graph into GeoPandas GeoDataFrame.")
 
@@ -581,8 +688,14 @@ def nx_to_gdf(g, nodes=True, edges=True):
         return gdf_edges
 
 
-def ogr2ogr(expression, log=None, max_attempts=5):
-    """Runs an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters."""
+def ogr2ogr(expression: dict, log: Union[None, str] = None, max_attempts: int = 5) -> None:
+    """
+    Executes an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters.
+
+    :param dict expression: dictionary of ogr2ogr parameters.
+    :param Union[None, str] log: None or a message to log prior to executing the ogr2ogr subprocess.
+    :param int max_attempts: maximum attempts to execute the ogr2ogr subprocess.
+    """
 
     # Write log.
     if log:
@@ -614,8 +727,16 @@ def ogr2ogr(expression, log=None, max_attempts=5):
                 continue
 
 
-def reproject_gdf(gdf, epsg_source, epsg_target):
-    """Transforms a GeoDataFrame's geometry column or GeoSeries between EPSGs."""
+def reproject_gdf(gdf: Union[gpd.GeoDataFrame, gpd.GeoSeries], epsg_source: int, epsg_target: int) -> \
+        Union[gpd.GeoDataFrame, gpd.GeoSeries]:
+    """
+    Transforms a GeoDataFrame or GeoSeries between EPSG CRSs.
+
+    :param Union[gpd.GeoDataFrame, gpd.GeoSeries] gdf: GeoDataFrame or GeoSeries.
+    :param int epsg_source: input EPSG code.
+    :param int epsg_target: output EPSG code.
+    :return Union[gpd.GeoDataFrame, gpd.GeoSeries]: reprojected GeoDataFrame or GeoSeries.
+    """
 
     logger.info(f"Reprojecting geometry from EPSG:{epsg_source} to EPSG:{epsg_target}.")
 
@@ -662,8 +783,14 @@ def reproject_gdf(gdf, epsg_source, epsg_target):
         return gdf
 
 
-def round_coordinates(gdf, precision=7):
-    """Rounds the coordinates of the geometry column to the specified decimal precision."""
+def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataFrame:
+    """
+    Rounds the GeoDataFrame geometry coordinates to a specific decimal precision.
+
+    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :param int precision: decimal precision to round the GeoDataFrame geometry coordinates to.
+    :return gpd.GeoDataFrame: GeoDataFrame with modified decimal precision.
+    """
 
     logger.info(f"Rounding coordinates to decimal precision: {precision}.")
 

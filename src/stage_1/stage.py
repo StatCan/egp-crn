@@ -706,7 +706,7 @@ class Stage:
             logger.info("Successfully loaded source data.")
 
     def gen_target_dataframes(self) -> None:
-        """Creates empty (Geo)DataFrames for all applicable output tables based on the input data field mapping."""
+        """Creates empty (Geo)DataFrames for all applicable output tables."""
 
         logger.info("Creating target dataframes for applicable tables.")
         self.target_gdframes = dict()

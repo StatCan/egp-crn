@@ -9,11 +9,13 @@ import requests
 import sys
 import uuid
 from collections import Counter
+from collections.abc import Sequence
 from datetime import datetime
 from itertools import chain
 from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import box, Point, Polygon, MultiPolygon, GeometryCollection
+from typing import Dict, List, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -31,7 +33,13 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source):
+    def __init__(self, source: str) -> None:
+        """
+        Initializes an NRN stage.
+
+        :param str source: abbreviation for the source province / territory.
+        """
+
         self.stage = 2
         self.source = source.lower()
         self.boundary = None
@@ -47,8 +55,8 @@ class Stage:
         self.dtypes = helpers.compile_dtypes()["junction"]
         self.domains = helpers.compile_domains(mapped_lang="en")["junction"]
 
-    def apply_domains(self):
-        """Applies domain restrictions to each column in the target dataframe."""
+    def apply_domains(self) -> None:
+        """Applies domain restrictions to each column in the target (Geo)DataFrames."""
 
         logging.info("Applying field domains.")
         field = None
@@ -73,8 +81,8 @@ class Stage:
             logger.exception(f"Invalid schema definition for table: junction, field: {field}.")
             sys.exit(1)
 
-    def compile_target_attributes(self):
-        """Compiles the target (distribution format) yaml file into a dictionary."""
+    def compile_target_attributes(self) -> None:
+        """Compiles the yaml file for the target (Geo)DataFrames (distribution format) into a dictionary."""
 
         logger.info("Compiling target attributes yaml.")
         table = field = None
@@ -94,12 +102,20 @@ class Stage:
             logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
             sys.exit(1)
 
-    def divide_polygon(self, poly, threshold, pts, count=0):
+    def divide_polygon(self, poly: Union[MultiPolygon, Polygon], threshold: Union[float, int], pts: pd.Series,
+                       count: int = 0) -> List[Union[None, MultiPolygon, Polygon], ...]:
         """
-        Recursively divides a polygon into 2 parts until any of the following limits are reached:
+        Recursively divides a (Multi)Polygon into 2 parts until any of the following limits are reached:
         a) both dimensions (height and width) are <= threshold.
-        b) the custom implemented recursion depth (250) is reached.
-        c) no point tuples exist within the current bounds.
+        b) a recursion depth of 250 is reached.
+        c) no more point tuples exist within the current bounds.
+
+        :param Union[MultiPolygon, Polygon] poly: (Multi)Polygon.
+        :param Union[float, int] threshold: maximum height and width of the divided Polygons.
+        :param pd.Series pts: Series of coordinate tuples.
+        :param int count: current recursion depth (for internal use), default 0.
+        :return List[Union[None, MultiPolygon, Polygon], ...]: list of Polygons, extracted from the original
+            (Multi)Polygon.
         """
 
         xmin, ymin, xmax, ymax = poly.bounds
@@ -148,23 +164,26 @@ class Stage:
 
         return final_result
 
-    def export_gpkg(self):
-        """Exports the junctions dataframe as a GeoPackage layer."""
+    def export_gpkg(self) -> None:
+        """Exports the junction GeoDataFrame as GeoPackage layer."""
 
         logger.info("Exporting junctions dataframe to GeoPackage layer.")
 
         # Export junctions dataframe to GeoPackage layer.
         helpers.export_gpkg({"junction": self.dframes["junction"]}, self.data_path)
 
-    def gen_attributes(self):
+    def gen_attributes(self) -> None:
         """Generate the remaining attributes for the output junction dataset."""
 
         logger.info("Generating remaining dataset attributes.")
 
-        def compute_connected_attributes(attributes):
+        def compute_connected_attributes(attributes: Sequence[str, ...]) -> Dict[str, pd.Series]:
             """
-            Computes the given attributes from connected features to the junction dataframe.
+            Computes the given attributes from NRN ferryseg and roadseg features connected to the junction dataset.
             Currently supported attributes: 'accuracy', 'exitnbr'.
+
+            :param Sequence[str, ...] attributes: sequence of attribute names.
+            :return Dict[str, pd.Series]: dictionary of attributes and junction-aligned Series of attribute values.
             """
 
             junction = self.dframes["junction"].copy(deep=True)
@@ -241,7 +260,7 @@ class Stage:
         self.dframes["junction"]["accuracy"] = connected_attributes["accuracy"]
         self.dframes["junction"]["exitnbr"] = connected_attributes["exitnbr"]
 
-    def gen_junctions(self):
+    def gen_junctions(self) -> None:
         """Generates a junction GeoDataFrame for all junctypes: Dead End, Ferry, Intersection, and NatProvTer."""
 
         logger.info("Generating junctions.")
@@ -340,16 +359,16 @@ class Stage:
             .copy(deep=True)
         self.dframes["junction"].index = self.dframes["junction"]["uuid"]
 
-    def gen_target_dataframe(self):
-        """Creates empty junction dataframe."""
+    def gen_target_dataframe(self) -> None:
+        """Creates empty junction GeoDataFrame."""
 
         logger.info("Creating target dataframe.")
 
         self.junction = gpd.GeoDataFrame().assign(**{field: pd.Series(dtype=dtype) for field, dtype in
                                                      self.target_attributes["junction"]["fields"].items()})
 
-    def load_boundaries(self):
-        """Downloads and compiles the administrative boundaries for the source province."""
+    def load_boundaries(self) -> None:
+        """Downloads and compiles the administrative boundaries for the source province / territory."""
 
         logger.info("Loading administrative boundaries.")
 
@@ -380,14 +399,14 @@ class Stage:
             logger.exception(e)
             sys.exit(1)
 
-    def load_gpkg(self):
-        """Loads input GeoPackage layers into dataframes."""
+    def load_gpkg(self) -> None:
+        """Loads input GeoPackage layers into (Geo)DataFrames."""
 
         logger.info("Loading Geopackage layers.")
 
         self.dframes = helpers.load_gpkg(self.data_path, layers=["ferryseg", "roadseg"])
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes an NRN stage."""
 
         self.load_gpkg()
@@ -402,8 +421,12 @@ class Stage:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source):
-    """Executes an NRN stage."""
+def main(source: str) -> None:
+    """
+    Executes an NRN stage.
+
+    :param str source: abbreviation for the source province / territory.
+    """
 
     try:
 

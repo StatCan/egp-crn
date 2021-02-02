@@ -9,12 +9,12 @@ import shapely.ops
 import string
 import sys
 from collections import Counter, defaultdict
-from copy import deepcopy
 from datetime import datetime
 from itertools import chain, compress, groupby, permutations, tee
 from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
+from typing import Dict, List, Tuple, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -23,15 +23,34 @@ import helpers
 logger = logging.getLogger()
 
 
+def ordered_pairs(coords: Tuple[tuple, ...]) -> List[Tuple[tuple, tuple], ...]:
+    """
+    Creates an ordered sequence of adjacent coordinate pairs, sorted.
+
+    :param Tuple[tuple, ...] coords: tuple of coordinate tuples.
+    :return List[Tuple[tuple, tuple], ...]: ordered sequence of coordinate pair tuples.
+    """
+
+    coords_1, coords_2 = tee(coords)
+    next(coords_2, None)
+
+    return sorted(zip(coords_1, coords_2))
+
+
 class Validator:
     """Handles the execution of validation functions against the NRN datasets."""
 
-    def __init__(self, dframes):
-        """Initializes variables for validation functions."""
+    def __init__(self, dframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]) -> None:
+        """
+        Initializes variables for validation functions.
+
+        :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dframes: dictionary of NRN dataset names and
+            (Geo)DataFrames.
+        """
 
         logger.info("Configuring validation variables.")
 
-        self.errors = defaultdict(dict)
+        self.errors = defaultdict(list)
 
         # Compile default field values and dtypes.
         self.defaults_all = helpers.compile_default_values()
@@ -188,8 +207,13 @@ class Validator:
             }
         }
 
-    def conflicting_exitnbrs(self, name):
-        """Applies a set of validations to exitnbr field."""
+    def conflicting_exitnbrs(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to exitnbr field.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -215,8 +239,13 @@ class Validator:
 
         return errors
 
-    def conflicting_pavement_status(self, name):
-        """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
+    def conflicting_pavement_status(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -245,8 +274,13 @@ class Validator:
 
         return errors
 
-    def dates(self, name):
-        """Applies a set of validations to credate and revdate fields."""
+    def dates(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to credate and revdate fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -258,8 +292,13 @@ class Validator:
         today = {"year": int(today[:4]), "month": int(today[4:6]), "day": int(today[6:8]), "full": int(today)}
 
         # Define functions.
-        def validate_day(date):
-            """Validate the day value in a date."""
+        def validate_day(date: str) -> bool:
+            """
+            Validate the day value in a date.
+
+            :param str date: string date in format YYYYMMDD.
+            :return bool: boolean validation of the date.
+            """
 
             year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
 
@@ -330,8 +369,14 @@ class Validator:
 
         return errors
 
-    def deadend_proximity(self, junction="junction", roadseg="roadseg"):
-        """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
+    def deadend_proximity(self, junction: str = "junction", roadseg: str = "roadseg") -> Dict[int, list]:
+        """
+        Validates the proximity of deadend junctions to disjoint / non-connected road segments.
+
+        :param str junction: NRN dataset name for NRN junction.
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
         errors = defaultdict(list)
@@ -389,8 +434,13 @@ class Validator:
 
         return errors
 
-    def duplicated_lines(self, name):
-        """Identifies the uuids of duplicate and overlapping line geometries."""
+    def duplicated_lines(self, name: str) -> Dict[int, list]:
+        """
+        Identifies the uuids of duplicate and overlapping line geometries.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -444,10 +494,6 @@ class Validator:
         series_coords = series.map(attrgetter("coords")).map(tuple)
 
         # Create ordered coordinate pairs, sorted.
-        def ordered_pairs(coords):
-            coords_1, coords_2 = tee(coords)
-            next(coords_2, None)
-            return sorted(zip(coords_1, coords_2))
         coord_pairs = series_coords.map(ordered_pairs).explode()
 
         # Remove invalid pairs (duplicated adjacent coordinates).
@@ -480,8 +526,13 @@ class Validator:
 
         return errors
 
-    def duplicated_points(self, name):
-        """Identifies the uuids of duplicate point geometries."""
+    def duplicated_points(self, name: str) -> Dict[int, list]:
+        """
+        Identifies the uuids of duplicate point geometries.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -506,8 +557,13 @@ class Validator:
 
         return errors
 
-    def encoding(self, name):
-        """Identifies potential encoding errors within string fields."""
+    def encoding(self, name: str) -> Dict[int, list]:
+        """
+        Identifies potential encoding errors within string fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -527,8 +583,13 @@ class Validator:
 
         return errors
 
-    def exitnbr_roadclass_relationship(self, name):
-        """Applies a set of validations to exitnbr and roadclass fields."""
+    def exitnbr_roadclass_relationship(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to exitnbr and roadclass fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -553,8 +614,16 @@ class Validator:
 
         return errors
 
-    def ferry_road_connectivity(self, ferryseg="ferryseg", roadseg="roadseg", junction="junction"):
-        """Validates the connectivity between ferry and road line segments."""
+    def ferry_road_connectivity(self, ferryseg: str = "ferryseg", roadseg: str = "roadseg",
+                                junction: str = "junction") -> Dict[int, list]:
+        """
+        Validates the connectivity between ferry and road line segments.
+
+        :param str ferryseg: NRN dataset name for NRN ferryseg.
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
 
@@ -600,8 +669,13 @@ class Validator:
 
         return errors
 
-    def ids(self, name):
-        """Applies a set of validations to all id fields."""
+    def ids(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to all id fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -649,8 +723,14 @@ class Validator:
 
         return errors
 
-    def isolated_lines(self, name, junction="junction"):
-        """Identifies the uuids of isolated line segments."""
+    def isolated_lines(self, name: str, junction: str = "junction") -> Dict[int, list]:
+        """
+        Identifies the uuids of isolated line segments.
+
+        :param str name: NRN dataset name.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
 
@@ -683,8 +763,15 @@ class Validator:
         df_nodes = df_nodes_all.loc[df_nodes_all.map(len) > 2]
 
         # Configure duplicated non-endpoints for analysis records relative to the full dataframe.
-        def non_endpoint_dups(nodes):
-            """Returns intermediate / non-endpoint nodes and their dataframe counts if they are duplicated."""
+        def non_endpoint_dups(nodes: Tuple[tuple, ...]) -> Union[None, Tuple[Tuple[tuple, ...], Tuple[int, ...]]]:
+            """
+            Returns intermediate / non-endpoint nodes and their dataframe counts if they are duplicated.
+
+            :param Tuple[tuple, ...] nodes: tuple of coordinate tuples.
+            :return Union[None, Tuple[Tuple[tuple, ...], Tuple[int, ...]]]: None or a nested tuple containing a tuple of
+                all non-endpoint coordinate tuples and a tuple of the frequency of each node within the entire dataset.
+            """
+
             counts = itemgetter(*nodes[1:-1])(nodes_count)
             if not isinstance(counts, tuple):
                 counts = (counts,)
@@ -708,10 +795,13 @@ class Validator:
 
         return errors
 
-    def line_internal_clustering(self, name):
+    def line_internal_clustering(self, name: str) -> Dict[int, list]:
         """
         Validates the distance between adjacent coordinates of line segments.
         Validation: line segments must have >= 1x10^(-4) (0.0001) meters distance between adjacent coordinates.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
@@ -726,10 +816,6 @@ class Validator:
         if len(series_coords):
 
             # Create ordered coordinate pairs, sorted.
-            def ordered_pairs(coords):
-                coords_1, coords_2 = tee(coords)
-                next(coords_2, None)
-                return sorted(zip(coords_1, coords_2))
             coord_pairs = series_coords.map(ordered_pairs).explode()
 
             # Remove invalid pairs (duplicated adjacent coordinates).
@@ -752,8 +838,13 @@ class Validator:
 
         return errors
 
-    def line_length(self, name):
-        """Validates the minimum feature length of line geometries."""
+    def line_length(self, name: str) -> Dict[int, list]:
+        """
+        Validates the minimum feature length of line geometries.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         min_length = 5
@@ -769,10 +860,13 @@ class Validator:
 
         return errors
 
-    def line_merging_angle(self, name):
+    def line_merging_angle(self, name: str) -> Dict[int, list]:
         """
         Validates the merging angle of line segments.
         Validation: ensure line segments merge at angles >= 5 degrees.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
@@ -834,7 +928,15 @@ class Validator:
             pts_grouped = pts_grouped.map(lambda pts: set(map(tuple, map(sorted, permutations(pts, r=2)))))
 
             # Define function to calculate and return validity of angular degrees between two intersecting lines.
-            def get_invalid_angle(pt1, pt2, ref_pt):
+            def get_invalid_angle(pt1: tuple, pt2: tuple, ref_pt: tuple) -> bool:
+                """
+                Validates the angle formed by the 2 points and reference point.
+
+                :param tuple pt1: coordinate tuple
+                :param tuple pt2: coordinate tuple
+                :param tuple ref_pt: coordinate tuple of the reference point.
+                :return bool: boolean validation of the angle formed by the 2 points and 1 reference point.
+                """
 
                 angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
                 angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
@@ -859,8 +961,13 @@ class Validator:
 
         return errors
 
-    def line_proximity(self, name):
-        """Validates the proximity of line segments."""
+    def line_proximity(self, name: str) -> Dict[int, list]:
+        """
+        Validates the proximity of line segments.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         # Validation: ensure line segments are >= 5 meters from each other, excluding connected segments.
         errors = defaultdict(list)
@@ -899,8 +1006,13 @@ class Validator:
 
         return errors
 
-    def nbrlanes(self, name):
-        """Applies a set of validations to nbrlanes field."""
+    def nbrlanes(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to nbrlanes field.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -922,8 +1034,13 @@ class Validator:
 
         return errors
 
-    def nid_linkages(self, name):
-        """Validates the nid linkages for the input dataframe, excluding "None"."""
+    def nid_linkages(self, name: str) -> Dict[int, list]:
+        """
+        Validates the nid linkages for the input dataframe, excluding 'None'.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -976,11 +1093,15 @@ class Validator:
 
         return errors
 
-    def out_of_scope(self, name, junction="junction"):
+    def out_of_scope(self, name: str, junction: str = "junction") -> Dict[int, list]:
         """
         Validates the containment of geometries within the associated provincial / territorial boundaries.
-        NatProvTer junctions are used to infer boundaries, therefore, a record will only be flagged is one of it's
+        NatProvTer junctions are used to infer boundaries, therefore, a record will only be flagged if one of it's
         endpoints lies outside of the provincial / territorial boundaries.
+
+        :param str name: NRN dataset name.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         # Validation: ensure geometries are completely within the associated provincial / territorial boundary.
@@ -1011,8 +1132,13 @@ class Validator:
 
         return errors
 
-    def point_proximity(self, name):
-        """Validates the proximity of points."""
+    def point_proximity(self, name: str) -> Dict[int, list]:
+        """
+        Validates the proximity of points.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         # Validation: ensure points are >= 5 meters from each other.
         errors = defaultdict(list)
@@ -1045,8 +1171,13 @@ class Validator:
 
         return errors
 
-    def roadclass_rtnumber_relationship(self, name):
-        """Applies a set of validations to roadclass and rtnumber1 fields."""
+    def roadclass_rtnumber_relationship(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to roadclass and rtnumber1 fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -1070,12 +1201,16 @@ class Validator:
 
         return errors
 
-    def route_contiguity(self, roadseg="roadseg", ferryseg=None):
+    def route_contiguity(self, roadseg: str = "roadseg", ferryseg: Union[None, str] = None) -> Dict[int, list]:
         """
         Applies a set of validations to route attributes (rows represent field groups):
             rtename1en, rtename2en, rtename3en, rtename4en,
             rtename1fr, rtename2fr, rtename3fr, rtename4fr,
             rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
+
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :param Union[None, str] ferryseg: NRN dataset name for NRN ferryseg.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
@@ -1102,7 +1237,7 @@ class Validator:
             # Filter dataframe to records with >= 1 non-default values across the field group, keep only required
             # fields.
             default = self.defaults_all[roadseg][field_group[0]]
-            df_filtered = df[(df[field_group].values != default).any(axis=1)][[*field_group, "geometry"]]
+            df_filtered = df.loc[(df[field_group].values != default).any(axis=1), [*field_group, "geometry"]]
 
             # Compile route names, excluding default value and "None".
             route_names = set(np.unique(df_filtered[field_group].values)) - {default, "None"}
@@ -1136,8 +1271,13 @@ class Validator:
 
         return errors
 
-    def self_intersecting_elements(self, name):
-        """Applies a set of validations to self-intersecting road elements."""
+    def self_intersecting_elements(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to self-intersecting road elements.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -1206,10 +1346,17 @@ class Validator:
 
         return errors
 
-    def self_intersecting_structures(self, name, return_segments_only=False):
+    def self_intersecting_structures(self, name: Union[gpd.GeoDataFrame, str], return_segments_only: bool = False) -> \
+            Union[Dict[int, list], gpd.GeoDataFrame]:
         """
         Applies a set of validations to self-intersecting road structures.
-        Parameter 'name' can be a dataframe or string since this function may be called from another class function.
+
+        :param Union[gpd.GeoDataFrame, str] name: GeoDataFrame or NRN dataset name. This allows this function to be
+            called by other validations.
+        :param bool return_segments_only: return flagged GeoDataFrame rather than validation error messages, default
+            False.
+        :return Union[Dict[int, list], gpd.GeoDataFrame]: dictionary of validation codes and associated lists of error
+            messages or flagged GeoDataFrame.
         """
 
         errors = defaultdict(list)
@@ -1220,17 +1367,17 @@ class Validator:
         # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
 
         # Compile single-segment road elements (via unique nids).
-        segments = df[(~df["nid"].duplicated(keep=False)) & (df["nid"] != default)]
+        segments = df.loc[(~df["nid"].duplicated(keep=False)) & (df["nid"] != default)]
 
         if not segments.empty:
 
             logger.info("Validating single-segment road elements.")
 
             # Identify self-intersections (start coord == end coord).
-            flag_segments = segments[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
+            flag_segments = segments.loc[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
 
             # Validation: for self-intersecting road segments, ensure structtype != "None".
-            errors[1] = flag_segments[flag_segments["structtype"] == "None"].index.values
+            errors[1] = flag_segments.loc[flag_segments["structtype"] == "None"].index.values
 
         if return_segments_only:
             return flag_segments
@@ -1244,8 +1391,13 @@ class Validator:
 
             return errors
 
-    def speed(self, name):
-        """Applies a set of validations to speed field."""
+    def speed(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to speed field.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -1270,8 +1422,14 @@ class Validator:
 
         return errors
 
-    def structure_attributes(self, roadseg="roadseg", junction="junction"):
-        """Validates the structid and structtype attributes of road segments."""
+    def structure_attributes(self, roadseg: str = "roadseg", junction: str = "junction") -> Dict[int, list]:
+        """
+        Validates the structid and structtype attributes of road segments.
+
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         defaults = self.defaults_all[roadseg]
@@ -1375,7 +1533,7 @@ class Validator:
 
         return errors
 
-    def execute(self):
+    def execute(self) -> None:
         """Orchestrates the execution of validation functions and compiles the resulting errors."""
 
         try:
@@ -1405,7 +1563,7 @@ class Validator:
                     for code, errors in results.items():
                         if len(errors):
                             heading = f"E{params['code']:03}{code:02} for dataset(s): {', '.join(datasets)}"
-                            self.errors[heading] = deepcopy(errors)
+                            self.errors[heading] = errors
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")

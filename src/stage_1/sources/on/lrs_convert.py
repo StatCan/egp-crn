@@ -9,13 +9,13 @@ import sqlite3
 import sys
 import uuid
 from collections import Counter
+from collections.abc import Sequence
 from itertools import chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, MultiLineString
 from tqdm import tqdm
-from typing import Any, List, Tuple, Union
-# TODO: add docstrings and type hinting to remaining functions.
+from typing import List, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
 import helpers
@@ -69,7 +69,7 @@ class ORN:
         if os.path.exists(self.dst):
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
 
-    def assemble_nrn_datasets(self):
+    def assemble_nrn_datasets(self) -> None:
         """Assembles the NRN datasets from all linked datasets."""
 
         logger.info("Assembling NRN datasets.")
@@ -280,8 +280,15 @@ class ORN:
 
             self.nrn_datasets[name] = df.copy(deep=True)
 
-    def assemble_point_dataset(self, source_name, linked_df):
-        """Assembles the NRN point dataset for the given source name. Currently supported: blkpassage, tollpoint."""
+    def assemble_point_dataset(self, source_name: str, linked_df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        Assembles an NRN Point dataset for the given source name by merging it with the base dataset. Currently
+        supported: blkpassage, tollpoint.
+
+        :param str source_name: dataset name.
+        :param gpd.GeoDataFrame linked_df: Point GeoDataFrame.
+        :return gpd.GeoDataFrame: Point GeoDataFrame merged with the base dataset.
+        """
 
         # Create dataset.
         df = self.source_datasets[source_name].copy(deep=True)
@@ -308,7 +315,7 @@ class ORN:
 
         return df.copy(deep=True)
 
-    def compile_source_datasets(self):
+    def compile_source_datasets(self) -> None:
         """Loads raw source layers into (Geo)DataFrames."""
 
         logger.info(f"Compiling source datasets from: {self.src}.")
@@ -422,8 +429,13 @@ class ORN:
             # Store results.
             self.source_datasets[layer] = df.copy(deep=True)
 
-    def configure_route_attributes(self, df):
-        """Configures the route name and number attributes for the given DataFrame."""
+    def configure_route_attributes(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        Configures route name and number attribution for the given dataset.
+
+        :param gpd.GeoDataFrame df: GeoDataFrame.
+        :return gpd.GeoDataFrame: GeoDataFrame with route name and number attribution.
+        """
 
         logger.info("Configuring route attributes.")
 
@@ -466,13 +478,26 @@ class ORN:
 
         return df.copy(deep=True)
 
-    def configure_structures(self, df):
-        """Configures structures and their attributes for the given DataFrame."""
+    def configure_structures(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        Configures structure attribution for the given dataset.
+
+        :param gpd.GeoDataFrame df: GeoDataFrame.
+        :return gpd.GeoDataFrame: GeoDataFrame with structure attribution.
+        """
 
         logger.info("Configuring structures.")
 
-        def update_geoms(geom, ranges):
-            """Splits the LineString into smaller LineStrings by removing the given ranges from the geometry."""
+        def update_geoms(geom: LineString, ranges: List[tuple, ...]) -> Union[None, List[LineString, ...]]:
+            """
+            Splits the LineString into smaller LineStrings by removing the given ranges (event measurements) from the
+            geometry.
+
+            :param LineString geom: LineString.
+            :param List[tuple, ...] ranges: nested list of event measurements.
+            :return Union[None, List[LineString, ...]]: None or a list of LineStrings, segmented from the original
+                LineString.
+            """
 
             # Compute new geometry ranges.
             new_ranges = [(0, ranges[0][0]), (ranges[-1][1], geom.length)]
@@ -546,7 +571,7 @@ class ORN:
 
         return new_df.copy(deep=True)
 
-    def configure_valid_records(self):
+    def configure_valid_records(self) -> None:
         """Configures and keeps only records which link to valid records from the base dataset."""
 
         logger.info(f"Configuring valid records.")
@@ -577,7 +602,7 @@ class ORN:
                 else:
                     del self.source_datasets[name]
 
-    def export_gpkg(self):
+    def export_gpkg(self) -> None:
         """Exports the NRN datasets to a GeoPackage."""
 
         logger.info(f"Exporting datasets to GeoPackage: {self.dst}.")
@@ -658,8 +683,8 @@ class ORN:
             logger.exception(e)
             sys.exit(1)
 
-    def map_unrecognized_values(self):
-        """Maps unrecognized attribute values to assumed NRN equivalent."""
+    def map_unrecognized_values(self) -> None:
+        """Maps unrecognized attribute values to presumed NRN equivalents."""
 
         logger.info(f"Mapping unrecognized field values.")
 
@@ -744,8 +769,18 @@ class ORN:
                     self.nrn_datasets[name].loc[
                         self.nrn_datasets[name][col].map(str.lower) == val_from.lower(), col] = val_to
 
-    def resolve_revdate(self, main_df, linked_dfs):
-        """Updates the revdate for the given DataFrame from the maximum of all linked DataFrames."""
+    def resolve_revdate(self, base_df: Union[gpd.GeoDataFrame, pd.DataFrame],
+                        linked_dfs: Sequence[Union[gpd.GeoDataFrame, pd.DataFrame, str], ...]) -> \
+            Union[gpd.GeoDataFrame, pd.DataFrame]:
+        """
+        Updates the revdate attribute of the given base dataset to the maximum from all linked datasets.
+
+        :param Union[gpd.GeoDataFrame, pd.DataFrame] base_df: (Geo)DataFrame of which the revdate attribute will be
+            updated.
+        :param Sequence[Union[gpd.GeoDataFrame, pd.DataFrame, str], ...] linked_dfs: (Geo)DataFrames and / or names of
+            datasets linked to the base dataset and with a revdate attribute.
+        :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with a modified revdate attribute.
+        """
 
         # Compile linked dataframes.
         dfs = list()
@@ -760,16 +795,16 @@ class ORN:
                                 for df in dfs], ignore_index=True)
 
         # Group by identifier, configure and assign maximum value.
-        main_df.index = main_df[self.base_fk]
-        main_df["revdate"] = helpers.groupby_to_list(dfs_concat, self.source_fk, "revdate").map(max)
-        main_df.reset_index(drop=True, inplace=True)
+        base_df.index = base_df[self.base_fk]
+        base_df["revdate"] = helpers.groupby_to_list(dfs_concat, self.source_fk, "revdate").map(max)
+        base_df.reset_index(drop=True, inplace=True)
 
-        return main_df.copy(deep=True)
+        return base_df.copy(deep=True)
 
-    def resolve_unsplit_parities(self):
+    def resolve_unsplit_parities(self) -> None:
         """
         For paritized attributes, duplicates records where the parity field = 'Both' into 'Left' and 'Right'. This
-        makes it easier to reduce lrs attributes.
+        makes it easier to reduce LRS attributes.
         """
 
         logger.info("Resolving unsplit parities.")
@@ -797,14 +832,19 @@ class ORN:
             else:
                 self.source_datasets[table] = df.copy(deep=True)
 
-    def reduce_events(self):
+    def reduce_events(self) -> None:
         """
         Reduces many-to-one base dataset events to the event with the longest measurement.
         Exception: address dataset will keep the longest event for both "Left" and "Right" paritized instances.
         """
 
-        def configure_address_structure(structures):
-            """Configures the address structure given an iterable of structures."""
+        def configure_address_structure(structures: List[str, ...]) -> str:
+            """
+            Configures the address structure given an iterable of structure values.
+
+            :param List[str, ...] structures: list of structure values.
+            :return str: structure value.
+            """
 
             structures = set(structures)
 

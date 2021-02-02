@@ -36,7 +36,15 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, remove):
+    def __init__(self, source: str, remove: bool = False) -> None:
+        """
+        Initializes an NRN stage.
+
+        :param str source: abbreviation for the source province / territory.
+        :param bool remove: removes pre-existing change logs within the data/processed directory for the specified
+            source, default False.
+        """
+
         self.stage = 3
         self.source = source.lower()
         self.remove = remove
@@ -85,7 +93,7 @@ class Stage:
         # Load default field values.
         self.defaults = helpers.compile_default_values()["roadseg"]
 
-    def export_change_logs(self):
+    def export_change_logs(self) -> None:
         """Exports the dataset differences as logs - based on nids."""
 
         logger.info(f"Writing change logs to: \"{self.output_path}\".")
@@ -104,15 +112,15 @@ class Stage:
                 with helpers.TempHandlerSwap(logger, log_path):
                     logger.info(log)
 
-    def export_gpkg(self):
-        """Exports the dataframes as GeoPackage layers."""
+    def export_gpkg(self) -> None:
+        """Exports the (Geo)DataFrames as GeoPackage layers."""
 
         logger.info("Exporting dataframes to GeoPackage layers.")
 
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.dframes, self.data_path)
 
-    def gen_and_recover_structids(self):
+    def gen_and_recover_structids(self) -> None:
         """Recovers structids from the previous NRN vintage or generates new ones."""
 
         logger.info("Generating structids for table: roadseg.")
@@ -189,13 +197,15 @@ class Stage:
             self.roadseg.loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
             self.dframes["roadseg"].loc[self.roadseg.index, "structid"] = self.roadseg["structid"].copy(deep=True)
 
-    def get_valid_ids(self, series):
+    def get_valid_ids(self, series: pd.Series) -> pd.Series:
         """
-        Validates a series of IDs based on the following conditions:
+        Validates a Series of IDs based on the following conditions:
         1) ID must be non-null.
         2) ID must be 32 digits.
         3) ID must be hexadecimal.
-        Returns flags.
+
+        :param pd.Series series: Series.
+        :return pd.Series: boolean Series.
         """
 
         hexdigits = set(string.hexdigits)
@@ -207,8 +217,8 @@ class Stage:
 
         return flags
 
-    def load_gpkg(self):
-        """Loads input GeoPackage layers into dataframes."""
+    def load_gpkg(self) -> None:
+        """Loads input GeoPackage layers into (Geo)DataFrames."""
 
         logger.info("Loading Geopackage layers.")
 
@@ -218,9 +228,9 @@ class Stage:
 
         self.dframes_old = helpers.load_gpkg(f"../../data/interim/{self.source}_old.gpkg", find=True)
 
-    def recover_and_classify_nids(self):
+    def recover_and_classify_nids(self) -> None:
         """
-        For all spatial datasets, excluding roadseg:
+        For all spatial datasets, excluding NRN roadseg:
         1) Recovers nids from the previous NRN vintage or generates new ones.
         2) Generates 4 nid classification log files: added, retired, modified, confirmed.
         """
@@ -294,9 +304,10 @@ class Stage:
                     change, nids in classified_nids.items()
                 }
 
-    def roadseg_gen_full(self):
+    def roadseg_gen_full(self) -> None:
         """
-        Generate the full representation of roadseg with all required fields for both the current and previous vintage.
+        Generates the full representation of NRN roadseg with all required fields for NID recovery for both the current
+        and previous vintage.
         """
 
         logger.info("Generating full roadseg representation.")
@@ -308,8 +319,8 @@ class Stage:
         # Copy and filter dataframe - previous vintage.
         self.roadseg_old = self.dframes_old["roadseg"][["nid", "geometry", *self.match_fields]].copy(deep=True)
 
-    def roadseg_gen_nids(self):
-        """Groups roadseg records and assigns nid values."""
+    def roadseg_gen_nids(self) -> None:
+        """Groups NRN roadseg records and assigns nid values."""
 
         logger.info("Generating nids for table: roadseg.")
 
@@ -442,9 +453,9 @@ class Stage:
         self.roadseg.loc[nid_groups.index, "nid"] = nid_groups["nid"].copy(deep=True)
         self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
-    def roadseg_recover_and_classify_nids(self):
+    def roadseg_recover_and_classify_nids(self) -> None:
         """
-        1) Recovers roadseg nids from the previous NRN vintage.
+        1) Recovers NRN roadseg nids from the previous NRN vintage.
         2) Generates 4 nid classification log files: added, retired, modified, confirmed.
         """
 
@@ -514,9 +525,9 @@ class Stage:
             change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
             change, nids in classified_nids.items()}
 
-    def roadseg_update_linkages(self):
+    def roadseg_update_linkages(self) -> None:
         """
-        Updates the nid linkages of roadseg:
+        Updates the nid linkages of NRN roadseg:
         1) blkpassage.roadnid
         2) tollpoint.roadnid
         """
@@ -580,7 +591,7 @@ class Stage:
             self.dframes[table]["roadnid"] = df["nearest_roadseg_idx"].map(
                 lambda roadseg_idx: itemgetter(roadseg_idx)(roadseg_nid_lookup)).copy(deep=True)
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes an NRN stage."""
 
         self.load_gpkg()
@@ -598,8 +609,14 @@ class Stage:
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing change logs within the data/processed directory for the specified source.")
-def main(source, remove):
-    """Executes an NRN stage."""
+def main(source: str, remove: bool = False) -> None:
+    """
+    Executes an NRN stage.
+
+    :param str source: abbreviation for the source province / territory.
+    :param bool remove: removes pre-existing change logs within the data/processed directory for the specified source,
+        default False.
+    """
 
     try:
 
