@@ -1,16 +1,11 @@
 import click
 import logging
 import os
-import pandas as pd
 import sys
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
 from validation_functions import Validator
-
-
-# Suppress pandas chained assignment warning.
-pd.options.mode.chained_assignment = None
 
 
 # Set logger.

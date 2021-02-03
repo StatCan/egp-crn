@@ -24,10 +24,6 @@ import helpers
 from segment_addresses import Segmentor
 
 
-# Suppress pandas chained assignment warning.
-pd.options.mode.chained_assignment = None
-
-
 # Set logger.
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
