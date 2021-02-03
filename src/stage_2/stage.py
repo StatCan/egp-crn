@@ -280,13 +280,14 @@ class Stage:
         pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "z": pts_z, "uuid": pts_uuid})
 
         # Query unique points (all) and endpoints.
-        pts_unique = set(map(tuple, pts_df[~pts_df[["x", "y", "z"]].duplicated(keep=False)][["x", "y", "z"]].values))
+        pts_unique = set(map(tuple, pts_df.loc[
+            ~pts_df[["x", "y", "z"]].duplicated(keep=False), ["x", "y", "z"]].values))
         endpoints_unique = set(map(tuple, np.unique(np.concatenate(
             df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)))
 
         # Query non-unique points (all), keep only the first duplicated point from self-loops.
-        pts_dup = pts_df[(pts_df[["x", "y", "z"]].duplicated(keep=False)) &
-                         (~pts_df.duplicated(keep="first"))][["x", "y", "z"]].values
+        pts_dup = pts_df.loc[(pts_df[["x", "y", "z"]].duplicated(keep=False)) &
+                             (~pts_df.duplicated(keep="first")), ["x", "y", "z"]].values
 
         # Query junctypes.
 
@@ -336,7 +337,7 @@ class Stage:
         pts_within = set(chain.from_iterable(pts_within.to_list()))
 
         # Invert query and compile resulting points as NatProvTer.
-        natprovter = set(pts_geoms[~pts_geoms.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
+        natprovter = set(pts_geoms.loc[~pts_geoms.index.isin(pts_within)].map(lambda pt: pt.coords[0]))
 
         # Remove conflicting points from other junctypes.
         deadend = deadend.difference(natprovter)

@@ -163,7 +163,7 @@ class Stage:
                         counts = Counter(series_orig[mods].fillna(-99))
 
                         # Iterate and log record modifications.
-                        for vals in df[~df.duplicated(keep="first")].values:
+                        for vals in df.loc[~df.duplicated(keep="first")].values:
 
                             logger.warning(f"Modified {counts[-99] if pd.isna(vals[0]) else counts[vals[0]]} "
                                            f"instance(s) of {vals[0]} ({dtype_orig}) to {vals[1]} ({dtype_new}).")
@@ -359,7 +359,7 @@ class Stage:
 
                 # Filter records to non-default values which are not already lower case.
                 default = self.defaults[table][col]
-                s_filtered = df[df[col].map(lambda val: val != default and not val.islower())][col]
+                s_filtered = df.loc[df[col].map(lambda val: val != default and not val.islower()), col]
 
                 # Apply modifications, if required.
                 if len(s_filtered):
@@ -478,7 +478,7 @@ class Stage:
 
                     # Filter records to non-default values which are not already title case.
                     default = self.defaults[table][col]
-                    s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
+                    s_filtered = df.loc[df[col].map(lambda route: route != default and not route.istitle()), col]
 
                     # Apply modifications, if required.
                     if len(s_filtered):
@@ -686,7 +686,7 @@ class Stage:
             if source_yaml["data"]["spatial"]:
 
                 # Filter invalid geometries.
-                df = df[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
+                df = df.loc[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
 
                 # Cast multi-type geometries.
                 df = helpers.explode_geometry(df)
@@ -770,7 +770,7 @@ class Stage:
                     if isinstance(df, gpd.GeoDataFrame):
 
                         # Filter invalid geometries.
-                        df = df[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
+                        df = df.loc[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
 
                         # Cast multi-type geometries.
                         df = helpers.explode_geometry(df)

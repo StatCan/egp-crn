@@ -81,7 +81,7 @@ class Segmentor:
         except ValueError:
 
             # Flag invalid address numbers.
-            invalid = self.addresses[~self.addresses["number"].map(lambda val: str(val).isdigit)]
+            invalid = self.addresses.loc[~self.addresses["number"].map(lambda val: str(val).isdigit)]
             message = "\n".join(map(str, invalid[invalid.columns.difference(["geometry"])].itertuples(index=True)))
             logger.exception(f"Invalid address number for the following record(s):\n{message}")
             sys.exit(1)
@@ -230,8 +230,8 @@ class Segmentor:
                     key=itemgetter(2)))
 
         # Split address dataframe on parity.
-        addresses_l = self.addresses[self.addresses["parity"] == "l"].copy(deep=True)
-        addresses_r = self.addresses[self.addresses["parity"] == "r"].copy(deep=True)
+        addresses_l = self.addresses.loc[self.addresses["parity"] == "l"].copy(deep=True)
+        addresses_r = self.addresses.loc[self.addresses["parity"] == "r"].copy(deep=True)
 
         # Create dataframes from grouped addresses.
         cols = ("number", "suffix", "distance")
@@ -428,7 +428,14 @@ class Segmentor:
             self.addresses.drop(self.addresses.loc[non_linked_flag].index, axis=0, inplace=True)
 
         # Convert linkages to integer tuples, if possible.
-        def as_int(val: Union[int, str]) -> int:
+        def as_int(val: Union[int, str]) -> Union[int, str]:
+            """
+            Converts the given value to integer, failed conversion returns the original value.
+
+            :param Union[int, str] val: value to be converted.
+            :return Union[int, str]: value converted to integer, or unaltered.
+            """
+
             try:
                 return int(val)
             except ValueError:
@@ -444,12 +451,12 @@ class Segmentor:
             logger.info(f"Resolving many-to-one address-roadseg linkages for {sum(flag_multi)} address records.")
 
             # Resolve many-to-one linkages.
-            self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses[flag_multi][["geometry", "roadseg_index"]]\
-                .apply(lambda row: get_nearest_linkage(*row), axis=1)
+            self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses.loc[
+                flag_multi, ["geometry", "roadseg_index"]].apply(lambda row: get_nearest_linkage(*row), axis=1)
 
         # Unpack first roadseg linkage for single-linkage addresses.
-        self.addresses.loc[~flag_multi, "roadseg_index"] = self.addresses[~flag_multi]["roadseg_index"].map(
-            itemgetter(0))
+        self.addresses.loc[~flag_multi, "roadseg_index"] = self.addresses.loc[
+            ~flag_multi, "roadseg_index"].map(itemgetter(0))
 
         # Compile linked roadseg geometry for each address.
         self.addresses["roadseg_geometry"] = self.addresses.merge(

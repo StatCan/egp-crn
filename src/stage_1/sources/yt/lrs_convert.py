@@ -634,7 +634,7 @@ class LRS:
                     # For any gaps (tolerance = 1 unit), reduce the 'from' measurement to the appropriate neighbouring
                     # 'to' measurement.
                     for index, from_value in records.loc[records["from"] != from_min, "from"].iteritems():
-                        neighbour = records[(records.index != index) & ((from_value - records["to"]).between(0, 1))]
+                        neighbour = records.loc[(records.index != index) & ((from_value - records["to"]).between(0, 1))]
                         if len(neighbour):
 
                             # Update record.

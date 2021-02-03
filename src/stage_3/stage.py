@@ -137,8 +137,8 @@ class Stage:
 
         # Subset dataframes to valid structures.
         # Further subset previous vintage to records with valid IDs.
-        roadseg = roadseg[~roadseg["structtype"].isin({"None", self.defaults["structtype"]})]
-        roadseg_old = roadseg_old[self.get_valid_ids(roadseg_old["structid"])]
+        roadseg = roadseg.loc[~roadseg["structtype"].isin({"None", self.defaults["structtype"]})]
+        roadseg_old = roadseg_old.loc[self.get_valid_ids(roadseg_old["structid"])]
 
         if len(roadseg):
 
@@ -182,12 +182,13 @@ class Stage:
 
             # Recover old structids via uuid index.
             # Merge uuids onto recovery dataframe.
-            recovery = merge[merge["_merge"] == "both"].merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
+            recovery = merge.loc[merge["_merge"] == "both"]\
+                .merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
                 .drop_duplicates(subset="structid", keep="first")
             recovery.index = recovery["uuid"]
 
             # Filter invalid structids from old data.
-            recovery = recovery[self.get_valid_ids(recovery["structid_old"])]
+            recovery = recovery.loc[self.get_valid_ids(recovery["structid_old"])]
 
             # Recover old structids.
             if len(recovery):
@@ -261,10 +262,10 @@ class Stage:
 
                     # Classify nid groups as: added, retired, modified, confirmed.
                     classified_nids = {
-                        "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-                        "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
+                        "added": merge.loc[merge["_merge"] == "right_only", "nid"].to_list(),
+                        "retired": merge.loc[merge["_merge"] == "left_only", "nid_old"].to_list(),
                         "modified": list(),
-                        "confirmed": merge[merge["_merge"] == "both"]
+                        "confirmed": merge.loc[merge["_merge"] == "both"]
                     }
 
                     # Recover old nids for confirmed and modified nid groups via uuid index.
@@ -274,7 +275,7 @@ class Stage:
                     recovery.index = recovery["uuid"]
 
                     # Filter invalid nids from old data.
-                    recovery = recovery[self.get_valid_ids(recovery["nid_old"])]
+                    recovery = recovery.loc[self.get_valid_ids(recovery["nid_old"])]
 
                     # Recover old nids.
                     if len(recovery):
@@ -334,12 +335,13 @@ class Stage:
 
         # Subset dataframes to where at least one match field is not equal to the default value nor "None".
         default = self.defaults[self.match_fields[0]]
-        roadseg = roadseg[~((roadseg[self.match_fields].eq(roadseg[self.match_fields].iloc[:, 0], axis=0).all(axis=1)) &
-                            (roadseg[self.match_fields[0]].isin(["None", default])))]
+        roadseg = roadseg.loc[~(
+                (roadseg[self.match_fields].eq(roadseg[self.match_fields].iloc[:, 0], axis=0).all(axis=1)) &
+                (roadseg[self.match_fields[0]].isin(["None", default])))]
 
         # Group uuids and geometry by match fields.
         # To reduce processing, only duplicated records are grouped.
-        dups = roadseg[roadseg[self.match_fields].duplicated(keep=False)]
+        dups = roadseg.loc[roadseg[self.match_fields].duplicated(keep=False)]
         dups_geom_lookup = dups["geometry"].to_dict()
         grouped = dups.groupby(self.match_fields)["uuid"].agg(list)
 
@@ -347,7 +349,7 @@ class Stage:
         # Note: The threshold and new size are arbitrary. Change them if required.
         threshold = 10000
         new_size = 1000
-        invalid_groups = grouped[grouped.map(len) >= threshold].copy(deep=True)
+        invalid_groups = grouped.loc[grouped.map(len) >= threshold].copy(deep=True)
         grouped.drop(invalid_groups.index, inplace=True)
         for invalid_group in invalid_groups:
             grouped = grouped.append(pd.Series([invalid_group[start_idx * new_size: (start_idx * new_size) + new_size]
@@ -362,14 +364,14 @@ class Stage:
         grouped["geometry"] = grouped["geometry"].map(linemerge)
 
         # Concatenate non-grouped groups (single uuid groups) to groups.
-        non_grouped = roadseg[~roadseg[self.match_fields].duplicated(keep=False)][["uuid", "geometry"]]
+        non_grouped = roadseg.loc[~roadseg[self.match_fields].duplicated(keep=False), ["uuid", "geometry"]]
         non_grouped["uuid"] = non_grouped["uuid"].map(lambda uid: [uid])
         grouped = pd.concat([grouped, non_grouped], axis=0, ignore_index=True, sort=False)
 
         # Split multilinestrings into multiple linestring records.
         # Process: query and explode multilinestring records, then concatenate to linestring records.
-        grouped_single = grouped[~grouped["geometry"].map(lambda geom: geom.type == "MultiLineString")]
-        grouped_multi = grouped[grouped["geometry"].map(lambda geom: geom.type) == "MultiLineString"]
+        grouped_single = grouped.loc[~grouped["geometry"].map(lambda geom: geom.type == "MultiLineString")]
+        grouped_multi = grouped.loc[grouped["geometry"].map(lambda geom: geom.type) == "MultiLineString"]
 
         grouped_multi_exploded = grouped_multi.explode("geometry")
         grouped = pd.concat([grouped_single, grouped_multi_exploded], axis=0, ignore_index=False, sort=False)
@@ -380,8 +382,8 @@ class Stage:
         grouped["junction"] = grouped["junction"].map(lambda coords: list(coords.intersection(junction_pts)))
 
         # Separate groups with and without coincident junctions.
-        grouped_no_junction = grouped[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
-        grouped_junction = grouped[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+        grouped_no_junction = grouped.loc[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+        grouped_junction = grouped.loc[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
 
         # Convert coords to shapely points.
         grouped_junction["junction"] = grouped_junction["junction"].map(
@@ -423,7 +425,7 @@ class Stage:
         # Handle exceptions 1.
         # Identify results without uuid matches. These represents lines which backtrack onto themselves.
         # These records can be removed from the groupings as their junction-based split was in error.
-        grouped_no_matches = grouped_query[grouped_query.map(lambda matches: not any(matches))]
+        grouped_no_matches = grouped_query.loc[grouped_query.map(lambda matches: not any(matches))]
         grouped.drop(grouped_no_matches.index, axis=0, inplace=True)
         grouped_query.drop(grouped_no_matches.index, axis=0, inplace=True)
         grouped.reset_index(drop=True, inplace=True)
@@ -445,7 +447,7 @@ class Stage:
         # Remove duplicate uuids which have also been assigned a non-unique nid.
         duplicated_uuids = nid_groups["uuid"].duplicated(keep=False)
         duplicated_nids = nid_groups["nid"].duplicated(keep=False)
-        nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
+        nid_groups = nid_groups.loc[~(duplicated_uuids & duplicated_nids)]
 
         # Assign nids to roadseg.
         # Store results.
@@ -484,10 +486,10 @@ class Stage:
 
         # Classify nid groups as: added, retired, modified, confirmed.
         classified_nids = {
-            "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-            "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
+            "added": merge.loc[merge["_merge"] == "right_only", "nid"].to_list(),
+            "retired": merge.loc[merge["_merge"] == "left_only", "nid_old"].to_list(),
             "modified": list(),
-            "confirmed": merge[merge["_merge"] == "both"]
+            "confirmed": merge.loc[merge["_merge"] == "both"]
         }
 
         # Recover old nids for confirmed and modified nid groups via uuid index.
@@ -497,7 +499,7 @@ class Stage:
         recovery.index = recovery["uuid"]
 
         # Filter invalid nids from old data.
-        recovery = recovery[self.get_valid_ids(recovery["nid_old"])]
+        recovery = recovery.loc[self.get_valid_ids(recovery["nid_old"])]
 
         # Recover old nids.
         if len(recovery):
@@ -517,8 +519,8 @@ class Stage:
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
         flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
-        classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
+        classified_nids["modified"] = classified_nids["confirmed"].loc[flags.values, "nid"].to_list()
+        classified_nids["confirmed"] = classified_nids["confirmed"].loc[~flags.values, "nid"].to_list()
 
         # Store nid classifications as change logs.
         self.change_logs["roadseg"] = {

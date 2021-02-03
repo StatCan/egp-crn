@@ -293,8 +293,8 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     if len(set(gdf.geom_type.unique()).intersection(multi_types)):
 
         # Separate multi- and single-type records.
-        multi = gdf[gdf.geom_type.isin(multi_types)]
-        single = gdf[~gdf.index.isin(multi.index)]
+        multi = gdf.loc[gdf.geom_type.isin(multi_types)]
+        single = gdf.loc[~gdf.index.isin(multi.index)]
 
         # Explode multi-type geometries.
         multi_exploded = multi.explode().reset_index(drop=True)

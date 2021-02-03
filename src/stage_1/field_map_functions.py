@@ -324,7 +324,7 @@ def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: U
     series.loc[(series == "") | (series.isna())] = np.nan
 
     # Compile valid records.
-    series_valid = series[~series.isna()].copy(deep=True)
+    series_valid = series.loc[~series.isna()].copy(deep=True)
 
     # Compile regex results, based on required group indexes.
     if isinstance(group_index, (int, np.int_)):
@@ -369,7 +369,7 @@ def regex_sub(series: pd.Series, **kwargs: dict) -> pd.Series:
     series.loc[(series == "") | (series.isna())] = np.nan
 
     # Compile valid records.
-    series_valid = series[~series.isna()].copy(deep=True)
+    series_valid = series.loc[~series.isna()].copy(deep=True)
 
     # Apply regex substitution.
     series.loc[series_valid.index] = series_valid.map(lambda val: re.sub(**kwargs, string=str(val), flags=re.I))

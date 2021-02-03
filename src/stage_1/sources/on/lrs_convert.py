@@ -78,9 +78,9 @@ class ORN:
         logger.info("Assembling NRN dataset: addrange.")
 
         # Group address parities into single records.
-        addrange_l = self.source_datasets["orn_address_info"][
+        addrange_l = self.source_datasets["orn_address_info"].loc[
             self.source_datasets["orn_address_info"]["street_side"] == "Left"].copy(deep=True)
-        addrange_r = self.source_datasets["orn_address_info"][
+        addrange_r = self.source_datasets["orn_address_info"].loc[
             self.source_datasets["orn_address_info"]["street_side"] == "Right"].copy(deep=True)
         addrange_merge = addrange_l.merge(addrange_r, how="outer", on=self.source_fk, suffixes=("_l", "_r"))
 
@@ -116,7 +116,7 @@ class ORN:
         # Exclude "None" street names.
         addrange_strplaname_links = [["l_offnanid", "l_placenam"], ["r_offnanid", "r_placenam"],
                                      ["l_altnanid", "l_placenam"], ["r_altnanid", "r_placenam"]]
-        strplaname_records = {index: addrange[addrange[cols[0]] != "None"][[*cols, "revdate"]].rename(
+        strplaname_records = {index: addrange.loc[addrange[cols[0]] != "None", [*cols, "revdate"]].rename(
             columns={cols[0]: "stname_c", cols[1]: "placename"})
             for index, cols in enumerate(addrange_strplaname_links)}
 
@@ -130,7 +130,7 @@ class ORN:
         logger.info("Resolving NRN dataset linkage: addrange-strplaname.")
 
         for cols in addrange_strplaname_links:
-            addrange_filtered = addrange[addrange[cols[0]] != "None"]
+            addrange_filtered = addrange.loc[addrange[cols[0]] != "None"]
             addrange.loc[addrange_filtered.index, cols[0]] = addrange_filtered.merge(
                 strplaname[["stname_c", "placename", "nid"]], how="left", left_on=cols,
                 right_on=["stname_c", "placename"])["nid_y"].values
@@ -222,14 +222,14 @@ class ORN:
         logger.info("Resolving NRN dataset linkage: roadseg-addrange-strplaname.")
 
         addrange_invalid_nids = set(
-            addrange[addrange[["l_hnumf", "r_hnumf", "l_hnuml", "r_hnuml"]].sum(axis=1) == 0]["nid"])
+            addrange.loc[addrange[["l_hnumf", "r_hnumf", "l_hnuml", "r_hnuml"]].sum(axis=1) == 0, "nid"])
         addrange_valid_nanids = set(np.concatenate(
-            addrange[~addrange["nid"].isin(addrange_invalid_nids)][["l_offnanid", "r_offnanid",
-                                                                    "l_altnanid", "r_altnanid"]].values))
+            addrange.loc[~addrange["nid"].isin(addrange_invalid_nids),
+                         ["l_offnanid", "r_offnanid", "l_altnanid", "r_altnanid"]].values))
 
         roadseg.loc[roadseg["adrangenid"].isin(addrange_invalid_nids), "adrangenid"] = "None"
-        strplaname = strplaname[strplaname["nid"].isin(addrange_valid_nanids)]
-        addrange = addrange[~addrange["nid"].isin(addrange_invalid_nids)]
+        strplaname = strplaname.loc[strplaname["nid"].isin(addrange_valid_nanids)]
+        addrange = addrange.loc[~addrange["nid"].isin(addrange_invalid_nids)]
 
         # ferryseg
         logger.info("Assembling NRN dataset: ferryseg.")
@@ -452,8 +452,8 @@ class ORN:
             col_from, cols_to, na = itemgetter("col_from", "cols_to", "na")(route_params)
 
             # Filter to valid and unique records.
-            routes_df = routes_df[~((routes_df[col_from].isna()) | (routes_df[col_from] == na) |
-                                    (routes_df[[self.source_fk, col_from]].duplicated(keep="first")))]
+            routes_df = routes_df.loc[~((routes_df[col_from].isna()) | (routes_df[col_from] == na) |
+                                        (routes_df[[self.source_fk, col_from]].duplicated(keep="first")))]
 
             if len(routes_df):
 
@@ -467,7 +467,7 @@ class ORN:
 
                 # Iterate and populate target columns with nested attribute values at the given index.
                 for index, col in enumerate(cols_to):
-                    routes_subset = routes_df_filtered[routes_df_filtered.map(len) > index].map(itemgetter(index))
+                    routes_subset = routes_df_filtered.loc[routes_df_filtered.map(len) > index].map(itemgetter(index))
                     routes_subset_df = pd.DataFrame({self.source_fk: routes_subset.index, "value": routes_subset})
                     df[col] = df.merge(routes_subset_df, how="left", left_on=self.base_fk,
                                        right_on=self.source_fk)["value"].fillna(value=na)
@@ -518,7 +518,7 @@ class ORN:
         structures = self.source_datasets["orn_structure"].copy(deep=True)
 
         # Compile records with linked structures.
-        df_structs = df[df[self.base_fk].isin(set(structures[self.source_fk]))].copy(deep=True)
+        df_structs = df.loc[df[self.base_fk].isin(set(structures[self.source_fk]))].copy(deep=True)
 
         # Convert geometries to meter-based projection.
         df_structs = helpers.reproject_gdf(df_structs, df_structs.crs.to_epsg(), 3348)
@@ -529,7 +529,7 @@ class ORN:
         # Subset geometries to structure events, filter invalid results.
         structures["geometry"] = structures[["geometry", *self.event_measurement_fields]].apply(
             lambda row: shapely.ops.substring(*row), axis=1)
-        structures = structures[structures["geometry"].map(lambda g: isinstance(g, LineString))]
+        structures = structures.loc[structures["geometry"].map(lambda g: isinstance(g, LineString))]
 
         # Remove structure geometries from original geometries.
         # Process: group structure event measurements and subtract the ranges from the base geometry.
@@ -545,7 +545,7 @@ class ORN:
         # Generate new base geometries, filter invalid results.
         df_structs["new_geometries"] = df_structs[["geometry", "structure_ranges"]].apply(
             lambda row: update_geoms(*row), axis=1)
-        df_structs = df_structs[~df_structs["new_geometries"].isna()]
+        df_structs = df_structs.loc[~df_structs["new_geometries"].isna()]
 
         # Explode nested geometries, update geometry column.
         df_structs = gpd.GeoDataFrame(pd.DataFrame(df_structs).explode("new_geometries"), crs=3348)
@@ -558,7 +558,7 @@ class ORN:
         df_structs = helpers.reproject_gdf(df_structs, 3348, df.crs.to_epsg())
 
         # Standardize fields and append non-structure records and structure base records.
-        df_non_structs = df[~df[self.base_fk].isin(set(structures[self.source_fk]))].copy(deep=True)
+        df_non_structs = df.loc[~df[self.base_fk].isin(set(structures[self.source_fk]))].copy(deep=True)
         df_structs.drop(columns=set(df_structs)-set(df_non_structs), inplace=True)
         new_df = df_structs.append(df_non_structs, ignore_index=True)
         for new_col in {"structtype", "strunameen", "strunamefr"}:
@@ -593,7 +593,7 @@ class ORN:
 
                 logger.info(f"Configuring valid records for source dataset: {name}.")
 
-                df_valid = df[df[self.source_fk].isin(base_fkeys)]
+                df_valid = df.loc[df[self.source_fk].isin(base_fkeys)]
                 logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {name}.")
 
                 # Store or delete dataset.
@@ -817,7 +817,7 @@ class ORN:
             df = self.source_datasets[table].copy(deep=True)
 
             # Copy unsplit records and update as "Right".
-            right_side = df[df[field] == "Both"].copy(deep=True)
+            right_side = df.loc[df[field] == "Both"].copy(deep=True)
             right_side.loc[right_side.index, field] = "Right"
 
             # Update original records as "Left".
@@ -881,7 +881,7 @@ class ORN:
                         logger.info(f"Reducing events for parity: {parity}.")
 
                         # Get parity records.
-                        records = df[df[self.parities[name]] == parity].copy(deep=True)
+                        records = df.loc[df[self.parities[name]] == parity].copy(deep=True)
 
                         # Configure updated address attributes.
                         logger.info("Configuring updated address attributes.")

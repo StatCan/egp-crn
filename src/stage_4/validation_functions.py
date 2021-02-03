@@ -220,9 +220,9 @@ class Validator:
         default = self.defaults_all[name]["exitnbr"]
 
         # Query multi-segment road elements (via nid field) where exitnbr is not the default value or not "None".
-        df_filtered = df[(df["nid"].duplicated(keep=False)) &
-                         (df["nid"] != default) &
-                         (~df["exitnbr"].isin({default, "None"}))]
+        df_filtered = df.loc[(df["nid"].duplicated(keep=False)) &
+                             (df["nid"] != default) &
+                             (~df["exitnbr"].isin({default, "None"}))]
 
         if len(df_filtered):
 
@@ -230,7 +230,7 @@ class Validator:
             grouped = helpers.groupby_to_list(df_filtered, "nid", "exitnbr").map(np.unique)
 
             # Validation: ensure road element has <= 1 unique exitnbr.
-            flag_nids = grouped[grouped.map(len) > 1]
+            flag_nids = grouped.loc[grouped.map(len) > 1]
 
             # Compile error properties.
             for nid, exitnbrs in flag_nids.iteritems():
@@ -252,20 +252,20 @@ class Validator:
 
         # Subset dataframe to non-default values, keep only required fields.
         default = self.defaults_all[name]["pavstatus"]
-        df_filtered = df[df["pavstatus"] != default][["pavstatus", "pavsurf", "unpavsurf"]]
+        df_filtered = df.loc[df["pavstatus"] != default, ["pavstatus", "pavsurf", "unpavsurf"]]
 
         # Apply validations and compile uuids of flagged records.
         if len(df_filtered):
 
             # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
-            paved = df_filtered[df_filtered["pavstatus"] == "Paved"]
-            errors[1] = paved[paved["pavsurf"] == "None"].index.values
-            errors[2] = paved[paved["unpavsurf"] != "None"].index.values
+            paved = df_filtered.loc[df_filtered["pavstatus"] == "Paved"]
+            errors[1] = paved.loc[paved["pavsurf"] == "None"].index.values
+            errors[2] = paved.loc[paved["unpavsurf"] != "None"].index.values
 
             # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
-            unpaved = df_filtered[df_filtered["pavstatus"] == "Unpaved"]
-            errors[3] = unpaved[unpaved["pavsurf"] != "None"].index.values
-            errors[4] = unpaved[unpaved["unpavsurf"] == "None"].index.values
+            unpaved = df_filtered.loc[df_filtered["pavstatus"] == "Unpaved"]
+            errors[3] = unpaved.loc[unpaved["pavsurf"] != "None"].index.values
+            errors[4] = unpaved.loc[unpaved["unpavsurf"] == "None"].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -312,54 +312,54 @@ class Validator:
         for col in ("credate", "revdate"):
 
             # Subset to non-default values.
-            s_filtered = df[df[col] != defaults[col]][col]
+            s_filtered = df.loc[df[col] != defaults[col], col]
 
             if len(s_filtered):
 
                 # Validation 1: date content must be numeric.
-                results = s_filtered[~s_filtered.map(str.isnumeric)].index.values
+                results = s_filtered.loc[~s_filtered.map(str.isnumeric)].index.values
                 errors[1].extend(results)
 
                 # Validation 2: length must be 4, 6, or 8.
-                results = s_filtered[s_filtered.map(lambda date: len(date) not in {4, 6, 8})].index.values
+                results = s_filtered.loc[s_filtered.map(lambda date: len(date) not in {4, 6, 8})].index.values
                 errors[2].extend(results)
 
                 # Subset to valid records only for remaining validations.
                 invalid_indexes = list(set(chain.from_iterable(errors.values())))
-                s_filtered2 = s_filtered[~s_filtered.index.isin(invalid_indexes)]
+                s_filtered2 = s_filtered.loc[~s_filtered.index.isin(invalid_indexes)]
 
                 if len(s_filtered2):
 
                     # Temporarily set missing month and day values to 01.
-                    series_mod = s_filtered2[s_filtered2.map(lambda date: len(date) in {4, 6})]
+                    series_mod = s_filtered2.loc[s_filtered2.map(lambda date: len(date) in {4, 6})]
                     if len(series_mod):
                         append_vals = {4: "0101", 6: "01"}
                         s_filtered2.loc[series_mod.index] = series_mod.map(lambda date: date + append_vals[len(date)])
                         df.loc[s_filtered2.index, col] = s_filtered2
 
                     # Validation 3: valid date - year.
-                    results = s_filtered2[~s_filtered2.map(
+                    results = s_filtered2.loc[~s_filtered2.map(
                         lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
                     errors[3].extend(results)
 
                     # Validation 4: valid date - month.
-                    results = s_filtered2[~s_filtered2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
+                    results = s_filtered2.loc[~s_filtered2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
                     errors[4].extend(results)
 
                     # Validation 5: valid date - day.
-                    results = s_filtered2[~s_filtered2.map(validate_day)].index.values
+                    results = s_filtered2.loc[~s_filtered2.map(validate_day)].index.values
                     errors[5].extend(results)
 
                     # Validation 6: ensure date <= today.
-                    results = s_filtered2[s_filtered2.map(lambda date: int(date) > today["full"])].index.values
+                    results = s_filtered2.loc[s_filtered2.map(lambda date: int(date) > today["full"])].index.values
                     errors[6].extend(results)
 
         # Validation 7: ensure credate <= revdate.
-        df_filtered = df[(df["credate"] != defaults["credate"]) &
-                         (df["revdate"] != defaults["revdate"]) &
-                         ~(df.index.isin(set(chain.from_iterable(itemgetter(1, 2)(errors)))))]
+        df_filtered = df.loc[(df["credate"] != defaults["credate"]) &
+                             (df["revdate"] != defaults["revdate"]) &
+                             ~(df.index.isin(set(chain.from_iterable(itemgetter(1, 2)(errors)))))]
         if len(df_filtered):
-            results = df_filtered[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
+            results = df_filtered.loc[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
             errors[7].extend(results)
 
         # Compile error properties.
@@ -384,7 +384,7 @@ class Validator:
         roadseg = self.dframes_m[roadseg]
 
         # Filter junctions to junctype = "Dead End", keep only required fields.
-        deadends = junction[junction["junctype"] == "Dead End"]["geometry"]
+        deadends = junction.loc[junction["junctype"] == "Dead End", "geometry"]
         roadseg = roadseg["geometry"]
 
         # Compile coordinates (used multiple times).
@@ -418,7 +418,7 @@ class Validator:
 
         # Filter coincident indexes from all indexes. Keep only non-empty results.
         proxi_idx_keep = proxi_idx_all - proxi_idx_exclude
-        proxi_idx_keep = proxi_idx_keep[proxi_idx_keep.map(len) > 0]
+        proxi_idx_keep = proxi_idx_keep.loc[proxi_idx_keep.map(len) > 0]
 
         # Generate a lookup dict for the index of each roadseg coordinate, mapped to the associated uuid.
         coords_idx_uuid_lookup = dict(zip(range(coords_count.sum()), np.repeat(roadseg.index.values, coords_count)))
@@ -451,23 +451,23 @@ class Validator:
         # Validation 1: ensure line segments are not duplicated.
 
         # Filter geometries to those with duplicate lengths.
-        s_filtered = series[series.length.duplicated(keep=False)]
+        s_filtered = series.loc[series.length.duplicated(keep=False)]
 
         if len(s_filtered):
 
             # Filter geometries to those with duplicate endpoint coordinates.
-            s_filtered = s_filtered[s_filtered.map(
+            s_filtered = s_filtered.loc[s_filtered.map(
                 lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
             if len(s_filtered):
 
                 # Identify duplicate geometries.
-                dups = s_filtered[s_filtered.map(
+                dups = s_filtered.loc[s_filtered.map(
                     lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)]
 
                 # Configure duplicate groups and their uuids.
                 uuid_groups = set(dups.map(
-                    lambda geom1: tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+                    lambda geom1: tuple(set(dups.loc[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
 
                 # Compile error properties.
                 if len(uuid_groups):
@@ -478,7 +478,7 @@ class Validator:
         # Validation 2: ensure line segments do not have repeated adjacent points.
 
         # Filter geometries to those with duplicated coordinates.
-        s_filtered = series[series.map(lambda g: len(g.coords) != len(set(g.coords)))]
+        s_filtered = series.loc[series.map(lambda g: len(g.coords) != len(set(g.coords)))]
 
         if len(s_filtered):
 
@@ -486,7 +486,7 @@ class Validator:
             mask = s_filtered.map(lambda g: len(g.coords) != len(list(groupby(g.coords))))
 
             # Compile uuids of flagged records.
-            errors[2] = s_filtered[mask].index.values
+            errors[2] = s_filtered.loc[mask].index.values
 
         # Validation 3: ensure line segments do not overlap (i.e. contain duplicated adjacent points).
 
@@ -497,7 +497,7 @@ class Validator:
         coord_pairs = series_coords.map(ordered_pairs).explode()
 
         # Remove invalid pairs (duplicated adjacent coordinates).
-        coord_pairs = coord_pairs[coord_pairs.map(lambda pair: pair[0] != pair[1])]
+        coord_pairs = coord_pairs.loc[coord_pairs.map(lambda pair: pair[0] != pair[1])]
 
         # Group uuids of matching pairs.
         coord_pairs_df = coord_pairs.reset_index(drop=False)
@@ -505,7 +505,7 @@ class Validator:
         coord_pairs_grouped = pd.DataFrame({"pairs": coord_pairs_grouped.index, "uuid": coord_pairs_grouped.values})
 
         # Filter to duplicated pairs.
-        coord_pairs_dup = coord_pairs_grouped[coord_pairs_grouped["uuid"].map(len) > 1]
+        coord_pairs_dup = coord_pairs_grouped.loc[coord_pairs_grouped["uuid"].map(len) > 1]
         if len(coord_pairs_dup):
 
             # Group duplicated pairs by sorted uuid groups.
@@ -541,13 +541,13 @@ class Validator:
         pts = df["geometry"].map(lambda g: itemgetter(0)(g.coords))
 
         # Identify duplicated geometries.
-        dups = pts[pts.duplicated(keep=False)]
+        dups = pts.loc[pts.duplicated(keep=False)]
 
         if len(dups):
 
             # Configure duplicated groups and their uuids.
             uuid_groups = set(dups.map(
-                lambda geom1: tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+                lambda geom1: tuple(set(dups.loc[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
 
             # Compile error properties.
             if len(uuid_groups):
@@ -596,7 +596,7 @@ class Validator:
 
         # Subset dataframe to non-default and non-"None" values, keep only required fields.
         default = self.defaults_all[name]["exitnbr"]
-        s_filtered = df[~df["exitnbr"].isin({default, "None"})]["roadclass"]
+        s_filtered = df.loc[~df["exitnbr"].isin({default, "None"}), "roadclass"]
 
         if len(s_filtered):
 
@@ -604,8 +604,8 @@ class Validator:
             #             "Service Lane" when exitnbr is not the default value or not "None".
 
             # Compile uuids of flagged records.
-            errors[1] = s_filtered[~s_filtered.isin({"Expressway / Highway", "Freeway", "Ramp", "Rapid Transit",
-                                                     "Service Lane"})].index.values
+            errors[1] = s_filtered.loc[~s_filtered.isin(
+                {"Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane"})].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -636,19 +636,19 @@ class Validator:
 
         # Compile junction coordinates where junctype = "Ferry".
         ferry_junctions = list(set(chain([geom.coords[0] for geom in
-                                          junction[junction["junctype"] == "Ferry"]["geometry"].values])))
+                                          junction.loc[junction["junctype"] == "Ferry", "geometry"].values])))
 
         # Identify ferry segments which do not connect to any road segments.
         mask = ferryseg.map(
             lambda geom: not any(coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)))
 
         # Compile uuids of flagged records.
-        errors[1] = ferryseg[mask].index.values
+        errors[1] = ferryseg.loc[mask].index.values
 
         # Validation 2: ensure ferry segments connect to <= 1 road segment at either endpoint.
 
         # Compile road segments which connect to ferry segments.
-        roads_connected = roadseg[roadseg.map(
+        roads_connected = roadseg.loc[roadseg.map(
             lambda geom: any(coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)))]
 
         # Compile coordinates of connected road segments.
@@ -660,7 +660,7 @@ class Validator:
             lambda ferry: any(itemgetter(coords)(road_coords_count) > 1 for coords in itemgetter(0, -1)(ferry.coords)))
 
         # Compile uuids of flagged records.
-        errors[2] = ferryseg[ferry_multi_intersect].index.values
+        errors[2] = ferryseg.loc[ferry_multi_intersect].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -685,20 +685,20 @@ class Validator:
         for col in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
 
             # Subset dataframe to required column with non-default and non-"None" values.
-            series = df[~df[col].isin([defaults[col], "None"])][col]
+            series = df.loc[~df[col].isin([defaults[col], "None"]), col]
 
             if len(series):
 
                 # Validation 1: ensure ids are 32 digits.
                 # Compile uuids of flagged records.
-                flag_uuids = series[series.map(len) != 32].index.values
+                flag_uuids = series.loc[series.map(len) != 32].index.values
                 for uid in flag_uuids:
                     errors[1].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
                 # Validation 2: ensure ids are hexadecimal.
                 # Compile uuids of flagged records.
                 hexdigits = set(string.hexdigits)
-                flag_uuids = series[series.map(lambda uid: not set(uid).issubset(hexdigits))].index.values
+                flag_uuids = series.loc[series.map(lambda uid: not set(uid).issubset(hexdigits))].index.values
                 for uid in flag_uuids:
                     errors[2].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
@@ -711,13 +711,13 @@ class Validator:
 
             # Validation 3: ensure unique id fields are unique within their column.
             # Compile uuids of flagged records.
-            flag_uuids = series[series.duplicated(keep=False)].index.values
+            flag_uuids = series.loc[series.duplicated(keep=False)].index.values
             for uid in flag_uuids:
                 errors[3].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
             # Validation 4: ensure unique id fields are not "None" nor the default field value.
             # Compile uuids of flagged records.
-            flag_uuids = series[series.isin([defaults[col], "None"])].index.values
+            flag_uuids = series.loc[series.isin([defaults[col], "None"])].index.values
             for uid in flag_uuids:
                 errors[4].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
@@ -851,7 +851,7 @@ class Validator:
         series = self.dframes_m[name]["geometry"]
 
         # Validation: ensure line segments are >= 5 meters in length.
-        errors[1] = series[series.length < min_length].index.values
+        errors[1] = series.loc[series.length < min_length].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -883,7 +883,7 @@ class Validator:
 
         # Explode point groups, filter to only duplicates, and construct a dataframe of the uuids and coordinates.
         pts_exploded = endpts.explode()
-        pts_dups = pts_exploded[pts_exploded.duplicated(keep=False)]
+        pts_dups = pts_exploded.loc[pts_exploded.duplicated(keep=False)]
         pts_df = pd.DataFrame({"coords": pts_dups, "uuid": pts_dups.index})
 
         # Proceed only if duplicated points exist.
@@ -903,9 +903,12 @@ class Validator:
             # (which represent self-loops), the first duplicate takes the second point, the second duplicate takes the
             # second-last point - thereby avoiding the same neighbour being taken twice for self-loop intersections.
             dup_flags = {
-                "dup_none": uuids_grouped_exploded[~uuids_grouped_exploded.duplicated(keep=False)][["uuid", "coords"]],
-                "dup_first": uuids_grouped_exploded[uuids_grouped_exploded.duplicated(keep="first")]["uuid"],
-                "dup_last": uuids_grouped_exploded[uuids_grouped_exploded.duplicated(keep="last")]["uuid"]
+                "dup_none": uuids_grouped_exploded.loc[
+                    ~uuids_grouped_exploded.duplicated(keep=False), ["uuid", "coords"]],
+                "dup_first": uuids_grouped_exploded.loc[
+                    uuids_grouped_exploded.duplicated(keep="first"), "uuid"],
+                "dup_last": uuids_grouped_exploded.loc[
+                    uuids_grouped_exploded.duplicated(keep="last"), "uuid"]
             }
             dup_results = {
                 "dup_none": np.vectorize(
@@ -951,7 +954,7 @@ class Validator:
                 pts_grouped, pts_grouped.index)
 
             # Compile the uuid groups as errors.
-            flag_uuid_groups = uuids_grouped[flags].values
+            flag_uuid_groups = uuids_grouped.loc[flags].values
 
             # Compile error properties.
             if len(flag_uuid_groups):
@@ -997,7 +1000,7 @@ class Validator:
 
         # Remove connected uuids from each set of uuids, keep non-empty results.
         results = uuids_proxi - uuids_exclude
-        results = results[results.map(len) > 0]
+        results = results.loc[results.map(len) > 0]
 
         # Compile error properties.
         for source_uuid, target_uuids in results.iteritems():
@@ -1019,13 +1022,13 @@ class Validator:
 
         # Subset dataframe to non-default values, keep only required fields.
         default = self.defaults_all[name]["nbrlanes"]
-        s_filtered = df[df["nbrlanes"] != default]["nbrlanes"]
+        s_filtered = df.loc[df["nbrlanes"] != default, "nbrlanes"]
 
         if len(s_filtered):
 
             # Validation: ensure 1 <= nbrlanes <= 8.
             # Compile uuids of flagged records.
-            errors[1] = s_filtered[~s_filtered.map(lambda nbrlanes: 1 <= int(nbrlanes) <= 8)].index.values
+            errors[1] = s_filtered.loc[~s_filtered.map(lambda nbrlanes: 1 <= int(nbrlanes) <= 8)].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -1153,7 +1156,7 @@ class Validator:
 
         # Compile indexes of points with other points within 5 meters distance. Only keep results with > 1 match.
         proxi_idx_all = pts.map(lambda pt: set(chain(*tree.query_ball_point([pt], r=prox_limit))))
-        proxi_idx_all = proxi_idx_all[proxi_idx_all.map(len) > 1]
+        proxi_idx_all = proxi_idx_all.loc[proxi_idx_all.map(len) > 1]
 
         # Compile and filter coincident index from each set of indexes for each point, keep non-empty results.
         proxi_idx_exclude = pd.Series(range(len(pts)), index=pts.index).map(lambda index: {index})
@@ -1190,7 +1193,7 @@ class Validator:
         # Validation: ensure rtnumber1 is not the default value or "None" when roadclass = "Expressway / Highway" or
         # "Freeway".
         default = self.defaults_all[name]["rtnumber1"]
-        errors[1] = df_filtered[
+        errors[1] = df_filtered.loc[
             df_filtered["roadclass"].isin({"Expressway / Highway", "Freeway"}) &
             df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 in {default, "None"})].index.values
 
@@ -1249,7 +1252,7 @@ class Validator:
                 logger.info(f"Validating route {index + 1} of {route_count}: \"{route_name}\".")
 
                 # Subset dataframe to those records with route name in at least one field.
-                route_df = df_filtered[(df_filtered[field_group].values == route_name).any(axis=1)]
+                route_df = df_filtered.loc[(df_filtered[field_group].values == route_name).any(axis=1)]
 
                 # Only process duplicated route names.
                 if len(route_df) > 1:
@@ -1292,7 +1295,7 @@ class Validator:
 
         # Compile coords of road segments where roadclass is in the validation list.
         valid_coords = set(chain(
-            *[itemgetter(0, -1)(geom.coords) for geom in df[df["roadclass"].isin(valid)]['geometry'].values]))
+            *[itemgetter(0, -1)(geom.coords) for geom in df.loc[df["roadclass"].isin(valid), "geometry"].values]))
 
         # Single-segment road elements:
 
@@ -1310,8 +1313,8 @@ class Validator:
 
         # Compile multi-segment road elements (via non-unique nids).
         # Filter to nids with invalid roadclass.
-        segments_multi = df.loc[
-            (df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
+        segments_multi = df.loc[(df["nid"].duplicated(keep=False)) &
+                                (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
 
         if not segments_multi.empty:
 
@@ -1410,10 +1413,10 @@ class Validator:
 
             # Validation 1: ensure 5 <= speed <= 120.
             # Compile uuids of flagged records.
-            errors[1] = s_filtered[~s_filtered.map(lambda speed: 5 <= int(speed) <= 120)].index.values
+            errors[1] = s_filtered.loc[~s_filtered.map(lambda speed: 5 <= int(speed) <= 120)].index.values
 
             # Validation 2: ensure speed is a multiple of 5.
-            errors[2] = s_filtered[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
+            errors[2] = s_filtered.loc[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -1446,10 +1449,10 @@ class Validator:
         deadend_coords = set(chain(junction.map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
 
         # Compile road segments with potentially invalid structtype.
-        roadseg_invalid = roadseg[~roadseg["structtype"].isin({"None", defaults["structtype"]})]["geometry"]
+        roadseg_invalid = roadseg.loc[~roadseg["structtype"].isin({"None", defaults["structtype"]}), "geometry"]
 
         # Compile truly invalid road segments.
-        roadseg_invalid = roadseg_invalid[roadseg_invalid.map(
+        roadseg_invalid = roadseg_invalid.loc[roadseg_invalid.map(
             lambda g: any(coords in deadend_coords for coords in attrgetter("coords")(g)))]
 
         # Compile uuids of flagged records, compile error properties.
@@ -1459,8 +1462,8 @@ class Validator:
         # Validation 2: ensure structid is contiguous.
 
         # Compile records with duplicated structids, excluding "None" and the default field value.
-        structids_df = roadseg[(~roadseg["structid"].isin({"None", defaults["structid"]})) &
-                               (roadseg["structid"].duplicated(keep=False))]
+        structids_df = roadseg.loc[(~roadseg["structid"].isin({"None", defaults["structid"]})) &
+                                   (roadseg["structid"].duplicated(keep=False))]
 
         if len(structids_df):
 
@@ -1472,7 +1475,7 @@ class Validator:
                 lambda geoms: helpers.gdf_to_nx(gpd.GeoDataFrame(geometry=geoms), keep_attributes=False))
 
             # Validate contiguity (networkx connectivity).
-            structures_invalid = structure_graphs[~structure_graphs.map(nx.is_connected)]
+            structures_invalid = structure_graphs.loc[~structure_graphs.map(nx.is_connected)]
 
             if len(structures_invalid):
 
@@ -1492,7 +1495,7 @@ class Validator:
         #               are not contiguous.
 
         # Compile road segments with valid structtype.
-        segments = roadseg[~roadseg["structtype"].isin({"None", defaults["structtype"]})]
+        segments = roadseg.loc[~roadseg["structtype"].isin({"None", defaults["structtype"]})]
 
         # Convert dataframe to networkx graph.
         segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
@@ -1503,7 +1506,7 @@ class Validator:
         # Validation 3.
         default = defaults["structid"]
         structids = sub_g.map(lambda graph: set(nx.get_edge_attributes(graph, "structid").values()))
-        structids_invalid = structids[structids.map(lambda vals: (len(vals) > 1) or (default in vals))]
+        structids_invalid = structids.loc[structids.map(lambda vals: (len(vals) > 1) or (default in vals))]
         if len(structids_invalid):
 
             # Compile uuids of invalid structure.

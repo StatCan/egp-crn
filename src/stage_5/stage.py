@@ -156,7 +156,7 @@ class Stage:
             if placenames is None:
 
                 # Compile sorted placenames.
-                placenames = pd.concat([df[l_placenam], df[df[l_placenam] != df[r_placenam]][r_placenam]],
+                placenames = pd.concat([df[l_placenam], df.loc[df[l_placenam] != df[r_placenam], r_placenam]],
                                        ignore_index=True).sort_values(ascending=True)
 
                 # Flag limit-exceeding and non-limit-exceeding placenames.
@@ -194,7 +194,7 @@ class Stage:
                 logger.info(f"Separating features for limit-exceeding placename: {placename}.")
 
                 # Compile rowids for placename.
-                rowids = df[(df[l_placenam] == placename) | (df[r_placenam] == placename)]["ROWID"].values
+                rowids = df.loc[(df[l_placenam] == placename) | (df[r_placenam] == placename), "ROWID"].values
 
                 # Split rowids into kml_limit-sized chunks and configure sql queries.
                 sql_queries = list()
