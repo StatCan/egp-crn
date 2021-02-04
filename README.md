@@ -1,4 +1,5 @@
 # National Road Network (NRN)
+[![Documentation Status](https://readthedocs.org/projects/nrn-rrn-docs/badge/?version=latest)](https://nrn-rrn-docs.readthedocs.io/en/latest/?badge=latest)
 
 The NRN was adopted by members from the Inter-Agency Committee on Geomatics (IACG) and the Canadian Council on Geomatics
 (CCOG) to provide quality geospatial and attributive data (current, accurate, consistent), homogeneous and normalized of
