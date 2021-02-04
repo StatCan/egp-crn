@@ -1,0 +1,510 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2021, Statistics Canada
+# This file is distributed under the same license as the National Road
+# Network package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2021.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: National Road Network \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2021-02-04 14:53-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.9.0\n"
+
+#: ../../change_management.rst:3
+msgid "Change Management"
+msgstr ""
+
+#: ../../change_management.rst:8
+msgid "Contents"
+msgstr ""
+
+#: ../../change_management.rst:11
+msgid "Abbreviations"
+msgstr ""
+
+#: ../../change_management.rst:13
+msgid "ID"
+msgstr ""
+
+#: ../../change_management.rst:15
+msgid "Identifier"
+msgstr ""
+
+#: ../../change_management.rst:16
+msgid "NID"
+msgstr ""
+
+#: ../../change_management.rst:18
+msgid "National Identifier"
+msgstr ""
+
+#: ../../change_management.rst:19
+msgid "NHN"
+msgstr ""
+
+#: ../../change_management.rst:21
+msgid "National Hydrographic Network"
+msgstr ""
+
+#: ../../change_management.rst:22
+msgid "NRCan"
+msgstr ""
+
+#: ../../change_management.rst:24
+msgid "Natural Resources Canada"
+msgstr ""
+
+#: ../../change_management.rst:25
+msgid "NRN"
+msgstr ""
+
+#: ../../change_management.rst:27
+msgid "National Road Network"
+msgstr ""
+
+#: ../../change_management.rst:28
+msgid "NVD"
+msgstr ""
+
+#: ../../change_management.rst:30 ../../change_management.rst:41
+msgid "National Vector Data"
+msgstr ""
+
+#: ../../change_management.rst:31
+msgid "UUID"
+msgstr ""
+
+#: ../../change_management.rst:33
+msgid "Universal Unique Identifiers"
+msgstr ""
+
+#: ../../change_management.rst:36
+msgid "Terms and Definitions"
+msgstr ""
+
+#: ../../change_management.rst:39
+msgid ""
+"Several layers of vector data, referred to as National Vector Data (NVD),"
+" will share the same specification. The National Road Network (NRN) and "
+"National Hydrographic Network (NHN) are examples of NVD."
+msgstr ""
+
+#: ../../change_management.rst:44
+msgid "Overview"
+msgstr ""
+
+#: ../../change_management.rst:46
+msgid ""
+"The objective is to update the NVD data on a regular basis as soon as "
+"mechanisms have been established between NVD’s partners. One of the "
+"mechanisms is establishing change management principles. Two basic "
+"concepts are needed: identification rules and definition / classification"
+" of change."
+msgstr ""
+
+#: ../../change_management.rst:51
+msgid ""
+":doc:`nvd_identification_rules` defines the identification mechanism used"
+" as precisely as possible. In terms of change management, the NVD doesn't"
+" attempt to track the evolution of phenomena in the real world "
+"(features), but rather of the objects that represent them. In other "
+"words, the NVD does not monitor real changes in the territory; they "
+"identify only the *effects* they have on the data."
+msgstr ""
+
+#: ../../change_management.rst:57
+msgid ""
+"Many projects (or the literature) deal with update management and time "
+"modelling [#f1]_, [#f2]_, [#f3]_. The model herein was developed in "
+"cooperation with the Centre for Research in Geomatics (CRG) at Laval "
+"University [#f4]_."
+msgstr ""
+
+#: ../../change_management.rst:61
+msgid ""
+"It is aimed to monitor the evolution of objects in order to identify any "
+"changes that may have occurred between two observations, whether "
+"successive or not. The discrepancies observed between two observations "
+"are referred to as the differential [#f5]_. Change management also makes "
+"it possible to track updates as well as data corrections. The purpose of "
+"update management is to facilitate synchronization of databases from "
+"producing partners and customers based on current national views (see "
+"Figure 1 : Evolution of the database in time)."
+msgstr ""
+
+#: ../../change_management.rst:68
+msgid ""
+"The update management process must also make it possible to reconstitute "
+"the data as it was on a previous date."
+msgstr ""
+
+#: ../../change_management.rst:74
+msgid "Figure 1: Evolution of the database in time."
+msgstr ""
+
+#: ../../change_management.rst:77
+msgid "Object Life Cycle"
+msgstr ""
+
+#: ../../change_management.rst:79
+msgid ""
+"NVD data constitutes the best representation of the real-world phenomena "
+"of interest, unless proven otherwise. The geometric data in the NVD must "
+"undergo a minimum of change. Changes occur when a new information source "
+"offers a better representation than the preceding one."
+msgstr ""
+
+#: ../../change_management.rst:84
+msgid ""
+"The effects on NVD data will therefore be established based on the "
+"preceding representation. Data life cycle is therefore limited by two "
+"events. The cycle always begins with an \"addition\" (assignment of a new"
+" NID) and ends with \"retirement.\" Between these two events, geometric "
+"or descriptive modification or confirmation of the preceding state can "
+"occur, while maintaining the same NID. Data with the effects "
+"\"addition,\" \"geometric or descriptive modification,\" and "
+"\"confirmation\" are *active* (or current) features. Features with the "
+"effect \"retirement\" are *nonactive* (historical) data."
+msgstr ""
+
+#: ../../change_management.rst:93
+msgid "Effect Types"
+msgstr ""
+
+#: ../../change_management.rst:95
+msgid ""
+"Updating makes it possible to establish a parallel between existing data "
+"and the new data from an update. The latter has certain effects on the "
+"data. The following effects can be classified as:"
+msgstr ""
+
+#: ../../change_management.rst:100
+msgid "Additon (Existence)"
+msgstr ""
+
+#: ../../change_management.rst:102
+msgid ""
+"When a new object has no geometric counterpart in the NVD, a new object "
+"is *added*, along with a new NID."
+msgstr ""
+
+#: ../../change_management.rst:106
+msgid "Retirement (Existence)"
+msgstr ""
+
+#: ../../change_management.rst:108
+msgid ""
+"When an object no longer represents a feature, the object is *retired*. "
+"This type of object i s removed from the current data while maintaining "
+"its NID."
+msgstr ""
+
+#: ../../change_management.rst:112
+msgid "Modification (Evolution)"
+msgstr ""
+
+#: ../../change_management.rst:114
+msgid ""
+"An object is said to be *modified* if one of its descriptive attributes "
+"or its geometric representation is different. In this case, the initial "
+"NID is preserved for the new version of the object. Two types of "
+"modification are possible."
+msgstr ""
+
+#: ../../change_management.rst:119
+msgid "Descriptive Modification"
+msgstr ""
+
+#: ../../change_management.rst:121
+msgid ""
+"A descriptive modification occurs when a pair of objects from the same "
+"class is geometrically identical but has different attribute values. For "
+"example, the type of surface of a specific road may have changed from "
+"«unpaved» to «paved»."
+msgstr ""
+
+#: ../../change_management.rst:126
+msgid "Geometric Modification"
+msgstr ""
+
+#: ../../change_management.rst:128
+msgid ""
+"A geometric modification occurs when a pair of objects from the same "
+"class has different geometries that describe the same phenomena."
+msgstr ""
+
+#: ../../change_management.rst:131
+msgid ""
+"There are three types of geometric modification currently defined within "
+"the NVD. Each has a certain level of complexity. In comparing two "
+"representations (old and new), it is possible to define geometric "
+"modifications as being:"
+msgstr ""
+
+#: ../../change_management.rst:136
+msgid "First Method"
+msgstr ""
+
+#: ../../change_management.rst:138
+msgid ""
+"While comparing two objects, if one vertex is different from its previous"
+" representation, the old representation is retired and a new "
+"representation added. This method of managing representation "
+"modifications means that geometric modifications are not followed."
+msgstr ""
+
+#: ../../change_management.rst:143
+msgid "Second method"
+msgstr ""
+
+#: ../../change_management.rst:145
+msgid ""
+"The second method of managing representation change is based on comparing"
+" the old and the new Junction locations. Two Junctions always bound a "
+"Network Linear Element. Any modification along an element (geometric "
+"representation) may occur between its Junctions. These are treated as a "
+"geometric modification while conserving its NID. If, for whatever reason,"
+" one of the old Junctions located at one end of the Network Linear "
+"Element has changed, then this Network Linear Element is retired and a "
+"new one added."
+msgstr ""
+
+#: ../../change_management.rst:153
+msgid "Third method"
+msgstr ""
+
+#: ../../change_management.rst:155
+msgid ""
+"The third method is based on topological links. If the representation of "
+"the Linear Element Junctions have maintained the same topological links "
+"(even if the Junctions have moved and the Network Linear Element geometry"
+" has been modified), then these changes are treated as a geometric "
+"modifications and the Network Linear Element and Junctions maintain their"
+" NIDs."
+msgstr ""
+
+#: ../../change_management.rst:162
+msgid "Confirmation (Evolution)"
+msgstr ""
+
+#: ../../change_management.rst:164
+msgid ""
+"Alongside change, there is confirmation of objects when the geometric or "
+"descriptive attributes have not been modified."
+msgstr ""
+
+#: ../../change_management.rst:168
+msgid "Used Effects"
+msgstr ""
+
+#: ../../change_management.rst:171
+msgid "Segmented Data"
+msgstr ""
+
+#: ../../change_management.rst:173
+msgid ""
+"Feature classes with geometry track change using all *effects* defined in"
+" Section 3 (Addition, Descriptive Modification, Retirement and "
+"Confirmation)."
+msgstr ""
+
+#: ../../change_management.rst:176
+msgid ""
+"In the segmented model, the effect must be associated to the complete "
+"Network Linear Element even if this one is broken up into several "
+"segments because of a change of attribute. I.e. the same effect must be "
+"applied to all the segments that have the same value of attribute NID. "
+"The segments that describe the same Network Linear Element can have only "
+"one effect and the set of priorities is as follows: Addition, Descriptive"
+" Modification and Confirmation."
+msgstr ""
+
+#: ../../change_management.rst:183
+msgid ""
+"The follow-up method for geometric modifications is indicated by the "
+"change management provider."
+msgstr ""
+
+#: ../../change_management.rst:187
+msgid "Example"
+msgstr ""
+
+#: ../../change_management.rst:189
+msgid ""
+"The following example is designed to illustrate update management for "
+"better comprehension. Figure 2 : Example of an update demonstrates the "
+"comparison between the original data and new data. In terms of geometry, "
+"a single Road Element (object 6) was added with respect to the original "
+"data. In terms of description, the type of surface of the Road Element "
+"(object 2) has changed from unpaved to paved."
+msgstr ""
+
+#: ../../change_management.rst:198
+msgid "Figure 2: Example of an update."
+msgstr ""
+
+#: ../../change_management.rst:200
+msgid ""
+"Table 1: Updating effects shows the geometric effects observed after the "
+"update."
+msgstr ""
+
+#: ../../change_management.rst:203
+msgid "Objects"
+msgstr ""
+
+#: ../../change_management.rst:203
+msgid "Explanation"
+msgstr ""
+
+#: ../../change_management.rst:203
+msgid "Effects"
+msgstr ""
+
+#: ../../change_management.rst:205
+msgid "3"
+msgstr ""
+
+#: ../../change_management.rst:205
+msgid "No correspondence with a new object."
+msgstr ""
+
+#: ../../change_management.rst:205
+msgid "Retirement"
+msgstr ""
+
+#: ../../change_management.rst:207
+msgid "4"
+msgstr ""
+
+#: ../../change_management.rst:207 ../../change_management.rst:212
+msgid ""
+"No correspondence with an object in the original data; the arrival of "
+"object 6 changed the topological structure of the objects (and therefore "
+"the geometry)."
+msgstr ""
+
+#: ../../change_management.rst:207 ../../change_management.rst:212
+#: ../../change_management.rst:217 ../../change_management.rst:220
+#: ../../change_management.rst:223
+msgid "Addition"
+msgstr ""
+
+#: ../../change_management.rst:212
+msgid "5"
+msgstr ""
+
+#: ../../change_management.rst:217
+msgid "6"
+msgstr ""
+
+#: ../../change_management.rst:217
+msgid ""
+"No correspondence with an object in the original data; the feature was "
+"not represented."
+msgstr ""
+
+#: ../../change_management.rst:220
+msgid "e"
+msgstr ""
+
+#: ../../change_management.rst:220 ../../change_management.rst:223
+msgid "No correspondence with an object in the original data."
+msgstr ""
+
+#: ../../change_management.rst:223
+msgid "f"
+msgstr ""
+
+#: ../../change_management.rst:226
+msgid "2"
+msgstr ""
+
+#: ../../change_management.rst:226
+msgid "Attribute value changed."
+msgstr ""
+
+#: ../../change_management.rst:226
+msgid "Description modification"
+msgstr ""
+
+#: ../../change_management.rst:229
+msgid "1"
+msgstr ""
+
+#: ../../change_management.rst:229 ../../change_management.rst:231
+#: ../../change_management.rst:233 ../../change_management.rst:235
+#: ../../change_management.rst:237
+msgid "Geometry and attributes did not change."
+msgstr ""
+
+#: ../../change_management.rst:229 ../../change_management.rst:231
+#: ../../change_management.rst:233 ../../change_management.rst:235
+#: ../../change_management.rst:237
+msgid "Confirmation"
+msgstr ""
+
+#: ../../change_management.rst:231
+msgid "a"
+msgstr ""
+
+#: ../../change_management.rst:233
+msgid "b"
+msgstr ""
+
+#: ../../change_management.rst:235
+msgid "c"
+msgstr ""
+
+#: ../../change_management.rst:237
+msgid "d"
+msgstr ""
+
+#: ../../change_management.rst:240
+msgid "Table 1: Updating effects."
+msgstr ""
+
+#: ../../change_management.rst:243
+msgid "Footnotes"
+msgstr ""
+
+#: ../../change_management.rst:245
+msgid ""
+"Langran, Gail. Time in Geographic Information Systems, Éd.Taylor & "
+"Francis, 1993, 187 p."
+msgstr ""
+
+#: ../../change_management.rst:247
+msgid ""
+"PEUQUET, Donna J. It ́s About Time: A Conceptual Framework for the "
+"Representation of Temporal Dynamics in Geographic Information Systems, "
+"Annals of the Association of American Geographers, vol. 84, no 3, 1994, "
+"p. 441-461."
+msgstr ""
+
+#: ../../change_management.rst:250
+msgid ""
+"Worboys, Michael F. A Unified Model for Spatial and Temporal Information,"
+" The Computer Journal, Vol 37, No. 1, pp. 26-34"
+msgstr ""
+
+#: ../../change_management.rst:252
+msgid ""
+"Pouliot, J, Larrivé, S., and Bédard, Y. Typologie des mises à jour, "
+"2000, 11 p."
+msgstr ""
+
+#: ../../change_management.rst:254
+msgid ""
+"The differential corresponds to the set of differences observed between "
+"two landmarks of the territory [#f4]_."
+msgstr ""
+

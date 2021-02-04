@@ -1,6 +1,6 @@
-********************************
-Feature Catalog - Segmented View
-********************************
+**********************************
+Feature Catalogue - Segmented View
+**********************************
 
 .. include :: <isonum.txt>
 

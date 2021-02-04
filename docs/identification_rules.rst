@@ -1,6 +1,6 @@
-*******************************************
-National Vector Data - Identification Rules
-*******************************************
+********************
+Identification Rules
+********************
 
 .. contents::
    :depth: 3

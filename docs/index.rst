@@ -9,11 +9,11 @@ National Road Network's documentation
    :caption: Contents:
 
    release_notes
-   distribution_formats
-   data_product_specs
-   feature_catalog
-   nvd_change_management
-   nvd_identification_rules
+   product_distribution_formats
+   data_product_specifications
+   feature_catalogue
+   change_management
+   identification_rules
 
 
 Contact Information

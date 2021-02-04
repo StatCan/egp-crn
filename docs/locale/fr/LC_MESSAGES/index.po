@@ -1,90 +1,61 @@
 # SOME DESCRIPTIVE TITLE.
-# Copyright (C) 2020, Statistics Canada
+# Copyright (C) 2021, Statistics Canada
 # This file is distributed under the same license as the National Road
 # Network package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2020.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2021.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: National Road Network \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-30 11:06-0400\n"
+"POT-Creation-Date: 2021-02-04 14:53-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.8.0\n"
+"Generated-By: Babel 2.9.0\n"
 
 #: ../../index.rst:6
 msgid "Contents:"
-msgstr "Contenu:"
+msgstr ""
 
 #: ../../index.rst:4
 msgid "National Road Network's documentation"
-msgstr "Documentation du Réseau routier national"
+msgstr ""
 
 #: ../../index.rst:20
 msgid "Contact Information"
-msgstr "Contact"
+msgstr ""
 
 #: ../../index.rst:22
-msgid "Statistics Canada"
-msgstr "Statistique Canada"
-
-#: ../../index.rst:23
-msgid "Statistical Geomatics Centre"
-msgstr "Centre de géomatique statistique"
-
-#: ../../index.rst:24
-msgid "170 Tunney's Pasture Driveway,"
-msgstr "170, Promenade Tunney’s Pasture"
-
-#: ../../index.rst:25
-msgid "Ottawa, Ontario, Canada"
-msgstr "Ottawa, Ontario, Canada"
-
-#: ../../index.rst:26
-msgid "K1A 0T6"
-msgstr "K1A 0T6"
+msgid ""
+"Statistics Canada Statistical Geomatics Centre 170 Tunney's Pasture "
+"Driveway, Ottawa, Ontario, Canada K1A 0T6"
+msgstr ""
 
 #: ../../index.rst:28
-msgid "Telephone: 1-800-263-1136"
-msgstr "Téléphone : 1-800-263-1136"
-
-#: ../../index.rst:29
-msgid "Fax: 1514-283-9350"
-msgstr "Télécopieur : 1-514-283-9350"
-
-#: ../../index.rst:30
-msgid "Email: statcan.infostats-infostats.statcan@canada.ca"
-msgstr "Courriel: STATCAN.infostats-infostats.STATCAN@canada.ca"
-
-#: ../../index.rst:31
-msgid "Website: https://statcan.gc.ca"
-msgstr "Site internet: http://www.geobase.ca"
-
-#: ../../index.rst:32
-msgid "Website: https://open.canada.ca"
-msgstr "Site internet: https://open.canada.ca"
+msgid ""
+"Telephone: 1-800-263-1136 Fax: 1514-283-9350 Email: statcan.infostats-"
+"infostats.statcan@canada.ca Website: https://statcan.gc.ca Website: "
+"https://open.canada.ca"
+msgstr ""
 
 #: ../../index.rst:35
 msgid "Copyright"
-msgstr "Avis de copyright"
+msgstr ""
 
 #: ../../index.rst:37
 msgid ""
 "|copy| Her Majesty the Queen in Rights of Canada, Department of Natural "
 "Resources. All rights reserved. GeoBase |reg|"
 msgstr ""
-"|copy| Sa Majesté la Reine du chef du Canada, ministère des Ressources "
-"naturelles. Tous droits réservés. |copy| GéoBase"
 
 #: ../../index.rst:41
 msgid "Indices and tables"
-msgstr "Indices et tableaux"
+msgstr ""
 
 #: ../../index.rst:43
 msgid ":ref:`genindex`"
@@ -97,3 +68,4 @@ msgstr ""
 #: ../../index.rst:45
 msgid ":ref:`search`"
 msgstr ""
+

@@ -1,373 +1,318 @@
 # SOME DESCRIPTIVE TITLE.
-# Copyright (C) 2020, Statistics Canada
+# Copyright (C) 2021, Statistics Canada
 # This file is distributed under the same license as the National Road
 # Network package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2020.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2021.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: National Road Network \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-29 16:02-0400\n"
+"POT-Creation-Date: 2021-02-04 14:53-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.8.0\n"
+"Generated-By: Babel 2.9.0\n"
 
 #: ../../release_notes.rst:3
 msgid "Release Notes"
-msgstr "Notes de publication"
+msgstr ""
 
-#: ../../release_notes.rst:7
-msgid "Last release date: November 1st, 2019."
-msgstr "Date de la dernière publication: 1 novembre 2019"
+#: ../../release_notes.rst:8
+msgid "Current release notes"
+msgstr ""
 
 #: ../../release_notes.rst:10
-msgid "Current release notes"
-msgstr "Notes de publication"
-
-#: ../../release_notes.rst:12
 msgid "Information on dataset updates."
-msgstr "Information sur les dernières mises à jour des jeux de données"
+msgstr ""
 
-#: ../../release_notes.rst:15 ../../release_notes.rst:35
-#: ../../release_notes.rst:58
+#: ../../release_notes.rst:13
 msgid "Province / Territory"
-msgstr "Province / Territoire"
+msgstr ""
 
-#: ../../release_notes.rst:15
+#: ../../release_notes.rst:13
+msgid "Code"
+msgstr ""
+
+#: ../../release_notes.rst:13
 msgid "Edition"
-msgstr "Édition"
+msgstr ""
 
-#: ../../release_notes.rst:15
+#: ../../release_notes.rst:13
 msgid "Release Date"
-msgstr "Date de publication"
+msgstr ""
 
-#: ../../release_notes.rst:15
+#: ../../release_notes.rst:13
 msgid "Validity Date"
-msgstr "Date de validité"
+msgstr ""
+
+#: ../../release_notes.rst:13
+msgid "Number of kilometers"
+msgstr ""
 
 #: ../../release_notes.rst:15
-msgid "Number of kilometers"
-msgstr "Nombre de kilomètres"
+msgid "Alberta"
+msgstr ""
 
-#: ../../release_notes.rst:17 ../../release_notes.rst:37
-#: ../../release_notes.rst:60
-msgid "British Columbia"
-msgstr "Colombie-Britannique"
+#: ../../release_notes.rst:15
+msgid "AB"
+msgstr ""
 
-#: ../../release_notes.rst:17 ../../release_notes.rst:18
+#: ../../release_notes.rst:15 ../../release_notes.rst:16
 msgid "14.0"
 msgstr ""
 
-#: ../../release_notes.rst:17 ../../release_notes.rst:18
+#: ../../release_notes.rst:15 ../../release_notes.rst:16
 msgid "2017-05"
 msgstr ""
 
-#: ../../release_notes.rst:17
-msgid "2017-03"
-msgstr ""
-
-#: ../../release_notes.rst:17
-msgid "93,961"
-msgstr ""
-
-#: ../../release_notes.rst:18 ../../release_notes.rst:38
-#: ../../release_notes.rst:61
-msgid "Alberta"
-msgstr "Alberta"
-
-#: ../../release_notes.rst:18
+#: ../../release_notes.rst:15
 msgid "2017-02"
 msgstr ""
 
-#: ../../release_notes.rst:18
+#: ../../release_notes.rst:15
 msgid "237,811"
 msgstr ""
 
-#: ../../release_notes.rst:19 ../../release_notes.rst:39
-#: ../../release_notes.rst:62
-msgid "Saskatchewan"
-msgstr "Saskatchewan"
-
-#: ../../release_notes.rst:19 ../../release_notes.rst:28
-msgid "10.0"
+#: ../../release_notes.rst:16
+msgid "British Columbia"
 msgstr ""
 
-#: ../../release_notes.rst:19 ../../release_notes.rst:24
-#: ../../release_notes.rst:27
-msgid "2019-04"
+#: ../../release_notes.rst:16
+msgid "BC"
 msgstr ""
 
-#: ../../release_notes.rst:19
-msgid "2019-03"
+#: ../../release_notes.rst:16
+msgid "2017-03"
 msgstr ""
 
-#: ../../release_notes.rst:19
-msgid "251,510"
+#: ../../release_notes.rst:16
+msgid "93,961"
 msgstr ""
 
-#: ../../release_notes.rst:20 ../../release_notes.rst:40
-#: ../../release_notes.rst:63
+#: ../../release_notes.rst:17
 msgid "Manitoba"
-msgstr "Manitoba"
+msgstr ""
 
-#: ../../release_notes.rst:20
+#: ../../release_notes.rst:17
+msgid "MB"
+msgstr ""
+
+#: ../../release_notes.rst:17
 msgid "6.0"
 msgstr ""
 
-#: ../../release_notes.rst:20 ../../release_notes.rst:26
+#: ../../release_notes.rst:17 ../../release_notes.rst:19
 msgid "2013-04"
 msgstr ""
 
-#: ../../release_notes.rst:20
+#: ../../release_notes.rst:17
 msgid "2012-04"
 msgstr ""
 
-#: ../../release_notes.rst:20
+#: ../../release_notes.rst:17
 msgid "89,003"
 msgstr ""
 
-#: ../../release_notes.rst:21 ../../release_notes.rst:41
-#: ../../release_notes.rst:64
-msgid "Ontario"
-msgstr "Ontario"
-
-#: ../../release_notes.rst:21
-msgid "12.0"
-msgstr ""
-
-#: ../../release_notes.rst:21
-msgid "2016-07"
-msgstr ""
-
-#: ../../release_notes.rst:21
-msgid "2016-04"
-msgstr ""
-
-#: ../../release_notes.rst:21
-msgid "277,061"
-msgstr ""
-
-#: ../../release_notes.rst:22 ../../release_notes.rst:42
-#: ../../release_notes.rst:65
-msgid "Quebec"
-msgstr "Québec"
-
-#: ../../release_notes.rst:22 ../../release_notes.rst:23
-msgid "9.0"
-msgstr ""
-
-#: ../../release_notes.rst:22
-msgid "2016-08"
-msgstr ""
-
-#: ../../release_notes.rst:22 ../../release_notes.rst:25
-msgid "2016-02"
-msgstr ""
-
-#: ../../release_notes.rst:22
-msgid "162,768"
-msgstr ""
-
-#: ../../release_notes.rst:23 ../../release_notes.rst:43
-#: ../../release_notes.rst:66
+#: ../../release_notes.rst:18
 msgid "New Brunswick"
-msgstr "Nouveau-Brunswick"
-
-#: ../../release_notes.rst:23
-msgid "2019-11"
 msgstr ""
 
-#: ../../release_notes.rst:23
-msgid "2019-08"
+#: ../../release_notes.rst:18
+msgid "NB"
 msgstr ""
 
-#: ../../release_notes.rst:23
-msgid "35,296"
+#: ../../release_notes.rst:18
+msgid "10.0"
 msgstr ""
 
-#: ../../release_notes.rst:24 ../../release_notes.rst:44
-#: ../../release_notes.rst:67
-msgid "Prince Edward Island"
-msgstr "Île-du-Prince-Édouard"
-
-#: ../../release_notes.rst:24
-msgid "18.0"
+#: ../../release_notes.rst:18 ../../release_notes.rst:20
+#: ../../release_notes.rst:24 ../../release_notes.rst:26
+msgid "2020-07"
 msgstr ""
 
-#: ../../release_notes.rst:24 ../../release_notes.rst:27
-msgid "2019-06"
+#: ../../release_notes.rst:18 ../../release_notes.rst:26
+msgid "2020-05"
 msgstr ""
 
-#: ../../release_notes.rst:24
-msgid "6,862"
+#: ../../release_notes.rst:18
+msgid "35,710"
 msgstr ""
 
-#: ../../release_notes.rst:25 ../../release_notes.rst:45
-#: ../../release_notes.rst:68
-msgid "Nova Scotia"
-msgstr "Nouvelle-Écosse"
-
-#: ../../release_notes.rst:25
-msgid "13.0"
-msgstr ""
-
-#: ../../release_notes.rst:25
-msgid "2016-05"
-msgstr ""
-
-#: ../../release_notes.rst:25
-msgid "50,266"
-msgstr ""
-
-#: ../../release_notes.rst:26 ../../release_notes.rst:46
-#: ../../release_notes.rst:69
+#: ../../release_notes.rst:19
 msgid "Newfoundland and Labrador"
-msgstr "Terre-Neuve-et-Labrador"
+msgstr ""
 
-#: ../../release_notes.rst:26 ../../release_notes.rst:29
+#: ../../release_notes.rst:19
+msgid "NL"
+msgstr ""
+
+#: ../../release_notes.rst:19
 msgid "7.0"
 msgstr ""
 
-#: ../../release_notes.rst:26
+#: ../../release_notes.rst:19
 msgid "2012-09"
 msgstr ""
 
-#: ../../release_notes.rst:26
+#: ../../release_notes.rst:19
 msgid "23,026"
 msgstr ""
 
-#: ../../release_notes.rst:27 ../../release_notes.rst:47
-#: ../../release_notes.rst:70
-msgid "Yukon"
-msgstr "Yukon"
-
-#: ../../release_notes.rst:27
-msgid "15.0"
-msgstr ""
-
-#: ../../release_notes.rst:27
-msgid "6,560"
-msgstr ""
-
-#: ../../release_notes.rst:28 ../../release_notes.rst:48
-#: ../../release_notes.rst:71
+#: ../../release_notes.rst:20
 msgid "Northwest Territories"
-msgstr "Territoires du Nord-Ouest"
-
-#: ../../release_notes.rst:28
-msgid "2017-11"
 msgstr ""
 
-#: ../../release_notes.rst:28
-msgid "2017"
+#: ../../release_notes.rst:20
+msgid "NT"
 msgstr ""
 
-#: ../../release_notes.rst:28
-msgid "5,501"
+#: ../../release_notes.rst:20 ../../release_notes.rst:26
+msgid "11.0"
 msgstr ""
 
-#: ../../release_notes.rst:29 ../../release_notes.rst:49
-#: ../../release_notes.rst:72
+#: ../../release_notes.rst:20 ../../release_notes.rst:22
+#: ../../release_notes.rst:23 ../../release_notes.rst:27
+msgid "2020-12"
+msgstr ""
+
+#: ../../release_notes.rst:20
+msgid "7,909"
+msgstr ""
+
+#: ../../release_notes.rst:21
+msgid "Nova Scotia"
+msgstr ""
+
+#: ../../release_notes.rst:21
+msgid "NS"
+msgstr ""
+
+#: ../../release_notes.rst:21 ../../release_notes.rst:23
+msgid "13.0"
+msgstr ""
+
+#: ../../release_notes.rst:21
+msgid "2016-05"
+msgstr ""
+
+#: ../../release_notes.rst:21 ../../release_notes.rst:25
+msgid "2016-02"
+msgstr ""
+
+#: ../../release_notes.rst:21
+msgid "50,266"
+msgstr ""
+
+#: ../../release_notes.rst:22
 msgid "Nunavut"
-msgstr "Nunavut"
-
-#: ../../release_notes.rst:29
-msgid "2014-06"
 msgstr ""
 
-#: ../../release_notes.rst:29
-msgid "2013-08"
+#: ../../release_notes.rst:22
+msgid "NU"
 msgstr ""
 
-#: ../../release_notes.rst:29
-msgid "1,287"
+#: ../../release_notes.rst:22
+msgid "8.0"
 msgstr ""
 
-#: ../../release_notes.rst:32
-msgid "Information on available attributes."
-msgstr "Information sur les attributs disponibles"
-
-#: ../../release_notes.rst:35
-msgid "Basic Attributes"
-msgstr "Attri buts de base"
-
-#: ../../release_notes.rst:35
-msgid "Street & Place Names"
-msgstr "Noms de rue et de lieu"
-
-#: ../../release_notes.rst:35
-msgid "Block Face Addressing"
-msgstr "Intervalles d'adresses"
-
-#: ../../release_notes.rst:35
-msgid "Road Jurisdiction"
-msgstr "Autorité route"
-
-#: ../../release_notes.rst:35
-msgid "Speed Restriction"
-msgstr "Limite de vitesse"
-
-#: ../../release_notes.rst:35
-msgid "Closing Period"
-msgstr "Période de fermeture"
-
-#: ../../release_notes.rst:35
-msgid "Traffic Direction"
-msgstr "Sens de circulation"
-
-#: ../../release_notes.rst:37 ../../release_notes.rst:38
-#: ../../release_notes.rst:39 ../../release_notes.rst:40
-#: ../../release_notes.rst:41 ../../release_notes.rst:42
-#: ../../release_notes.rst:43 ../../release_notes.rst:44
-#: ../../release_notes.rst:45 ../../release_notes.rst:46
-#: ../../release_notes.rst:47 ../../release_notes.rst:48
-#: ../../release_notes.rst:49 ../../release_notes.rst:60
-#: ../../release_notes.rst:61 ../../release_notes.rst:62
-#: ../../release_notes.rst:63 ../../release_notes.rst:64
-#: ../../release_notes.rst:65 ../../release_notes.rst:66
-#: ../../release_notes.rst:67 ../../release_notes.rst:68
-#: ../../release_notes.rst:69 ../../release_notes.rst:70
-#: ../../release_notes.rst:71 ../../release_notes.rst:72
-msgid "|check|"
+#: ../../release_notes.rst:22
+msgid "2020-10"
 msgstr ""
 
-#: ../../release_notes.rst:38 ../../release_notes.rst:39
-#: ../../release_notes.rst:44 ../../release_notes.rst:45
-msgid "P"
+#: ../../release_notes.rst:22
+msgid "927"
 msgstr ""
 
-#: ../../release_notes.rst:53
-msgid "\"P\" means that the provided information is partial."
-msgstr "«P» signifie que l'information fournie est partielle."
+#: ../../release_notes.rst:23
+msgid "Ontario"
+msgstr ""
 
-#: ../../release_notes.rst:55
-msgid "Information on available road types."
-msgstr "Information sur les types de route disponibles"
+#: ../../release_notes.rst:23
+msgid "ON"
+msgstr ""
 
-#: ../../release_notes.rst:58
-msgid "Basic Roads"
-msgstr "Routes de base"
+#: ../../release_notes.rst:23
+msgid "2020-08"
+msgstr ""
 
-#: ../../release_notes.rst:58
-msgid "Resource & Recreational Roads"
-msgstr "Routes d'accès aux ressources et sites récréatifs"
+#: ../../release_notes.rst:23
+msgid "261,714"
+msgstr ""
 
-#: ../../release_notes.rst:58
-msgid "Alleyways"
-msgstr "Ruelles"
+#: ../../release_notes.rst:24
+msgid "Prince Edward Island"
+msgstr ""
 
-#: ../../release_notes.rst:58
-msgid "Isolated Communities"
-msgstr "Communautés isolées"
+#: ../../release_notes.rst:24
+msgid "PE"
+msgstr ""
 
-#: ../../release_notes.rst:61 ../../release_notes.rst:66
-#: ../../release_notes.rst:67 ../../release_notes.rst:68
-msgid "N/A"
-msgstr "S.O."
+#: ../../release_notes.rst:24
+msgid "19.0"
+msgstr ""
+
+#: ../../release_notes.rst:24
+msgid "2020-04"
+msgstr ""
+
+#: ../../release_notes.rst:24
+msgid "6,961"
+msgstr ""
+
+#: ../../release_notes.rst:25
+msgid "Quebec"
+msgstr ""
+
+#: ../../release_notes.rst:25
+msgid "QC"
+msgstr ""
+
+#: ../../release_notes.rst:25
+msgid "9.0"
+msgstr ""
+
+#: ../../release_notes.rst:25
+msgid "2016-08"
+msgstr ""
+
+#: ../../release_notes.rst:25
+msgid "162,768"
+msgstr ""
+
+#: ../../release_notes.rst:26
+msgid "Saskatchewan"
+msgstr ""
+
+#: ../../release_notes.rst:26
+msgid "SK"
+msgstr ""
+
+#: ../../release_notes.rst:26
+msgid "251,860"
+msgstr ""
+
+#: ../../release_notes.rst:27
+msgid "Yukon"
+msgstr ""
+
+#: ../../release_notes.rst:27
+msgid "YT"
+msgstr ""
+
+#: ../../release_notes.rst:27
+msgid "16.0"
+msgstr ""
+
+#: ../../release_notes.rst:27
+msgid "2021-01"
+msgstr ""
+
+#: ../../release_notes.rst:27
+msgid "6,406"
+msgstr ""
 
