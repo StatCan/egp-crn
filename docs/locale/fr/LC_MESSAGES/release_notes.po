@@ -20,19 +20,19 @@ msgstr ""
 
 #: ../../release_notes.rst:3
 msgid "Release Notes"
-msgstr ""
+msgstr "Notes de publication"
 
 #: ../../release_notes.rst:8
 msgid "Current release notes"
-msgstr ""
+msgstr "Notes de publication actuelles"
 
 #: ../../release_notes.rst:10
-msgid "Information on dataset updates."
-msgstr ""
+msgid "Information on the latest dataset updates."
+msgstr "Information sur les dernières mises à jour des jeux de données."
 
 #: ../../release_notes.rst:13
 msgid "Province / Territory"
-msgstr ""
+msgstr "Province / Territoire"
 
 #: ../../release_notes.rst:13
 msgid "Code"
@@ -40,19 +40,19 @@ msgstr ""
 
 #: ../../release_notes.rst:13
 msgid "Edition"
-msgstr ""
+msgstr "Édition"
 
 #: ../../release_notes.rst:13
 msgid "Release Date"
-msgstr ""
+msgstr "Date de publication"
 
 #: ../../release_notes.rst:13
 msgid "Validity Date"
-msgstr ""
+msgstr "Date de validité"
 
 #: ../../release_notes.rst:13
 msgid "Number of kilometers"
-msgstr ""
+msgstr "Nombre de kilomètres"
 
 #: ../../release_notes.rst:15
 msgid "Alberta"
@@ -76,11 +76,11 @@ msgstr ""
 
 #: ../../release_notes.rst:15
 msgid "237,811"
-msgstr ""
+msgstr "237 811"
 
 #: ../../release_notes.rst:16
 msgid "British Columbia"
-msgstr ""
+msgstr "Colombie-Britannique"
 
 #: ../../release_notes.rst:16
 msgid "BC"
@@ -92,7 +92,7 @@ msgstr ""
 
 #: ../../release_notes.rst:16
 msgid "93,961"
-msgstr ""
+msgstr "93 961"
 
 #: ../../release_notes.rst:17
 msgid "Manitoba"
@@ -116,11 +116,11 @@ msgstr ""
 
 #: ../../release_notes.rst:17
 msgid "89,003"
-msgstr ""
+msgstr "89 003"
 
 #: ../../release_notes.rst:18
 msgid "New Brunswick"
-msgstr ""
+msgstr "Nouveau-Brunswick"
 
 #: ../../release_notes.rst:18
 msgid "NB"
@@ -141,11 +141,11 @@ msgstr ""
 
 #: ../../release_notes.rst:18
 msgid "35,710"
-msgstr ""
+msgstr "35 710"
 
 #: ../../release_notes.rst:19
 msgid "Newfoundland and Labrador"
-msgstr ""
+msgstr "Terre-Neuve-et-Labrador"
 
 #: ../../release_notes.rst:19
 msgid "NL"
@@ -161,11 +161,11 @@ msgstr ""
 
 #: ../../release_notes.rst:19
 msgid "23,026"
-msgstr ""
+msgstr "23 026"
 
 #: ../../release_notes.rst:20
 msgid "Northwest Territories"
-msgstr ""
+msgstr "Territoires du Nord-Ouest"
 
 #: ../../release_notes.rst:20
 msgid "NT"
@@ -182,11 +182,11 @@ msgstr ""
 
 #: ../../release_notes.rst:20
 msgid "7,909"
-msgstr ""
+msgstr "7 909"
 
 #: ../../release_notes.rst:21
 msgid "Nova Scotia"
-msgstr ""
+msgstr "Nouvelle-Écosse"
 
 #: ../../release_notes.rst:21
 msgid "NS"
@@ -206,7 +206,7 @@ msgstr ""
 
 #: ../../release_notes.rst:21
 msgid "50,266"
-msgstr ""
+msgstr "50 266"
 
 #: ../../release_notes.rst:22
 msgid "Nunavut"
@@ -242,11 +242,11 @@ msgstr ""
 
 #: ../../release_notes.rst:23
 msgid "261,714"
-msgstr ""
+msgstr "261 714"
 
 #: ../../release_notes.rst:24
 msgid "Prince Edward Island"
-msgstr ""
+msgstr "Île-du-Prince-Édouard"
 
 #: ../../release_notes.rst:24
 msgid "PE"
@@ -262,11 +262,11 @@ msgstr ""
 
 #: ../../release_notes.rst:24
 msgid "6,961"
-msgstr ""
+msgstr "6 961"
 
 #: ../../release_notes.rst:25
 msgid "Quebec"
-msgstr ""
+msgstr "Québec"
 
 #: ../../release_notes.rst:25
 msgid "QC"
@@ -282,7 +282,7 @@ msgstr ""
 
 #: ../../release_notes.rst:25
 msgid "162,768"
-msgstr ""
+msgstr "162 768"
 
 #: ../../release_notes.rst:26
 msgid "Saskatchewan"
@@ -294,7 +294,7 @@ msgstr ""
 
 #: ../../release_notes.rst:26
 msgid "251,860"
-msgstr ""
+msgstr "251 860"
 
 #: ../../release_notes.rst:27
 msgid "Yukon"
@@ -314,5 +314,5 @@ msgstr ""
 
 #: ../../release_notes.rst:27
 msgid "6,406"
-msgstr ""
+msgstr "6 406"
 
