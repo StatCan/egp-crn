@@ -20,15 +20,15 @@ msgstr ""
 
 #: ../../change_management.rst:3
 msgid "Change Management"
-msgstr ""
+msgstr "Gestion des modifications"
 
 #: ../../change_management.rst:8
 msgid "Contents"
-msgstr ""
+msgstr "Matières"
 
 #: ../../change_management.rst:11
 msgid "Abbreviations"
-msgstr ""
+msgstr "Abréviations"
 
 #: ../../change_management.rst:13
 msgid "ID"
@@ -36,11 +36,11 @@ msgstr ""
 
 #: ../../change_management.rst:15
 msgid "Identifier"
-msgstr ""
+msgstr "Identifiant"
 
 #: ../../change_management.rst:16
 msgid "NID"
-msgstr ""
+msgstr "IDN"
 
 #: ../../change_management.rst:18
 msgid "National Identifier"
