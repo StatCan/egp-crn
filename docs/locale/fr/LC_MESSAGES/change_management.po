@@ -44,51 +44,51 @@ msgstr "IDN"
 
 #: ../../change_management.rst:18
 msgid "National Identifier"
-msgstr ""
+msgstr "Identifiant national"
 
 #: ../../change_management.rst:19
 msgid "NHN"
-msgstr ""
+msgstr "RHN"
 
 #: ../../change_management.rst:21
 msgid "National Hydrographic Network"
-msgstr ""
+msgstr "Réseau hydrographique national"
 
 #: ../../change_management.rst:22
 msgid "NRCan"
-msgstr ""
+msgstr "RNCan"
 
 #: ../../change_management.rst:24
 msgid "Natural Resources Canada"
-msgstr ""
+msgstr "Ressources naturelles Canada"
 
 #: ../../change_management.rst:25
 msgid "NRN"
-msgstr ""
+msgstr "RRN"
 
 #: ../../change_management.rst:27
 msgid "National Road Network"
-msgstr ""
+msgstr "Réseau routier national"
 
 #: ../../change_management.rst:28
 msgid "NVD"
-msgstr ""
+msgstr "DVN"
 
 #: ../../change_management.rst:30 ../../change_management.rst:41
 msgid "National Vector Data"
-msgstr ""
+msgstr "Données vectorielles nationales"
 
 #: ../../change_management.rst:31
 msgid "UUID"
-msgstr ""
+msgstr "IDUU"
 
 #: ../../change_management.rst:33
 msgid "Universal Unique Identifiers"
-msgstr ""
+msgstr "Identifiant universel unique"
 
 #: ../../change_management.rst:36
 msgid "Terms and Definitions"
-msgstr ""
+msgstr "Termes et définitions"
 
 #: ../../change_management.rst:39
 msgid ""
@@ -96,10 +96,14 @@ msgid ""
 " will share the same specification. The National Road Network (NRN) and "
 "National Hydrographic Network (NHN) are examples of NVD."
 msgstr ""
+"Plusieurs couches de données vectorielles partageront les mêmes "
+"spécifications. Ces couches sont appelées Données vectorielles nationales "
+"(DVN). Le Réseau routier national (RRN) et le Réseau hydrographique national "
+"(RHN) sont des exemples de DVN."
 
 #: ../../change_management.rst:44
 msgid "Overview"
-msgstr ""
+msgstr "Aperçu"
 
 #: ../../change_management.rst:46
 msgid ""
@@ -109,6 +113,11 @@ msgid ""
 "concepts are needed: identification rules and definition / classification"
 " of change."
 msgstr ""
+"L’objectif est d’actualiser les produits DVN sur une base régulière dès que "
+"des mécanismes auront été implantés parmi les partenaires des DVN. Un de ces "
+"mécanismes est la mise en œuvre de principes de gestion des modifications. "
+"Deux concepts de base sont nécessaires : règles d’identification et "
+"définition des classifications des modifications."
 
 #: ../../change_management.rst:51
 msgid ""
@@ -119,6 +128,13 @@ msgid ""
 "words, the NVD does not monitor real changes in the territory; they "
 "identify only the *effects* they have on the data."
 msgstr ""
+"Le document :doc:`nvd_identification_rules` définit aussi précisément que "
+"possible le mécanisme d’identification utilisé. Du côté de la gestion des "
+"modifications, les DVN ne tente pas de suivre l’évolution des phénomènes du "
+"monde réel (entités), mais essaient plutôt de maintenir une certaine "
+"évolution des objets qui les représentent. En d’autres mots, les DVN ne fera "
+"pas le suivi des changements réels dans le territoire, ils identifient "
+"seulement les *effets* que ceux-ci ont sur les données."
 
 #: ../../change_management.rst:57
 msgid ""
@@ -127,6 +143,10 @@ msgid ""
 "cooperation with the Centre for Research in Geomatics (CRG) at Laval "
 "University [#f4]_."
 msgstr ""
+"Plusieurs projets (ou leur documentation) traitent de la gestion des mises à "
+"jour et de la modélisation temporelle [#f1]_, [#f2]_, [#f3]_. Le modèle dans "
+"ce document a été mis au point en collaboration avec le Centre de recherche "
+"en géomatique (CRG) de l’Université Laval [#f4]_."
 
 #: ../../change_management.rst:61
 msgid ""
@@ -139,20 +159,31 @@ msgid ""
 "producing partners and customers based on current national views (see "
 "Figure 1 : Evolution of the database in time)."
 msgstr ""
+"Il est visé de suivre l’évolution des objets dans le but de relever tout "
+"changement qui peut s’être produit entre deux observations, successives ou "
+"non. Les différences notées entre deux observations constituent ce qu’on "
+"appelle l’écart [#f5]_. La gestion des modifications permet également de "
+"relever les mises à jour et les corrections apportées aux données. Le but de "
+"la gestion des modifications est de faciliter la synchronisation des bases de"
+" données provenant de partenaires producteurs et de clients selon les normes "
+"nationales en vigueur (voir la figure 1 : Évolution de la base de données en "
+"temps)."
 
 #: ../../change_management.rst:68
 msgid ""
 "The update management process must also make it possible to reconstitute "
 "the data as it was on a previous date."
 msgstr ""
+"Le processus de gestion des mises à jour doit aussi permettre la "
+"reconstitution des données comme elles existaient à une date antérieure."
 
 #: ../../change_management.rst:74
 msgid "Figure 1: Evolution of the database in time."
-msgstr ""
+msgstr "Figure 1 : Évolution de la base de données en temps)"
 
 #: ../../change_management.rst:77
 msgid "Object Life Cycle"
-msgstr ""
+msgstr "Cycle de vie de l'objet"
 
 #: ../../change_management.rst:79
 msgid ""
@@ -161,6 +192,11 @@ msgid ""
 "undergo a minimum of change. Changes occur when a new information source "
 "offers a better representation than the preceding one."
 msgstr ""
+"Les DVN constituent la meilleure représentation des phénomènes d’intérêt du "
+"monde réel jusqu’à preuve du contraire. Les données géométriques dans les DVN"
+" ne doivent subir qu’un minimum de changement. Les changements ont lieu quand"
+" une nouvelle source d’information offre une meilleure représentation que la "
+"précédente."
 
 #: ../../change_management.rst:84
 msgid ""
@@ -174,42 +210,60 @@ msgid ""
 "\"confirmation\" are *active* (or current) features. Features with the "
 "effect \"retirement\" are *nonactive* (historical) data."
 msgstr ""
+"Les effets sur les données DVN seront établis en fonction de la "
+"représentation précédente. Le cycle de vie des données est limité par deux "
+"événements. Le cycle débute toujours par un « ajout » (attribution d’un "
+"nouvel IDN) et se termine par « élimination ». Entre ces deux événements, la "
+"modification géométrique ou descriptive, ou encore la confirmation de l’état "
+"précédent, peut se produire, tout en conservant le même IDN. Les données "
+"ayant les effets « ajout », « modification géométrique ou descriptive » et « "
+"confirmation » sont des entités dites *actives* (ou actuelles). Les entités "
+"ayant l’effet « élimination » sont des données dites *non actives* "
+"(historiques)."
 
 #: ../../change_management.rst:93
 msgid "Effect Types"
-msgstr ""
+msgstr "Types d'effets"
 
 #: ../../change_management.rst:95
 msgid ""
 "Updating makes it possible to establish a parallel between existing data "
-"and the new data from an update. The latter has certain effects on the "
+"and the new data from an update. The latter has certain *effects* on the "
 "data. The following effects can be classified as:"
 msgstr ""
+"L’actualisation permet d’établir un parallèle entre les données existantes et"
+" les nouvelles données provenant d’une mise à jour. Ces dernières produisent "
+"certains effets sur les données. Les *effets* suivants peuvent être classés "
+"comme :"
 
 #: ../../change_management.rst:100
-msgid "Additon (Existence)"
-msgstr ""
+msgid "Addition (Existence)"
+msgstr "Ajout (Existence)"
 
 #: ../../change_management.rst:102
 msgid ""
 "When a new object has no geometric counterpart in the NVD, a new object "
 "is *added*, along with a new NID."
 msgstr ""
+"Quand un nouvel objet n’a pas son équivalent dans les DVN, un nouvel objet "
+"est *ajouté* avec un nouvel IDN."
 
 #: ../../change_management.rst:106
 msgid "Retirement (Existence)"
-msgstr ""
+msgstr "Élimination (Existence)"
 
 #: ../../change_management.rst:108
 msgid ""
 "When an object no longer represents a feature, the object is *retired*. "
-"This type of object i s removed from the current data while maintaining "
+"This type of object is removed from the current data while maintaining "
 "its NID."
 msgstr ""
+"Quand un objet ne représente plus une entité, il est éliminé. Ce type d’objet"
+" est éliminé des données courantes en gardant son IDN."
 
 #: ../../change_management.rst:112
 msgid "Modification (Evolution)"
-msgstr ""
+msgstr "Modification (Évolution)"
 
 #: ../../change_management.rst:114
 msgid ""
@@ -218,28 +272,39 @@ msgid ""
 "NID is preserved for the new version of the object. Two types of "
 "modification are possible."
 msgstr ""
+"Un objet est dit *modifié* si l’un de ses attributs descriptifs ou sa "
+"représentation géométrique est différent. Le cas échéant, l’IDN initial est "
+"préservé pour la nouvelle version de l’objet. Deux types de modification sont"
+" possibles."
 
 #: ../../change_management.rst:119
 msgid "Descriptive Modification"
-msgstr ""
+msgstr "Modification descriptive"
 
 #: ../../change_management.rst:121
 msgid ""
 "A descriptive modification occurs when a pair of objects from the same "
 "class is geometrically identical but has different attribute values. For "
 "example, the type of surface of a specific road may have changed from "
-"«unpaved» to «paved»."
+"\"unpaved\" to \"paved\"."
 msgstr ""
+"Une modification descriptive se produit quand une paire d’objets provenant de"
+" la même classe sont géométriquement identiques mais ont des valeurs "
+"attributives différentes. Par exemple, le type de surface d’une route "
+"spécifique peut avoir changé de « sans revêtement » à « avec revêtement »."
 
 #: ../../change_management.rst:126
 msgid "Geometric Modification"
-msgstr ""
+msgstr "Modification géométrique"
 
 #: ../../change_management.rst:128
 msgid ""
 "A geometric modification occurs when a pair of objects from the same "
 "class has different geometries that describe the same phenomena."
 msgstr ""
+"Une modification géométrique se produit quand une paire d’objets provenant de"
+" la même classe ont des géométries distinctes qui décrivent les mêmes "
+"phénomènes."
 
 #: ../../change_management.rst:131
 msgid ""
@@ -248,22 +313,31 @@ msgid ""
 "representations (old and new), it is possible to define geometric "
 "modifications as being:"
 msgstr ""
+"Trois types de modification géométrique sont actuellement définis à "
+"l’intérieur des DVN. Chacun de ces types comporte un certain niveau de "
+"complexité. En comparant deux représentations (ancienne et nouvelle), on peut"
+" définir les modifications géométriques comme étant :"
 
 #: ../../change_management.rst:136
 msgid "First Method"
-msgstr ""
+msgstr "Première méthode"
 
 #: ../../change_management.rst:138
 msgid ""
 "While comparing two objects, if one vertex is different from its previous"
 " representation, the old representation is retired and a new "
 "representation added. This method of managing representation "
-"modifications means that geometric modifications are not followed."
+"modifications means that *geometric modifications are not followed*."
 msgstr ""
+"En comparant deux objets, si un sommet est différent de sa représentation "
+"précédente, l’ancienne représentation est éliminée et une nouvelle est "
+"ajoutée avec un nouvel IDN. Cette méthode de gérer les modifications de "
+"représentation signifie que *les modifications géométriques ne sont pas "
+"suivies*."
 
 #: ../../change_management.rst:143
 msgid "Second method"
-msgstr ""
+msgstr "Deuxième méthode"
 
 #: ../../change_management.rst:145
 msgid ""
@@ -276,10 +350,19 @@ msgid ""
 "Element has changed, then this Network Linear Element is retired and a "
 "new one added."
 msgstr ""
+"Cette méthode de gérer les changements de représentation consiste à comparer "
+"les emplacements des anciennes et nouvelles Jonctions. Deux Jonctions "
+"limitent toujours un Élément Linéaire de réseau. Toute modification le long "
+"d’un Élément Linéaire (représentation géométrique) peut se produire entre ses"
+" Jonctions. Cela est traité comme une modification géométrique tout en "
+"conservant son IDN. Cependant, quelle qu’en soit la raison, si une des "
+"anciennes Jonctions situées à une extrémité de l’Élément Linéaire de réseau a"
+" changé, cet Élément Linéaire de réseau est alors éliminé et un nouvel "
+"Élément Linéaire est ajouté."
 
 #: ../../change_management.rst:153
 msgid "Third method"
-msgstr ""
+msgstr "Troisième méthode"
 
 #: ../../change_management.rst:155
 msgid ""
@@ -290,24 +373,32 @@ msgid ""
 "modifications and the Network Linear Element and Junctions maintain their"
 " NIDs."
 msgstr ""
+"Cette méthode est fondée sur des liens topologiques. Si la représentation des"
+" Jonctions d’Éléments Linéaires conserve les mêmes liens topologiques (même "
+"si les Jonctions ont changé de place et que la géométrie de l’Élément "
+"Linéaire de réseau a été modifiée), ce changement est alors traité comme une "
+"modification géométrique et l’Élément Linéaire de réseau ainsi que les "
+"Jonctions conservent tous leurs IDN."
 
 #: ../../change_management.rst:162
 msgid "Confirmation (Evolution)"
-msgstr ""
+msgstr "Confirmation (Évolution)"
 
 #: ../../change_management.rst:164
 msgid ""
 "Alongside change, there is confirmation of objects when the geometric or "
 "descriptive attributes have not been modified."
 msgstr ""
+"Conjointement avec le changement, il y a confirmation des objets quand les "
+"attributs géométriques et descriptifs n’ont pas été modifiés."
 
 #: ../../change_management.rst:168
 msgid "Used Effects"
-msgstr ""
+msgstr "Effets utilisés"
 
 #: ../../change_management.rst:171
 msgid "Segmented Data"
-msgstr ""
+msgstr "Données segmentées"
 
 #: ../../change_management.rst:173
 msgid ""
@@ -315,6 +406,9 @@ msgid ""
 " Section 3 (Addition, Descriptive Modification, Retirement and "
 "Confirmation)."
 msgstr ""
+"La gestion des modifications sur les données segmentées est faite à l’aide "
+"des *effets* définis à la section 3 (Ajout, Élimination, Modification "
+"descriptive et Confirmation)."
 
 #: ../../change_management.rst:176
 msgid ""
@@ -326,16 +420,25 @@ msgid ""
 "one effect and the set of priorities is as follows: Addition, Descriptive"
 " Modification and Confirmation."
 msgstr ""
+"Dans le modèle segmenté, l'effet doit être associé à l’Élément Linéaire au "
+"complet même si celui-ci est décomposé en plusieurs segments à cause d’un "
+"changement d’attribut. C’est-à-dire qu’un même effet doit être utilisé pour "
+"l'ensemble des segments qui ont la même valeur d’attribut IDN. Les segments "
+"qui décrivent un même Élément Linéaire peuvent avoir un seul effet et l'ordre"
+" de priorité est le suivant : Ajout, Modification descriptive et "
+"Confirmation."
 
 #: ../../change_management.rst:183
 msgid ""
 "The follow-up method for geometric modifications is indicated by the "
 "change management provider."
 msgstr ""
+"La méthode de suivi utilisée pour les modifications géométriques est indiquée"
+" par le fournisseur des gestions des modifications."
 
 #: ../../change_management.rst:187
 msgid "Example"
-msgstr ""
+msgstr "Exemple"
 
 #: ../../change_management.rst:189
 msgid ""
@@ -346,28 +449,37 @@ msgid ""
 "data. In terms of description, the type of surface of the Road Element "
 "(object 2) has changed from unpaved to paved."
 msgstr ""
+"L’exemple suivant sert à illustrer la gestion d’une mise à jour pour en "
+"faciliter la compréhension; figure 2 : Exemple d’une mise à jour pour "
+"démontrer la comparaison entre les données d’origine et les nouvelles "
+"données. En matière de géométrie, un seul élément route (objet 6) a été "
+"ajouté par rapport aux données d’origine. Quant à la description, le type de "
+"surface de l’élément route (objet 2) a changé de sans revêtement à avec "
+"revêtement."
 
 #: ../../change_management.rst:198
 msgid "Figure 2: Example of an update."
-msgstr ""
+msgstr "Figure 2 : Exemple d’une mise à jour"
 
 #: ../../change_management.rst:200
 msgid ""
 "Table 1: Updating effects shows the geometric effects observed after the "
 "update."
 msgstr ""
+"Le Tableau 1 : Mise à jour des effets, illustre les effets observés à la "
+"suite de la mise à jour."
 
 #: ../../change_management.rst:203
 msgid "Objects"
-msgstr ""
+msgstr "Objet"
 
 #: ../../change_management.rst:203
 msgid "Explanation"
-msgstr ""
+msgstr "Explication"
 
 #: ../../change_management.rst:203
 msgid "Effects"
-msgstr ""
+msgstr "Effet"
 
 #: ../../change_management.rst:205
 msgid "3"
@@ -375,11 +487,11 @@ msgstr ""
 
 #: ../../change_management.rst:205
 msgid "No correspondence with a new object."
-msgstr ""
+msgstr "Aucune correspondance avec un nouvel objet."
 
 #: ../../change_management.rst:205
 msgid "Retirement"
-msgstr ""
+msgstr "Élimination"
 
 #: ../../change_management.rst:207
 msgid "4"
@@ -391,12 +503,15 @@ msgid ""
 "object 6 changed the topological structure of the objects (and therefore "
 "the geometry)."
 msgstr ""
+"Aucune correspondance avec un objet dans les données d’origine; l’arrivée de "
+"l’objet 6 a modifié la structure topologique des objets (et par conséquent, "
+"la géométrie)."
 
 #: ../../change_management.rst:207 ../../change_management.rst:212
 #: ../../change_management.rst:217 ../../change_management.rst:220
 #: ../../change_management.rst:223
 msgid "Addition"
-msgstr ""
+msgstr "Ajout"
 
 #: ../../change_management.rst:212
 msgid "5"
@@ -411,6 +526,8 @@ msgid ""
 "No correspondence with an object in the original data; the feature was "
 "not represented."
 msgstr ""
+"Aucune correspondance avec un objet dans les données d’origine; l’entité "
+"n’était pas représentée."
 
 #: ../../change_management.rst:220
 msgid "e"
@@ -418,7 +535,7 @@ msgstr ""
 
 #: ../../change_management.rst:220 ../../change_management.rst:223
 msgid "No correspondence with an object in the original data."
-msgstr ""
+msgstr "Aucune correspondance avec un objet dans les données d’origine."
 
 #: ../../change_management.rst:223
 msgid "f"
@@ -430,11 +547,11 @@ msgstr ""
 
 #: ../../change_management.rst:226
 msgid "Attribute value changed."
-msgstr ""
+msgstr "Valeur d’attribut modifiée."
 
 #: ../../change_management.rst:226
 msgid "Description modification"
-msgstr ""
+msgstr "Modification descriptive"
 
 #: ../../change_management.rst:229
 msgid "1"
@@ -444,7 +561,7 @@ msgstr ""
 #: ../../change_management.rst:233 ../../change_management.rst:235
 #: ../../change_management.rst:237
 msgid "Geometry and attributes did not change."
-msgstr ""
+msgstr "La géométrie et les attributs n’ont pas été modifiés."
 
 #: ../../change_management.rst:229 ../../change_management.rst:231
 #: ../../change_management.rst:233 ../../change_management.rst:235
@@ -470,11 +587,11 @@ msgstr ""
 
 #: ../../change_management.rst:240
 msgid "Table 1: Updating effects."
-msgstr ""
+msgstr "Tableau 1 : Mise à jour des effets"
 
 #: ../../change_management.rst:243
-msgid "Footnotes"
-msgstr ""
+msgid "References"
+msgstr "Références"
 
 #: ../../change_management.rst:245
 msgid ""
@@ -484,27 +601,36 @@ msgstr ""
 
 #: ../../change_management.rst:247
 msgid ""
-"PEUQUET, Donna J. It ́s About Time: A Conceptual Framework for the "
+"PEUQUET, Donna J. It's About Time: A Conceptual Framework for the "
 "Representation of Temporal Dynamics in Geographic Information Systems, "
-"Annals of the Association of American Geographers, vol. 84, no 3, 1994, "
+"Annals of the Association of American Geographers, vol. 84, No. 3, 1994, "
 "p. 441-461."
 msgstr ""
+"PEUQUET, Donna J. It's About Time: A Conceptual Framework for the "
+"Representation of Temporal Dynamics in Geographic Information Systems, "
+"Annals of the Association of American Geographers, vol. 84, n° 3, 1994, "
+"p. 441-461."
 
 #: ../../change_management.rst:250
 msgid ""
 "Worboys, Michael F. A Unified Model for Spatial and Temporal Information,"
 " The Computer Journal, Vol 37, No. 1, pp. 26-34"
 msgstr ""
+"Worboys, Michael F. A Unified Model for Spatial and Temporal Information,"
+" The Computer Journal, Vol 37, n° 1, pp. 26-34"
 
 #: ../../change_management.rst:252
 msgid ""
 "Pouliot, J, Larrivé, S., and Bédard, Y. Typologie des mises à jour, "
 "2000, 11 p."
 msgstr ""
+"Pouliot, J, Larrivé, S. et Bédard, Y. Typologie des mises à jour, "
+"2000, 11 p."
 
 #: ../../change_management.rst:254
 msgid ""
 "The differential corresponds to the set of differences observed between "
 "two landmarks of the territory [#f4]_."
 msgstr ""
-
+"L’écart correspond à l’ensemble des différences notées entre deux repères du "
+"territoire [#f4]_."

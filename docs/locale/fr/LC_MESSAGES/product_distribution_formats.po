@@ -1,3 +1,4 @@
+# TODO: translate this document.
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) 2021, Statistics Canada
 # This file is distributed under the same license as the National Road
@@ -19,7 +20,7 @@ msgstr ""
 "Generated-By: Babel 2.9.0\n"
 
 #: ../../product_distribution_formats.rst:3
-msgid "Product Distribution Formats - Segmented View"
+msgid "Product Distribution Formats"
 msgstr ""
 
 #: ../../product_distribution_formats.rst:8

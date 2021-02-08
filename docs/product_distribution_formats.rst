@@ -1,6 +1,6 @@
-*********************************************
-Product Distribution Formats - Segmented View
-*********************************************
+****************************
+Product Distribution Formats
+****************************
 
 .. include :: <isonum.txt>
 

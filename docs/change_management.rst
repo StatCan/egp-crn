@@ -93,11 +93,11 @@ Effect Types
 ============
 
 Updating makes it possible to establish a parallel between existing data and the new data
-from an update. The latter has certain effects on the data. The following effects can be
+from an update. The latter has certain *effects* on the data. The following effects can be
 classified as:
 
-Additon (Existence)
--------------------
+Addition (Existence)
+--------------------
 
 When a new object has no geometric counterpart in the NVD, a new object is *added*, along
 with a new NID.
@@ -105,8 +105,8 @@ with a new NID.
 Retirement (Existence)
 ----------------------
 
-When an object no longer represents a feature, the object is *retired*. This type of object i
-s removed from the current data while maintaining its NID.
+When an object no longer represents a feature, the object is *retired*. This type of object
+is removed from the current data while maintaining its NID.
 
 Modification (Evolution)
 ------------------------
@@ -120,7 +120,7 @@ Descriptive Modification
 
 A descriptive modification occurs when a pair of objects from the same class is geometrically
 identical but has different attribute values. For example, the type of surface of a
-specific road may have changed from «unpaved» to «paved».
+specific road may have changed from "unpaved" to "paved".
 
 Geometric Modification
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -137,7 +137,7 @@ First Method
 
 While comparing two objects, if one vertex is different from its previous representation,
 the old representation is retired and a new representation added. This method of managing
-representation modifications means that geometric modifications are not followed.
+representation modifications means that *geometric modifications are not followed*.
 
 Second method
 """""""""""""
@@ -239,14 +239,14 @@ Table 1: Updating effects shows the geometric effects observed after the update.
 
 Table 1: Updating effects.
 
-Footnotes
-=========
+References
+==========
 
 .. [#f1] Langran, Gail. Time in Geographic Information Systems, Éd.Taylor & Francis,
     1993, 187 p.
-.. [#f2] PEUQUET, Donna J. It ́s About Time: A Conceptual Framework for the
+.. [#f2] PEUQUET, Donna J. It's About Time: A Conceptual Framework for the
     Representation of Temporal Dynamics in Geographic Information Systems, Annals of the
-    Association of American Geographers, vol. 84, no 3, 1994, p. 441-461.
+    Association of American Geographers, vol. 84, No. 3, 1994, p. 441-461.
 .. [#f3] Worboys, Michael F. A Unified Model for Spatial and Temporal Information,
     The Computer Journal, Vol 37, No. 1, pp. 26-34
 .. [#f4] Pouliot, J, Larrivé, S., and Bédard, Y. Typologie des mises à jour, 2000,
