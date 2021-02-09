@@ -7,7 +7,7 @@ Feature Catalogue
 .. note::
     The description of features and attributes provided in this catalogue is largely based on the standard *ISO
     14825 — Intelligent transport systems — Geographic Data Files (GDF) — Overall data specification* resulting from
-    technical committee ISO / TC 204.
+    technical committee ISO/TC 204.
 
     This catalogue was adapted from the international standard *ISO 19110 — Geographic information — Methodology for
     feature cataloguing* prepared by technical committee ISO/TC 211.
@@ -82,7 +82,7 @@ Segment
 
 Universal Unique Identifier (UUID)
     The definition and method used for the generation of a Universal Unique Identifier is defined in the document
-    National Vector Data – Identification Rules available on the GeoBase portal (www.geobase.ca), under the National
+    *National Vector Data – Identification Rules* available on the GeoBase portal (www.geobase.ca), under the National
     Road Network Data section.
 
 Object Metadata
@@ -177,7 +177,7 @@ The planimetric accuracy expressed in meters as the circular map accuracy standa
 
 :Domain: [-1,1..n]
 :Data Type: Integer
-    « -1 » when the value is unknown
+    "-1" when the value is unknown
 
 Provider
 --------
@@ -658,7 +658,7 @@ The classification of a Junction.
 Code  Label                      Definition
 ====  =========================  ==========
 1     Intersection               An intersection between three or more Road Elements intersecting at same grade level.
-2     DeadEnd                    A specific Junction that indicates that a Road Element ends and is not connected to any other Road Element or Ferry Connection.
+2     Dead End                   A specific Junction that indicates that a Road Element ends and is not connected to any other Road Element or Ferry Connection.
 3     Ferry                      A specific Junction that indicates that a Road Element connects to a Ferry Connection.
 4     NatProvTer                 A specific Junction at the limit of a dataset indicating that a Road element or Ferry connection continues into the adjacent province, territory or country.
 ====  =========================  ==========
@@ -905,9 +905,9 @@ multiple route number attributes.
 Speed Restriction
 ^^^^^^^^^^^^^^^^^
 
-The maximum speed allowed on the road. The value is expressed in kilometers per hour
+The maximum speed allowed on the road. The value is expressed in kilometers per hour.
 
-:Domain: -1 when unknown or a multiple of 5 lower than or equal to 120
+:Domain: -1 when unknown or a multiple of 5 lower than or equal to 120.
 :Data Type: Integer
 
 Structure ID
@@ -1104,7 +1104,7 @@ Place Name
 Name of an administrative area, district or other named area which is required for uniqueness of the street name.
 
 :Domain: The complete name of the place.
-    Examples: Arnold's Cove, Saint-Jean-Baptiste-de-l'Îsle-Verte, Sault Ste. Marie, Grand- Sault, Grand Falls.
+    Examples: Arnold's Cove, Saint-Jean-Baptiste-de-l'Îsle-Verte, Sault Ste. Marie, Grand-Sault, Grand Falls.
 :Data Type: Character (100)
 
 Place Type

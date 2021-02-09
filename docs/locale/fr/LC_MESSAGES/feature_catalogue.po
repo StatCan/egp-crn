@@ -1,4 +1,3 @@
-# TODO: translate this document.
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) 2021, Statistics Canada
 # This file is distributed under the same license as the National Road
@@ -21,15 +20,19 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:3
 msgid "Feature Catalogue"
-msgstr ""
+msgstr "Catalogue d'entités"
 
 #: ../../feature_catalogue.rst:8
 msgid ""
 "The description of features and attributes provided in this catalogue is "
 "largely based on the standard *ISO 14825 — Intelligent transport systems "
 "— Geographic Data Files (GDF) — Overall data specification* resulting "
-"from technical committee ISO / TC 204."
+"from technical committee ISO/TC 204."
 msgstr ""
+"La description des entités et attributs de ce catalogue est en grande partie "
+"extraite de la norme internationale *ISO 14825 — Systèmes de transport "
+"intelligents — Fichiers de données géographiques — Spécification des données "
+"globales* du comité technique ISO/TC 204.
 
 #: ../../feature_catalogue.rst:12
 msgid ""
@@ -37,30 +40,33 @@ msgid ""
 "Geographic information — Methodology for feature cataloguing* prepared by"
 " technical committee ISO/TC 211."
 msgstr ""
+"Ce catalogue a été adapté à partir de la norme internationale *ISO 19110 — "
+"Information géographique — Méthodologie de catalogage des entités* préparée "
+"par le comité technique ISO/TC 211."
 
 #: ../../feature_catalogue.rst:16
 msgid "Contents"
-msgstr ""
+msgstr "Matières"
 
 #: ../../feature_catalogue.rst:19
 msgid "Acronyms and Abbreviations"
-msgstr ""
+msgstr "Sigles et abbréviations"
 
 #: ../../feature_catalogue.rst:21
 msgid "CMAS"
-msgstr ""
+msgstr "PCCN"
 
 #: ../../feature_catalogue.rst:23
 msgid "Circular Map Accuracy Standard"
-msgstr ""
+msgstr "Précision cartographique circulaire normalisée"
 
 #: ../../feature_catalogue.rst:24
 msgid "DEM"
-msgstr ""
+msgstr "MNE"
 
 #: ../../feature_catalogue.rst:26 ../../feature_catalogue.rst:114
 msgid "Digital Elevation Model"
-msgstr ""
+msgstr "Modèle numérique d'élévation"
 
 #: ../../feature_catalogue.rst:27 ../../feature_catalogue.rst:107
 msgid "GPS"
@@ -68,7 +74,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:29
 msgid "Global Positioning System"
-msgstr ""
+msgstr "Système mondial de localisation"
 
 #: ../../feature_catalogue.rst:30
 msgid "ID"
@@ -76,7 +82,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:32
 msgid "Identifier"
-msgstr ""
+msgstr "Identifiant"
 
 #: ../../feature_catalogue.rst:33
 msgid "ISO/TC"
@@ -84,7 +90,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:35
 msgid "International Organisation for Standardisation, Technical Committee"
-msgstr ""
+msgstr "Organisation internationale de normalisation, comité technique"
 
 #: ../../feature_catalogue.rst:36 ../../feature_catalogue.rst:663
 msgid "NatProvTer"
@@ -92,7 +98,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:38
 msgid "National, Provincial, or Territorial"
-msgstr ""
+msgstr "National, provincial ou territorial"
 
 #: ../../feature_catalogue.rst:39 ../../feature_catalogue.rst:346
 #: ../../feature_catalogue.rst:404 ../../feature_catalogue.rst:494
@@ -100,53 +106,54 @@ msgstr ""
 #: ../../feature_catalogue.rst:788 ../../feature_catalogue.rst:1092
 #: ../../feature_catalogue.rst:1429
 msgid "NID"
-msgstr ""
+msgstr "IDN"
 
 #: ../../feature_catalogue.rst:41
 msgid "National Identifier"
-msgstr ""
+msgstr "Identifiant national"
 
 #: ../../feature_catalogue.rst:42
 msgid "NRCan"
-msgstr ""
+msgstr "RNCan"
 
 #: ../../feature_catalogue.rst:44
 msgid "Natural Resources Canada"
-msgstr ""
+msgstr "Ressources naturelles Canada"
 
 #: ../../feature_catalogue.rst:45
 msgid "NRN"
-msgstr ""
+msgstr "RRN"
 
 #: ../../feature_catalogue.rst:47
 msgid "National Road Network"
-msgstr ""
+msgstr "Réseau routier national"
 
 #: ../../feature_catalogue.rst:48
 msgid "UUID"
-msgstr ""
+msgstr "IDUU"
 
 #: ../../feature_catalogue.rst:50
 msgid "Universal Unique Identifier"
-msgstr ""
+msgstr "Identifiant unique universel"
 
 #: ../../feature_catalogue.rst:53
 msgid "Terms and Definitions"
-msgstr ""
+msgstr "Termes et définitions"
 
 #: ../../feature_catalogue.rst:56
 msgid "Attribute"
-msgstr ""
+msgstr "Attribut"
 
 #: ../../feature_catalogue.rst:56
 msgid ""
 "Characteristic of a feature. For example, number of lanes or pavement "
 "status."
 msgstr ""
+"Caractéristique d'entité. Par exemple, nombre de voies ou type de chaussée."
 
 #: ../../feature_catalogue.rst:60
 msgid "Class"
-msgstr ""
+msgstr "Classe"
 
 #: ../../feature_catalogue.rst:59
 msgid ""
@@ -154,18 +161,21 @@ msgid ""
 "operations, methods, relationships, and semantics. A class does not "
 "always have an associated geometry (e.g., address range class)."
 msgstr ""
+"Description d’un ensemble d’objets partageant les mêmes attributs, "
+"opérations, méthodes, relations et sémantique. Une classe n’a pas toujours "
+"une géométrie associée (ex. la classe Intervalles d’adresse)."
 
 #: ../../feature_catalogue.rst:63
 msgid "Feature"
-msgstr ""
+msgstr "Entité"
 
 #: ../../feature_catalogue.rst:63
 msgid "Digital representation of a real world phenomenon."
-msgstr ""
+msgstr "Représentation numérique d’un phénomène réel."
 
 #: ../../feature_catalogue.rst:67
 msgid "Ferry Connection"
-msgstr ""
+msgstr "Liaison par transbordeur"
 
 #: ../../feature_catalogue.rst:66
 msgid ""
@@ -173,26 +183,31 @@ msgid ""
 "two fixed locations on the Road Network. Two Junctions always bound a "
 "Ferry Connection."
 msgstr ""
+"La route approximative suivie par un navire transbordeur qui transporte des "
+"véhicules entre deux emplacements sur le réseau routier. Deux jonctions "
+"limitent toujours une liaison par transbordeur."
 
 #: ../../feature_catalogue.rst:70
 msgid "Network Linear Element"
-msgstr ""
+msgstr "Élément linéaire du réseau"
 
 #: ../../feature_catalogue.rst:70
 msgid "Abstract class of a Road Element and Ferry Connection."
 msgstr ""
+"Classe abstraite qui englobe les entités Élément routier et Liaison par "
+"transbordeur."
 
 #: ../../feature_catalogue.rst:73
 msgid "Object"
-msgstr ""
+msgstr "Objet"
 
 #: ../../feature_catalogue.rst:73
 msgid "An object is an instance of a class."
-msgstr ""
+msgstr "Un objet est une instance d'une classe."
 
 #: ../../feature_catalogue.rst:78
 msgid "Road Element"
-msgstr ""
+msgstr "Élément routier"
 
 #: ../../feature_catalogue.rst:76
 msgid ""
@@ -202,6 +217,11 @@ msgid ""
 "Road Element is composed of one or more than one contiguous Road "
 "Segments."
 msgstr ""
+"Une route est une section linéaire à la surface de la Terre qui a été conçue "
+"pour la circulation de véhicules ou qui en est le résultat. Un Élément "
+"routier est la représentation d'une route entre deux Jonctions. Un Élément "
+"routier est toujours limité par deux Jonctions. Un Élément routier est "
+"composé d'un ou plusieurs Segments routiers."
 
 #: ../../feature_catalogue.rst:81
 msgid "Segment"
@@ -212,10 +232,12 @@ msgid ""
 "Portion of a Network Linear Element that has a common set of defined "
 "characteristics (attributes)."
 msgstr ""
+"Portion d'un Élément linéaire du réseau présentant un ensemble commun de "
+"caractéristiques (attributs) définies."
 
 #: ../../feature_catalogue.rst:86
 msgid "Universal Unique Identifier (UUID)"
-msgstr ""
+msgstr "Identifiant unique universel (IDUU)"
 
 #: ../../feature_catalogue.rst:84
 msgid ""
@@ -224,33 +246,41 @@ msgid ""
 "Identification Rules available on the GeoBase portal (www.geobase.ca), "
 "under the National Road Network Data section."
 msgstr ""
+"La définition et la méthode utilisée pour la génération d’un Identifiant "
+"universel unique (IDUU) est décrite dans le document *Données vectorielles "
+"nationales – Règles d’identification* disponible sur le portail GéoBase "
+"(www.geobase.ca), sous la section Données du Réseau routier national."
 
 #: ../../feature_catalogue.rst:89 ../../feature_catalogue.rst:387
 #: ../../feature_catalogue.rst:514 ../../feature_catalogue.rst:622
 #: ../../feature_catalogue.rst:677 ../../feature_catalogue.rst:993
 #: ../../feature_catalogue.rst:1413 ../../feature_catalogue.rst:1465
 msgid "Object Metadata"
-msgstr ""
+msgstr "Métadonnées d'objet"
 
 #: ../../feature_catalogue.rst:91
 msgid ""
 "The attributes described in the section object metadata apply to all "
 "feature classes (except for Alternate Name Link)."
 msgstr ""
+"Les attributs décrits dans la section métadonnées d'objet s'appliquent à "
+"toutes les entités (sauf pour Lien nom non officiel)."
 
 #: ../../feature_catalogue.rst:95
 msgid "Acquisition Technique"
-msgstr ""
+msgstr "Technique acquisition"
 
 #: ../../feature_catalogue.rst:97
 msgid ""
 "The type of data source or technique used to populate (create or revise) "
 "the dataset."
 msgstr ""
+"Le type de source ou la technique utilisé pour acquérir (création ou "
+"révision) les données."
 
 #: ../../feature_catalogue.rst
 msgid "Domain"
-msgstr ""
+msgstr "Domaine"
 
 #: ../../feature_catalogue.rst:102 ../../feature_catalogue.rst:129
 #: ../../feature_catalogue.rst:156 ../../feature_catalogue.rst:190
@@ -285,7 +315,7 @@ msgstr ""
 #: ../../feature_catalogue.rst:1179 ../../feature_catalogue.rst:1204
 #: ../../feature_catalogue.rst:1240 ../../feature_catalogue.rst:1456
 msgid "Label"
-msgstr ""
+msgstr "Étiquette"
 
 #: ../../feature_catalogue.rst:102 ../../feature_catalogue.rst:129
 #: ../../feature_catalogue.rst:190 ../../feature_catalogue.rst:247
@@ -302,7 +332,7 @@ msgstr ""
 #: ../../feature_catalogue.rst:1204 ../../feature_catalogue.rst:1240
 #: ../../feature_catalogue.rst:1456
 msgid "Definition"
-msgstr ""
+msgstr "Définition"
 
 #: ../../feature_catalogue.rst:104 ../../feature_catalogue.rst:131
 #: ../../feature_catalogue.rst:282 ../../feature_catalogue.rst:301
@@ -322,12 +352,12 @@ msgstr ""
 #: ../../feature_catalogue.rst:970 ../../feature_catalogue.rst:986
 #: ../../feature_catalogue.rst:1458
 msgid "Unknown"
-msgstr ""
+msgstr "Inconnu"
 
 #: ../../feature_catalogue.rst:104 ../../feature_catalogue.rst:131
 #: ../../feature_catalogue.rst:301 ../../feature_catalogue.rst:377
 msgid "Impossible to determine."
-msgstr ""
+msgstr "Impossible de déterminer le type."
 
 #: ../../feature_catalogue.rst:105 ../../feature_catalogue.rst:283
 #: ../../feature_catalogue.rst:302 ../../feature_catalogue.rst:338
@@ -348,7 +378,7 @@ msgstr ""
 #: ../../feature_catalogue.rst:1084 ../../feature_catalogue.rst:1120
 #: ../../feature_catalogue.rst:1206 ../../feature_catalogue.rst:1242
 msgid "None"
-msgstr ""
+msgstr "Aucun"
 
 #: ../../feature_catalogue.rst:105 ../../feature_catalogue.rst:835
 #: ../../feature_catalogue.rst:950 ../../feature_catalogue.rst:987
@@ -356,7 +386,7 @@ msgstr ""
 #: ../../feature_catalogue.rst:1084 ../../feature_catalogue.rst:1120
 #: ../../feature_catalogue.rst:1206 ../../feature_catalogue.rst:1242
 msgid "No value applies."
-msgstr ""
+msgstr "Aucune valeur disponible à l'égard de la source."
 
 #: ../../feature_catalogue.rst:106 ../../feature_catalogue.rst:132
 #: ../../feature_catalogue.rst:158 ../../feature_catalogue.rst:192
@@ -377,11 +407,12 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:106 ../../feature_catalogue.rst:192
 msgid "Other"
-msgstr ""
+msgstr "Autre"
 
 #: ../../feature_catalogue.rst:106
 msgid "All possible values not explicitly mentioned in the domain."
 msgstr ""
+"Toutes valeurs possibles non mentionnées explicitement dans le domaine."
 
 #: ../../feature_catalogue.rst:107 ../../feature_catalogue.rst:133
 #: ../../feature_catalogue.rst:159 ../../feature_catalogue.rst:193
@@ -402,7 +433,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:107
 msgid "Data collected using a GPS device."
-msgstr ""
+msgstr "Données captée en utilisant le GPS."
 
 #: ../../feature_catalogue.rst:108 ../../feature_catalogue.rst:160
 #: ../../feature_catalogue.rst:194 ../../feature_catalogue.rst:251
@@ -420,11 +451,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:108
 msgid "Orthoimage"
-msgstr ""
+msgstr "Ortho-image"
 
 #: ../../feature_catalogue.rst:108
 msgid "Satellite imagery orthorectified."
-msgstr ""
+msgstr "Image satellite orthorectifiée."
 
 #: ../../feature_catalogue.rst:109 ../../feature_catalogue.rst:161
 #: ../../feature_catalogue.rst:195 ../../feature_catalogue.rst:287
@@ -439,11 +470,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:109
 msgid "Orthophoto"
-msgstr ""
+msgstr "Ortho-photo"
 
 #: ../../feature_catalogue.rst:109
 msgid "Aerial photo orthorectified."
-msgstr ""
+msgstr "Photographie aérienne orthorectifiée."
 
 #: ../../feature_catalogue.rst:110 ../../feature_catalogue.rst:162
 #: ../../feature_catalogue.rst:383 ../../feature_catalogue.rst:448
@@ -455,11 +486,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:110
 msgid "Vector Data"
-msgstr ""
+msgstr "Données vectorielles"
 
 #: ../../feature_catalogue.rst:110
 msgid "Vector digital data."
-msgstr ""
+msgstr "Données vectorielles numériques."
 
 #: ../../feature_catalogue.rst:111 ../../feature_catalogue.rst:163
 #: ../../feature_catalogue.rst:449 ../../feature_catalogue.rst:568
@@ -471,11 +502,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:111
 msgid "Paper Map"
-msgstr ""
+msgstr "Carte papier"
 
 #: ../../feature_catalogue.rst:111
 msgid "Conventional sources of information like maps or plans."
-msgstr ""
+msgstr "Sources d'information conventionnelles comme des cartes ou des plans."
 
 #: ../../feature_catalogue.rst:112 ../../feature_catalogue.rst:164
 #: ../../feature_catalogue.rst:450 ../../feature_catalogue.rst:569
@@ -487,11 +518,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:112
 msgid "Field Completion"
-msgstr ""
+msgstr "Complètement terrain"
 
 #: ../../feature_catalogue.rst:112
 msgid "Information gathered from people directly on the field."
-msgstr ""
+msgstr "Information obtenue de gens directement sur le terrain."
 
 #: ../../feature_catalogue.rst:113 ../../feature_catalogue.rst:165
 #: ../../feature_catalogue.rst:451 ../../feature_catalogue.rst:570
@@ -502,11 +533,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:113
 msgid "Raster Data"
-msgstr ""
+msgstr "Données matricielles"
 
 #: ../../feature_catalogue.rst:113
 msgid "Data resulting from a scanning process."
-msgstr ""
+msgstr "Données provenant d'un processus de balayage."
 
 #: ../../feature_catalogue.rst:114 ../../feature_catalogue.rst:166
 #: ../../feature_catalogue.rst:452 ../../feature_catalogue.rst:571
@@ -517,7 +548,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:114
 msgid "Data coming from a Digital Elevation Model (DEM)."
-msgstr ""
+msgstr "Données provenant d'un modèle numérique d'élévation d'élévation (MNE)."
 
 #: ../../feature_catalogue.rst:115 ../../feature_catalogue.rst:167
 #: ../../feature_catalogue.rst:453 ../../feature_catalogue.rst:572
@@ -528,11 +559,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:115
 msgid "Aerial Photo"
-msgstr ""
+msgstr "Photographie aérienne"
 
 #: ../../feature_catalogue.rst:115
 msgid "Aerial photography not orthorectified."
-msgstr ""
+msgstr "Photographie aérienne non orthorectifiée."
 
 #: ../../feature_catalogue.rst:116 ../../feature_catalogue.rst:168
 #: ../../feature_catalogue.rst:454 ../../feature_catalogue.rst:573
@@ -543,11 +574,11 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:116
 msgid "Raw Imagery Data"
-msgstr ""
+msgstr "Image satellite brute"
 
 #: ../../feature_catalogue.rst:116
 msgid "Satellite imagery not orthorectified."
-msgstr ""
+msgstr "Image satellite non orthorectifiée."
 
 #: ../../feature_catalogue.rst:117 ../../feature_catalogue.rst:169
 #: ../../feature_catalogue.rst:455 ../../feature_catalogue.rst:574
@@ -558,45 +589,49 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:117
 msgid "Computed"
-msgstr ""
+msgstr "Calculé"
 
 #: ../../feature_catalogue.rst:117
 msgid "Geometric information that has been computed (not captured)."
-msgstr ""
+msgstr "Informations géométriques calculées (non captées)."
 
 #: ../../feature_catalogue.rst:121
 msgid "Coverage"
-msgstr ""
+msgstr "Couverture"
 
 #: ../../feature_catalogue.rst:123
 msgid ""
 "This value indicates if this set of metadata covers the full length of "
 "the Network Linear Element or only a portion of it."
 msgstr ""
+"Cette valeur indique si les métadonnées s'appliquent à tout l'Élément "
+"linéaire du réseau ou à une portion de celui-ci."
 
 #: ../../feature_catalogue.rst:132
 msgid "Complete"
-msgstr ""
+msgstr "Complet"
 
 #: ../../feature_catalogue.rst:132
 msgid "Metadata applies on the entire geometry or attribute event."
 msgstr ""
+"Les métadonnées s'appliquent à la totalité de la géométrie ou de l'événement."
 
 #: ../../feature_catalogue.rst:133
 msgid "Partial"
-msgstr ""
+msgstr "Partiel"
 
 #: ../../feature_catalogue.rst:133
 msgid "Metadata applies on a portion of the geometry or attribute event."
 msgstr ""
+"Les métadonnées s'appliquent à une portion de la géométrie ou de l'événement."
 
 #: ../../feature_catalogue.rst:138 ../../feature_catalogue.rst:424
 msgid "Creation Date"
-msgstr ""
+msgstr "Date création"
 
 #: ../../feature_catalogue.rst:140 ../../feature_catalogue.rst:426
 msgid "The date of data creation."
-msgstr ""
+msgstr "La date de création des données."
 
 #: ../../feature_catalogue.rst:142 ../../feature_catalogue.rst:203
 #: ../../feature_catalogue.rst:428
@@ -604,54 +639,56 @@ msgid ""
 "A date in the format YYYYMMDD or \"Unknown\". If the month or the day is "
 "unknown, corresponding characters are left blank."
 msgstr ""
+"Une date selon le format AAAAMMJJ ou « Inconnu ». Si le mois ou le jour est "
+"inconnu, les caractères correspondants sont laissés vides."
 
 #: ../../feature_catalogue.rst:145 ../../feature_catalogue.rst:206
 #: ../../feature_catalogue.rst:431
 msgid "Examples: 20060630, 200606, 2006."
-msgstr ""
+msgstr "Exemples : 20060630, 200606, 2006."
 
 #: ../../feature_catalogue.rst
 msgid "Data Type"
-msgstr ""
+msgstr "Type de données"
 
 #: ../../feature_catalogue.rst:146 ../../feature_catalogue.rst:207
 #: ../../feature_catalogue.rst:432
 msgid "Character (8)"
-msgstr ""
+msgstr "Caractère (8)"
 
 #: ../../feature_catalogue.rst:149 ../../feature_catalogue.rst:435
 msgid "Dataset Name"
-msgstr ""
+msgstr "Nom jeu de données"
 
 #: ../../feature_catalogue.rst:151 ../../feature_catalogue.rst:437
 #: ../../feature_catalogue.rst:1174
 msgid "Province or Territory covered by the dataset."
-msgstr ""
+msgstr "Province ou territoire couvert par le jeu de données."
 
 #: ../../feature_catalogue.rst:158 ../../feature_catalogue.rst:444
 #: ../../feature_catalogue.rst:1181
 msgid "Newfoundland and Labrador"
-msgstr ""
+msgstr "Terre-Neuve et Labrador"
 
 #: ../../feature_catalogue.rst:159 ../../feature_catalogue.rst:445
 #: ../../feature_catalogue.rst:1182
 msgid "Nova Scotia"
-msgstr ""
+msgstr "Nouvelle-Écosse"
 
 #: ../../feature_catalogue.rst:160 ../../feature_catalogue.rst:446
 #: ../../feature_catalogue.rst:1183
 msgid "Prince Edward Island"
-msgstr ""
+msgstr "Île-du-Prince-Édouard"
 
 #: ../../feature_catalogue.rst:161 ../../feature_catalogue.rst:447
 #: ../../feature_catalogue.rst:1184
 msgid "New Brunswick"
-msgstr ""
+msgstr "Nouveau-Brunswick"
 
 #: ../../feature_catalogue.rst:162 ../../feature_catalogue.rst:448
 #: ../../feature_catalogue.rst:1185
 msgid "Quebec"
-msgstr ""
+msgstr "Québec"
 
 #: ../../feature_catalogue.rst:163 ../../feature_catalogue.rst:449
 #: ../../feature_catalogue.rst:1186
@@ -676,17 +713,17 @@ msgstr ""
 #: ../../feature_catalogue.rst:167 ../../feature_catalogue.rst:453
 #: ../../feature_catalogue.rst:1190
 msgid "British Columbia"
-msgstr ""
+msgstr "Colombie-Britannique"
 
 #: ../../feature_catalogue.rst:168 ../../feature_catalogue.rst:454
 #: ../../feature_catalogue.rst:1191
 msgid "Yukon Territory"
-msgstr ""
+msgstr "Territoire du Yukon"
 
 #: ../../feature_catalogue.rst:169 ../../feature_catalogue.rst:455
 #: ../../feature_catalogue.rst:1192
 msgid "Northwest Territories"
-msgstr ""
+msgstr "Territoires du Nord-Ouest"
 
 #: ../../feature_catalogue.rst:170 ../../feature_catalogue.rst:456
 #: ../../feature_catalogue.rst:575 ../../feature_catalogue.rst:775
@@ -702,43 +739,45 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:174
 msgid "Planimetric Accuracy"
-msgstr ""
+msgstr "Précision planimétrique"
 
 #: ../../feature_catalogue.rst:176
 msgid ""
 "The planimetric accuracy expressed in meters as the circular map accuracy"
 " standard (CMAS)."
 msgstr ""
+"Précision planimétrique exprimée en mètres selon la précision cartographique "
+"circulaire normalisée (PCCN)."
 
 #: ../../feature_catalogue.rst:178
 msgid "[-1,1..n]"
 msgstr ""
 
 #: ../../feature_catalogue.rst:179
-msgid "Integer « -1 » when the value is unknown"
-msgstr ""
+msgid "Integer \"-1\" when the value is unknown"
+msgstr "Entier « -1 » lorsque la valeur est inconnue"
 
 #: ../../feature_catalogue.rst:183
 msgid "Provider"
-msgstr ""
+msgstr "Fournisseur"
 
 #: ../../feature_catalogue.rst:185
 msgid ""
 "The affiliation of the organization that generated (created or revised) "
 "the object."
-msgstr ""
+msgstr "L'affiliation de l'organisme qui a généré (acquis ou révisé) l'objet."
 
 #: ../../feature_catalogue.rst:192
 msgid "Other value."
-msgstr ""
+msgstr "Valeur autre."
 
 #: ../../feature_catalogue.rst:193
 msgid "Federal"
-msgstr ""
+msgstr "Fédéral"
 
 #: ../../feature_catalogue.rst:193
 msgid "Federal departments or agencies."
-msgstr ""
+msgstr "Département ou agence fédéral."
 
 #: ../../feature_catalogue.rst:194
 msgid "Provincial / Territorial"
@@ -746,7 +785,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:194
 msgid "Provincial / territorial departments or agencies."
-msgstr ""
+msgstr "Département ou agence provincial / territorial."
 
 #: ../../feature_catalogue.rst:195
 msgid "Municipal"
@@ -754,23 +793,23 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:195
 msgid "Municipal departments or agencies."
-msgstr ""
+msgstr "Département ou agence municipal."
 
 #: ../../feature_catalogue.rst:199
 msgid "Revision Date"
-msgstr ""
+msgstr "Date révision"
 
 #: ../../feature_catalogue.rst:201
 msgid "The date of data revision."
-msgstr ""
+msgstr "La date de révision des données."
 
 #: ../../feature_catalogue.rst:210 ../../feature_catalogue.rst:460
 msgid "Standard Version"
-msgstr ""
+msgstr "Version normes"
 
 #: ../../feature_catalogue.rst:212 ../../feature_catalogue.rst:462
 msgid "The version number of the GeoBase Product specifications."
-msgstr ""
+msgstr "Le numéro de version des spécifications du produit GéoBase."
 
 #: ../../feature_catalogue.rst:214 ../../feature_catalogue.rst:464
 msgid "[2.0]"
@@ -780,11 +819,11 @@ msgstr ""
 #: ../../feature_catalogue.rst:325 ../../feature_catalogue.rst:465
 #: ../../feature_catalogue.rst:648 ../../feature_catalogue.rst:742
 msgid "Character (10)"
-msgstr ""
+msgstr "Caractère (10)"
 
 #: ../../feature_catalogue.rst:218
 msgid "Address Range"
-msgstr ""
+msgstr "Intervalles d'adresse"
 
 #: ../../feature_catalogue.rst:220
 msgid ""
@@ -792,32 +831,34 @@ msgid ""
 "building located along a side of the entire Road Element or a portion of "
 "it."
 msgstr ""
+"Ensemble d'attributs qui représente l'adresse du premier et du dernier "
+"édifice situés de chaque côté d'un Élément routier."
 
 #: ../../feature_catalogue.rst
 msgid "Is Abstract"
-msgstr ""
+msgstr "Est abstrait"
 
 #: ../../feature_catalogue.rst:223 ../../feature_catalogue.rst:397
 #: ../../feature_catalogue.rst:472 ../../feature_catalogue.rst:523
 #: ../../feature_catalogue.rst:635 ../../feature_catalogue.rst:687
 #: ../../feature_catalogue.rst:1003 ../../feature_catalogue.rst:1422
 msgid "No"
-msgstr ""
+msgstr "Non"
 
 #: ../../feature_catalogue.rst
 msgid "Geometry"
-msgstr ""
+msgstr "Géométrie"
 
 #: ../../feature_catalogue.rst:227 ../../feature_catalogue.rst:401
 #: ../../feature_catalogue.rst:476 ../../feature_catalogue.rst:527
 #: ../../feature_catalogue.rst:639 ../../feature_catalogue.rst:691
 #: ../../feature_catalogue.rst:1007 ../../feature_catalogue.rst:1426
 msgid "Attribute Section"
-msgstr ""
+msgstr "Section Attribut"
 
 #: ../../feature_catalogue.rst:230
 msgid "Alternate Street Name NID (left, right)"
-msgstr ""
+msgstr "IDN nom de rue non officiel (droite, gauche)"
 
 #: ../../feature_catalogue.rst:232
 msgid ""
@@ -825,12 +866,17 @@ msgid ""
 "name. A specific value is defined for the left and right sides of the "
 "Road Element."
 msgstr ""
+"L’identifiant utilisé pour lier l'intervalle d'adresse à son ou ses noms de "
+"rue non reconnu(s) officiellement. Une valeur spécifique est définie pour les"
+" côtés gauche et droit de l'Élément routier."
 
 #: ../../feature_catalogue.rst:235
 msgid ""
 "A UUID or \"None\" when no value applies. Example: "
 "69822b23d217494896014e57a2edb8ac"
 msgstr ""
+"Un IDUU ou « Aucun » quand aucune valeur ne s’applique. Exemple : "
+"69822b23d217494896014e57a2edb8ac"
 
 #: ../../feature_catalogue.rst:236 ../../feature_catalogue.rst:353
 #: ../../feature_catalogue.rst:364 ../../feature_catalogue.rst:411
@@ -841,11 +887,11 @@ msgstr ""
 #: ../../feature_catalogue.rst:1099 ../../feature_catalogue.rst:1436
 #: ../../feature_catalogue.rst:1446
 msgid "Character (32)"
-msgstr ""
+msgstr "Caractère (32)"
 
 #: ../../feature_catalogue.rst:239
 msgid "Digitizing Direction Flag (left, right)"
-msgstr ""
+msgstr "Indicateur sens numérisation (droite, gauche)"
 
 #: ../../feature_catalogue.rst:241 ../../feature_catalogue.rst:696
 msgid ""
@@ -853,36 +899,45 @@ msgid ""
 "digitizing of the Road Element. A specific value is defined for the left "
 "and right sides of the Road Element."
 msgstr ""
+"Indique si l'événement attributif est dans le même sens que celui de la "
+"numérisation de l'Élément routier. Une valeur spécifique est définie pour les"
+" côtés gauche et droit de l'Élément routier."
 
 #: ../../feature_catalogue.rst:249 ../../feature_catalogue.rst:704
 msgid "Same Direction"
-msgstr ""
+msgstr "Même sens"
 
 #: ../../feature_catalogue.rst:249 ../../feature_catalogue.rst:704
 msgid "Attribute event and Road Element geometry are in the same direction."
 msgstr ""
+"Le sens de l'événement attributif et celui de la numérisation de l'Élément "
+"routier sont les mêmes."
 
 #: ../../feature_catalogue.rst:250 ../../feature_catalogue.rst:705
 msgid "Opposite Direction"
-msgstr ""
+msgstr "Sens opposé"
 
 #: ../../feature_catalogue.rst:250 ../../feature_catalogue.rst:705
 msgid "Attribute event and Road Element geometry are in opposite directions."
 msgstr ""
+"Le sens de l'événement attributif et celui de la numérisation de l'Élément "
+"routier sont opposés."
 
 #: ../../feature_catalogue.rst:251 ../../feature_catalogue.rst:706
 msgid "Not Applicable"
-msgstr ""
+msgstr "Sans objet"
 
 #: ../../feature_catalogue.rst:251 ../../feature_catalogue.rst:706
 msgid ""
 "Indication of the digitizing direction of the Road Element not needed for"
 " the attribute event."
 msgstr ""
+"Le sens de numération de l'Élément routier est inutile pour l'événement "
+"attributif."
 
 #: ../../feature_catalogue.rst:255 ../../feature_catalogue.rst:745
 msgid "First House Number (left, right)"
-msgstr ""
+msgstr "Numéro première maison (droite, gauche)"
 
 #: ../../feature_catalogue.rst:257 ../../feature_catalogue.rst:747
 msgid ""
@@ -890,6 +945,9 @@ msgid ""
 "right) of a Road Element. A specific value is defined for the left and "
 "right sides of the Road Element."
 msgstr ""
+"Adresse du premier bâtiment situé le long d'un côté particulier (gauche ou "
+"droit) d'un Élément routier. Une valeur spécifique est définie pour les côtés"
+" gauche et droit de l'Élément routier."
 
 #: ../../feature_catalogue.rst:260 ../../feature_catalogue.rst:315
 #: ../../feature_catalogue.rst:750 ../../feature_catalogue.rst:784
@@ -897,17 +955,19 @@ msgid ""
 "[-1..n] The value \"0\" is used when no value applies. The value \"-1\" "
 "is used when the value is unknown."
 msgstr ""
+"[-1..n] La valeur « 0 » indique qu'aucune valeur ne s'applique. La valeur "
+"« -1 » indique que la valeur est inconnue."
 
 #: ../../feature_catalogue.rst:261 ../../feature_catalogue.rst:316
 #: ../../feature_catalogue.rst:551 ../../feature_catalogue.rst:751
 #: ../../feature_catalogue.rst:785 ../../feature_catalogue.rst:803
 #: ../../feature_catalogue.rst:870 ../../feature_catalogue.rst:911
 msgid "Integer"
-msgstr ""
+msgstr "Entier"
 
 #: ../../feature_catalogue.rst:264
 msgid "First House Number Suffix (left, right)"
-msgstr ""
+msgstr "Suffixe numéro première maison (droite, gauche)"
 
 #: ../../feature_catalogue.rst:266 ../../feature_catalogue.rst:321
 msgid ""
@@ -915,52 +975,64 @@ msgid ""
 "A) that sometimes follows the house number address value. A specific "
 "value is defined for the left and right sides of the Road Element."
 msgstr ""
+"Valeur non-entière telle une fraction (exemple : 1⁄4) ou un caractère "
+"alphabétique (exemple : A) qui suit à l'occasion le numéro civique d'une "
+"maison. Une valeur spécifique est définie pour les côtés gauche et droit de "
+"l'Élément routier."
 
 #: ../../feature_catalogue.rst:269 ../../feature_catalogue.rst:324
 msgid "A non-integer value or \"None\" when no value applies."
-msgstr ""
+msgstr "Une valeur non entière ou « Aucun » quand aucune valeur ne s'applique."
 
 #: ../../feature_catalogue.rst:273
 msgid "First House Number Type (left, right)"
-msgstr ""
+msgstr "Type numérotation première maison (droite, gauche)"
 
 #: ../../feature_catalogue.rst:275 ../../feature_catalogue.rst:330
 msgid ""
 "Method used to populate the address range. A specific value is defined "
 "for the left and right sides of the Road Element."
 msgstr ""
+"Méthode utilisée pour acquérir l'intervalle d'adresse. Une valeur spécifique "
+"est définie pour les côtés gauche et droit de l'Élément routier."
 
 #: ../../feature_catalogue.rst:282 ../../feature_catalogue.rst:337
 msgid "Due to the source, the house number type is not known."
-msgstr ""
+msgstr "La source utilisée ne permet pas d'identifier le type de numérotation."
 
 #: ../../feature_catalogue.rst:283 ../../feature_catalogue.rst:338
 msgid "Absence of a house along the Road Element."
-msgstr ""
+msgstr "Il n'y a aucun bâtiment le long d'un côté de l'Élément routier."
 
 #: ../../feature_catalogue.rst:284 ../../feature_catalogue.rst:339
 msgid "Actual Located"
-msgstr ""
+msgstr "Localisation réelle"
 
 #: ../../feature_catalogue.rst:284 ../../feature_catalogue.rst:339
 msgid ""
 "Qualifier indicating that the house number is located at its \"real "
 "world\" position along a Road Element."
 msgstr ""
+"Qualificatif qui indique que le premier ou le dernier bâtiment, qui porte une"
+" adresse, sur l'Élément routier est à sa position réelle."
 
 #: ../../feature_catalogue.rst:285 ../../feature_catalogue.rst:340
 msgid "Actual Unlocated"
-msgstr ""
+msgstr "Localisation présumée"
 
 #: ../../feature_catalogue.rst:285 ../../feature_catalogue.rst:340
 msgid ""
 "Qualifier indicating that the house number is located at one end of the "
 "Road Element. This may be or may not be its \"real world\" position."
 msgstr ""
+"Qualificatif qui indique que le premier ou le dernier bâtiment, qui porte une"
+" adresse, sur l'Élément routier est à une position qu'on ne peut qualifier de"
+" réelle et qu'on présume être au début (premier bâtiment) ou à la fin "
+"(dernier bâtiment) de l'Élément routier."
 
 #: ../../feature_catalogue.rst:286 ../../feature_catalogue.rst:341
 msgid "Projected"
-msgstr ""
+msgstr "Projeté"
 
 #: ../../feature_catalogue.rst:286 ../../feature_catalogue.rst:341
 msgid ""
@@ -968,10 +1040,12 @@ msgid ""
 "estimated for the future and is located (at one end) at the beginning or "
 "the end of the Road Element."
 msgstr ""
+"Valeur qui indique que le premier ou le dernier bâtiment, qui porte une "
+"adresse, sur l'Élément routier n'existe pas mais est plutôt projeté/planifié."
 
 #: ../../feature_catalogue.rst:287 ../../feature_catalogue.rst:342
 msgid "Interpolated"
-msgstr ""
+msgstr "Interpolé"
 
 #: ../../feature_catalogue.rst:287 ../../feature_catalogue.rst:342
 msgid ""
@@ -979,10 +1053,13 @@ msgid ""
 "house numbers which are located on either side. By convention, the house "
 "is positioned at one end of the Road Element."
 msgstr ""
+"Qualificatif qui indique que l'adresse civique (numéro de maison) est calculé"
+" à partir des numéros existants. La position du pseudo-bâtiment est au début "
+"ou à la fin de l'Élément routier."
 
 #: ../../feature_catalogue.rst:291
 msgid "House Number Structure (left, right)"
-msgstr ""
+msgstr "Structure numéro maison (droite, gauche)"
 
 #: ../../feature_catalogue.rst:293
 msgid ""
@@ -990,16 +1067,21 @@ msgid ""
 "side of a particular Road Element. A specific value is defined for the "
 "left and right sides of the Road Element."
 msgstr ""
+"Type de numérotation de maisons (ou numéro d'adresse) appliqué à un côté d'un"
+" Élément routier particulier. Une valeur spécifique est définie pour les "
+"côtés gauche et droit de l'Élément routier."
 
 #: ../../feature_catalogue.rst:302
 msgid ""
 "No house numbers at all. There are no houses (or addressed dwellings) "
 "along a particular side of a Road Element."
 msgstr ""
+"Aucune structure de numérotation. Il n'y a pas de bâtiment, avec adresse, le "
+"long d'un côté particulier d'un Élément routier."
 
 #: ../../feature_catalogue.rst:303
 msgid "Even"
-msgstr ""
+msgstr "Numéros pairs"
 
 #: ../../feature_catalogue.rst:303
 msgid ""
@@ -1009,10 +1091,16 @@ msgid ""
 "even house number series that has missing numbers but is sequentially "
 "sorted is considered Even. An example is the series (2, 4, 8, 18, 22)."
 msgstr ""
+"Les numéros de maisons s'affichent comme des numéros pairs d'une façon "
+"séquentielle ordonnée (ascendant ou descendant) quand on se déplace d'un bout"
+" à l'autre de l'Élément routier. L'intégrité numérique de la série n'est pas "
+"une exigence. Une série de numéros pairs de maisons qui a des numéros absents"
+" mais qui est ordonnée de manière séquentielle est considérée comme paire. "
+"Exemple : (2, 4, 8, 18, 22)."
 
 #: ../../feature_catalogue.rst:304
 msgid "Odd"
-msgstr ""
+msgstr "Numéros impairs"
 
 #: ../../feature_catalogue.rst:304
 msgid ""
@@ -1023,10 +1111,16 @@ msgid ""
 "sorted is considered Odd. Examples are the series (5, 7, 9, 11, 13) and "
 "(35, 39, 43, 69, 71, 73, 85)."
 msgstr ""
+"Les numéros de maisons s'affichent comme des numéros impairs d'une façon "
+"séquentielle ordonnée (ascendant ou descendant) quand on se déplace d'un bout"
+" à l'autre de l'Élément routier. L'intégrité numérique de la série n'est pas "
+"une exigence. Une série de numéros impairs de maisons qui a des numéros "
+"absents mais qui est ordonnée de manière séquentielle est considérée comme "
+"impaire. Exemples : (5, 7, 9, 11, 13) et (35, 39, 43, 69, 71, 73, 85)."
 
 #: ../../feature_catalogue.rst:305
 msgid "Mixed"
-msgstr ""
+msgstr "Numéros mixtes"
 
 #: ../../feature_catalogue.rst:305
 msgid ""
@@ -1037,18 +1131,24 @@ msgid ""
 " missing numbers but is sequentially sorted is considered Mixed. Examples"
 " are the series (5, 6, 7, 9, 10, 13) and (24, 27, 30, 33, 34, 36)."
 msgstr ""
+"Les numéros de maisons sont impairs et pairs du même côté d'un Élément "
+"routier de façon ordonnée (ascendant ou descendant) quand on se déplace d'un "
+"bout à l'autre de l'Élément routier. L'intégrité numérique de la série n'est "
+"pas une exigence. Une série de numéros impairs ou pairs de maisons qui a des "
+"numéros absents mais qui est ordonnée de manière séquentielle est considérée "
+"comme mixte. Exemples : (5, 6, 7, 9, 10, 13) et (24, 27, 30, 33, 34, 36)."
 
 #: ../../feature_catalogue.rst:306
 msgid "Irregular"
-msgstr ""
+msgstr "Numéros irréguliers"
 
 #: ../../feature_catalogue.rst:306
 msgid "Means the house numbers do not occur in any sorted order."
-msgstr ""
+msgstr "Les numéros de maisons ne se présentent pas dans un ordre ordonné."
 
 #: ../../feature_catalogue.rst:310 ../../feature_catalogue.rst:779
 msgid "Last House Number (left, right)"
-msgstr ""
+msgstr "Numéro dernière maison (droite, gauche)"
 
 #: ../../feature_catalogue.rst:312 ../../feature_catalogue.rst:781
 msgid ""
@@ -1056,21 +1156,24 @@ msgid ""
 "right) of a Road Element. A specific value is defined for the left and "
 "right sides of the Road Element."
 msgstr ""
+"Adresse du dernier bâtiment situé le long d'un côté particulier (gauche ou "
+"droit) d'un Élément routier. Une valeur spécifique est définie pour les côtés"
+" gauche et droit de l'Élément routier."
 
 #: ../../feature_catalogue.rst:319
 msgid "Last House Number Suffix (left, right)"
-msgstr ""
+msgstr "Suffixe numéro dernière maison (droite, gauche)"
 
 #: ../../feature_catalogue.rst:328
 msgid "Last House Number Type (left, right)"
-msgstr ""
+msgstr "Type numérotation dernière maison (droite, gauche)"
 
 #: ../../feature_catalogue.rst:348 ../../feature_catalogue.rst:406
 #: ../../feature_catalogue.rst:496 ../../feature_catalogue.rst:581
 #: ../../feature_catalogue.rst:669 ../../feature_catalogue.rst:790
 #: ../../feature_catalogue.rst:1094 ../../feature_catalogue.rst:1431
 msgid "A national unique identifier."
-msgstr ""
+msgstr "Un identifiant national unique."
 
 #: ../../feature_catalogue.rst:350 ../../feature_catalogue.rst:408
 #: ../../feature_catalogue.rst:418 ../../feature_catalogue.rst:498
@@ -1079,7 +1182,7 @@ msgstr ""
 #: ../../feature_catalogue.rst:792 ../../feature_catalogue.rst:1096
 #: ../../feature_catalogue.rst:1433 ../../feature_catalogue.rst:1443
 msgid "A UUID."
-msgstr ""
+msgstr "Un IDUU"
 
 #: ../../feature_catalogue.rst:352 ../../feature_catalogue.rst:363
 #: ../../feature_catalogue.rst:410 ../../feature_catalogue.rst:420
@@ -1089,11 +1192,11 @@ msgstr ""
 #: ../../feature_catalogue.rst:921 ../../feature_catalogue.rst:1098
 #: ../../feature_catalogue.rst:1435 ../../feature_catalogue.rst:1445
 msgid "Example: 69822b23d217494896014e57a2edb8ac"
-msgstr ""
+msgstr "Exemple : 69822b23d217494896014e57a2edb8ac"
 
 #: ../../feature_catalogue.rst:356
 msgid "Official Street Name NID (left, right)"
-msgstr ""
+msgstr "IDN nom de rue officiel (droite, gauche)"
 
 #: ../../feature_catalogue.rst:358
 msgid ""
@@ -1101,14 +1204,17 @@ msgid ""
 "street name. A specific value is defined for the left and right sides of "
 "the Road Element."
 msgstr ""
+"L’identifiant utilisé pour lier l'intervalle d'adresse à son nom de rue "
+"reconnu officiellement. Une valeur spécifique est définie pour les côtés "
+"gauche et droit de l'Élément routier."
 
 #: ../../feature_catalogue.rst:361 ../../feature_catalogue.rst:919
 msgid "A UUID or \"None\" when no value applies."
-msgstr ""
+msgstr "Un IDUU ou « Aucun » quand aucune valeur ne s’applique."
 
 #: ../../feature_catalogue.rst:367
 msgid "Reference System Indicator (left, right)"
-msgstr ""
+msgstr "Indicateur système référence (droite, gauche)"
 
 #: ../../feature_catalogue.rst:369
 msgid ""
@@ -1116,45 +1222,49 @@ msgid ""
 "Road Element is based on a particular addressing system. A specific value"
 " is defined for the left and right sides of the Road Element."
 msgstr ""
+"Indicateur qui précise si l'adresse physique de tout Élément routier ou d'une"
+" partie de celui-ci est basé sur un système particulier d’adressage. Une "
+"valeur spécifique est définie pour les côtés gauche et droit de l'Élément "
+"routier."
 
 #: ../../feature_catalogue.rst:378
 msgid "No reference system indicator."
-msgstr ""
+msgstr "Aucun indicateur du système de référence."
 
 #: ../../feature_catalogue.rst:379
 msgid "Civic"
-msgstr ""
+msgstr "Civique"
 
 #: ../../feature_catalogue.rst:380
 msgid "Lot and Concession"
-msgstr ""
+msgstr "Lot et concession"
 
 #: ../../feature_catalogue.rst:381
 msgid "911 Measured"
-msgstr ""
+msgstr "Mesuré 911"
 
 #: ../../feature_catalogue.rst:382
 msgid "911 Civic"
-msgstr ""
+msgstr "Civique 911"
 
 #: ../../feature_catalogue.rst:383
 msgid "DLS Townships"
-msgstr ""
+msgstr "DLS"
 
 #: ../../feature_catalogue.rst:383
 msgid "Dominion Land Survey, survey method dominant in the Prairie provinces."
-msgstr ""
+msgstr "Dominion Land Survey, système de découpage des provinces des prairies."
 
 #: ../../feature_catalogue.rst:389 ../../feature_catalogue.rst:516
 #: ../../feature_catalogue.rst:624 ../../feature_catalogue.rst:679
 #: ../../feature_catalogue.rst:995 ../../feature_catalogue.rst:1415
 #: ../../feature_catalogue.rst:1467
 msgid "Refer to the attributes describe in the section object metadata."
-msgstr ""
+msgstr "Référer aux attributs décrits dans la section métadonnées d'objet."
 
 #: ../../feature_catalogue.rst:392
 msgid "Alternate Name Link"
-msgstr ""
+msgstr "Lien nom non officiel"
 
 #: ../../feature_catalogue.rst:394
 msgid ""
@@ -1162,24 +1272,28 @@ msgid ""
 "and their non-official street and place names used or known by the "
 "general public."
 msgstr ""
+"Une table de correspondance qui définit une ou plusieurs relations entre les "
+"intervalles d'adresses et ses noms de rue et de lieu non officiels utilisés "
+"ou connus par le public en général."
 
 #: ../../feature_catalogue.rst:414
 msgid "Street Name NID"
-msgstr ""
+msgstr "IDN nom de rue"
 
 #: ../../feature_catalogue.rst:416
 msgid "The NID of the non official street and place name."
-msgstr ""
+msgstr "L'IDN du nom rue et de lieu non officiel."
 
 #: ../../feature_catalogue.rst:468
 msgid "Blocked Passage"
-msgstr ""
+msgstr "Passage obstrué"
 
 #: ../../feature_catalogue.rst:470
 msgid ""
 "Indication of a physical barrier on a Road Element built to prevent or "
 "control further access."
 msgstr ""
+"Indication de la présence d’un obstacle sur un Élément routier pour empêcher ou contrôler l'accès."
 
 #: ../../feature_catalogue.rst:473 ../../feature_catalogue.rst:636
 #: ../../feature_catalogue.rst:1353 ../../feature_catalogue.rst:1423
@@ -1188,21 +1302,21 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:479
 msgid "Blocked Passage Type"
-msgstr ""
+msgstr "Type passage obstrué"
 
 #: ../../feature_catalogue.rst:481
 msgid ""
 "The type of blocked passage as an indication of the fact whether it is "
 "removable."
-msgstr ""
+msgstr "Le type de passage obstrué qui indique si celui-ci est amovible."
 
 #: ../../feature_catalogue.rst:488
 msgid "A blocked passage for which the specific type is unknown."
-msgstr ""
+msgstr "Passage obstrué dont le type est inconnu."
 
 #: ../../feature_catalogue.rst:489
 msgid "Permanently Fixed"
-msgstr ""
+msgstr "Permanente"
 
 #: ../../feature_catalogue.rst:489
 msgid ""
@@ -1210,10 +1324,13 @@ msgid ""
 "needed in order to allow further access. Examples of permanently fixed "
 "blocked passage are concrete blocks or a mound of earth."
 msgstr ""
+"La barrière ou l’obstacle doit être détruit ou enlevé au moyen de machinerie "
+"lourde pour permettre l'accès. Les blocs de béton et les remblais de terre "
+"constituent des exemples d'obstructions considérées permanentes."
 
 #: ../../feature_catalogue.rst:490
 msgid "Removable"
-msgstr ""
+msgstr "Amovible"
 
 #: ../../feature_catalogue.rst:490
 msgid ""
@@ -1221,82 +1338,99 @@ msgid ""
 "Road Element that it is blocking. Further access easily allowed when so "
 "desired."
 msgstr ""
+"La barrière est conçue pour permettre l’accès à (l’autre côté de) l’Élément "
+"routier qu'elle bloque. Lorsque voulu, l’accès peut facilement être permis."
 
 #: ../../feature_catalogue.rst:504 ../../feature_catalogue.rst:1439
 msgid "Road Element NID"
-msgstr ""
+msgstr "IDN élément routier"
 
 #: ../../feature_catalogue.rst:506 ../../feature_catalogue.rst:1441
 msgid "The NID of the Road Element on which the point geometry is located."
 msgstr ""
+"L'IDN de l'Élément routier sur lequel la géométrie ponctuelle est "
+"positionnée."
 
 #: ../../feature_catalogue.rst:519
 msgid "Ferry Connection Segment"
-msgstr ""
+msgstr "Segment de liaison par transbordeur"
 
 #: ../../feature_catalogue.rst:521
 msgid ""
 "The average route a ferryboat takes when transporting vehicles between "
 "two fixed locations on the road network."
 msgstr ""
+"Route approximative suivie par un navire transbordeur qui transporte des "
+"véhicules entre deux emplacements sur le réseau routier."
 
 #: ../../feature_catalogue.rst:524 ../../feature_catalogue.rst:688
 #: ../../feature_catalogue.rst:1327
 msgid "Line"
-msgstr ""
+msgstr "Ligne"
 
 #: ../../feature_catalogue.rst:530 ../../feature_catalogue.rst:720
 msgid "Closing Period"
-msgstr ""
+msgstr "Période de fermeture"
 
 #: ../../feature_catalogue.rst:532 ../../feature_catalogue.rst:722
 msgid ""
 "The period in which the road or ferry connection is not available to the "
 "public."
 msgstr ""
+"Période au cours de laquelle la route ou la liaison par transbordeur n'est "
+"pas accessible au public."
 
 #: ../../feature_catalogue.rst:539 ../../feature_catalogue.rst:729
 msgid "It is not possible to determine if there is a closing period."
 msgstr ""
+"Il n'est pas possible de déterminer si une période de fermeture s'applique."
 
 #: ../../feature_catalogue.rst:540 ../../feature_catalogue.rst:730
 msgid ""
 "There is no closing period. The road or ferry connection is open year "
 "round."
 msgstr ""
+"Il n'y a pas de période de fermeture. La route ou la liaison par transbordeur"
+" est accessible toute l'année."
 
 #: ../../feature_catalogue.rst:541 ../../feature_catalogue.rst:731
 #: ../../feature_catalogue.rst:836
 msgid "Summer"
-msgstr ""
+msgstr "Été"
 
 #: ../../feature_catalogue.rst:541 ../../feature_catalogue.rst:731
 msgid ""
 "Period of the year for which the absence of ice and snow prevent the "
 "access to the road or ferry connection."
 msgstr ""
+"Période au cours de laquelle l'absence de glace et de neige empêche l'accès à"
+" la route ou à la liaison par transbordeur."
 
 #: ../../feature_catalogue.rst:542 ../../feature_catalogue.rst:575
 #: ../../feature_catalogue.rst:732 ../../feature_catalogue.rst:775
 #: ../../feature_catalogue.rst:837
 msgid "Winter"
-msgstr ""
+msgstr "Hiver"
 
 #: ../../feature_catalogue.rst:542 ../../feature_catalogue.rst:732
 msgid ""
 "Period of the year for which ice and snow prevent the access to the road "
 "or ferry connection."
 msgstr ""
+"Période au cours de laquelle la présence de glace et de neige empêche l'accès"
+" à la route ou à la liaison par transbordeur."
 
 #: ../../feature_catalogue.rst:546
 msgid "Ferry Segment ID"
-msgstr ""
+msgstr "ID segment liaison par transbordeur"
 
 #: ../../feature_catalogue.rst:548
 msgid ""
 "A unique identifier within a dataset assigned to each Ferry Connection "
 "Segment."
 msgstr ""
+"Un identifiant unique à l'intérieur d'un jeu de données associé à chaque "
+"instance de Segment de liaison par transbordeur."
 
 #: ../../feature_catalogue.rst:550 ../../feature_catalogue.rst:869
 msgid "[1..n]"
@@ -1304,7 +1438,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:554 ../../feature_catalogue.rst:754
 msgid "Functional Road Class"
-msgstr ""
+msgstr "Classification routière fonctionnelle"
 
 #: ../../feature_catalogue.rst:556 ../../feature_catalogue.rst:756
 msgid ""
@@ -1312,10 +1446,12 @@ msgid ""
 "Element or Ferry Connection performs in the connectivity of the total "
 "road network. :Domain:"
 msgstr ""
+"Une classification basée sur l'importance du rôle de l'Élément routier ou de "
+"la Liaison par transbordeur dans la connectivité du réseau routier. :Domain:"
 
 #: ../../feature_catalogue.rst:563 ../../feature_catalogue.rst:763
 msgid "Freeway"
-msgstr ""
+msgstr "Autoroute"
 
 #: ../../feature_catalogue.rst:563 ../../feature_catalogue.rst:763
 msgid ""
@@ -1324,48 +1460,61 @@ msgid ""
 "property access or direct access, and which is accessed by a ramp. "
 "Pedestrians are prohibited."
 msgstr ""
+"Voie de circulation à accès contrôlé, exclusivement réservée à la circulation"
+" rapide, ne comportant habituellement aucun croisement de même niveau ni "
+"aucun accès à des propriétés et accessible seulement par des bretelles "
+"aménagées à cet effet. Les piétons y sont interdits."
 
 #: ../../feature_catalogue.rst:564 ../../feature_catalogue.rst:764
 msgid "Expressway / Highway"
-msgstr ""
+msgstr "Route express"
 
 #: ../../feature_catalogue.rst:564 ../../feature_catalogue.rst:764
 msgid ""
 "A high-speed thoroughfare with a combination of controlled access "
 "intersections at any grade."
 msgstr ""
+"Voie de circulation à accès contrôlé, aménagée pour la circulation rapide et "
+"comportant des croisements de même niveau à certains carrefours."
 
 #: ../../feature_catalogue.rst:565 ../../feature_catalogue.rst:765
 msgid "Arterial"
-msgstr ""
+msgstr "Artère"
 
 #: ../../feature_catalogue.rst:565 ../../feature_catalogue.rst:765
 msgid "A major thoroughfare with medium to large traffic capacity."
 msgstr ""
+"Voie de circulation majeure ayant une moyenne à grande capacité de trafic "
+"routier."
 
 #: ../../feature_catalogue.rst:566 ../../feature_catalogue.rst:766
 msgid "Collector"
-msgstr ""
+msgstr "Route collectrice"
 
 #: ../../feature_catalogue.rst:566 ../../feature_catalogue.rst:766
 msgid ""
 "A minor thoroughfare mainly used to access properties and to feed traffic"
 " with right of way."
 msgstr ""
+"Voie de circulation mineure utilisée principalement pour accéder à des "
+"propriétés et pour canaliser le trafic routier vers des routes plus "
+"importantes."
 
 #: ../../feature_catalogue.rst:567 ../../feature_catalogue.rst:767
 msgid "Local / Street"
-msgstr ""
+msgstr "Local / Rue"
 
 #: ../../feature_catalogue.rst:567 ../../feature_catalogue.rst:767
 msgid ""
 "A low-speed thoroughfare dedicated to provide full access to the front of"
 " properties."
 msgstr ""
+"Voie de circulation lente procurant un plein accès au devant des propriétés "
+"riveraines."
 
 #: ../../feature_catalogue.rst:568 ../../feature_catalogue.rst:768
 msgid "Local / Strata"
-msgstr ""
+msgstr "Local / Semi-privé"
 
 #: ../../feature_catalogue.rst:568 ../../feature_catalogue.rst:768
 msgid ""
@@ -1373,40 +1522,48 @@ msgid ""
 "potential public restriction such as: trailer parks, First Nations, "
 "strata, private estates, seasonal residences."
 msgstr ""
+"Voie de circulation lente procurant un accès à des propriétés ayant une "
+"restriction publique potentielle telle que les parcs de maisons mobiles, "
+"Premières Nations, domaines privés, résidence saisonnière."
 
 #: ../../feature_catalogue.rst:569 ../../feature_catalogue.rst:769
 msgid "Local / Unknown"
-msgstr ""
+msgstr "Local / Inconnu"
 
 #: ../../feature_catalogue.rst:569 ../../feature_catalogue.rst:769
 msgid ""
 "A low-speed thoroughfare dedicated to provide access to the front of "
 "properties but for which the access regulations are unknown."
 msgstr ""
+"Voie de circulation lente procurant un accès au devant des propriétés mais "
+"dont les règles d'accès sont inconnues."
 
 #: ../../feature_catalogue.rst:570 ../../feature_catalogue.rst:770
 msgid "Alleyway / Lane"
-msgstr ""
+msgstr "Ruelle / Voie"
 
 #: ../../feature_catalogue.rst:570 ../../feature_catalogue.rst:770
 msgid ""
 "A low-speed thoroughfare dedicated to provide access to the rear of "
 "properties."
 msgstr ""
+"Voie de circulation lente procurant un accès à l'arrière des propriétés."
 
 #: ../../feature_catalogue.rst:571 ../../feature_catalogue.rst:771
 msgid "Ramp"
-msgstr ""
+msgstr "Bretelle"
 
 #: ../../feature_catalogue.rst:571 ../../feature_catalogue.rst:771
 msgid ""
 "A system of interconnecting roadways providing for the controlled "
 "movement between two or more roadways."
 msgstr ""
+"Système de voies inter-reliées permettant le transfert du trafic routier "
+"entre deux ou plusieurs voies de circulation."
 
 #: ../../feature_catalogue.rst:572 ../../feature_catalogue.rst:772
 msgid "Resource / Recreation"
-msgstr ""
+msgstr "Route d'accès ressources / Site récréatif"
 
 #: ../../feature_catalogue.rst:572 ../../feature_catalogue.rst:772
 msgid ""
@@ -1414,34 +1571,44 @@ msgid ""
 " extraction and may also have serve in providing public access to the "
 "backcountry."
 msgstr ""
+"Passage étroit dont la fonction première est de donner accès pour "
+"l'extraction de ressources et qui peut également servir à laisser le public "
+"accéder à l'arrière-pays."
 
 #: ../../feature_catalogue.rst:573 ../../feature_catalogue.rst:773
 msgid "Rapid Transit"
-msgstr ""
+msgstr "Réservée transport commun"
 
 #: ../../feature_catalogue.rst:573 ../../feature_catalogue.rst:773
 msgid "A thoroughfare restricted to public transit buses."
 msgstr ""
+"Voie de circulation réservée exclusivement aux autobus de transport en "
+"commun."
 
 #: ../../feature_catalogue.rst:574 ../../feature_catalogue.rst:774
 msgid "Service Lane"
-msgstr ""
+msgstr "Service"
 
 #: ../../feature_catalogue.rst:574 ../../feature_catalogue.rst:774
 msgid ""
 "A stretch of road permitting vehicles to come to a stop along a freeway "
 "or highway. Scale, service lane, emergency lane, lookout, and rest area."
 msgstr ""
+"Tronçon de route permettant aux véhicules de s'arrêter le long d'une "
+"autoroute ou d'une route express. Poste de pesage, voie de service, voie "
+"d'urgence, belvédère et halte routière."
 
 #: ../../feature_catalogue.rst:575 ../../feature_catalogue.rst:775
 msgid ""
 "A road that is only useable during the winter when conditions allow for "
 "passage over lakes, rivers, and wetlands."
 msgstr ""
+"Route carrossable seulement en hiver lorsque les conditions permettent le "
+"passage sur lacs, rivières et terres humides gelés."
 
 #: ../../feature_catalogue.rst:589 ../../feature_catalogue.rst:873
 msgid "Route Name English (1, 2, 3, 4)"
-msgstr ""
+msgstr "Nom de route anglais (1, 2, 3, 4)"
 
 #: ../../feature_catalogue.rst:591 ../../feature_catalogue.rst:875
 msgid ""
@@ -1450,6 +1617,11 @@ msgid ""
 "Road Segment or Ferry Connection Segment can belong to more than one "
 "named route. In such cases, it has multiple route name attributes."
 msgstr ""
+"La version anglaise du nom d'une route dans un réseau routier donné tel "
+"qu'attribué par un organisme national ou infranational. Il se peut qu'un "
+"Élément routier ou Liaison par transbordeur porte plus d'un nom. Ainsi, un "
+"Élément routier ou Liaison par transbordeur peut avoir plusieurs attributs "
+"nom de route."
 
 #: ../../feature_catalogue.rst:595 ../../feature_catalogue.rst:879
 msgid ""
@@ -1457,6 +1629,9 @@ msgid ""
 "\"None\" when no value applies or \"Unknown\" when the value is not "
 "known."
 msgstr ""
+"Un nom de route anglais complet tel que « Trans-Canada Highway » ou « Aucun »"
+" quand aucune valeur ne s'applique ou « Inconnu » quand la valeur est "
+"inconnue."
 
 #: ../../feature_catalogue.rst:597 ../../feature_catalogue.rst:608
 #: ../../feature_catalogue.rst:619 ../../feature_catalogue.rst:812
@@ -1466,11 +1641,11 @@ msgstr ""
 #: ../../feature_catalogue.rst:938 ../../feature_catalogue.rst:1108
 #: ../../feature_catalogue.rst:1228
 msgid "Character (100)"
-msgstr ""
+msgstr "Caractère (100)"
 
 #: ../../feature_catalogue.rst:600 ../../feature_catalogue.rst:884
 msgid "Route Name French (1, 2, 3, 4)"
-msgstr ""
+msgstr "Nom de route français (1, 2, 3, 4)"
 
 #: ../../feature_catalogue.rst:602 ../../feature_catalogue.rst:886
 msgid ""
@@ -1479,6 +1654,11 @@ msgid ""
 "Road Segment or Ferry Connection Segment can belong to more than one "
 "named route. In such cases, it has multiple route name attributes."
 msgstr ""
+"La version française du nom d'une route dans un réseau routier donné tel "
+"qu'attribué par un organisme national ou infranational. Il se peut qu'un "
+"Élément routier ou Liaison par transbordeur porte plus d'un nom. Ainsi, un "
+"Élément routier ou Liaison par transbordeur peut avoir plusieurs attributs "
+"nom de route."
 
 #: ../../feature_catalogue.rst:606 ../../feature_catalogue.rst:890
 msgid ""
@@ -1486,10 +1666,13 @@ msgid ""
 "or \"None\" when no value applies or \"Unknown\" when the value is not "
 "known."
 msgstr ""
+"Un nom de route français complet tel que « Autoroute transcanadienne » ou "
+"« Aucun » quand aucune valeur ne s'applique ou « Inconnu » quand la valeur "
+"est inconnue."
 
 #: ../../feature_catalogue.rst:611 ../../feature_catalogue.rst:895
 msgid "Route Number (1, 2, 3, 4, 5)"
-msgstr ""
+msgstr "Numéro de route (1, 2, 3, 4, 5)"
 
 #: ../../feature_catalogue.rst:613 ../../feature_catalogue.rst:897
 msgid ""
@@ -1498,6 +1681,10 @@ msgid ""
 " Connection Segment can belong to more than one numbered route. In such "
 "cases, it has multiple route number attributes."
 msgstr ""
+"Numéro d'identifiant d'une route dans un réseau routier tel qu'attribué par "
+"un organisme national ou infranational. Il se peut qu'un Élément routier ou "
+"Liaison par transbordeur porte plus d'un numéro. Ainsi, un Élément routier ou"
+" Liaison par transbordeur peut avoir plusieurs attributs numéro de route."
 
 #: ../../feature_catalogue.rst:617 ../../feature_catalogue.rst:901
 msgid ""
@@ -1505,10 +1692,13 @@ msgid ""
 "as \"A\" or \"None\" when no value applies. Examples: 1, 1A, 230-A, "
 "430-28."
 msgstr ""
+"Un numéro de route y compris les caractères non entiers qui y sont parfois "
+"associés ou « Aucun » quand aucune valeur ne s'applique. Exemples : 1, 1A, "
+"230-A, 430-28."
 
 #: ../../feature_catalogue.rst:627
 msgid "Junction"
-msgstr ""
+msgstr "Jonction"
 
 #: ../../feature_catalogue.rst:629
 msgid ""
@@ -1522,16 +1712,30 @@ msgid ""
 "junction of a road or ferry with a National, Provincial or Territorial "
 "Boundary."
 msgstr ""
+"Une entité positionnée à chaque extrémité d’un Élément routier ou d’une "
+"Liaison par transbordeur (fournir la définition ou indiquer Segment de "
+"liaison par transbordeur). Un Élément routier ou une Liaison par transbordeur"
+" forme toujours une liaison entre deux Jonctions et, un Élément routier ou "
+"une Liaison par transbordeur est toujours délimitée par exactement deux "
+"Jonctions. Une entité Jonction représente la connexion physique existant "
+"entre les Éléments routiers et Liaisons par transbordeur attenants. Une "
+"Jonction se situe à l'intersection de trois Éléments routiers ou plus, à "
+"l'intersection d'un Élément routier et d'une Liaison par transbordeur, à la "
+"fin d'un cul-de-sac ou à l'intersection d'un Élément routier ou d'une Liaison"
+" par transbordeur avec une frontière internationale, provinciale ou "
+"territoriale."
 
 #: ../../feature_catalogue.rst:642 ../../feature_catalogue.rst:736
 msgid "Exit Number"
-msgstr ""
+msgstr "Numéro de sortie"
 
 #: ../../feature_catalogue.rst:644 ../../feature_catalogue.rst:738
 msgid ""
 "The ID number of an exit on a controlled access thoroughfare that has "
 "been assigned by an administrating body."
 msgstr ""
+"Le numéro d'identifiant d'une sortie sur une voie de circulation à accès "
+"contrôlé qui a été attribué par une autorité administrative."
 
 #: ../../feature_catalogue.rst:646 ../../feature_catalogue.rst:740
 msgid ""
@@ -1539,14 +1743,17 @@ msgid ""
 " \"A\" or \"None\" when no value applies. Examples: 11, 11A, 11-A, "
 "80-EST, 80-E, 80E."
 msgstr ""
+"Un numéro d'identifiant y compris les caractères non entiers tels que « A » "
+"qui y sont parfois associés ou « Aucun » quand aucune valeur ne s'applique. "
+"Exemples : 11, 11A, 11-A, 80-EST, 80-E, 80E."
 
 #: ../../feature_catalogue.rst:651
 msgid "Junction Type"
-msgstr ""
+msgstr "Type jonction"
 
 #: ../../feature_catalogue.rst:653
 msgid "The classification of a Junction."
-msgstr ""
+msgstr "La classification du type de jonction."
 
 #: ../../feature_catalogue.rst:660
 msgid "Intersection"
@@ -1557,26 +1764,32 @@ msgid ""
 "An intersection between three or more Road Elements intersecting at same "
 "grade level."
 msgstr ""
+"Intersection entre trois Éléments routiers ou plus se rencontrant au même "
+"niveau du sol."
 
 #: ../../feature_catalogue.rst:661
-msgid "DeadEnd"
-msgstr ""
+msgid "Dead End"
+msgstr "Cul-de-sac"
 
 #: ../../feature_catalogue.rst:661
 msgid ""
 "A specific Junction that indicates that a Road Element ends and is not "
 "connected to any other Road Element or Ferry Connection."
 msgstr ""
+"Jonction spécifique qui indique qu'un Élément routier prend fin et n'est pas "
+"relié à aucun autre Élément routier ou Liaison par transbordeur."
 
 #: ../../feature_catalogue.rst:662
 msgid "Ferry"
-msgstr ""
+msgstr "Transbordement"
 
 #: ../../feature_catalogue.rst:662
 msgid ""
 "A specific Junction that indicates that a Road Element connects to a "
 "Ferry Connection."
 msgstr ""
+"Jonction spécifique qui indique qu'un Élément routier se poursuit comme "
+"Liaison par transbordeur."
 
 #: ../../feature_catalogue.rst:663
 msgid ""
@@ -1584,10 +1797,13 @@ msgid ""
 "element or Ferry connection continues into the adjacent province, "
 "territory or country."
 msgstr ""
+"Jonction spécifique à la limite d'un jeu de données qui indique qu'un Élément"
+" routier ou une Liaison par transbordeur se poursuit dans la province, "
+"territoire ou pays voisin."
 
 #: ../../feature_catalogue.rst:682
 msgid "Road Segment"
-msgstr ""
+msgstr "Segment routier"
 
 #: ../../feature_catalogue.rst:684
 msgid ""
@@ -1595,26 +1811,30 @@ msgid ""
 "vehicular movement. A Road Segment is the specific representation of a "
 "portion of a road with uniform characteristics."
 msgstr ""
+"Une route est une section linéaire à la surface de la Terre qui a été conçue "
+"pour la circulation de véhicules ou qui en est le résultat. Un Segment "
+"routier est la représentation spécifique d'une portion de route dont les "
+"caractéristiques sont uniformes."
 
 #: ../../feature_catalogue.rst:694
 msgid "Address Range Digitizing Direction Flag (left, right)"
-msgstr ""
+msgstr "Indicateur sens numérisation adresse (droite, gauche)"
 
 #: ../../feature_catalogue.rst:710
 msgid "Address Range NID"
-msgstr ""
+msgstr "IDN intervalle d'adresse"
 
 #: ../../feature_catalogue.rst:712
 msgid "A UUID assigned to each particular block face address ranges."
-msgstr ""
+msgstr "Un IDUU associé à chaque intervalle d'adresse."
 
 #: ../../feature_catalogue.rst:798
 msgid "Number of Lanes"
-msgstr ""
+msgstr "Nombre de voies"
 
 #: ../../feature_catalogue.rst:800
 msgid "The number of lanes existing on a Road Element."
-msgstr ""
+msgstr "Nombre de voies existant sur un Élément routier."
 
 #: ../../feature_catalogue.rst:802
 msgid "[1..8]"
@@ -1622,13 +1842,15 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:806
 msgid "Official Place Name (left, right)"
-msgstr ""
+msgstr "Nom de lieu officiel (droite, gauche)"
 
 #: ../../feature_catalogue.rst:808
 msgid ""
 "Official name of an administrative area, district or other named area "
 "which is required for uniqueness of the street name."
 msgstr ""
+"Nom d'une municipalité, d’un district ou d’un autre territoire administratif "
+"nommé requis pour assurer l'unicité du nom de rue."
 
 #: ../../feature_catalogue.rst:810 ../../feature_catalogue.rst:820
 msgid ""
@@ -1636,10 +1858,13 @@ msgid ""
 "defined for the left and right sides of the Road Element. \"None\" when "
 "no value applies or \"Unknown\" when the value is not known."
 msgstr ""
+"Dérivé de la table Noms de rue et de lieu. Une valeur spécifique est définie "
+"pour les côtés gauche et droit de l'Élément routier. « Aucun » quand aucune "
+"valeur ne s'applique ou « Inconnu » quand la valeur est inconnue."
 
 #: ../../feature_catalogue.rst:815
 msgid "Official Street Name Concatenated (left, right)"
-msgstr ""
+msgstr "Nom de rue officiel concaténé (droite, gauche)"
 
 #: ../../feature_catalogue.rst:817
 msgid ""
@@ -1647,102 +1872,120 @@ msgid ""
 "type prefix, Street name article, Street name body, Street type suffix, "
 "Directional suffix and Muni quadrant values."
 msgstr ""
+"Une concaténation des attributs Préfixe direction, Préfixe type rue, Article "
+"nom rue, Corps nom rue, Suffixe type rue, Suffixe direction et Muni quadrant "
+"du nom de rue officiel."
 
 #: ../../feature_catalogue.rst:825
 msgid "Paved Road Surface Type"
-msgstr ""
+msgstr "Type de chaussée revêtue"
 
 #: ../../feature_catalogue.rst:827
 msgid "The type of surface a paved Road Element has."
-msgstr ""
+msgstr "Le type de chaussée d'un Élément routier revêtue."
 
 #: ../../feature_catalogue.rst:834
 msgid "A paved road with an unknown surface type."
-msgstr ""
+msgstr "Route revêtue avec un type de surface inconnu."
 
 #: ../../feature_catalogue.rst:836
 msgid "A paved road with a rigid surface such as concrete or steel decks."
-msgstr ""
+msgstr "Route revêtue ayant une surface rigide, tel le béton."
 
 #: ../../feature_catalogue.rst:837
 msgid "A paved road with a flexible surface such as asphalt or tar gravel."
-msgstr ""
+msgstr "Route revêtue ayant une surface souple, tel l'asphalte."
 
 #: ../../feature_catalogue.rst:838
 msgid "Blocks"
-msgstr ""
+msgstr "Pavés"
 
 #: ../../feature_catalogue.rst:838
 msgid "A paved road with a surface made of blocks such as cobblestones."
 msgstr ""
+"Route revêtue ayant une surface constituée de blocs, tels que les pavés en "
+"cailloutis."
 
 #: ../../feature_catalogue.rst:842
 msgid "Pavement Status"
-msgstr ""
+msgstr "État revêtement"
 
 #: ../../feature_catalogue.rst:844
 msgid "An indication of improvement applied to a Road surface."
-msgstr ""
+msgstr "Indication de la consolidation apportée à une chaussée."
 
 #: ../../feature_catalogue.rst:851
 msgid "Paved"
-msgstr ""
+msgstr "Revêtue"
 
 #: ../../feature_catalogue.rst:851
 msgid ""
 "A road with a surface made of hardened material such as concrete, "
 "asphalt, tar gravel, or steel decks."
 msgstr ""
+"Route dont la surface comporte un matériau durci, tel le béton, l'asphalte, "
+"l'empierrement goudronné ou le platelage d'acier."
 
 #: ../../feature_catalogue.rst:852
 msgid "Unpaved"
-msgstr ""
+msgstr "Non revêtue"
 
 #: ../../feature_catalogue.rst:852
 msgid "A road with a surface made of loose material such as gravel or dirt."
 msgstr ""
+"Route dont la surface comporte un matériau meuble, tel le gravier ou la "
+"terre."
 
 #: ../../feature_catalogue.rst:856
 msgid "Road Jurisdiction"
-msgstr ""
+msgstr "Autorité route"
 
 #: ../../feature_catalogue.rst:858
 msgid ""
 "The agency with the responsibility/authority to ensure maintenance occurs"
 " but is not necessarily the one who undertakes the maintenance directly."
 msgstr ""
+"Organisation qui a la responsabilité d'assurer la maintenance ou de voir au "
+"maintien de la route sans nécessairement être celle qui fait la maintenance "
+"directement."
 
 #: ../../feature_catalogue.rst:861
 msgid ""
 "The Agency name or \"None\" when no value applies or \"Unknown\" when the"
 " value is not known."
 msgstr ""
+"Un nom d'organisation ou « Aucun » quand aucune valeur ne s'applique ou "
+"« Inconnu » quand la valeur est inconnue."
 
 #: ../../feature_catalogue.rst:865
 msgid "Road Segment ID"
-msgstr ""
+msgstr "ID segment routier"
 
 #: ../../feature_catalogue.rst:867
 msgid "A unique identifier within a dataset assigned to each Road Segment."
 msgstr ""
+"Un identifiant unique à l'intérieur d'un jeu de données associé à chaque "
+"instance de Segment routier."
 
 #: ../../feature_catalogue.rst:906
 msgid "Speed Restriction"
-msgstr ""
+msgstr "Limite de vitesse"
 
 #: ../../feature_catalogue.rst:908
 msgid ""
 "The maximum speed allowed on the road. The value is expressed in "
-"kilometers per hour"
+"kilometers per hour."
 msgstr ""
+"Vitesse maximale permise sur la route. La valeur est exprimé en kilomètres "
+"heure."
 
 #: ../../feature_catalogue.rst:910
-msgid "-1 when unknown or a multiple of 5 lower than or equal to 120"
-msgstr ""
+msgid "-1 when unknown or a multiple of 5 lower than or equal to 120."
+msgstr "-1 lorsqu'inconnu ou un multiple de 5 inférieur ou égal à 120."
 
 #: ../../feature_catalogue.rst:914
 msgid "Structure ID"
-msgstr ""
+msgstr "ID structure"
 
 #: ../../feature_catalogue.rst:916
 msgid ""
@@ -1750,80 +1993,99 @@ msgid ""
 "adjoining Road Segments forming a structure. This identifier allows for "
 "the reconstitution of a structure that is fragmented by Junctions."
 msgstr ""
+"Un identifiant unique attribué au segment routier ou à l'ensemble de segments"
+" routiers formant une structure. Cet identifiant permet la reconstitution "
+"d'une structure fragmentée par des jonctions."
 
 #: ../../feature_catalogue.rst:925
 msgid "Structure Name English"
-msgstr ""
+msgstr "Nom de structure anglais"
 
 #: ../../feature_catalogue.rst:927
 msgid ""
 "The English version of the name of a road structure as assigned by a "
 "national or subnational agency."
 msgstr ""
+"La version anglaise du nom d'un ouvrage routier tel qu'attribué par un "
+"organisme national ou infranational."
 
 #: ../../feature_catalogue.rst:929 ../../feature_catalogue.rst:937
 msgid ""
 "A complete structure name or \"None\" when no value applies or "
 "\"Unknown\" when the structure name is not known."
 msgstr ""
+"Un nom de structure complet ou « Aucun » quand aucune version anglaise du nom"
+" n'est reconnue ou « Inconnu » quand l'information n'est pas disponible."
 
 #: ../../feature_catalogue.rst:933
 msgid "Structure Name French"
-msgstr ""
+msgstr "Nom de structure français"
 
 #: ../../feature_catalogue.rst:935
 msgid ""
 "The French version of the name of a road structure as assigned by a "
 "national or subnational agency."
 msgstr ""
+"La version française du nom d'un ouvrage routier tel qu'attribué par un "
+"organisme national ou infranational."
 
 #: ../../feature_catalogue.rst:941
 msgid "Structure Type"
-msgstr ""
+msgstr "Type de structure"
 
 #: ../../feature_catalogue.rst:943
 msgid "The classification of a structure."
-msgstr ""
+msgstr "La classification de la structure."
 
 #: ../../feature_catalogue.rst:951
 msgid "Bridge"
-msgstr ""
+msgstr "Pont"
 
 #: ../../feature_catalogue.rst:951
 msgid ""
 "A manmade construction that supports a road on a raised structure and "
 "spans an obstacle, river, another road, or railway."
 msgstr ""
+"Construction anthropique supportant une route sur une structure surélevée et "
+"servant à enjamber un obstacle, une rivière, une autre route ou un chemin de "
+"fer."
 
 #: ../../feature_catalogue.rst:952
 msgid "Bridge covered"
-msgstr ""
+msgstr "Pont couvert"
 
 #: ../../feature_catalogue.rst:952
 msgid ""
 "A manmade construction that supports a road on a covered raised structure"
 " and spans an obstacle, river, another road, or railway."
 msgstr ""
+"Construction anthropique supportant une route sur une structure surélevée et "
+"couverte, servant à enjamber un obstacle, une rivière, une autre route ou un "
+"chemin de fer."
 
 #: ../../feature_catalogue.rst:953
 msgid "Bridge moveable"
-msgstr ""
+msgstr "Pont mobile"
 
 #: ../../feature_catalogue.rst:953
 msgid ""
 "A manmade construction that supports a road on a moveable raised "
 "structure and spans an obstacle, river, another road, or railway."
 msgstr ""
+"Construction anthropique supportant une route sur une structure surélevée et "
+"mobile, servant à enjamber un obstacle, une autre route ou un chemin de fer."
 
 #: ../../feature_catalogue.rst:954
 msgid "Bridge unknown"
-msgstr ""
+msgstr "Pont inconnu"
 
 #: ../../feature_catalogue.rst:954
 msgid ""
 "A bridge for which it is currently impossible to determine whether its "
 "structure is covered, moveable or other."
 msgstr ""
+"Pont pour lequel il est actuellement impossible de déterminer si sa structure"
+" est couverte, mobile ou autre."
 
 #: ../../feature_catalogue.rst:955
 msgid "Tunnel"
@@ -1834,92 +2096,105 @@ msgid ""
 "An enclosed manmade construction built to carry a road through or below a"
 " natural feature or other obstructions."
 msgstr ""
+"Construction fermée anthropique servant à renfermer une route à travers ou "
+"sous un élément naturel ou autres obstructions."
 
 #: ../../feature_catalogue.rst:956
 msgid "Snowshed"
-msgstr ""
+msgstr "Paraneige"
 
 #: ../../feature_catalogue.rst:956
 msgid ""
 "A manmade roofed structure built over a road in mountainous areas to "
 "prevent snow slides from blocking the road."
 msgstr ""
+"Structure anthropique couverte et érigée au-dessus d'une route en région "
+"montagneuse pour empêcher les glissements de neige d'obstruer la route."
 
 #: ../../feature_catalogue.rst:957
 msgid "Dam"
-msgstr ""
+msgstr "Barrage"
 
 #: ../../feature_catalogue.rst:957
 msgid ""
 "A manmade linear structure built across a waterway or floodway to control"
 " the flow of water and supporting a road for motor vehicles."
 msgstr ""
+"Structure anthropique érigée au-dessus d'un cours d'eau ou d'une voie sujette"
+" aux inondations pour contrôler le débit d'eau, sur laquelle une route a été "
+"construite pour supporter la circulation de véhicules motorisés."
 
 #: ../../feature_catalogue.rst:961
 msgid "Traffic Direction"
-msgstr ""
+msgstr "Sens de circulation"
 
 #: ../../feature_catalogue.rst:963
 msgid "The direction(s) of traffic flow allowed on the road."
-msgstr ""
+msgstr "Le ou les sens de circulation permis sur la route."
 
 #: ../../feature_catalogue.rst:970
 msgid "Information not acquired."
-msgstr ""
+msgstr "Information non acquise."
 
 #: ../../feature_catalogue.rst:971
 msgid "Both directions"
-msgstr ""
+msgstr "Bi-directionel"
 
 #: ../../feature_catalogue.rst:971
 msgid "Traffic flow is allowed in both directions."
-msgstr ""
+msgstr "La circulation est permise dans les deux directions."
 
 #: ../../feature_catalogue.rst:972
 msgid "Same direction"
-msgstr ""
+msgstr "Même direction"
 
 #: ../../feature_catalogue.rst:972
 msgid ""
 "The direction of one way traffic flow is the same as the digitizing "
 "direction of the Road Segment."
 msgstr ""
+"La circulation à sens unique est dans la même direction que le sens de "
+"numérisation du Segment routier."
 
 #: ../../feature_catalogue.rst:973
 msgid "Opposite direction"
-msgstr ""
+msgstr "Direction contraire"
 
 #: ../../feature_catalogue.rst:973
 msgid ""
 "The direction of one way traffic flow is opposite to the digitizing "
 "direction of the Road Segment."
 msgstr ""
+"La circulation à sens unique est en direction opposée au sens de numérisation"
+" du Segment routier."
 
 #: ../../feature_catalogue.rst:977
 msgid "Unpaved Road Surface Type"
-msgstr ""
+msgstr "Type de chaussée non revêtue"
 
 #: ../../feature_catalogue.rst:979
 msgid "The type of surface an unpaved Road Element has."
-msgstr ""
+msgstr "Le type de chaussée d'un Élément routier non revêtue."
 
 #: ../../feature_catalogue.rst:986
 msgid ""
 "An unpaved road for which the characteristics of the material used is not"
 " known."
-msgstr ""
+msgstr "Route non revêtue avec un type de surface inconnu."
 
 #: ../../feature_catalogue.rst:988
 msgid "Gravel"
-msgstr ""
+msgstr "Gravier"
 
 #: ../../feature_catalogue.rst:988
 msgid "A dirt road whose surface has been improved by grading with gravel."
 msgstr ""
+"Chemin de terre dont la surface a été améliorée par nivellement avec du "
+"gravier."
 
 #: ../../feature_catalogue.rst:989
 msgid "Dirt"
-msgstr ""
+msgstr "Terre"
 
 #: ../../feature_catalogue.rst:989
 msgid ""
@@ -1927,10 +2202,13 @@ msgid ""
 "transportation movements over that road which inhibit further growth of "
 "any vegetation."
 msgstr ""
+"Des routes dont la surface est formée par l’enlèvement de la végétation et/ou"
+" par le va-et-vient des véhicules sur cette route, ce qui nuit à la "
+"croissance de toute végétation."
 
 #: ../../feature_catalogue.rst:998
 msgid "Street and Place Names"
-msgstr ""
+msgstr "Noms de rue et de lieu"
 
 #: ../../feature_catalogue.rst:1000
 msgid ""
@@ -1938,16 +2216,21 @@ msgid ""
 "name of an administrative area, district or other named area which is "
 "required for uniqueness of the street name."
 msgstr ""
+"Un nom de rue reconnu par la municipalité ou autre autorité compétente et un "
+"nom de municipalité, district ou autre territoire administratif nommé requis "
+"pour assurer l'unicité du nom de rue."
 
 #: ../../feature_catalogue.rst:1010
 msgid "Directional Prefix"
-msgstr ""
+msgstr "Préfixe direction"
 
 #: ../../feature_catalogue.rst:1012
 msgid ""
 "A geographic direction that is part of the street name and precedes the "
 "street name body or, if appropriate, the street type prefix."
 msgstr ""
+"Direction géographique qui fait partie du nom d'une rue et qui précède le "
+"corps nom rue ou, s'il y a lieu, le préfixe type rue."
 
 #: ../../feature_catalogue.rst:1021 ../../feature_catalogue.rst:1053
 msgid "North"
@@ -2044,17 +2327,19 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:1042
 msgid "Directional Suffix"
-msgstr ""
+msgstr "Suffixe direction"
 
 #: ../../feature_catalogue.rst:1044
 msgid ""
 "A geographic direction that is part of the street name and succeeds the "
 "street name body or, if appropriate, the street type suffix."
 msgstr ""
+"Direction géographique qui fait partie du nom d'une rue et qui suit le corps "
+"nom rue ou, s'il y a lieu, le suffixe type rue."
 
 #: ../../feature_catalogue.rst:1074
 msgid "Muni Quadrant"
-msgstr ""
+msgstr "Muni quadrant"
 
 #: ../../feature_catalogue.rst:1076
 msgid ""
@@ -2063,6 +2348,10 @@ msgid ""
 "major east-west and north- south divisions. The effect is as if multiple "
 "directional were used."
 msgstr ""
+"L'attribut Muni quadrant est utilisé dans certains noms de rue comme un "
+"attribut de direction dans les municipalités qui sont divisées en sections "
+"selon des axes est-ouest et nord-sud. Il en résulte l'impression que le nom "
+"de rue contient plusieurs attributs directionnels."
 
 #: ../../feature_catalogue.rst:1085
 msgid "South-West"
@@ -2082,27 +2371,31 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:1102
 msgid "Place Name"
-msgstr ""
+msgstr "Nom de lieu"
 
 #: ../../feature_catalogue.rst:1104
 msgid ""
 "Name of an administrative area, district or other named area which is "
 "required for uniqueness of the street name."
 msgstr ""
+"Nom d'une municipalité, d’un district ou d’un autre territoire administratif "
+"nommé requis pour assurer l'unicité du nom de rue."
 
 #: ../../feature_catalogue.rst:1106
 msgid ""
 "The complete name of the place. Examples: Arnold's Cove, Saint-Jean-"
-"Baptiste-de-l'Îsle-Verte, Sault Ste. Marie, Grand- Sault, Grand Falls."
+"Baptiste-de-l'Îsle-Verte, Sault Ste. Marie, Grand-Sault, Grand Falls."
 msgstr ""
+"Le nom complet d'un lieu. Exemples : Arnold's Cove, Saint-Jean-Baptiste-de-l'"
+"Îsle-Verte, Sault Ste. Marie, Grand-Sault, Grand Falls."
 
 #: ../../feature_catalogue.rst:1111
 msgid "Place Type"
-msgstr ""
+msgstr "Type de lieu"
 
 #: ../../feature_catalogue.rst:1113
 msgid "Expression specifying the type of place."
-msgstr ""
+msgstr "Expression spécifiant le type de lieu."
 
 #: ../../feature_catalogue.rst:1121
 msgid "Borough / Borough"
@@ -2302,13 +2595,15 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:1197
 msgid "Street Name Article"
-msgstr ""
+msgstr "Article nom rue"
 
 #: ../../feature_catalogue.rst:1199
 msgid ""
 "Article(s) that is (are) part of the street name and located at the "
 "beginning."
 msgstr ""
+"Article(s) qui fait (font) partie du nom d'une rue et qui précède "
+"immédiatement le Corps nom rue."
 
 #: ../../feature_catalogue.rst:1207
 msgid "à"
@@ -2352,7 +2647,7 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:1220
 msgid "Street Name Body"
-msgstr ""
+msgstr "Corps nom rue"
 
 #: ../../feature_catalogue.rst:1222
 msgid ""
@@ -2360,36 +2655,48 @@ msgid ""
 "the most identifying power excluding street type and directional prefixes"
 " or suffixes and street name articles."
 msgstr ""
+"La portion, la plus significative, d'un nom de rue (officiel ou non) excluant"
+" les préfixes ou suffixes de types de rue et de direction ainsi que les "
+"articles de nom de rue."
 
 #: ../../feature_catalogue.rst:1225
 msgid "The complete street name body or \"None\" when no value applies."
 msgstr ""
+"La valeur complète du Corps nom rue ou « Aucun » quand aucune valeur ne "
+"s'applique."
 
 #: ../../feature_catalogue.rst:1227
 msgid ""
 "Examples: Capitale, Trésor, Golf, Abbott, Abbott's, Main, Church, Park, "
 "Bread and Cheese."
 msgstr ""
+"Exemples : Capitale, Trésor, Golf, Abbott, Abbott's, Main, Church, Park, "
+"Bread and Cheese."
 
 #: ../../feature_catalogue.rst:1231
 msgid "Street Type Prefix"
-msgstr ""
+msgstr "Préfixe type rue"
 
 #: ../../feature_catalogue.rst:1233
 msgid ""
 "A part of the street name of a Road Element identifying the street type. "
 "A prefix precedes the street name body of a Road Element."
 msgstr ""
+"Partie du nom d'une rue qui identifie le type de rue d'un Élément routier, y "
+"compris les articles et prépositions possibles. Un préfixe précède le corps "
+"nom rue d'un Élément routier."
 
 #: ../../feature_catalogue.rst:1236
 msgid ""
 "Listed values are incomplete. \"None\" when no value applies or "
 "\"Unknown\" when the value is not known."
 msgstr ""
+"Cette liste de valeurs est incomplète. « Aucun » quand aucune valeur ne "
+"s'applique ou « Inconnu » quand la valeur est inconnue."
 
 #: ../../feature_catalogue.rst:1237 ../../feature_catalogue.rst:1410
 msgid "Character (30)"
-msgstr ""
+msgstr "Caractère (30)"
 
 #: ../../feature_catalogue.rst:1243
 msgid "Abbey"
@@ -3009,47 +3316,56 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:1403
 msgid "Street Type Suffix"
-msgstr ""
+msgstr "Suffixe type rue"
 
 #: ../../feature_catalogue.rst:1405
 msgid ""
 "A part of the street name of a Road Element identifying the street type. "
 "A suffix follows the street name body of a Road Element."
 msgstr ""
+"Partie du nom d'une rue qui identifie le type de rue d'un Élément routier, y "
+"compris les articles et prépositions possibles. Un suffixe suit le corps nom "
+"de rue d'un Élément routier."
 
 #: ../../feature_catalogue.rst:1408
 msgid ""
 "Same domain as the attribute street type prefix. \"None\" when no value "
 "applies or \"Unknown\" when the value is not known."
 msgstr ""
+"Voir le domaine de l'attribut Préfixe type rue. « Aucun » quand aucune valeur"
+" ne s'applique ou « Inconnu » quand la valeur est inconnue."
 
 #: ../../feature_catalogue.rst:1418
 msgid "Toll Point"
-msgstr ""
+msgstr "Poste de péage"
 
 #: ../../feature_catalogue.rst:1420
 msgid ""
 "Place where a right-of-way is charged to gain access to a motorway, a "
 "bridge, etc."
 msgstr ""
+"Emplacement où un droit de passage est prélevé pour avoir accès à une "
+"autoroute, un pont, etc."
 
 #: ../../feature_catalogue.rst:1449
 msgid "Toll Point Type"
-msgstr ""
+msgstr "Type poste de péage"
 
 #: ../../feature_catalogue.rst:1451
 msgid "The type of toll point."
-msgstr ""
+msgstr "Le type de poste de péage."
 
 #: ../../feature_catalogue.rst:1458
 msgid ""
 "A toll point for which it is currently impossible to determine the "
 "specific type."
 msgstr ""
+"Poste de péage pour lequel il est actuellement impossible de déterminer le "
+"type spécifique."
 
 #: ../../feature_catalogue.rst:1459
 msgid "Physical Toll Booth"
-msgstr ""
+msgstr "Poste de péage"
 
 #: ../../feature_catalogue.rst:1459
 msgid ""
@@ -3059,22 +3375,29 @@ msgid ""
 "machines involving electronic methods of payment like credit cards or "
 "bank cards."
 msgstr ""
+"Un poste de péage est une structure en bordure d'une route ou en travers de "
+"celle-ci où des péages sont perçus par des employés d'un organisme "
+"responsable de la collecte, par des appareils capable de reconnaître la "
+"monnaie métallique et papier ou par paiement électronique (carte de crédit ou"
+" carte bancaire)."
 
 #: ../../feature_catalogue.rst:1460
 msgid "Virtual Toll Booth"
-msgstr ""
+msgstr "Poste de péage virtuel"
 
 #: ../../feature_catalogue.rst:1460
 msgid ""
 "At a virtual point of toll payment, toll will be charged via automatic "
 "registration of the passing vehicle by subscription or invoice."
 msgstr ""
+"À un poste de péage virtuel, le péage est imputé par enregistrement "
+"automatique du véhicule passant, au moyen d'un abonnement ou de facturation."
 
 #: ../../feature_catalogue.rst:1461
 msgid "Hybrid"
-msgstr ""
+msgstr "Hybride"
 
 #: ../../feature_catalogue.rst:1461
 msgid "Hybrid signifies a toll booth which is both physical and virtual."
-msgstr ""
+msgstr "Poste de péage conventionnel et virtuel à la fois."
 
