@@ -133,7 +133,7 @@ following string is a UUID example:
 For more information: http://www.opengroup.org/onlinepubs/9629399/apdxa.htm#tagcjh_20
 
 The assignation and persistence rules of the UUID are further explained in the
-:doc:`nvd_change_management` document.
+:doc:`change_management` document.
 
 NID Values
 ==========

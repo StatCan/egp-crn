@@ -48,7 +48,7 @@ established between NVD’s partners. One of the mechanisms is establishing chan
 principles. Two basic concepts are needed: identification rules and definition / classification
 of change.
 
-:doc:`nvd_identification_rules` defines the identification mechanism used as precisely as
+:doc:`identification_rules` defines the identification mechanism used as precisely as
 possible. In terms of change management, the NVD doesn't attempt to track the evolution of
 phenomena in the real world (features), but rather of the objects that represent them. In
 other words, the NVD does not monitor real changes in the territory; they identify only the

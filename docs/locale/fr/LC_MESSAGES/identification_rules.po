@@ -361,10 +361,10 @@ msgstr ""
 #: ../../identification_rules.rst:135
 msgid ""
 "The assignation and persistence rules of the UUID are further explained "
-"in the :doc:`nvd_change_management` document."
+"in the :doc:`change_management` document."
 msgstr ""
 "Les règles d’attribution et de persistance relativement aux IDUU sont "
-"expliquées dans le document :doc:`nvd_change_management`."
+"expliquées dans le document :doc:`change_management`."
 
 #: ../../identification_rules.rst:139
 msgid "NID Values"
