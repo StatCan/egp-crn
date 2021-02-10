@@ -1,4 +1,3 @@
-# TODO: translate this document.
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) 2021, Statistics Canada
 # This file is distributed under the same license as the National Road
@@ -1044,20 +1043,19 @@ msgstr ""
 #: ../../product_distribution_formats.rst:313
 msgid "Attributes Specific to Entities"
 msgstr "Attributs spécifiques aux entités"
-# TODO: continue here.
 
 #: ../../product_distribution_formats.rst:322
 #: ../../product_distribution_formats.rst:472
 msgid "Alternate Street Name NID (left, right)"
-msgstr ""
+msgstr "IDN nom de rue non officiel (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:322
 msgid "left_AlternateStreetNameNid"
-msgstr ""
+msgstr "idnNomRueNonOfficiel_Gauche"
 
 #: ../../product_distribution_formats.rst:322
 msgid "L_ALTNANID"
-msgstr ""
+msgstr "IDNOMNOF_G"
 
 #: ../../product_distribution_formats.rst:322
 #: ../../product_distribution_formats.rst:324
@@ -1081,23 +1079,23 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:324
 msgid "right_AlternateStreetNameNid"
-msgstr ""
+msgstr "idnNomRueNonOfficiel_Droite"
 
 #: ../../product_distribution_formats.rst:324
 msgid "R_ALTNANID"
-msgstr ""
+msgstr "IDNOMNOF_D"
 
 #: ../../product_distribution_formats.rst:326
 msgid "Digitizing Direction Flag (left, right)"
-msgstr ""
+msgstr "Indicateur sens numérisation (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:326
 msgid "left_DigitizingDirectionFlag"
-msgstr ""
+msgstr "sensNumerisation_Gauche"
 
 #: ../../product_distribution_formats.rst:326
 msgid "L_DIGDIRFG"
-msgstr ""
+msgstr "SENSNUM_G"
 
 #: ../../product_distribution_formats.rst:326
 #: ../../product_distribution_formats.rst:328
@@ -1109,26 +1107,26 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:328
 msgid "right_DigitizingDirectionFlag"
-msgstr ""
+msgstr "sensNumerisation_Droite"
 
 #: ../../product_distribution_formats.rst:328
 msgid "R_DIGDIRFG"
-msgstr ""
+msgstr "SENSNUM_D"
 
 #: ../../product_distribution_formats.rst:330
 #: ../../product_distribution_formats.rst:474
 msgid "First House Number (left, right)"
-msgstr ""
+msgstr "Numéro première maison (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:330
 #: ../../product_distribution_formats.rst:474
 msgid "left_FirstHouseNumber"
-msgstr ""
+msgstr "numPremiereMaison_Gauche"
 
 #: ../../product_distribution_formats.rst:330
 #: ../../product_distribution_formats.rst:474
 msgid "L_HNUMF"
-msgstr ""
+msgstr "NUMP_G"
 
 #: ../../product_distribution_formats.rst:330
 #: ../../product_distribution_formats.rst:332
@@ -1142,44 +1140,44 @@ msgstr ""
 #: ../../product_distribution_formats.rst:332
 #: ../../product_distribution_formats.rst:476
 msgid "right_FirstHouseNumber"
-msgstr ""
+msgstr "numPremiereMaison_Droite"
 
 #: ../../product_distribution_formats.rst:332
 #: ../../product_distribution_formats.rst:476
 msgid "R_HNUMF"
-msgstr ""
+msgstr "NUMP_D"
 
 #: ../../product_distribution_formats.rst:334
 msgid "First House Number Suffix (left, right)"
-msgstr ""
+msgstr "Suffixe numéro première maison (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:334
 msgid "left_FirstHouseNumberSuffix"
-msgstr ""
+msgstr "suffixNumPremiereMaison_Gauche"
 
 #: ../../product_distribution_formats.rst:334
 msgid "L_HNUMSUFF"
-msgstr ""
+msgstr "SUFNUMP_G"
 
 #: ../../product_distribution_formats.rst:336
 msgid "right_FirstHouseNumberSuffix"
-msgstr ""
+msgstr "suffixNumPremiereMaison_Droite"
 
 #: ../../product_distribution_formats.rst:336
 msgid "R_HNUMSUFF"
-msgstr ""
+msgstr "SUFNUMP_D"
 
 #: ../../product_distribution_formats.rst:338
 msgid "First House Number Type (left, right)"
-msgstr ""
+msgstr "Type numérotation première maison (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:338
 msgid "left_FirstHouseNumberType"
-msgstr ""
+msgstr "typeNumPremiereMaison_Gauche"
 
 #: ../../product_distribution_formats.rst:338
 msgid "L_HNUMTYPE"
-msgstr ""
+msgstr "TYPENUMP_G"
 
 #: ../../product_distribution_formats.rst:338
 #: ../../product_distribution_formats.rst:340
@@ -1194,23 +1192,23 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:340
 msgid "right_FirstHouseNumberType"
-msgstr ""
+msgstr "typeNumPremiereMaison_Droite"
 
 #: ../../product_distribution_formats.rst:340
 msgid "R_HNUMTYPE"
-msgstr ""
+msgstr "TYPENUMP_D"
 
 #: ../../product_distribution_formats.rst:342
 msgid "House Number Structure (left, right)"
-msgstr ""
+msgstr "Structure numéro maison (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:342
 msgid "left_HouseNumberStructure"
-msgstr ""
+msgstr "structureNumMaison_Gauche"
 
 #: ../../product_distribution_formats.rst:342
 msgid "L_HNUMSTR"
-msgstr ""
+msgstr "STRUNUM_G"
 
 #: ../../product_distribution_formats.rst:342
 #: ../../product_distribution_formats.rst:344
@@ -1219,81 +1217,81 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:344
 msgid "right_HouseNumberStructure"
-msgstr ""
+msgstr "structureNumMaison_Droite"
 
 #: ../../product_distribution_formats.rst:344
 msgid "R_HNUMSTR"
-msgstr ""
+msgstr "STRUNUM_D"
 
 #: ../../product_distribution_formats.rst:346
 #: ../../product_distribution_formats.rst:480
 #: ../../product_distribution_formats.rst:492
 msgid "Last House Number (left, right)"
-msgstr ""
+msgstr "Numéro dernière maison (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:346
 #: ../../product_distribution_formats.rst:480
 msgid "left_LastHouseNumber"
-msgstr ""
+msgstr "numDerniereMaison_Gauche"
 
 #: ../../product_distribution_formats.rst:346
 #: ../../product_distribution_formats.rst:480
 msgid "L_HNUML"
-msgstr ""
+msgstr "NUMD_G"
 
 #: ../../product_distribution_formats.rst:348
 #: ../../product_distribution_formats.rst:482
 msgid "right_LastHouseNumber"
-msgstr ""
+msgstr "numDerniereMaison_Droite"
 
 #: ../../product_distribution_formats.rst:348
 #: ../../product_distribution_formats.rst:482
 msgid "R_HNUML"
-msgstr ""
+msgstr "NUMD_D"
 
 #: ../../product_distribution_formats.rst:350
 msgid "Last House Number Suffix (left, right)"
-msgstr ""
+msgstr "Suffixe numéro dernière maison (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:350
 msgid "left_LastHouseNumberSuffix"
-msgstr ""
+msgstr "suffixNumDerniereMaison_Gauche"
 
 #: ../../product_distribution_formats.rst:350
 msgid "L_HNUMSUFL"
-msgstr ""
+msgstr "SUFNUMD_G"
 
 #: ../../product_distribution_formats.rst:352
 msgid "right_LastHouseNumberSuffix"
-msgstr ""
+msgstr "suffixNumDerniereMaison_Droite"
 
 #: ../../product_distribution_formats.rst:352
 msgid "R_HNUMSUFL"
-msgstr ""
+msgstr "SUFNUMD_D"
 
 #: ../../product_distribution_formats.rst:354
 msgid "Last House Number Type (left, right)"
-msgstr ""
+msgstr "Type numérotation dernière maison (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:354
 msgid "left_LastHouseNumberType"
-msgstr ""
+msgstr "typeNumDerniereMaison_Gauche"
 
 #: ../../product_distribution_formats.rst:354
 #: ../../product_distribution_formats.rst:360
 #: ../../product_distribution_formats.rst:364
 msgid "L_HNUMTYPL"
-msgstr ""
+msgstr "TYPENUMD_G"
 
 #: ../../product_distribution_formats.rst:356
 msgid "right_LastHouseNumberType"
-msgstr ""
+msgstr "typeNumDerniereMaison_Droite"
 
 #: ../../product_distribution_formats.rst:356
 #: ../../product_distribution_formats.rst:362
 #: ../../product_distribution_formats.rst:366
 msgid "R_HNUMTYPL"
-msgstr ""
+msgstr "TYPENUMD_D"
 
 #: ../../product_distribution_formats.rst:358
 #: ../../product_distribution_formats.rst:380
@@ -1304,7 +1302,7 @@ msgstr ""
 #: ../../product_distribution_formats.rst:559
 #: ../../product_distribution_formats.rst:583
 msgid "NID"
-msgstr ""
+msgstr "IDN"
 
 #: ../../product_distribution_formats.rst:358
 #: ../../product_distribution_formats.rst:380
@@ -1314,35 +1312,35 @@ msgstr ""
 #: ../../product_distribution_formats.rst:559
 #: ../../product_distribution_formats.rst:583
 msgid "nid"
-msgstr ""
+msgstr "idn"
 
 #: ../../product_distribution_formats.rst:360
 msgid "Official Street Name NID (left, right)"
-msgstr ""
+msgstr "IDN nom de rue officiel (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:360
 msgid "left_OfficialStreetNameNid"
-msgstr ""
+msgstr "idnNomRueOfficiel_Gauche"
 
 #: ../../product_distribution_formats.rst:362
 msgid "right_OfficialStreetNameNid"
-msgstr ""
+msgstr "idnNomRueOfficiel_Droite"
 
 #: ../../product_distribution_formats.rst:364
 msgid "Reference System Indicator (left, right)"
-msgstr ""
+msgstr "Indicateur système référence (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:364
 msgid "left_ReferenceSystemIndicator"
-msgstr ""
+msgstr "indicSystemeReference_Gauche"
 
 #: ../../product_distribution_formats.rst:366
-msgid "rght_ReferenceSystemIndicator"
-msgstr ""
+msgid "right_ReferenceSystemIndicator"
+msgstr "indicSystemeReference_Droite"
 
 #: ../../product_distribution_formats.rst:378
 msgid "DATASETNAM"
-msgstr ""
+msgstr "NOMJEUDONN"
 
 #: ../../product_distribution_formats.rst:378
 #: ../../product_distribution_formats.rst:418
@@ -1375,27 +1373,27 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:386
 msgid "Street Name NID"
-msgstr ""
+msgstr "IDN nom de rue"
 
 #: ../../product_distribution_formats.rst:386
 msgid "streetNameNid"
-msgstr ""
+msgstr "idnNomRue"
 
 #: ../../product_distribution_formats.rst:386
 msgid "STRNAMENID"
-msgstr ""
+msgstr "IDNOMRUE"
 
 #: ../../product_distribution_formats.rst:396
 msgid "Blocked Passage Type"
-msgstr ""
+msgstr "Type passage obstrué"
 
 #: ../../product_distribution_formats.rst:396
 msgid "blockedPassageType"
-msgstr ""
+msgstr "typePassageObstrue"
 
 #: ../../product_distribution_formats.rst:396
 msgid "BLKPASSTY"
-msgstr ""
+msgstr "TYPEOBSTRU"
 
 #: ../../product_distribution_formats.rst:396
 msgid "C(17)"
@@ -1404,31 +1402,31 @@ msgstr ""
 #: ../../product_distribution_formats.rst:400
 #: ../../product_distribution_formats.rst:585
 msgid "Road Element NID"
-msgstr ""
+msgstr "IDN élément routier"
 
 #: ../../product_distribution_formats.rst:400
 #: ../../product_distribution_formats.rst:585
 msgid "roadElementNid"
-msgstr ""
+msgstr "idnElementRoutier"
 
 #: ../../product_distribution_formats.rst:400
 #: ../../product_distribution_formats.rst:585
 msgid "ROADNID"
-msgstr ""
+msgstr "IDNELEMRTE"
 
 #: ../../product_distribution_formats.rst:410
 msgid "Closing Period"
-msgstr ""
+msgstr "Période de fermeture"
 
 #: ../../product_distribution_formats.rst:410
 #: ../../product_distribution_formats.rst:470
 msgid "closingPeriod"
-msgstr ""
+msgstr "periodeFermeture"
 
 #: ../../product_distribution_formats.rst:410
 #: ../../product_distribution_formats.rst:470
 msgid "CLOSING"
-msgstr ""
+msgstr "FERMETURE"
 
 #: ../../product_distribution_formats.rst:410
 #: ../../product_distribution_formats.rst:498
@@ -1438,29 +1436,29 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:412
 msgid "Ferry Segment ID"
-msgstr ""
+msgstr "ID segment liaison par transbordeur"
 
 #: ../../product_distribution_formats.rst:412
 msgid "ferrySegmentId"
-msgstr ""
+msgstr "idSegmentLiaisonTransbordeur"
 
 #: ../../product_distribution_formats.rst:412
 msgid "FERRYSEGID"
-msgstr ""
+msgstr "IDSEGMLTR"
 
 #: ../../product_distribution_formats.rst:414
 #: ../../product_distribution_formats.rst:478
 msgid "Functional Road Class"
-msgstr ""
+msgstr "Classification routière fonctionnelle"
 
 #: ../../product_distribution_formats.rst:414
-msgid "functionlaRoadClass"
-msgstr ""
+msgid "functionalRoadClass"
+msgstr "classRoutiereFonctionnelle"
 
 #: ../../product_distribution_formats.rst:414
 #: ../../product_distribution_formats.rst:478
 msgid "ROADCLASS"
-msgstr ""
+msgstr "CLASSROUTE"
 
 #: ../../product_distribution_formats.rst:414
 #: ../../product_distribution_formats.rst:478
@@ -1470,164 +1468,164 @@ msgstr ""
 #: ../../product_distribution_formats.rst:418
 #: ../../product_distribution_formats.rst:504
 msgid "Route Name English (1, 2, 3, 4)"
-msgstr ""
+msgstr "Nom de route anglais (1, 2, 3, 4)"
 
 #: ../../product_distribution_formats.rst:418
 #: ../../product_distribution_formats.rst:504
 msgid "routeNameEnglish1"
-msgstr ""
+msgstr "nomRouteAnglais1"
 
 #: ../../product_distribution_formats.rst:418
 #: ../../product_distribution_formats.rst:504
 msgid "RTENAME1EN"
-msgstr ""
+msgstr "NOMRTE1AN"
 
 #: ../../product_distribution_formats.rst:420
 #: ../../product_distribution_formats.rst:506
 msgid "routeNameEnglish2"
-msgstr ""
+msgstr "nomRouteAnglais2"
 
 #: ../../product_distribution_formats.rst:420
 #: ../../product_distribution_formats.rst:506
 msgid "RTENAME2EN"
-msgstr ""
+msgstr "NOMRTE2AN"
 
 #: ../../product_distribution_formats.rst:422
 #: ../../product_distribution_formats.rst:508
 msgid "routeNameEnglish3"
-msgstr ""
+msgstr "nomRouteAnglais3"
 
 #: ../../product_distribution_formats.rst:422
 #: ../../product_distribution_formats.rst:508
 msgid "RTENAME3EN"
-msgstr ""
+msgstr "NOMRTE3AN"
 
 #: ../../product_distribution_formats.rst:424
 #: ../../product_distribution_formats.rst:510
 msgid "routeNameEnglish4"
-msgstr ""
+msgstr "nomRouteAnglais4"
 
 #: ../../product_distribution_formats.rst:424
 #: ../../product_distribution_formats.rst:510
 msgid "RTENAME4EN"
-msgstr ""
+msgstr "NOMRTE4AN"
 
 #: ../../product_distribution_formats.rst:426
 #: ../../product_distribution_formats.rst:512
 msgid "Route Name French (1, 2, 3, 4)"
-msgstr ""
+msgstr "Nom de route français (1, 2, 3, 4)"
 
 #: ../../product_distribution_formats.rst:426
 #: ../../product_distribution_formats.rst:512
 msgid "routeNameFrench1"
-msgstr ""
+msgstr "nomRouteFrançais1"
 
 #: ../../product_distribution_formats.rst:426
 #: ../../product_distribution_formats.rst:512
 msgid "RTENAME1FR"
-msgstr ""
+msgstr "NOMRTE1FR"
 
 #: ../../product_distribution_formats.rst:428
 #: ../../product_distribution_formats.rst:514
 msgid "routeNameFrench2"
-msgstr ""
+msgstr "nomRouteFrançais2"
 
 #: ../../product_distribution_formats.rst:428
 #: ../../product_distribution_formats.rst:514
 msgid "RTENAME2FR"
-msgstr ""
+msgstr "NOMRTE2FR"
 
 #: ../../product_distribution_formats.rst:430
 #: ../../product_distribution_formats.rst:516
 msgid "routeNameFrench3"
-msgstr ""
+msgstr "nomRouteFrançais3"
 
 #: ../../product_distribution_formats.rst:430
 #: ../../product_distribution_formats.rst:516
 msgid "RTENAME3FR"
-msgstr ""
+msgstr "NOMRTE3FR"
 
 #: ../../product_distribution_formats.rst:432
 #: ../../product_distribution_formats.rst:518
 msgid "routeNameFrench4"
-msgstr ""
+msgstr "nomRouteFrançais4"
 
 #: ../../product_distribution_formats.rst:432
 #: ../../product_distribution_formats.rst:518
 msgid "RTENAME4FR"
-msgstr ""
+msgstr "NOMRTE4FR"
 
 #: ../../product_distribution_formats.rst:434
 #: ../../product_distribution_formats.rst:520
 msgid "Route Number (1, 2, 3, 4, 5)"
-msgstr ""
+msgstr "Numéro de route (1, 2, 3, 4, 5)"
 
 #: ../../product_distribution_formats.rst:434
 #: ../../product_distribution_formats.rst:520
 msgid "routeNumber1"
-msgstr ""
+msgstr "numeroRoute1"
 
 #: ../../product_distribution_formats.rst:434
 #: ../../product_distribution_formats.rst:520
 msgid "RTNUMBER1"
-msgstr ""
+msgstr "NUMROUTE1"
 
 #: ../../product_distribution_formats.rst:436
 #: ../../product_distribution_formats.rst:522
 msgid "routeNumber2"
-msgstr ""
+msgstr "numeroRoute2"
 
 #: ../../product_distribution_formats.rst:436
 #: ../../product_distribution_formats.rst:522
 msgid "RTNUMBER2"
-msgstr ""
+msgstr "NUMROUTE2"
 
 #: ../../product_distribution_formats.rst:438
 #: ../../product_distribution_formats.rst:524
 msgid "routeNumber3"
-msgstr ""
+msgstr "numeroRoute3"
 
 #: ../../product_distribution_formats.rst:438
 #: ../../product_distribution_formats.rst:524
 msgid "RTNUMBER3"
-msgstr ""
+msgstr "NUMROUTE3"
 
 #: ../../product_distribution_formats.rst:440
 #: ../../product_distribution_formats.rst:526
 msgid "routeNumber4"
-msgstr ""
+msgstr "numeroRoute4"
 
 #: ../../product_distribution_formats.rst:440
 #: ../../product_distribution_formats.rst:526
 msgid "RTNUMBER4"
-msgstr ""
+msgstr "NUMROUTE4"
 
 #: ../../product_distribution_formats.rst:450
 #: ../../product_distribution_formats.rst:470
 msgid "Exit Number"
-msgstr ""
+msgstr "Numéro de sortie"
 
 #: ../../product_distribution_formats.rst:450
 #: ../../product_distribution_formats.rst:472
 msgid "exitNumber"
-msgstr ""
+msgstr "numeroSortie"
 
 #: ../../product_distribution_formats.rst:450
 #: ../../product_distribution_formats.rst:472
 msgid "EXITNBR"
-msgstr ""
+msgstr "NUMSORTIE"
 
 #: ../../product_distribution_formats.rst:452
 msgid "Junction Type"
-msgstr ""
+msgstr "Type jonction"
 
 #: ../../product_distribution_formats.rst:452
 msgid "junctionType"
-msgstr ""
+msgstr "typeJonction"
 
 #: ../../product_distribution_formats.rst:452
 msgid "JUNCTYPE"
-msgstr ""
+msgstr "TYPEJONC"
 
 #: ../../product_distribution_formats.rst:452
 msgid "C(12)"
@@ -1635,35 +1633,35 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:464
 msgid "Address Range Digitizing Direction Flag (left, right)"
-msgstr ""
+msgstr "Indicateur sens numérisation adresse (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:464
 msgid "left_AddressDirectionFlag *"
-msgstr ""
+msgstr "sensNumerisationAdresse_Gauche *"
 
 #: ../../product_distribution_formats.rst:464
 msgid "L_ADDDIRFG"
-msgstr ""
+msgstr "ADRSENS_G"
 
 #: ../../product_distribution_formats.rst:466
 msgid "right_AddressDirectionFlag *"
-msgstr ""
+msgstr "sensNumerisationAdresse_Droite *"
 
 #: ../../product_distribution_formats.rst:466
 msgid "R_ADDDIRFG"
-msgstr ""
+msgstr "ADRSENS_D"
 
 #: ../../product_distribution_formats.rst:468
 msgid "Address Range NID"
-msgstr ""
+msgstr "IDN intervalle d’adresse"
 
 #: ../../product_distribution_formats.rst:468
 msgid "addressRangeNid"
-msgstr ""
+msgstr "idnIntervalleAdresse"
 
 #: ../../product_distribution_formats.rst:468
 msgid "ADRANGENID"
-msgstr ""
+msgstr "IDINTERVAD"
 
 #: ../../product_distribution_formats.rst:474
 #: ../../product_distribution_formats.rst:476
@@ -1676,167 +1674,167 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:478
 msgid "functionalRoadClass"
-msgstr ""
+msgstr "classRoutiereFonctionnelle"
 
 #: ../../product_distribution_formats.rst:484
 msgid "nid *"
-msgstr ""
+msgstr "idn *"
 
 #: ../../product_distribution_formats.rst:486
 msgid "Number Of Lanes"
-msgstr ""
+msgstr "Nombre de voies"
 
 #: ../../product_distribution_formats.rst:486
 msgid "numberLanes"
-msgstr ""
+msgstr "nombreVoies"
 
 #: ../../product_distribution_formats.rst:486
 msgid "NBRLANES"
-msgstr ""
+msgstr "NBRVOIES"
 
 #: ../../product_distribution_formats.rst:488
 msgid "Official Place Name (left, right)"
-msgstr ""
+msgstr "Nom de lieu officiel (droite, gauche)"
 
 #: ../../product_distribution_formats.rst:488
 msgid "left_OfficialPlaceName *"
-msgstr ""
+msgstr "nomLieuOfficiel_Gauche *"
 
 #: ../../product_distribution_formats.rst:488
 msgid "L_PLACENAM"
-msgstr ""
+msgstr "NOMLIEU_G"
 
 #: ../../product_distribution_formats.rst:490
 msgid "right_OfficialPlaceName *"
-msgstr ""
+msgstr "nomLieuOfficiel_Droite *"
 
 #: ../../product_distribution_formats.rst:490
 msgid "R_PLACENAM"
-msgstr ""
+msgstr "NOMLIEU_D"
 
 #: ../../product_distribution_formats.rst:492
 msgid "left_OfficialStreetNameConcat *"
-msgstr ""
+msgstr "nomRueOfficielConcat_Gauche *"
 
 #: ../../product_distribution_formats.rst:492
 msgid "L_STNAME_C"
-msgstr ""
+msgstr "NOMRUE_C_G"
 
 #: ../../product_distribution_formats.rst:494
 msgid "right_OfficialStreetNameConcat *"
-msgstr ""
+msgstr "nomRueOfficielConcat_Droite *"
 
 #: ../../product_distribution_formats.rst:494
 msgid "R_STNAME_C"
-msgstr ""
+msgstr "NOMRUE_C_D"
 
 #: ../../product_distribution_formats.rst:496
 msgid "Paved Road Surface Type"
-msgstr ""
+msgstr "Type de chaussée revêtue"
 
 #: ../../product_distribution_formats.rst:496
 msgid "pavedRoadSurfaceType"
-msgstr ""
+msgstr "typeChausseeRevetue"
 
 #: ../../product_distribution_formats.rst:496
 msgid "PAVSURF"
-msgstr ""
+msgstr "TYPEREV"
 
 #: ../../product_distribution_formats.rst:498
 msgid "Pavement Status"
-msgstr ""
+msgstr "État revêtement"
 
 #: ../../product_distribution_formats.rst:498
 msgid "pavementStatus"
-msgstr ""
+msgstr "etatRevetement"
 
 #: ../../product_distribution_formats.rst:498
 msgid "PAVSTATUS"
-msgstr ""
+msgstr "ETATREV"
 
 #: ../../product_distribution_formats.rst:500
 msgid "Road Jurisdiction"
-msgstr ""
+msgstr "Autorité route"
 
 #: ../../product_distribution_formats.rst:500
 msgid "roadJurisdiction"
-msgstr ""
+msgstr "autoriteRoute"
 
 #: ../../product_distribution_formats.rst:500
 msgid "ROADJURIS"
-msgstr ""
+msgstr "AUTORITE"
 
 #: ../../product_distribution_formats.rst:502
 msgid "Road Segment ID"
-msgstr ""
+msgstr "ID segment routier"
 
 #: ../../product_distribution_formats.rst:502
 msgid "roadSegmentId"
-msgstr ""
+msgstr "idSegmentRoutier"
 
 #: ../../product_distribution_formats.rst:502
 msgid "ROADSEGID"
-msgstr ""
+msgstr "IDSEGMRTE"
 
 #: ../../product_distribution_formats.rst:528
 msgid "Speed Restrictions"
-msgstr ""
+msgstr "Limites de vitesse"
 
 #: ../../product_distribution_formats.rst:528
 msgid "speedRestrictions"
-msgstr ""
+msgstr "limitesVitesse"
 
 #: ../../product_distribution_formats.rst:528
 msgid "SPEED"
-msgstr ""
+msgstr "VITESSE"
 
 #: ../../product_distribution_formats.rst:530
 msgid "Structure Name English"
-msgstr ""
+msgstr "Nom de structure anglais"
 
 #: ../../product_distribution_formats.rst:530
 msgid "structureNameEnglish"
-msgstr ""
+msgstr "nomStructureAnglais"
 
 #: ../../product_distribution_formats.rst:530
 msgid "STRUNAMEEN"
-msgstr ""
+msgstr "NOMSTRUCFR"
 
 #: ../../product_distribution_formats.rst:532
 msgid "Structure Name French"
-msgstr ""
+msgstr "Nom de structure français"
 
 #: ../../product_distribution_formats.rst:532
 msgid "structureNameFrench"
-msgstr ""
+msgstr "nomStructureFrançais"
 
 #: ../../product_distribution_formats.rst:532
 msgid "STRUNAMEFR"
-msgstr ""
+msgstr "NOMSTRUCAN"
 
 #: ../../product_distribution_formats.rst:534
 msgid "Structure ID"
-msgstr ""
+msgstr "ID structure"
 
 #: ../../product_distribution_formats.rst:534
 msgid "structureId"
-msgstr ""
+msgstr "idStructure"
 
 #: ../../product_distribution_formats.rst:534
 msgid "STRUCTID"
-msgstr ""
+msgstr "IDSTRUCT"
 
 #: ../../product_distribution_formats.rst:536
 msgid "Structure Type"
-msgstr ""
+msgstr "Type de structure"
 
 #: ../../product_distribution_formats.rst:536
 msgid "structureType"
-msgstr ""
+msgstr "typeStructure"
 
 #: ../../product_distribution_formats.rst:536
 msgid "STRUCTTYPE"
-msgstr ""
+msgstr "TYPESTRUCT"
 
 #: ../../product_distribution_formats.rst:536
 msgid "C(15)"
@@ -1844,51 +1842,51 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:538
 msgid "Traffic Direction"
-msgstr ""
+msgstr "Sens de circulation"
 
 #: ../../product_distribution_formats.rst:538
 msgid "trafficDirection"
-msgstr ""
+msgstr "sensCirculation"
 
 #: ../../product_distribution_formats.rst:538
 msgid "TRAFFICDIR"
-msgstr ""
+msgstr "SENSCIRCUL"
 
 #: ../../product_distribution_formats.rst:540
 msgid "Unpaved Road Surface Type"
-msgstr ""
+msgstr "Type de chaussée non revêtue"
 
 #: ../../product_distribution_formats.rst:540
 msgid "unpavedRoadSurfaceType"
-msgstr ""
+msgstr "typeChausseeNonRevetue"
 
 #: ../../product_distribution_formats.rst:540
 msgid "UNPAVSURF"
-msgstr ""
+msgstr "TYPENONREV"
 
 #: ../../product_distribution_formats.rst:553
 msgid "Directional Prefix"
-msgstr ""
+msgstr "Préfixe direction"
 
 #: ../../product_distribution_formats.rst:553
 msgid "directionalPrefix"
-msgstr ""
+msgstr "prefixeDirection"
 
 #: ../../product_distribution_formats.rst:553
 msgid "DIRPREFIX"
-msgstr ""
+msgstr "PREDIR"
 
 #: ../../product_distribution_formats.rst:555
 msgid "Directional Suffix"
-msgstr ""
+msgstr "Suffixe direction"
 
 #: ../../product_distribution_formats.rst:555
 msgid "directionalSuffix"
-msgstr ""
+msgstr "suffixeDirection"
 
 #: ../../product_distribution_formats.rst:555
 msgid "DIRSUFFIX"
-msgstr ""
+msgstr "SUFDIR"
 
 #: ../../product_distribution_formats.rst:557
 msgid "Muni Quadrant"
@@ -1904,27 +1902,27 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:561
 msgid "Place Name"
-msgstr ""
+msgstr "Nom de lieu"
 
 #: ../../product_distribution_formats.rst:561
 msgid "placeName"
-msgstr ""
+msgstr "nomLieu"
 
 #: ../../product_distribution_formats.rst:561
 msgid "PLACENAME"
-msgstr ""
+msgstr "NOMLIEU"
 
 #: ../../product_distribution_formats.rst:563
 msgid "Place Type"
-msgstr ""
+msgstr "Type de lieu"
 
 #: ../../product_distribution_formats.rst:563
 msgid "placeType"
-msgstr ""
+msgstr "typeLieu"
 
 #: ../../product_distribution_formats.rst:563
 msgid "PLACETYPE"
-msgstr ""
+msgstr "TYPELIEU"
 
 #: ../../product_distribution_formats.rst:565
 msgid "Province"
@@ -1940,15 +1938,15 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:567
 msgid "Street Name Article"
-msgstr ""
+msgstr "Article nom rue"
 
 #: ../../product_distribution_formats.rst:567
 msgid "streetNameArticle"
-msgstr ""
+msgstr "articleNomRue"
 
 #: ../../product_distribution_formats.rst:567
 msgid "STARTICLE"
-msgstr ""
+msgstr "ARTNOMRUE"
 
 #: ../../product_distribution_formats.rst:567
 msgid "C(20)"
@@ -1956,15 +1954,15 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:569
 msgid "Street Name Body"
-msgstr ""
+msgstr "Corps nom rue"
 
 #: ../../product_distribution_formats.rst:569
 msgid "streetNameBody"
-msgstr ""
+msgstr "corpsNomRue"
 
 #: ../../product_distribution_formats.rst:569
 msgid "NAMEBODY"
-msgstr ""
+msgstr "CORPSNOM"
 
 #: ../../product_distribution_formats.rst:569
 msgid "C(50)"
@@ -1972,39 +1970,39 @@ msgstr ""
 
 #: ../../product_distribution_formats.rst:571
 msgid "Street Type Prefix"
-msgstr ""
+msgstr "Préfixe type rue"
 
 #: ../../product_distribution_formats.rst:571
 msgid "streetTypePrefix"
-msgstr ""
+msgstr "prefixeTypeRue"
 
 #: ../../product_distribution_formats.rst:571
 msgid "STRTYPRE"
-msgstr ""
+msgstr "PRETYPRUE"
 
 #: ../../product_distribution_formats.rst:573
 msgid "Street Type Suffix"
-msgstr ""
+msgstr "Suffixe type rue"
 
 #: ../../product_distribution_formats.rst:573
 msgid "streetTypeSuffix"
-msgstr ""
+msgstr "suffixeTypeRue"
 
 #: ../../product_distribution_formats.rst:573
 msgid "STRTYSUF"
-msgstr ""
+msgstr "SUFTYPRUE"
 
 #: ../../product_distribution_formats.rst:587
 msgid "Toll Point Type"
-msgstr ""
+msgstr "Type poste péage"
 
 #: ../../product_distribution_formats.rst:587
 msgid "tollPointType"
-msgstr ""
+msgstr "typePostePeage"
 
 #: ../../product_distribution_formats.rst:587
 msgid "TOLLPTTYPE"
-msgstr ""
+msgstr "TYPEPTEPEA"
 
 #: ../../product_distribution_formats.rst:587
 msgid "C(22)"
