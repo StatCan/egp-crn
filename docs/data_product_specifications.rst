@@ -1,6 +1,6 @@
-********************************************
-Data Product Specifications - Segmented View
-********************************************
+***************************
+Data Product Specifications
+***************************
 
 .. include :: <isonum.txt>
 
@@ -152,7 +152,7 @@ Global
 Level
 -----
 
-This scope refers to the following level according to the ISO 19115 standard and CAN/CGSB - 171.100- 2009 standards:
+This scope refers to the following level according to the ISO 19115 standard and CAN/CGSB-171.100-2009 standards:
 
 006 - series
 
@@ -280,7 +280,7 @@ The NRN data serve as a foundation for several applications. This common geometr
 Topic category
 --------------
 
-Main topics for the product, as defined by the ISO 19115 standard or CAN/CGSB 171.100-2009:
+Main topics for the product, as defined by the ISO 19115 standard or CAN/CGSB-171.100-2009:
 
 013 – location
 
@@ -540,7 +540,7 @@ Standard Circular Error:
 
     \sigma_y : standard deviation in the Y-axis
 
-CircularMapAccuracyStandard:
+Circular Map Accuracy Standard:
 
 .. math:: CMAS=2.1460 \sigma_c
 
@@ -675,9 +675,9 @@ Language
 
 Languages used in the dataset according to ISO 639-2 standard:
 
-eng-English
+eng - English
 
-fra-French
+fra - French
 
 Delivery format information on KML
 ----------------------------------
@@ -705,9 +705,9 @@ Language
 
 Languages used in the dataset according to ISO 639-2 standard:
 
-eng-English
+eng - English
 
-fra-French
+fra - French
 
 Delivery format information on SHAPE
 ------------------------------------
@@ -733,9 +733,9 @@ Language
 
 Languages used in the dataset according to ISO 639-2 standard:
 
-eng-English
+eng - English
 
-fra-French
+fra - French
 
 Delivery format information on GPKG
 -----------------------------------
@@ -759,9 +759,9 @@ Language
 
 Languages used in the dataset according to ISO 639-2 standard:
 
-eng-English
+eng - English
 
-fra-French
+fra - French
 
 Delivery medium information
 ---------------------------

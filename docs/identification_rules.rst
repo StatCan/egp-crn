@@ -1,6 +1,6 @@
-*******************************************
-National Vector Data - Identification Rules
-*******************************************
+********************
+Identification Rules
+********************
 
 .. contents::
    :depth: 3
@@ -39,8 +39,8 @@ Abbreviations
     UUID
         Universal Unique Identifiers
 
-Terms and Definitons
-====================
+Terms and Definitions
+=====================
 
 Network Linear Element
     Several layers of vector data, referred to as National Vector Data (NVD), will share
@@ -147,15 +147,15 @@ organizations. Data users must ensure that they make **no alterations whatsoever
 value in order to ensure synchronization. Modifications to NID’s would render them useless
 for data synchronization.
 
-Footnotes
-=========
+References
+==========
 
-.. [#f1] Bédard Y, Larrivé S et Proulx M-J. “Travaux de modélisation pour la mise en place de
+.. [#f1] Bédard Y, Larrivé S., and Proulx M-J. “Travaux de modélisation pour la mise en place de
     la base de données géospatiale“ ISIS, Laval University, March 2000
 .. [#f2] ISO Technical Committee 204, Working group 3, “ISO/TR 14825 GDF – Geographic Data
     Files – Version 4.0,” ISO/TC 204 N629, October 12, 2000
 .. [#f3] Dueker, Kenneth J. and Butler, J. Allison, “GIS-T Enterprise Data Model with
-    Suggested Implementation Choices“,Center for Urban Studies School of Urban and Public
+    Suggested Implementation Choices“, Center for Urban Studies School of Urban and Public
     Affairs Portland State University, October 1, 1997
 .. [#f4] http://www.nen.nl/cen278
 .. [#f5] National Spatial Data Infrastructure, “NSDI FRAMEWORK TRANSPORTATION IDENTIFICATION

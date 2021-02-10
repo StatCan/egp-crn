@@ -16,15 +16,12 @@ from collections import Counter
 from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
+from typing import Any, List, Type, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import field_map_functions
 import helpers
 from segment_addresses import Segmentor
-
-
-# Suppress pandas chained assignment warning.
-pd.options.mode.chained_assignment = None
 
 
 # Set logger.
@@ -39,22 +36,36 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, remove):
+    def __init__(self, source: str, remove: bool = False) -> None:
+        """
+        Initializes an NRN stage.
+
+        :param str source: abbreviation for the source province / territory.
+        :param bool remove: removes pre-existing files within the data/interim directory for the specified source,
+            default False.
+        """
+
         self.stage = 1
         self.source = source.lower()
         self.remove = remove
 
         # Configure raw data path.
-        self.data_path = os.path.abspath("../../data/raw/{}".format(self.source))
+        self.data_path = os.path.abspath(f"../../data/raw/{self.source}")
 
-        # Configure source attribute path.
-        self.source_attribute_path = os.path.abspath("sources/{}".format(self.source))
+        # Configure attribute paths.
+        self.source_attribute_path = os.path.abspath(f"sources/{self.source}")
+        self.source_attributes = dict()
+        self.target_attributes = dict()
+
+        # Configure DataFrame collections.
+        self.source_gdframes = dict()
+        self.target_gdframes = dict()
 
         # Configure previous NRN vintage path and clear namespace.
         self.nrn_old_path = os.path.abspath(f"../../data/interim/{self.source}_old")
 
         # Configure output path.
-        self.output_path = os.path.join(os.path.abspath("../../data/interim"), "{}.gpkg".format(self.source))
+        self.output_path = os.path.join(os.path.abspath("../../data/interim"), f"{self.source}.gpkg")
 
         # Conditionally clear output namespace.
         output_dir = os.path.dirname(self.output_path)
@@ -87,13 +98,18 @@ class Stage:
         self.dtypes = helpers.compile_dtypes()
         self.domains = helpers.compile_domains()
 
-    def apply_domains(self):
-        """Applies domain restrictions to each column in the target dataframes."""
+    def apply_domains(self) -> None:
+        """Applies domain restrictions to each column in the target (Geo)DataFrames."""
 
-        def cast_dtype(val, dtype, default):
+        def cast_dtype(val: Any, dtype: Type, default: Any) -> Any:
             """
             Casts the value to the given numpy dtype.
             Returns the default parameter for invalid or Null values.
+
+            :param Any val: value.
+            :param Type dtype: numpy type object to be casted to.
+            :param Any default: value to be returned in case of error.
+            :return Any: casted or default value.
             """
 
             try:
@@ -143,7 +159,7 @@ class Stage:
                         counts = Counter(series_orig[mods].fillna(-99))
 
                         # Iterate and log record modifications.
-                        for vals in df[~df.duplicated(keep="first")].values:
+                        for vals in df.loc[~df.duplicated(keep="first")].values:
 
                             logger.warning(f"Modified {counts[-99] if pd.isna(vals[0]) else counts[vals[0]]} "
                                            f"instance(s) of {vals[0]} ({dtype_orig}) to {vals[1]} ({dtype_new}).")
@@ -152,8 +168,8 @@ class Stage:
             logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
             sys.exit(1)
 
-    def apply_field_mapping(self):
-        """Maps the source dataframes to the target dataframes via user-specific field mapping functions."""
+    def apply_field_mapping(self) -> None:
+        """Maps the source (Geo)DataFrames to the target (Geo)DataFrames via user-specific field mapping functions."""
 
         logger.info("Applying field mapping.")
 
@@ -251,8 +267,16 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
-    def apply_functions(self, series, func_list, target_field):
-        """Iterates and applies field mapping function(s) to a pandas series."""
+    def apply_functions(self, series: pd.Series, func_list: List[dict, ...], target_field: str) -> pd.Series:
+        """
+        Iterates and applies field mapping function(s) to a Series.
+
+        :param pd.Series series: Series.
+        :param List[dict, ...] func_list: list of yaml-constructed field mapping definitions passed to
+            :func:`field_map_functions`.
+        :param str target_field: name of the destination field to which the given Series will be assigned.
+        :return pd.Series: mapped Series.
+        """
 
         # Iterate functions.
         for func in func_list:
@@ -283,13 +307,20 @@ class Stage:
 
         return series
 
-    def clean_datasets(self):
+    def clean_datasets(self) -> None:
         """Applies a series of data cleanups to certain datasets."""
 
         logger.info(f"Applying data cleanup functions.")
 
-        def enforce_accuracy_limits(table, df):
-            """Enforces upper and lower limits for 'accuracy'."""
+        def enforce_accuracy_limits(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+                Union[gpd.GeoDataFrame, pd.DataFrame]:
+            """
+            Enforces upper and lower limits for NRN attribute 'accuracy'.
+
+            :param str table: name of an NRN dataset.
+            :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
+            :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
+            """
 
             logger.info(f"Applying data cleanup \"enforce accuracy limits\" to dataset: {table}.")
 
@@ -306,8 +337,15 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def lower_case_ids(table, df):
-            """Sets all ID fields to lower case."""
+        def lower_case_ids(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+                Union[gpd.GeoDataFrame, pd.DataFrame]:
+            """
+            Sets all ID fields to lower case.
+
+            :param str table: name of an NRN dataset.
+            :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
+            :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
+            """
 
             logger.info(f"Applying data cleanup \"lower case IDs\" to dataset: {table}.")
 
@@ -317,7 +355,7 @@ class Stage:
 
                 # Filter records to non-default values which are not already lower case.
                 default = self.defaults[table][col]
-                s_filtered = df[df[col].map(lambda val: val != default and not val.islower())][col]
+                s_filtered = df.loc[df[col].map(lambda val: val != default and not val.islower()), col]
 
                 # Apply modifications, if required.
                 if len(s_filtered):
@@ -329,8 +367,16 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def overwrite_segment_ids(table, df):
-            """Populates the DataFrame's 'ferrysegid' or 'roadsegid' with incrementing integer values from 1-n."""
+        def overwrite_segment_ids(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+                Union[gpd.GeoDataFrame, pd.DataFrame]:
+            """
+            Populates the NRN attributes 'ferrysegid' or 'roadsegid', whichever appropriate, with incrementing integer
+            values from 1-n.
+
+            :param str table: name of an NRN dataset.
+            :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
+            :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
+            """
 
             if table in {"ferryseg", "roadseg"}:
 
@@ -342,8 +388,15 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def standardize_nones(table, df):
-            """Standardizes None string values (different from nulls)."""
+        def standardize_nones(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+                Union[gpd.GeoDataFrame, pd.DataFrame]:
+            """
+            Standardizes string 'None's (distinct from Null).
+
+            :param str table: name of an NRN dataset.
+            :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
+            :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
+            """
 
             logger.info(f"Applying data cleanup \"standardize_nones\" to dataset: {table}.")
 
@@ -365,8 +418,15 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def strip_whitespace(table, df):
-            """Strips leading, trailing, and multiple internal whitespace for each dataframe column."""
+        def strip_whitespace(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+                Union[gpd.GeoDataFrame, pd.DataFrame]:
+            """
+            Strips leading, trailing, and multiple internal whitespace for each (Geo)DataFrame column.
+
+            :param str table: name of an NRN dataset.
+            :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
+            :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
+            """
 
             logger.info(f"Applying data cleanup \"strip whitespace\" to dataset: {table}.")
 
@@ -389,11 +449,16 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def title_case_route_names(table, df):
+        def title_case_route_names(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+                Union[gpd.GeoDataFrame, pd.DataFrame]:
             """
-            Sets to title case all route name attributes:
+            Sets to title case all NRN route name attributes:
                 rtename1en, rtename2en, rtename3en, rtename4en,
                 rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+
+            :param str table: name of an NRN dataset.
+            :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
+            :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
             """
 
             if table in {"ferryseg", "roadseg"}:
@@ -409,7 +474,7 @@ class Stage:
 
                     # Filter records to non-default values which are not already title case.
                     default = self.defaults[table][col]
-                    s_filtered = df[df[col].map(lambda route: route != default and not route.istitle())][col]
+                    s_filtered = df.loc[df[col].map(lambda route: route != default and not route.istitle()), col]
 
                     # Apply modifications, if required.
                     if len(s_filtered):
@@ -432,7 +497,7 @@ class Stage:
             # Store updated dataframe.
             self.target_gdframes.update({table: df.copy(deep=True)})
 
-    def compile_source_attributes(self):
+    def compile_source_attributes(self) -> None:
         """Compiles the yaml files in the sources' directory into a dictionary."""
 
         logger.info("Identifying source attribute files.")
@@ -446,8 +511,8 @@ class Stage:
             # Load yaml and store contents.
             self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = helpers.load_yaml(f)
 
-    def compile_target_attributes(self):
-        """Compiles the target (distribution format) yaml file into a dictionary."""
+    def compile_target_attributes(self) -> None:
+        """Compiles the yaml file for the target (Geo)DataFrames (distribution format) into a dictionary."""
 
         logger.info("Compiling target attribute yaml.")
         table = field = None
@@ -464,16 +529,17 @@ class Stage:
                     self.target_attributes[table]["fields"][field] = vals[0]
 
         except (AttributeError, KeyError, ValueError):
-            logger.exception("Invalid schema definition for table: {}, field: {}.".format(table, field))
+            logger.exception(f"Invalid schema definition for table: {table}, field: {field}.")
             sys.exit(1)
 
-    def download_previous_vintage(self):
+    def download_previous_vintage(self) -> None:
         """Downloads the previous NRN vintage and extracts the English GeoPackage as <source>_old.gpkg."""
 
         logger.info("Retrieving previous NRN vintage.")
 
         # Download previous NRN vintage.
         logger.info("Downloading previous NRN vintage.")
+        download_url = None
 
         try:
 
@@ -488,7 +554,7 @@ class Stage:
                 shutil.copyfileobj(download.raw, f)
 
         except (requests.exceptions.RequestException, shutil.Error) as e:
-            logger.exception("Unable to download previous NRN vintage: \"{}\".".format(download_url))
+            logger.exception(f"Unable to download previous NRN vintage: \"{download_url}\".")
             logger.exception(e)
             sys.exit(1)
 
@@ -513,20 +579,16 @@ class Stage:
                 logger.warning(f"Unable to remove file: {path}.")
                 logger.warning(e)
 
-    def export_gpkg(self):
-        """Exports the target dataframes as GeoPackage layers."""
+    def export_gpkg(self) -> None:
+        """Exports the target (Geo)DataFrames as GeoPackage layers."""
 
         logger.info("Exporting target dataframes to GeoPackage layers.")
 
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.target_gdframes, self.output_path)
 
-    def filter_and_relink_strplaname(self):
-        """
-        For strplaname:
-        1) Filter duplicate records.
-        2) Repair nid linkages.
-        """
+    def filter_and_relink_strplaname(self) -> None:
+        """Reduces duplicated records, where possible, in NRN strplaname and repairs the remaining NID linkages."""
 
         df = self.target_gdframes["strplaname"].copy(deep=True)
 
@@ -576,8 +638,13 @@ class Stage:
                     if mods_count:
                         logger.warning(f"Repaired {mods_count} linkage(s) between strplaname.nid - {table}.{field}.")
 
-    def gen_source_dataframes(self):
-        """Loads source data into GeoDataFrames."""
+    def gen_source_dataframes(self) -> None:
+        """
+        Loads raw source data into GeoDataFrames and applies a series of standardizations, most notably:
+        1) explode multi-type geometries.
+        2) reprojection to NRN standard EPSG:4617.
+        3) round coordinate precision to NRN standard 7 decimal places.
+        """
 
         logger.info("Loading source data as dataframes.")
         self.source_gdframes = dict()
@@ -615,7 +682,7 @@ class Stage:
             if source_yaml["data"]["spatial"]:
 
                 # Filter invalid geometries.
-                df = df[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
+                df = df.loc[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
 
                 # Cast multi-type geometries.
                 df = helpers.explode_geometry(df)
@@ -634,8 +701,8 @@ class Stage:
 
             logger.info("Successfully loaded source data.")
 
-    def gen_target_dataframes(self):
-        """Creates empty dataframes for all applicable output tables based on the input data field mapping."""
+    def gen_target_dataframes(self) -> None:
+        """Creates empty (Geo)DataFrames for all applicable output tables."""
 
         logger.info("Creating target dataframes for applicable tables.")
         self.target_gdframes = dict()
@@ -644,7 +711,7 @@ class Stage:
         for source, source_yaml in self.source_attributes.items():
             for table in source_yaml["conform"]:
 
-                logger.info("Creating target dataframe: {}.".format(table))
+                logger.info(f"Creating target dataframe: {table}.")
 
                 # Spatial.
                 if self.target_attributes[table]["spatial"]:
@@ -666,14 +733,14 @@ class Stage:
 
                 # Store result.
                 self.target_gdframes[table] = gdf
-                logger.info("Successfully created target dataframe: {}.".format(table))
+                logger.info(f"Successfully created target dataframe: {table}.")
 
         # Log unavailable datasets.
         for table in [t for t in self.target_attributes if t not in self.target_gdframes]:
 
-            logger.warning("Source data provides no field mappings for table: {}.".format(table))
+            logger.warning(f"Source data provides no field mappings for table: {table}.")
 
-    def recover_missing_datasets(self):
+    def recover_missing_datasets(self) -> None:
         """
         Recovers missing NRN datasets in the current vintage from the previous vintage.
         Exception: altnamlink, junction.
@@ -699,7 +766,7 @@ class Stage:
                     if isinstance(df, gpd.GeoDataFrame):
 
                         # Filter invalid geometries.
-                        df = df[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
+                        df = df.loc[df.geom_type.isin({"Point", "MultiPoint", "LineString", "MultiLineString"})]
 
                         # Cast multi-type geometries.
                         df = helpers.explode_geometry(df)
@@ -713,9 +780,10 @@ class Stage:
                     # Store result.
                     self.target_gdframes[table] = df.copy(deep=True)
 
-    def segment_addresses(self):
+    def segment_addresses(self) -> None:
         """
-        Converts address points into segmented addrange attributes, joining the results to the roadseg source dataset.
+        Converts address points into segmented attribution for NRN addrange and merges the resulting attributes to the
+        source dataset representing NRN roadseg.
         """
 
         logger.info("Determining address segmentation requirement.")
@@ -758,14 +826,13 @@ class Stage:
         else:
             logger.info("Address segmentation not required. Skipping segmentation process.")
 
-    def split_strplaname(self):
+    def split_strplaname(self) -> None:
         """
-        For strplaname:
-        1) Duplicates all records in strplaname if at least one nested column exists. The first instance will have the
-           first nested value, the second instance will have the second nested value.
-        2) Repairs nid linkages for right-side records.
+        Splits NRN strplaname records into multiple records if at least one nested column exists. The first and second
+        records will contain the first and second nested values, respectively. NID linkages are repaired for the second
+        instance of each split record since the linkage will have been broken.
 
-        This process creates the left- and right-side representation which strplaname is supposed to possess.
+        This process creates the left- and right-side representation which NRN strplaname is supposed to possess.
         """
 
         logger.info("Splitting strplaname to create left- and right-side representation.")
@@ -843,7 +910,7 @@ class Stage:
                 self.target_gdframes["altnamlink"] = pd.concat([df_first, df_second],
                                                                ignore_index=False).copy(deep=True)
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes an NRN stage."""
 
         self.download_previous_vintage()
@@ -865,8 +932,14 @@ class Stage:
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing files within the data/interim directory for the specified source.")
-def main(source, remove):
-    """Executes an NRN stage."""
+def main(source: str, remove: bool = False) -> None:
+    """
+    Executes an NRN stage.
+
+    :param str source: abbreviation for the source province / territory.
+    :param bool remove: removes pre-existing files within the data/interim directory for the specified source, default
+        False.
+    """
 
     try:
 
@@ -877,6 +950,7 @@ def main(source, remove):
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

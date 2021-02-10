@@ -9,12 +9,12 @@ import shapely.ops
 import string
 import sys
 from collections import Counter, defaultdict
-from copy import deepcopy
 from datetime import datetime
 from itertools import chain, compress, groupby, permutations, tee
 from operator import attrgetter, itemgetter
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
+from typing import Dict, List, Tuple, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -23,15 +23,34 @@ import helpers
 logger = logging.getLogger()
 
 
+def ordered_pairs(coords: Tuple[tuple, ...]) -> List[Tuple[tuple, tuple], ...]:
+    """
+    Creates an ordered sequence of adjacent coordinate pairs, sorted.
+
+    :param Tuple[tuple, ...] coords: tuple of coordinate tuples.
+    :return List[Tuple[tuple, tuple], ...]: ordered sequence of coordinate pair tuples.
+    """
+
+    coords_1, coords_2 = tee(coords)
+    next(coords_2, None)
+
+    return sorted(zip(coords_1, coords_2))
+
+
 class Validator:
     """Handles the execution of validation functions against the NRN datasets."""
 
-    def __init__(self, dframes):
-        """Initializes variables for validation functions."""
+    def __init__(self, dframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]) -> None:
+        """
+        Initializes variables for validation functions.
+
+        :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dframes: dictionary of NRN dataset names and
+            (Geo)DataFrames.
+        """
 
         logger.info("Configuring validation variables.")
 
-        self.errors = defaultdict(dict)
+        self.errors = defaultdict(list)
 
         # Compile default field values and dtypes.
         self.defaults_all = helpers.compile_default_values()
@@ -188,17 +207,22 @@ class Validator:
             }
         }
 
-    def conflicting_exitnbrs(self, name):
-        """Applies a set of validations to exitnbr field."""
+    def conflicting_exitnbrs(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to exitnbr field.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
         default = self.defaults_all[name]["exitnbr"]
 
         # Query multi-segment road elements (via nid field) where exitnbr is not the default value or not "None".
-        df_filtered = df[(df["nid"].duplicated(keep=False)) &
-                         (df["nid"] != default) &
-                         (~df["exitnbr"].isin({default, "None"}))]
+        df_filtered = df.loc[(df["nid"].duplicated(keep=False)) &
+                             (df["nid"] != default) &
+                             (~df["exitnbr"].isin({default, "None"}))]
 
         if len(df_filtered):
 
@@ -206,7 +230,7 @@ class Validator:
             grouped = helpers.groupby_to_list(df_filtered, "nid", "exitnbr").map(np.unique)
 
             # Validation: ensure road element has <= 1 unique exitnbr.
-            flag_nids = grouped[grouped.map(len) > 1]
+            flag_nids = grouped.loc[grouped.map(len) > 1]
 
             # Compile error properties.
             for nid, exitnbrs in flag_nids.iteritems():
@@ -215,28 +239,33 @@ class Validator:
 
         return errors
 
-    def conflicting_pavement_status(self, name):
-        """Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields."""
+    def conflicting_pavement_status(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to pavstatus, pavsurf, and unpavsurf fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
 
         # Subset dataframe to non-default values, keep only required fields.
         default = self.defaults_all[name]["pavstatus"]
-        df_filtered = df[df["pavstatus"] != default][["pavstatus", "pavsurf", "unpavsurf"]]
+        df_filtered = df.loc[df["pavstatus"] != default, ["pavstatus", "pavsurf", "unpavsurf"]]
 
         # Apply validations and compile uuids of flagged records.
         if len(df_filtered):
 
             # Validation: when pavstatus == "Paved", ensure pavsurf != "None" and unpavsurf == "None".
-            paved = df_filtered[df_filtered["pavstatus"] == "Paved"]
-            errors[1] = paved[paved["pavsurf"] == "None"].index.values
-            errors[2] = paved[paved["unpavsurf"] != "None"].index.values
+            paved = df_filtered.loc[df_filtered["pavstatus"] == "Paved"]
+            errors[1] = paved.loc[paved["pavsurf"] == "None"].index.values
+            errors[2] = paved.loc[paved["unpavsurf"] != "None"].index.values
 
             # Validation: when pavstatus == "Unpaved", ensure pavsurf == "None" and unpavsurf != "None".
-            unpaved = df_filtered[df_filtered["pavstatus"] == "Unpaved"]
-            errors[3] = unpaved[unpaved["pavsurf"] != "None"].index.values
-            errors[4] = unpaved[unpaved["unpavsurf"] == "None"].index.values
+            unpaved = df_filtered.loc[df_filtered["pavstatus"] == "Unpaved"]
+            errors[3] = unpaved.loc[unpaved["pavsurf"] != "None"].index.values
+            errors[4] = unpaved.loc[unpaved["unpavsurf"] == "None"].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -245,8 +274,13 @@ class Validator:
 
         return errors
 
-    def dates(self, name):
-        """Applies a set of validations to credate and revdate fields."""
+    def dates(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to credate and revdate fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -258,8 +292,13 @@ class Validator:
         today = {"year": int(today[:4]), "month": int(today[4:6]), "day": int(today[6:8]), "full": int(today)}
 
         # Define functions.
-        def validate_day(date):
-            """Validate the day value in a date."""
+        def validate_day(date: str) -> bool:
+            """
+            Validate the day value in a date.
+
+            :param str date: string date in format YYYYMMDD.
+            :return bool: boolean validation of the date.
+            """
 
             year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
 
@@ -273,54 +312,54 @@ class Validator:
         for col in ("credate", "revdate"):
 
             # Subset to non-default values.
-            s_filtered = df[df[col] != defaults[col]][col]
+            s_filtered = df.loc[df[col] != defaults[col], col]
 
             if len(s_filtered):
 
                 # Validation 1: date content must be numeric.
-                results = s_filtered[~s_filtered.map(str.isnumeric)].index.values
+                results = s_filtered.loc[~s_filtered.map(str.isnumeric)].index.values
                 errors[1].extend(results)
 
                 # Validation 2: length must be 4, 6, or 8.
-                results = s_filtered[s_filtered.map(lambda date: len(date) not in {4, 6, 8})].index.values
+                results = s_filtered.loc[s_filtered.map(lambda date: len(date) not in {4, 6, 8})].index.values
                 errors[2].extend(results)
 
                 # Subset to valid records only for remaining validations.
                 invalid_indexes = list(set(chain.from_iterable(errors.values())))
-                s_filtered2 = s_filtered[~s_filtered.index.isin(invalid_indexes)]
+                s_filtered2 = s_filtered.loc[~s_filtered.index.isin(invalid_indexes)]
 
                 if len(s_filtered2):
 
                     # Temporarily set missing month and day values to 01.
-                    series_mod = s_filtered2[s_filtered2.map(lambda date: len(date) in {4, 6})]
+                    series_mod = s_filtered2.loc[s_filtered2.map(lambda date: len(date) in {4, 6})]
                     if len(series_mod):
                         append_vals = {4: "0101", 6: "01"}
                         s_filtered2.loc[series_mod.index] = series_mod.map(lambda date: date + append_vals[len(date)])
                         df.loc[s_filtered2.index, col] = s_filtered2
 
                     # Validation 3: valid date - year.
-                    results = s_filtered2[~s_filtered2.map(
+                    results = s_filtered2.loc[~s_filtered2.map(
                         lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
                     errors[3].extend(results)
 
                     # Validation 4: valid date - month.
-                    results = s_filtered2[~s_filtered2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
+                    results = s_filtered2.loc[~s_filtered2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
                     errors[4].extend(results)
 
                     # Validation 5: valid date - day.
-                    results = s_filtered2[~s_filtered2.map(validate_day)].index.values
+                    results = s_filtered2.loc[~s_filtered2.map(validate_day)].index.values
                     errors[5].extend(results)
 
                     # Validation 6: ensure date <= today.
-                    results = s_filtered2[s_filtered2.map(lambda date: int(date) > today["full"])].index.values
+                    results = s_filtered2.loc[s_filtered2.map(lambda date: int(date) > today["full"])].index.values
                     errors[6].extend(results)
 
         # Validation 7: ensure credate <= revdate.
-        df_filtered = df[(df["credate"] != defaults["credate"]) &
-                         (df["revdate"] != defaults["revdate"]) &
-                         ~(df.index.isin(set(chain.from_iterable(itemgetter(1, 2)(errors)))))]
+        df_filtered = df.loc[(df["credate"] != defaults["credate"]) &
+                             (df["revdate"] != defaults["revdate"]) &
+                             ~(df.index.isin(set(chain.from_iterable(itemgetter(1, 2)(errors)))))]
         if len(df_filtered):
-            results = df_filtered[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
+            results = df_filtered.loc[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
             errors[7].extend(results)
 
         # Compile error properties.
@@ -330,8 +369,14 @@ class Validator:
 
         return errors
 
-    def deadend_proximity(self, junction="junction", roadseg="roadseg"):
-        """Validates the proximity of deadend junctions to disjoint / non-connected road segments."""
+    def deadend_proximity(self, junction: str = "junction", roadseg: str = "roadseg") -> Dict[int, list]:
+        """
+        Validates the proximity of deadend junctions to disjoint / non-connected road segments.
+
+        :param str junction: NRN dataset name for NRN junction.
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         # Validation: deadend junctions must be >= 5 meters from disjoint road segments.
         errors = defaultdict(list)
@@ -339,7 +384,7 @@ class Validator:
         roadseg = self.dframes_m[roadseg]
 
         # Filter junctions to junctype = "Dead End", keep only required fields.
-        deadends = junction[junction["junctype"] == "Dead End"]["geometry"]
+        deadends = junction.loc[junction["junctype"] == "Dead End", "geometry"]
         roadseg = roadseg["geometry"]
 
         # Compile coordinates (used multiple times).
@@ -373,7 +418,7 @@ class Validator:
 
         # Filter coincident indexes from all indexes. Keep only non-empty results.
         proxi_idx_keep = proxi_idx_all - proxi_idx_exclude
-        proxi_idx_keep = proxi_idx_keep[proxi_idx_keep.map(len) > 0]
+        proxi_idx_keep = proxi_idx_keep.loc[proxi_idx_keep.map(len) > 0]
 
         # Generate a lookup dict for the index of each roadseg coordinate, mapped to the associated uuid.
         coords_idx_uuid_lookup = dict(zip(range(coords_count.sum()), np.repeat(roadseg.index.values, coords_count)))
@@ -389,8 +434,13 @@ class Validator:
 
         return errors
 
-    def duplicated_lines(self, name):
-        """Identifies the uuids of duplicate and overlapping line geometries."""
+    def duplicated_lines(self, name: str) -> Dict[int, list]:
+        """
+        Identifies the uuids of duplicate and overlapping line geometries.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -401,23 +451,23 @@ class Validator:
         # Validation 1: ensure line segments are not duplicated.
 
         # Filter geometries to those with duplicate lengths.
-        s_filtered = series[series.length.duplicated(keep=False)]
+        s_filtered = series.loc[series.length.duplicated(keep=False)]
 
         if len(s_filtered):
 
             # Filter geometries to those with duplicate endpoint coordinates.
-            s_filtered = s_filtered[s_filtered.map(
+            s_filtered = s_filtered.loc[s_filtered.map(
                 lambda g: tuple(sorted(itemgetter(0, -1)(g.coords)))).duplicated(keep=False)]
 
             if len(s_filtered):
 
                 # Identify duplicate geometries.
-                dups = s_filtered[s_filtered.map(
+                dups = s_filtered.loc[s_filtered.map(
                     lambda geom1: s_filtered.map(lambda geom2: geom1.equals(geom2)).sum() > 1)]
 
                 # Configure duplicate groups and their uuids.
                 uuid_groups = set(dups.map(
-                    lambda geom1: tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+                    lambda geom1: tuple(set(dups.loc[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
 
                 # Compile error properties.
                 if len(uuid_groups):
@@ -428,7 +478,7 @@ class Validator:
         # Validation 2: ensure line segments do not have repeated adjacent points.
 
         # Filter geometries to those with duplicated coordinates.
-        s_filtered = series[series.map(lambda g: len(g.coords) != len(set(g.coords)))]
+        s_filtered = series.loc[series.map(lambda g: len(g.coords) != len(set(g.coords)))]
 
         if len(s_filtered):
 
@@ -436,7 +486,7 @@ class Validator:
             mask = s_filtered.map(lambda g: len(g.coords) != len(list(groupby(g.coords))))
 
             # Compile uuids of flagged records.
-            errors[2] = s_filtered[mask].index.values
+            errors[2] = s_filtered.loc[mask].index.values
 
         # Validation 3: ensure line segments do not overlap (i.e. contain duplicated adjacent points).
 
@@ -444,14 +494,10 @@ class Validator:
         series_coords = series.map(attrgetter("coords")).map(tuple)
 
         # Create ordered coordinate pairs, sorted.
-        def ordered_pairs(coords):
-            coords_1, coords_2 = tee(coords)
-            next(coords_2, None)
-            return sorted(zip(coords_1, coords_2))
         coord_pairs = series_coords.map(ordered_pairs).explode()
 
         # Remove invalid pairs (duplicated adjacent coordinates).
-        coord_pairs = coord_pairs[coord_pairs.map(lambda pair: pair[0] != pair[1])]
+        coord_pairs = coord_pairs.loc[coord_pairs.map(lambda pair: pair[0] != pair[1])]
 
         # Group uuids of matching pairs.
         coord_pairs_df = coord_pairs.reset_index(drop=False)
@@ -459,7 +505,7 @@ class Validator:
         coord_pairs_grouped = pd.DataFrame({"pairs": coord_pairs_grouped.index, "uuid": coord_pairs_grouped.values})
 
         # Filter to duplicated pairs.
-        coord_pairs_dup = coord_pairs_grouped[coord_pairs_grouped["uuid"].map(len) > 1]
+        coord_pairs_dup = coord_pairs_grouped.loc[coord_pairs_grouped["uuid"].map(len) > 1]
         if len(coord_pairs_dup):
 
             # Group duplicated pairs by sorted uuid groups.
@@ -480,8 +526,13 @@ class Validator:
 
         return errors
 
-    def duplicated_points(self, name):
-        """Identifies the uuids of duplicate point geometries."""
+    def duplicated_points(self, name: str) -> Dict[int, list]:
+        """
+        Identifies the uuids of duplicate point geometries.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -490,13 +541,13 @@ class Validator:
         pts = df["geometry"].map(lambda g: itemgetter(0)(g.coords))
 
         # Identify duplicated geometries.
-        dups = pts[pts.duplicated(keep=False)]
+        dups = pts.loc[pts.duplicated(keep=False)]
 
         if len(dups):
 
             # Configure duplicated groups and their uuids.
             uuid_groups = set(dups.map(
-                lambda geom1: tuple(set(dups[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
+                lambda geom1: tuple(set(dups.loc[dups.map(lambda geom2: geom1.equals(geom2))].index))).tolist())
 
             # Compile error properties.
             if len(uuid_groups):
@@ -506,8 +557,13 @@ class Validator:
 
         return errors
 
-    def encoding(self, name):
-        """Identifies potential encoding errors within string fields."""
+    def encoding(self, name: str) -> Dict[int, list]:
+        """
+        Identifies potential encoding errors within string fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -527,15 +583,20 @@ class Validator:
 
         return errors
 
-    def exitnbr_roadclass_relationship(self, name):
-        """Applies a set of validations to exitnbr and roadclass fields."""
+    def exitnbr_roadclass_relationship(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to exitnbr and roadclass fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
 
         # Subset dataframe to non-default and non-"None" values, keep only required fields.
         default = self.defaults_all[name]["exitnbr"]
-        s_filtered = df[~df["exitnbr"].isin({default, "None"})]["roadclass"]
+        s_filtered = df.loc[~df["exitnbr"].isin({default, "None"}), "roadclass"]
 
         if len(s_filtered):
 
@@ -543,8 +604,8 @@ class Validator:
             #             "Service Lane" when exitnbr is not the default value or not "None".
 
             # Compile uuids of flagged records.
-            errors[1] = s_filtered[~s_filtered.isin({"Expressway / Highway", "Freeway", "Ramp", "Rapid Transit",
-                                                     "Service Lane"})].index.values
+            errors[1] = s_filtered.loc[~s_filtered.isin(
+                {"Expressway / Highway", "Freeway", "Ramp", "Rapid Transit", "Service Lane"})].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -553,8 +614,16 @@ class Validator:
 
         return errors
 
-    def ferry_road_connectivity(self, ferryseg="ferryseg", roadseg="roadseg", junction="junction"):
-        """Validates the connectivity between ferry and road line segments."""
+    def ferry_road_connectivity(self, ferryseg: str = "ferryseg", roadseg: str = "roadseg",
+                                junction: str = "junction") -> Dict[int, list]:
+        """
+        Validates the connectivity between ferry and road line segments.
+
+        :param str ferryseg: NRN dataset name for NRN ferryseg.
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
 
@@ -567,19 +636,19 @@ class Validator:
 
         # Compile junction coordinates where junctype = "Ferry".
         ferry_junctions = list(set(chain([geom.coords[0] for geom in
-                                          junction[junction["junctype"] == "Ferry"]["geometry"].values])))
+                                          junction.loc[junction["junctype"] == "Ferry", "geometry"].values])))
 
         # Identify ferry segments which do not connect to any road segments.
         mask = ferryseg.map(
             lambda geom: not any(coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)))
 
         # Compile uuids of flagged records.
-        errors[1] = ferryseg[mask].index.values
+        errors[1] = ferryseg.loc[mask].index.values
 
         # Validation 2: ensure ferry segments connect to <= 1 road segment at either endpoint.
 
         # Compile road segments which connect to ferry segments.
-        roads_connected = roadseg[roadseg.map(
+        roads_connected = roadseg.loc[roadseg.map(
             lambda geom: any(coords in ferry_junctions for coords in itemgetter(0, -1)(geom.coords)))]
 
         # Compile coordinates of connected road segments.
@@ -591,7 +660,7 @@ class Validator:
             lambda ferry: any(itemgetter(coords)(road_coords_count) > 1 for coords in itemgetter(0, -1)(ferry.coords)))
 
         # Compile uuids of flagged records.
-        errors[2] = ferryseg[ferry_multi_intersect].index.values
+        errors[2] = ferryseg.loc[ferry_multi_intersect].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -600,8 +669,13 @@ class Validator:
 
         return errors
 
-    def ids(self, name):
-        """Applies a set of validations to all id fields."""
+    def ids(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to all id fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -611,20 +685,20 @@ class Validator:
         for col in [fld for fld in df.columns.difference(["uuid"]) if fld.endswith("id") and dtypes[fld] == "str"]:
 
             # Subset dataframe to required column with non-default and non-"None" values.
-            series = df[~df[col].isin([defaults[col], "None"])][col]
+            series = df.loc[~df[col].isin([defaults[col], "None"]), col]
 
             if len(series):
 
                 # Validation 1: ensure ids are 32 digits.
                 # Compile uuids of flagged records.
-                flag_uuids = series[series.map(len) != 32].index.values
+                flag_uuids = series.loc[series.map(len) != 32].index.values
                 for uid in flag_uuids:
                     errors[1].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
                 # Validation 2: ensure ids are hexadecimal.
                 # Compile uuids of flagged records.
                 hexdigits = set(string.hexdigits)
-                flag_uuids = series[series.map(lambda uid: not set(uid).issubset(hexdigits))].index.values
+                flag_uuids = series.loc[series.map(lambda uid: not set(uid).issubset(hexdigits))].index.values
                 for uid in flag_uuids:
                     errors[2].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
@@ -637,20 +711,26 @@ class Validator:
 
             # Validation 3: ensure unique id fields are unique within their column.
             # Compile uuids of flagged records.
-            flag_uuids = series[series.duplicated(keep=False)].index.values
+            flag_uuids = series.loc[series.duplicated(keep=False)].index.values
             for uid in flag_uuids:
                 errors[3].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
             # Validation 4: ensure unique id fields are not "None" nor the default field value.
             # Compile uuids of flagged records.
-            flag_uuids = series[series.isin([defaults[col], "None"])].index.values
+            flag_uuids = series.loc[series.isin([defaults[col], "None"])].index.values
             for uid in flag_uuids:
                 errors[4].append(f"uuid: '{uid}', based on attribute field: {col}.")
 
         return errors
 
-    def isolated_lines(self, name, junction="junction"):
-        """Identifies the uuids of isolated line segments."""
+    def isolated_lines(self, name: str, junction: str = "junction") -> Dict[int, list]:
+        """
+        Identifies the uuids of isolated line segments.
+
+        :param str name: NRN dataset name.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
 
@@ -683,8 +763,15 @@ class Validator:
         df_nodes = df_nodes_all.loc[df_nodes_all.map(len) > 2]
 
         # Configure duplicated non-endpoints for analysis records relative to the full dataframe.
-        def non_endpoint_dups(nodes):
-            """Returns intermediate / non-endpoint nodes and their dataframe counts if they are duplicated."""
+        def non_endpoint_dups(nodes: Tuple[tuple, ...]) -> Union[None, Tuple[Tuple[tuple, ...], Tuple[int, ...]]]:
+            """
+            Returns intermediate / non-endpoint nodes and their dataframe counts if they are duplicated.
+
+            :param Tuple[tuple, ...] nodes: tuple of coordinate tuples.
+            :return Union[None, Tuple[Tuple[tuple, ...], Tuple[int, ...]]]: None or a nested tuple containing a tuple of
+                all non-endpoint coordinate tuples and a tuple of the frequency of each node within the entire dataset.
+            """
+
             counts = itemgetter(*nodes[1:-1])(nodes_count)
             if not isinstance(counts, tuple):
                 counts = (counts,)
@@ -708,10 +795,13 @@ class Validator:
 
         return errors
 
-    def line_internal_clustering(self, name):
+    def line_internal_clustering(self, name: str) -> Dict[int, list]:
         """
         Validates the distance between adjacent coordinates of line segments.
         Validation: line segments must have >= 1x10^(-4) (0.0001) meters distance between adjacent coordinates.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
@@ -726,10 +816,6 @@ class Validator:
         if len(series_coords):
 
             # Create ordered coordinate pairs, sorted.
-            def ordered_pairs(coords):
-                coords_1, coords_2 = tee(coords)
-                next(coords_2, None)
-                return sorted(zip(coords_1, coords_2))
             coord_pairs = series_coords.map(ordered_pairs).explode()
 
             # Remove invalid pairs (duplicated adjacent coordinates).
@@ -752,15 +838,20 @@ class Validator:
 
         return errors
 
-    def line_length(self, name):
-        """Validates the minimum feature length of line geometries."""
+    def line_length(self, name: str) -> Dict[int, list]:
+        """
+        Validates the minimum feature length of line geometries.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         min_length = 5
         series = self.dframes_m[name]["geometry"]
 
         # Validation: ensure line segments are >= 5 meters in length.
-        errors[1] = series[series.length < min_length].index.values
+        errors[1] = series.loc[series.length < min_length].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -769,10 +860,13 @@ class Validator:
 
         return errors
 
-    def line_merging_angle(self, name):
+    def line_merging_angle(self, name: str) -> Dict[int, list]:
         """
         Validates the merging angle of line segments.
         Validation: ensure line segments merge at angles >= 5 degrees.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
@@ -789,7 +883,7 @@ class Validator:
 
         # Explode point groups, filter to only duplicates, and construct a dataframe of the uuids and coordinates.
         pts_exploded = endpts.explode()
-        pts_dups = pts_exploded[pts_exploded.duplicated(keep=False)]
+        pts_dups = pts_exploded.loc[pts_exploded.duplicated(keep=False)]
         pts_df = pd.DataFrame({"coords": pts_dups, "uuid": pts_dups.index})
 
         # Proceed only if duplicated points exist.
@@ -809,9 +903,12 @@ class Validator:
             # (which represent self-loops), the first duplicate takes the second point, the second duplicate takes the
             # second-last point - thereby avoiding the same neighbour being taken twice for self-loop intersections.
             dup_flags = {
-                "dup_none": uuids_grouped_exploded[~uuids_grouped_exploded.duplicated(keep=False)][["uuid", "coords"]],
-                "dup_first": uuids_grouped_exploded[uuids_grouped_exploded.duplicated(keep="first")]["uuid"],
-                "dup_last": uuids_grouped_exploded[uuids_grouped_exploded.duplicated(keep="last")]["uuid"]
+                "dup_none": uuids_grouped_exploded.loc[
+                    ~uuids_grouped_exploded.duplicated(keep=False), ["uuid", "coords"]],
+                "dup_first": uuids_grouped_exploded.loc[
+                    uuids_grouped_exploded.duplicated(keep="first"), "uuid"],
+                "dup_last": uuids_grouped_exploded.loc[
+                    uuids_grouped_exploded.duplicated(keep="last"), "uuid"]
             }
             dup_results = {
                 "dup_none": np.vectorize(
@@ -834,7 +931,15 @@ class Validator:
             pts_grouped = pts_grouped.map(lambda pts: set(map(tuple, map(sorted, permutations(pts, r=2)))))
 
             # Define function to calculate and return validity of angular degrees between two intersecting lines.
-            def get_invalid_angle(pt1, pt2, ref_pt):
+            def get_invalid_angle(pt1: tuple, pt2: tuple, ref_pt: tuple) -> bool:
+                """
+                Validates the angle formed by the 2 points and reference point.
+
+                :param tuple pt1: coordinate tuple
+                :param tuple pt2: coordinate tuple
+                :param tuple ref_pt: coordinate tuple of the reference point.
+                :return bool: boolean validation of the angle formed by the 2 points and 1 reference point.
+                """
 
                 angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
                 angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
@@ -849,7 +954,7 @@ class Validator:
                 pts_grouped, pts_grouped.index)
 
             # Compile the uuid groups as errors.
-            flag_uuid_groups = uuids_grouped[flags].values
+            flag_uuid_groups = uuids_grouped.loc[flags].values
 
             # Compile error properties.
             if len(flag_uuid_groups):
@@ -859,8 +964,13 @@ class Validator:
 
         return errors
 
-    def line_proximity(self, name):
-        """Validates the proximity of line segments."""
+    def line_proximity(self, name: str) -> Dict[int, list]:
+        """
+        Validates the proximity of line segments.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         # Validation: ensure line segments are >= 5 meters from each other, excluding connected segments.
         errors = defaultdict(list)
@@ -890,7 +1000,7 @@ class Validator:
 
         # Remove connected uuids from each set of uuids, keep non-empty results.
         results = uuids_proxi - uuids_exclude
-        results = results[results.map(len) > 0]
+        results = results.loc[results.map(len) > 0]
 
         # Compile error properties.
         for source_uuid, target_uuids in results.iteritems():
@@ -899,21 +1009,26 @@ class Validator:
 
         return errors
 
-    def nbrlanes(self, name):
-        """Applies a set of validations to nbrlanes field."""
+    def nbrlanes(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to nbrlanes field.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
 
         # Subset dataframe to non-default values, keep only required fields.
         default = self.defaults_all[name]["nbrlanes"]
-        s_filtered = df[df["nbrlanes"] != default]["nbrlanes"]
+        s_filtered = df.loc[df["nbrlanes"] != default, "nbrlanes"]
 
         if len(s_filtered):
 
             # Validation: ensure 1 <= nbrlanes <= 8.
             # Compile uuids of flagged records.
-            errors[1] = s_filtered[~s_filtered.map(lambda nbrlanes: 1 <= int(nbrlanes) <= 8)].index.values
+            errors[1] = s_filtered.loc[~s_filtered.map(lambda nbrlanes: 1 <= int(nbrlanes) <= 8)].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -922,8 +1037,13 @@ class Validator:
 
         return errors
 
-    def nid_linkages(self, name):
-        """Validates the nid linkages for the input dataframe, excluding "None"."""
+    def nid_linkages(self, name: str) -> Dict[int, list]:
+        """
+        Validates the nid linkages for the input dataframe, excluding 'None'.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -976,11 +1096,15 @@ class Validator:
 
         return errors
 
-    def out_of_scope(self, name, junction="junction"):
+    def out_of_scope(self, name: str, junction: str = "junction") -> Dict[int, list]:
         """
         Validates the containment of geometries within the associated provincial / territorial boundaries.
-        NatProvTer junctions are used to infer boundaries, therefore, a record will only be flagged is one of it's
+        NatProvTer junctions are used to infer boundaries, therefore, a record will only be flagged if one of it's
         endpoints lies outside of the provincial / territorial boundaries.
+
+        :param str name: NRN dataset name.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         # Validation: ensure geometries are completely within the associated provincial / territorial boundary.
@@ -1011,8 +1135,13 @@ class Validator:
 
         return errors
 
-    def point_proximity(self, name):
-        """Validates the proximity of points."""
+    def point_proximity(self, name: str) -> Dict[int, list]:
+        """
+        Validates the proximity of points.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         # Validation: ensure points are >= 5 meters from each other.
         errors = defaultdict(list)
@@ -1027,7 +1156,7 @@ class Validator:
 
         # Compile indexes of points with other points within 5 meters distance. Only keep results with > 1 match.
         proxi_idx_all = pts.map(lambda pt: set(chain(*tree.query_ball_point([pt], r=prox_limit))))
-        proxi_idx_all = proxi_idx_all[proxi_idx_all.map(len) > 1]
+        proxi_idx_all = proxi_idx_all.loc[proxi_idx_all.map(len) > 1]
 
         # Compile and filter coincident index from each set of indexes for each point, keep non-empty results.
         proxi_idx_exclude = pd.Series(range(len(pts)), index=pts.index).map(lambda index: {index})
@@ -1045,8 +1174,13 @@ class Validator:
 
         return errors
 
-    def roadclass_rtnumber_relationship(self, name):
-        """Applies a set of validations to roadclass and rtnumber1 fields."""
+    def roadclass_rtnumber_relationship(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to roadclass and rtnumber1 fields.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -1059,7 +1193,7 @@ class Validator:
         # Validation: ensure rtnumber1 is not the default value or "None" when roadclass = "Expressway / Highway" or
         # "Freeway".
         default = self.defaults_all[name]["rtnumber1"]
-        errors[1] = df_filtered[
+        errors[1] = df_filtered.loc[
             df_filtered["roadclass"].isin({"Expressway / Highway", "Freeway"}) &
             df_filtered["rtnumber1"].map(lambda rtnumber1: rtnumber1 in {default, "None"})].index.values
 
@@ -1070,12 +1204,16 @@ class Validator:
 
         return errors
 
-    def route_contiguity(self, roadseg="roadseg", ferryseg=None):
+    def route_contiguity(self, roadseg: str = "roadseg", ferryseg: Union[None, str] = None) -> Dict[int, list]:
         """
         Applies a set of validations to route attributes (rows represent field groups):
             rtename1en, rtename2en, rtename3en, rtename4en,
             rtename1fr, rtename2fr, rtename3fr, rtename4fr,
             rtnumber1, rtnumber2, rtnumber3, rtnumber4, rtnumber5.
+
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :param Union[None, str] ferryseg: NRN dataset name for NRN ferryseg.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
@@ -1102,7 +1240,7 @@ class Validator:
             # Filter dataframe to records with >= 1 non-default values across the field group, keep only required
             # fields.
             default = self.defaults_all[roadseg][field_group[0]]
-            df_filtered = df[(df[field_group].values != default).any(axis=1)][[*field_group, "geometry"]]
+            df_filtered = df.loc[(df[field_group].values != default).any(axis=1), [*field_group, "geometry"]]
 
             # Compile route names, excluding default value and "None".
             route_names = set(np.unique(df_filtered[field_group].values)) - {default, "None"}
@@ -1114,7 +1252,7 @@ class Validator:
                 logger.info(f"Validating route {index + 1} of {route_count}: \"{route_name}\".")
 
                 # Subset dataframe to those records with route name in at least one field.
-                route_df = df_filtered[(df_filtered[field_group].values == route_name).any(axis=1)]
+                route_df = df_filtered.loc[(df_filtered[field_group].values == route_name).any(axis=1)]
 
                 # Only process duplicated route names.
                 if len(route_df) > 1:
@@ -1136,8 +1274,13 @@ class Validator:
 
         return errors
 
-    def self_intersecting_elements(self, name):
-        """Applies a set of validations to self-intersecting road elements."""
+    def self_intersecting_elements(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to self-intersecting road elements.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -1152,7 +1295,7 @@ class Validator:
 
         # Compile coords of road segments where roadclass is in the validation list.
         valid_coords = set(chain(
-            *[itemgetter(0, -1)(geom.coords) for geom in df[df["roadclass"].isin(valid)]['geometry'].values]))
+            *[itemgetter(0, -1)(geom.coords) for geom in df.loc[df["roadclass"].isin(valid), "geometry"].values]))
 
         # Single-segment road elements:
 
@@ -1170,8 +1313,8 @@ class Validator:
 
         # Compile multi-segment road elements (via non-unique nids).
         # Filter to nids with invalid roadclass.
-        segments_multi = df.loc[
-            (df["nid"].duplicated(keep=False)) & (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
+        segments_multi = df.loc[(df["nid"].duplicated(keep=False)) &
+                                (~df["roadclass"].isin(valid)) & (df["nid"] != default)]
 
         if not segments_multi.empty:
 
@@ -1206,10 +1349,17 @@ class Validator:
 
         return errors
 
-    def self_intersecting_structures(self, name, return_segments_only=False):
+    def self_intersecting_structures(self, name: Union[gpd.GeoDataFrame, str], return_segments_only: bool = False) -> \
+            Union[Dict[int, list], gpd.GeoDataFrame]:
         """
         Applies a set of validations to self-intersecting road structures.
-        Parameter 'name' can be a dataframe or string since this function may be called from another class function.
+
+        :param Union[gpd.GeoDataFrame, str] name: GeoDataFrame or NRN dataset name. This allows this function to be
+            called by other validations.
+        :param bool return_segments_only: return flagged GeoDataFrame rather than validation error messages, default
+            False.
+        :return Union[Dict[int, list], gpd.GeoDataFrame]: dictionary of validation codes and associated lists of error
+            messages or flagged GeoDataFrame.
         """
 
         errors = defaultdict(list)
@@ -1220,17 +1370,17 @@ class Validator:
         # Identify self-intersections formed by single-segment road elements (i.e. where nid is unique).
 
         # Compile single-segment road elements (via unique nids).
-        segments = df[(~df["nid"].duplicated(keep=False)) & (df["nid"] != default)]
+        segments = df.loc[(~df["nid"].duplicated(keep=False)) & (df["nid"] != default)]
 
         if not segments.empty:
 
             logger.info("Validating single-segment road elements.")
 
             # Identify self-intersections (start coord == end coord).
-            flag_segments = segments[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
+            flag_segments = segments.loc[segments["geometry"].map(lambda g: g.is_ring or not g.is_simple)]
 
             # Validation: for self-intersecting road segments, ensure structtype != "None".
-            errors[1] = flag_segments[flag_segments["structtype"] == "None"].index.values
+            errors[1] = flag_segments.loc[flag_segments["structtype"] == "None"].index.values
 
         if return_segments_only:
             return flag_segments
@@ -1244,8 +1394,13 @@ class Validator:
 
             return errors
 
-    def speed(self, name):
-        """Applies a set of validations to speed field."""
+    def speed(self, name: str) -> Dict[int, list]:
+        """
+        Applies a set of validations to speed field.
+
+        :param str name: NRN dataset name.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         df = self.dframes[name]
@@ -1258,10 +1413,10 @@ class Validator:
 
             # Validation 1: ensure 5 <= speed <= 120.
             # Compile uuids of flagged records.
-            errors[1] = s_filtered[~s_filtered.map(lambda speed: 5 <= int(speed) <= 120)].index.values
+            errors[1] = s_filtered.loc[~s_filtered.map(lambda speed: 5 <= int(speed) <= 120)].index.values
 
             # Validation 2: ensure speed is a multiple of 5.
-            errors[2] = s_filtered[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
+            errors[2] = s_filtered.loc[s_filtered.map(lambda speed: int(speed) % 5 != 0)].index.values
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -1270,8 +1425,14 @@ class Validator:
 
         return errors
 
-    def structure_attributes(self, roadseg="roadseg", junction="junction"):
-        """Validates the structid and structtype attributes of road segments."""
+    def structure_attributes(self, roadseg: str = "roadseg", junction: str = "junction") -> Dict[int, list]:
+        """
+        Validates the structid and structtype attributes of road segments.
+
+        :param str roadseg: NRN dataset name for NRN roadseg.
+        :param str junction: NRN dataset name for NRN junction.
+        :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
+        """
 
         errors = defaultdict(list)
         defaults = self.defaults_all[roadseg]
@@ -1288,10 +1449,10 @@ class Validator:
         deadend_coords = set(chain(junction.map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
 
         # Compile road segments with potentially invalid structtype.
-        roadseg_invalid = roadseg[~roadseg["structtype"].isin({"None", defaults["structtype"]})]["geometry"]
+        roadseg_invalid = roadseg.loc[~roadseg["structtype"].isin({"None", defaults["structtype"]}), "geometry"]
 
         # Compile truly invalid road segments.
-        roadseg_invalid = roadseg_invalid[roadseg_invalid.map(
+        roadseg_invalid = roadseg_invalid.loc[roadseg_invalid.map(
             lambda g: any(coords in deadend_coords for coords in attrgetter("coords")(g)))]
 
         # Compile uuids of flagged records, compile error properties.
@@ -1301,8 +1462,8 @@ class Validator:
         # Validation 2: ensure structid is contiguous.
 
         # Compile records with duplicated structids, excluding "None" and the default field value.
-        structids_df = roadseg[(~roadseg["structid"].isin({"None", defaults["structid"]})) &
-                               (roadseg["structid"].duplicated(keep=False))]
+        structids_df = roadseg.loc[(~roadseg["structid"].isin({"None", defaults["structid"]})) &
+                                   (roadseg["structid"].duplicated(keep=False))]
 
         if len(structids_df):
 
@@ -1314,7 +1475,7 @@ class Validator:
                 lambda geoms: helpers.gdf_to_nx(gpd.GeoDataFrame(geometry=geoms), keep_attributes=False))
 
             # Validate contiguity (networkx connectivity).
-            structures_invalid = structure_graphs[~structure_graphs.map(nx.is_connected)]
+            structures_invalid = structure_graphs.loc[~structure_graphs.map(nx.is_connected)]
 
             if len(structures_invalid):
 
@@ -1334,7 +1495,7 @@ class Validator:
         #               are not contiguous.
 
         # Compile road segments with valid structtype.
-        segments = roadseg[~roadseg["structtype"].isin({"None", defaults["structtype"]})]
+        segments = roadseg.loc[~roadseg["structtype"].isin({"None", defaults["structtype"]})]
 
         # Convert dataframe to networkx graph.
         segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
@@ -1345,7 +1506,7 @@ class Validator:
         # Validation 3.
         default = defaults["structid"]
         structids = sub_g.map(lambda graph: set(nx.get_edge_attributes(graph, "structid").values()))
-        structids_invalid = structids[structids.map(lambda vals: (len(vals) > 1) or (default in vals))]
+        structids_invalid = structids.loc[structids.map(lambda vals: (len(vals) > 1) or (default in vals))]
         if len(structids_invalid):
 
             # Compile uuids of invalid structure.
@@ -1375,7 +1536,7 @@ class Validator:
 
         return errors
 
-    def execute(self):
+    def execute(self) -> None:
         """Orchestrates the execution of validation functions and compiles the resulting errors."""
 
         try:
@@ -1405,7 +1566,7 @@ class Validator:
                     for code, errors in results.items():
                         if len(errors):
                             heading = f"E{params['code']:03}{code:02} for dataset(s): {', '.join(datasets)}"
-                            self.errors[heading] = deepcopy(errors)
+                            self.errors[heading] = errors
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")

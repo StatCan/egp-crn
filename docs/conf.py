@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'National Road Network'
-copyright = '2020, Statistics Canada'
+copyright = '2021, Statistics Canada'
 author = 'Statistics Canada'
 
 
@@ -37,6 +37,10 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
+# Translating with sphinx-intl.
+locale_dirs = ['locale/']
+gettext_compact = False
 
 
 # -- Options for HTML output -------------------------------------------------

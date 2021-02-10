@@ -13,6 +13,7 @@ from osgeo import ogr, osr
 from shapely.geometry import LineString, MultiLineString, Point
 from shapely.ops import linemerge
 from tqdm import tqdm
+from typing import List, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
 import helpers
@@ -30,7 +31,14 @@ logger.addHandler(handler)
 class LRS:
     """Class to convert Yukon data from Linear Reference System (LRS) to GeoPackage."""
 
-    def __init__(self, src, dst):
+    def __init__(self, src: str, dst: str) -> None:
+        """
+        Initializes the LRS conversion class.
+
+        :param str src: source path.
+        :param str dst: destination path.
+        """
+
         self.nrn_datasets = dict()
         self.src_datasets = dict()
         self.base_dataset = "tdylrs_centerline_sequence"
@@ -151,13 +159,19 @@ class LRS:
         if os.path.exists(self.dst):
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
 
-    def assemble_network_attribution(self):
+    def assemble_network_attribution(self) -> None:
         """Assembles all required attributes from the source datasets to the segmented road network."""
 
-        def fetch_attr_index(df_sub, con_id, interval):
+        def fetch_attr_index(df_sub: pd.DataFrame, con_id: Union[int, str], interval: pd.Interval) -> \
+                Union[None, int]:
             """
-            Returns the first index from the provided dataset which matches the provided connection ID and overlaps the
-            provided breakpoint interval.
+            Fetches the DataFrame records which matche the connection ID and overlap the breakpoint interval.
+
+            :param pd.DataFrame df_sub: DataFrame.
+            :param Union[int, str] con_id: connection ID between df_sub and the base dataset.
+            :param pd.Interval interval: Interval representing the breakpoints of an attribute.
+            :return Union[None, int]: None or the index of the first DataFrame record which matches the connection ID
+                and overlaps the breakpoint interval.
             """
 
             df_filter = df_sub.loc[df_sub[con_id_field] == con_id]
@@ -269,13 +283,21 @@ class LRS:
         # Store result.
         self.nrn_datasets["roadseg"] = base.copy(deep=True)
 
-    def assemble_segmented_network(self):
+    def assemble_segmented_network(self) -> None:
         """Assembles a segmented road network from the breakpoints (event measurements) of the source datasets."""
 
         calibrations_df = self.src_datasets[self.calibrations["dataset"]]
 
-        def merge_breakpoints_endpoints(breakpts, geom):
-            """Reconfigures breakpts to include the endpoints of all LineStrings."""
+        def merge_breakpoints_endpoints(breakpts: List[Union[float, int], ...],
+                                        geom: Union[LineString, MultiLineString]) -> List[Union[float, int], ...]:
+            """
+            Reconfigures breakpts to include the endpoints of all LineStrings.
+
+            :param List[Union[float, int], ...] breakpts: sequence of breakpts (event measurements).
+            :param Union[LineString, MultiLineString] geom: geometry object which represents the breakpts.
+            :return List[Union[float, int], ...]: sequence of breakpts (event measurements), modified to include the
+                endpoints of all LineStrings.
+            """
 
             # Compile cumulative geometry lengths as endpoints.
             endpts = [0, geom.length] if isinstance(geom, LineString) else \
@@ -290,11 +312,15 @@ class LRS:
             # Return appended and sorted list of breakpoint and endpoints.
             return sorted(chain(breakpts, endpts))
 
-        def segment_geometry(breakpts, geom):
+        def segment_geometry(breakpts: List[Union[float, int], ...], geom: Union[LineString, MultiLineString]) -> \
+                Union[LineString, MultiLineString]:
             """
-            Returns a (Multi)LineString, representing the original geometry segmented at the given breakpoints.
-            To increase splitting accuracy, breakpoints will be snapped to pre-existing nodes in the geometry, where
-            possible.
+            Segments a (Multi)LineString at a set of breakpoints. To increase splitting accuracy, breakpoints are
+            snapped to pre-existing nodes in the geometry, where possible.
+
+            :param List[Union[float, int], ...] breakpts: sequence of breakpts (event measurements).
+            :param Union[LineString, MultiLineString] geom: geometry object which represents the breakpts.
+            :return Union[LineString, MultiLineString]: (Multi)LineString, segmented from the original geometry.
             """
 
             # Return entire geometry if breakpoints cover entire length.
@@ -379,8 +405,14 @@ class LRS:
 
                 return MultiLineString(geoms)
 
-        def sort_multilinestring(con_id, geom):
-            """Sorts a MultiLineString into the correct LineString ordering based on calibration points."""
+        def sort_multilinestring(con_id: Union[int, str], geom: MultiLineString) -> MultiLineString:
+            """
+            Sorts a MultiLineString into the correct LineString ordering based on calibration points.
+
+            :param Union[int, str] con_id: connection ID between the calibrations dataset and the base dataset.
+            :param MultiLineString geom: MultiLineString.
+            :return MultiLineString: sorted MultiLineString.
+            """
 
             # Compile sorted calibration points for connection ID.
             calibration_pts = calibrations_df.loc[calibrations_df[self.calibrations["id_field"]] == con_id] \
@@ -490,7 +522,7 @@ class LRS:
         # Store result.
         self.nrn_datasets["roadseg"] = base.copy(deep=True)
 
-    def clean_event_measurements(self):
+    def clean_event_measurements(self) -> None:
         """
         Performs several cleanup operations on records based on event measurement:
         1. Simplifies event measurement field names to 'from' and 'to'.
@@ -506,8 +538,14 @@ class LRS:
 
         calibrations_df = self.src_datasets[self.calibrations["dataset"]]
 
-        def match_calibration_pts(con_id, event):
-            """Swaps an event measurement for a corresponding calibration point measurements, if possible."""
+        def match_calibration_pts(con_id: Union[int, str], event: Union[float, int]) -> Union[float, int]:
+            """
+            Swaps an event measurement for a corresponding calibration point measurements, if possible.
+
+            :param Union[int, str] con_id: connection ID between the source dataset and the calibrations dataset.
+            :param Union[float, int] event: measurement breakpoint.
+            :return Union[float, int]: measurement breakpoint, possibly adjusted to the nearest calibration value.
+            """
 
             # Filter calibration point to connection ID.
             measurements = calibrations_df.loc[calibrations_df[self.calibrations["id_field"]] == con_id,
@@ -596,7 +634,7 @@ class LRS:
                     # For any gaps (tolerance = 1 unit), reduce the 'from' measurement to the appropriate neighbouring
                     # 'to' measurement.
                     for index, from_value in records.loc[records["from"] != from_min, "from"].iteritems():
-                        neighbour = records[(records.index != index) & ((from_value - records["to"]).between(0, 1))]
+                        neighbour = records.loc[(records.index != index) & ((from_value - records["to"]).between(0, 1))]
                         if len(neighbour):
 
                             # Update record.
@@ -631,8 +669,8 @@ class LRS:
                 # Store results.
                 self.src_datasets[layer] = df.copy(deep=True)
 
-    def compile_source_datasets(self):
-        """Loads source layers into (Geo)DataFrames."""
+    def compile_source_datasets(self) -> None:
+        """Loads raw source layers into (Geo)DataFrames."""
 
         logger.info(f"Compiling source datasets from: {self.src}.")
 
@@ -668,9 +706,9 @@ class LRS:
             # Store results.
             self.src_datasets[layer] = df.copy(deep=True)
 
-    def configure_valid_records(self):
+    def configure_valid_records(self) -> None:
         """
-        Filters records to only those which link to the base dataset.
+        Filters records to only those which link to the base dataset, non-matching datasets are removed.
         Flags many-to-one linkages between the base and geometry datasets.
         """
 
@@ -707,7 +745,7 @@ class LRS:
             else:
                 del self.src_datasets[name]
 
-    def export_gpkg(self):
+    def export_gpkg(self) -> None:
         """Exports the NRN datasets to a GeoPackage."""
 
         logger.info(f"Exporting datasets to GeoPackage: {self.dst}.")
@@ -794,22 +832,33 @@ class LRS:
             logger.exception(e)
             sys.exit(1)
 
-    def get_con_id_field(self, name):
-        """Returns the connection ID field, relative to the base dataset, for the given dataset name."""
+    def get_con_id_field(self, name: str) -> str:
+        """
+        Fetches the connection ID field, relative to the base dataset, for the given dataset name.
+
+        :param str name: dataset name.
+        :return str: connection ID field, relative to the base dataset.
+        """
 
         for con_field, df_names in self.structure["connections"].items():
             if name in df_names:
                 return con_field
 
-    def split_at_intersections(self):
+    def split_at_intersections(self) -> None:
         """
         Splits geometries at nodes, excluding start and endpoints, which are shared by one or more other geometries.
         Intersections without a common node will not be split since it is impossible to determine whether the geometries
         actually intersect or just cross at different elevations.
         """
 
-        def split_geometry_indexes(geom, indexes):
-            """Returns a list of LineStrings representing the provided LineString split at the provided node indexes."""
+        def split_geometry_indexes(geom: LineString, indexes: List[int, ...]) -> List[LineString, ...]:
+            """
+            Splits a LineString at the given node indexes.
+
+            :param LineString geom: LineString.
+            :param List[int, ...] indexes: list of node indexes at which the LineString will be split.
+            :return List[LineString, ...]: list of LineStrings, segemented from the original geometry.
+            """
 
             # Compile LineString coordinates as splitting Points.
             nodes = list(map(Point, attrgetter("coords")(geom)))
@@ -858,7 +907,7 @@ class LRS:
         # Store result.
         self.nrn_datasets["roadseg"] = roads.copy(deep=True)
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes class functionality."""
 
         self.compile_source_datasets()
@@ -874,8 +923,13 @@ class LRS:
 @click.argument("src", type=click.Path(exists=True))
 @click.option("--dst", type=click.Path(exists=False), default=os.path.abspath("../../../../data/raw/yt/yt.gpkg"),
               show_default=True)
-def main(src, dst):
-    """Executes the LRS class."""
+def main(src: str, dst: str = os.path.abspath("../../../../data/raw/yt/yt.gpkg")) -> None:
+    """
+    Executes the LRS class.
+
+    :param str src: source path.
+    :param str dst: destination path, default = '../../../../data/raw/yt/yt.gpkg'.
+    """
 
     try:
 

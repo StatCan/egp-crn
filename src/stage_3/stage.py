@@ -20,10 +20,6 @@ sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
 
 
-# Suppress pandas chained assignment warning.
-pd.options.mode.chained_assignment = None
-
-
 # Set logger.
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -36,7 +32,15 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, remove):
+    def __init__(self, source: str, remove: bool = False) -> None:
+        """
+        Initializes an NRN stage.
+
+        :param str source: abbreviation for the source province / territory.
+        :param bool remove: removes pre-existing change logs within the data/processed directory for the specified
+            source, default False.
+        """
+
         self.stage = 3
         self.source = source.lower()
         self.remove = remove
@@ -85,7 +89,7 @@ class Stage:
         # Load default field values.
         self.defaults = helpers.compile_default_values()["roadseg"]
 
-    def export_change_logs(self):
+    def export_change_logs(self) -> None:
         """Exports the dataset differences as logs - based on nids."""
 
         logger.info(f"Writing change logs to: \"{self.output_path}\".")
@@ -104,15 +108,15 @@ class Stage:
                 with helpers.TempHandlerSwap(logger, log_path):
                     logger.info(log)
 
-    def export_gpkg(self):
-        """Exports the dataframes as GeoPackage layers."""
+    def export_gpkg(self) -> None:
+        """Exports the (Geo)DataFrames as GeoPackage layers."""
 
         logger.info("Exporting dataframes to GeoPackage layers.")
 
         # Export target dataframes to GeoPackage layers.
         helpers.export_gpkg(self.dframes, self.data_path)
 
-    def gen_and_recover_structids(self):
+    def gen_and_recover_structids(self) -> None:
         """Recovers structids from the previous NRN vintage or generates new ones."""
 
         logger.info("Generating structids for table: roadseg.")
@@ -129,8 +133,8 @@ class Stage:
 
         # Subset dataframes to valid structures.
         # Further subset previous vintage to records with valid IDs.
-        roadseg = roadseg[~roadseg["structtype"].isin({"None", self.defaults["structtype"]})]
-        roadseg_old = roadseg_old[self.get_valid_ids(roadseg_old["structid"])]
+        roadseg = roadseg.loc[~roadseg["structtype"].isin({"None", self.defaults["structtype"]})]
+        roadseg_old = roadseg_old.loc[self.get_valid_ids(roadseg_old["structid"])]
 
         if len(roadseg):
 
@@ -174,12 +178,13 @@ class Stage:
 
             # Recover old structids via uuid index.
             # Merge uuids onto recovery dataframe.
-            recovery = merge[merge["_merge"] == "both"].merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
+            recovery = merge.loc[merge["_merge"] == "both"]\
+                .merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
                 .drop_duplicates(subset="structid", keep="first")
             recovery.index = recovery["uuid"]
 
             # Filter invalid structids from old data.
-            recovery = recovery[self.get_valid_ids(recovery["structid_old"])]
+            recovery = recovery.loc[self.get_valid_ids(recovery["structid_old"])]
 
             # Recover old structids.
             if len(recovery):
@@ -189,13 +194,15 @@ class Stage:
             self.roadseg.loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
             self.dframes["roadseg"].loc[self.roadseg.index, "structid"] = self.roadseg["structid"].copy(deep=True)
 
-    def get_valid_ids(self, series):
+    def get_valid_ids(self, series: pd.Series) -> pd.Series:
         """
-        Validates a series of IDs based on the following conditions:
+        Validates a Series of IDs based on the following conditions:
         1) ID must be non-null.
         2) ID must be 32 digits.
         3) ID must be hexadecimal.
-        Returns flags.
+
+        :param pd.Series series: Series.
+        :return pd.Series: boolean Series.
         """
 
         hexdigits = set(string.hexdigits)
@@ -207,8 +214,8 @@ class Stage:
 
         return flags
 
-    def load_gpkg(self):
-        """Loads input GeoPackage layers into dataframes."""
+    def load_gpkg(self) -> None:
+        """Loads input GeoPackage layers into (Geo)DataFrames."""
 
         logger.info("Loading Geopackage layers.")
 
@@ -216,11 +223,11 @@ class Stage:
 
         logger.info("Loading Geopackage layers - previous vintage.")
 
-        self.dframes_old = helpers.load_gpkg("../../data/interim/{}_old.gpkg".format(self.source), find=True)
+        self.dframes_old = helpers.load_gpkg(f"../../data/interim/{self.source}_old.gpkg", find=True)
 
-    def recover_and_classify_nids(self):
+    def recover_and_classify_nids(self) -> None:
         """
-        For all spatial datasets, excluding roadseg:
+        For all spatial datasets, excluding NRN roadseg:
         1) Recovers nids from the previous NRN vintage or generates new ones.
         2) Generates 4 nid classification log files: added, retired, modified, confirmed.
         """
@@ -231,7 +238,7 @@ class Stage:
             # Check dataset existence.
             if table in self.dframes:
 
-                logger.info("Generating nids for table: {}.".format(table))
+                logger.info(f"Generating nids for table: {table}.")
 
                 # Assign nids to current vintage.
                 self.dframes[table]["nid"] = [uuid.uuid4().hex for _ in range(len(self.dframes[table]))]
@@ -240,7 +247,7 @@ class Stage:
                 # Classify nids.
                 if table in self.dframes_old:
 
-                    logger.info("Recovering old nids and classifying all nids for table: {}.".format(table))
+                    logger.info(f"Recovering old nids and classifying all nids for table: {table}.")
 
                     # Copy and filter dataframes.
                     df = self.dframes[table][["nid", "uuid", "geometry"]].copy(deep=True)
@@ -251,10 +258,10 @@ class Stage:
 
                     # Classify nid groups as: added, retired, modified, confirmed.
                     classified_nids = {
-                        "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-                        "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
+                        "added": merge.loc[merge["_merge"] == "right_only", "nid"].to_list(),
+                        "retired": merge.loc[merge["_merge"] == "left_only", "nid_old"].to_list(),
                         "modified": list(),
-                        "confirmed": merge[merge["_merge"] == "both"]
+                        "confirmed": merge.loc[merge["_merge"] == "both"]
                     }
 
                     # Recover old nids for confirmed and modified nid groups via uuid index.
@@ -264,7 +271,7 @@ class Stage:
                     recovery.index = recovery["uuid"]
 
                     # Filter invalid nids from old data.
-                    recovery = recovery[self.get_valid_ids(recovery["nid_old"])]
+                    recovery = recovery.loc[self.get_valid_ids(recovery["nid_old"])]
 
                     # Recover old nids.
                     if len(recovery):
@@ -279,7 +286,7 @@ class Stage:
                 # Classify nids.
                 else:
 
-                    logger.info("Classifying all nids for table: {}. No old nid recovery required.".format(table))
+                    logger.info(f"Classifying all nids for table: {table}. No old nid recovery required.")
 
                     classified_nids = {
                         "added": self.dframes[table]["nid"].to_list(),
@@ -294,9 +301,10 @@ class Stage:
                     change, nids in classified_nids.items()
                 }
 
-    def roadseg_gen_full(self):
+    def roadseg_gen_full(self) -> None:
         """
-        Generate the full representation of roadseg with all required fields for both the current and previous vintage.
+        Generates the full representation of NRN roadseg with all required fields for NID recovery for both the current
+        and previous vintage.
         """
 
         logger.info("Generating full roadseg representation.")
@@ -308,8 +316,8 @@ class Stage:
         # Copy and filter dataframe - previous vintage.
         self.roadseg_old = self.dframes_old["roadseg"][["nid", "geometry", *self.match_fields]].copy(deep=True)
 
-    def roadseg_gen_nids(self):
-        """Groups roadseg records and assigns nid values."""
+    def roadseg_gen_nids(self) -> None:
+        """Groups NRN roadseg records and assigns nid values."""
 
         logger.info("Generating nids for table: roadseg.")
 
@@ -323,12 +331,13 @@ class Stage:
 
         # Subset dataframes to where at least one match field is not equal to the default value nor "None".
         default = self.defaults[self.match_fields[0]]
-        roadseg = roadseg[~((roadseg[self.match_fields].eq(roadseg[self.match_fields].iloc[:, 0], axis=0).all(axis=1)) &
-                            (roadseg[self.match_fields[0]].isin(["None", default])))]
+        roadseg = roadseg.loc[~(
+                (roadseg[self.match_fields].eq(roadseg[self.match_fields].iloc[:, 0], axis=0).all(axis=1)) &
+                (roadseg[self.match_fields[0]].isin(["None", default])))]
 
         # Group uuids and geometry by match fields.
         # To reduce processing, only duplicated records are grouped.
-        dups = roadseg[roadseg[self.match_fields].duplicated(keep=False)]
+        dups = roadseg.loc[roadseg[self.match_fields].duplicated(keep=False)]
         dups_geom_lookup = dups["geometry"].to_dict()
         grouped = dups.groupby(self.match_fields)["uuid"].agg(list)
 
@@ -336,7 +345,7 @@ class Stage:
         # Note: The threshold and new size are arbitrary. Change them if required.
         threshold = 10000
         new_size = 1000
-        invalid_groups = grouped[grouped.map(len) >= threshold].copy(deep=True)
+        invalid_groups = grouped.loc[grouped.map(len) >= threshold].copy(deep=True)
         grouped.drop(invalid_groups.index, inplace=True)
         for invalid_group in invalid_groups:
             grouped = grouped.append(pd.Series([invalid_group[start_idx * new_size: (start_idx * new_size) + new_size]
@@ -351,14 +360,14 @@ class Stage:
         grouped["geometry"] = grouped["geometry"].map(linemerge)
 
         # Concatenate non-grouped groups (single uuid groups) to groups.
-        non_grouped = roadseg[~roadseg[self.match_fields].duplicated(keep=False)][["uuid", "geometry"]]
+        non_grouped = roadseg.loc[~roadseg[self.match_fields].duplicated(keep=False), ["uuid", "geometry"]]
         non_grouped["uuid"] = non_grouped["uuid"].map(lambda uid: [uid])
         grouped = pd.concat([grouped, non_grouped], axis=0, ignore_index=True, sort=False)
 
         # Split multilinestrings into multiple linestring records.
         # Process: query and explode multilinestring records, then concatenate to linestring records.
-        grouped_single = grouped[~grouped["geometry"].map(lambda geom: geom.type == "MultiLineString")]
-        grouped_multi = grouped[grouped["geometry"].map(lambda geom: geom.type) == "MultiLineString"]
+        grouped_single = grouped.loc[~grouped["geometry"].map(lambda geom: geom.type == "MultiLineString")]
+        grouped_multi = grouped.loc[grouped["geometry"].map(lambda geom: geom.type) == "MultiLineString"]
 
         grouped_multi_exploded = grouped_multi.explode("geometry")
         grouped = pd.concat([grouped_single, grouped_multi_exploded], axis=0, ignore_index=False, sort=False)
@@ -369,8 +378,8 @@ class Stage:
         grouped["junction"] = grouped["junction"].map(lambda coords: list(coords.intersection(junction_pts)))
 
         # Separate groups with and without coincident junctions.
-        grouped_no_junction = grouped[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
-        grouped_junction = grouped[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+        grouped_no_junction = grouped.loc[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+        grouped_junction = grouped.loc[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
 
         # Convert coords to shapely points.
         grouped_junction["junction"] = grouped_junction["junction"].map(
@@ -412,7 +421,7 @@ class Stage:
         # Handle exceptions 1.
         # Identify results without uuid matches. These represents lines which backtrack onto themselves.
         # These records can be removed from the groupings as their junction-based split was in error.
-        grouped_no_matches = grouped_query[grouped_query.map(lambda matches: not any(matches))]
+        grouped_no_matches = grouped_query.loc[grouped_query.map(lambda matches: not any(matches))]
         grouped.drop(grouped_no_matches.index, axis=0, inplace=True)
         grouped_query.drop(grouped_no_matches.index, axis=0, inplace=True)
         grouped.reset_index(drop=True, inplace=True)
@@ -434,7 +443,7 @@ class Stage:
         # Remove duplicate uuids which have also been assigned a non-unique nid.
         duplicated_uuids = nid_groups["uuid"].duplicated(keep=False)
         duplicated_nids = nid_groups["nid"].duplicated(keep=False)
-        nid_groups = nid_groups[~(duplicated_uuids & duplicated_nids)]
+        nid_groups = nid_groups.loc[~(duplicated_uuids & duplicated_nids)]
 
         # Assign nids to roadseg.
         # Store results.
@@ -442,9 +451,9 @@ class Stage:
         self.roadseg.loc[nid_groups.index, "nid"] = nid_groups["nid"].copy(deep=True)
         self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
-    def roadseg_recover_and_classify_nids(self):
+    def roadseg_recover_and_classify_nids(self) -> None:
         """
-        1) Recovers roadseg nids from the previous NRN vintage.
+        1) Recovers NRN roadseg nids from the previous NRN vintage.
         2) Generates 4 nid classification log files: added, retired, modified, confirmed.
         """
 
@@ -473,10 +482,10 @@ class Stage:
 
         # Classify nid groups as: added, retired, modified, confirmed.
         classified_nids = {
-            "added": merge[merge["_merge"] == "right_only"]["nid"].to_list(),
-            "retired": merge[merge["_merge"] == "left_only"]["nid_old"].to_list(),
+            "added": merge.loc[merge["_merge"] == "right_only", "nid"].to_list(),
+            "retired": merge.loc[merge["_merge"] == "left_only", "nid_old"].to_list(),
             "modified": list(),
-            "confirmed": merge[merge["_merge"] == "both"]
+            "confirmed": merge.loc[merge["_merge"] == "both"]
         }
 
         # Recover old nids for confirmed and modified nid groups via uuid index.
@@ -486,7 +495,7 @@ class Stage:
         recovery.index = recovery["uuid"]
 
         # Filter invalid nids from old data.
-        recovery = recovery[self.get_valid_ids(recovery["nid_old"])]
+        recovery = recovery.loc[self.get_valid_ids(recovery["nid_old"])]
 
         # Recover old nids.
         if len(recovery):
@@ -506,17 +515,17 @@ class Stage:
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
         flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        classified_nids["modified"] = classified_nids["confirmed"][flags.values]["nid"].to_list()
-        classified_nids["confirmed"] = classified_nids["confirmed"][~flags.values]["nid"].to_list()
+        classified_nids["modified"] = classified_nids["confirmed"].loc[flags.values, "nid"].to_list()
+        classified_nids["confirmed"] = classified_nids["confirmed"].loc[~flags.values, "nid"].to_list()
 
         # Store nid classifications as change logs.
         self.change_logs["roadseg"] = {
             change: "\n".join(map(str, ["Records listed by nid:", *nids])) if len(nids) else "No records." for
             change, nids in classified_nids.items()}
 
-    def roadseg_update_linkages(self):
+    def roadseg_update_linkages(self) -> None:
         """
-        Updates the nid linkages of roadseg:
+        Updates the nid linkages of NRN roadseg:
         1) blkpassage.roadnid
         2) tollpoint.roadnid
         """
@@ -580,7 +589,7 @@ class Stage:
             self.dframes[table]["roadnid"] = df["nearest_roadseg_idx"].map(
                 lambda roadseg_idx: itemgetter(roadseg_idx)(roadseg_nid_lookup)).copy(deep=True)
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes an NRN stage."""
 
         self.load_gpkg()
@@ -598,8 +607,14 @@ class Stage:
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing change logs within the data/processed directory for the specified source.")
-def main(source, remove):
-    """Executes an NRN stage."""
+def main(source: str, remove: bool = False) -> None:
+    """
+    Executes an NRN stage.
+
+    :param str source: abbreviation for the source province / territory.
+    :param bool remove: removes pre-existing change logs within the data/processed directory for the specified source,
+        default False.
+    """
 
     try:
 
@@ -610,6 +625,7 @@ def main(source, remove):
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

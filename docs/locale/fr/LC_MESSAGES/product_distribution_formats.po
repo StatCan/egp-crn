@@ -1,0 +1,2010 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2021, Statistics Canada
+# This file is distributed under the same license as the National Road
+# Network package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2021.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: National Road Network \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2021-02-04 14:53-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.9.0\n"
+
+#: ../../product_distribution_formats.rst:3
+msgid "Product Distribution Formats"
+msgstr "Formats de distribution du produit"
+
+#: ../../product_distribution_formats.rst:8
+msgid "Contents"
+msgstr "Matières"
+
+#: ../../product_distribution_formats.rst:11
+msgid "Overview"
+msgstr "Aperçu"
+
+#: ../../product_distribution_formats.rst:13
+msgid ""
+"The following entities are part of the National Road Network (NRN) "
+"Segmented view: *Address Range*, *Alternate Name Link*, *Blocked "
+"Passage*, *Ferry Connection Segment*, *Junction*, *Crossing*, *Road "
+"Segment*, *Street and Place Names*, and *Toll Point*."
+msgstr ""
+"Les entités du Réseau routier national (RRN) vue segmentée sont les suivantes"
+" : *Intervalle d’adresse*, *Jonction*, *Lien nom non officiel*, *Noms de rue "
+"et de lieu*, *Passage obstrué*, *Poste de péage*, *Croisement*, *Segment de "
+"liaison par transbordeur* et *Segment routier*."
+
+#: ../../product_distribution_formats.rst:17
+msgid ""
+"The product is available in the following output file formats: GML "
+"(Geography Markup Language), KML (Keyhole Markup Language) SHAPE (ESRI "
+"|trade|)."
+msgstr ""
+"Les formats de fichiers de sortie disponibles pour le produit sont : GML "
+"(Geography Markup Language), KML (Keyhole Markup Language), SHAPE (ESRI "
+"|trade|) et GPKG (OGC Geopackage)."
+
+#: ../../product_distribution_formats.rst:21
+msgid ""
+"Data files distributed in KML format only contain the entity *Road "
+"Segment* and a subset of attributes."
+msgstr ""
+"Les fichiers de données dans le format KML contiennent uniquement l’entité "
+"*Segment routier* et un sous-ensemble de ses attributs."
+
+#: ../../product_distribution_formats.rst:25
+msgid "Product Identification"
+msgstr "Identification du produit"
+
+#: ../../product_distribution_formats.rst
+msgid "Name"
+msgstr "Nom"
+
+#: ../../product_distribution_formats.rst:27
+msgid "National Road Network"
+msgstr "Réseau routier national"
+
+#: ../../product_distribution_formats.rst
+msgid "Version"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:28
+msgid "2.1"
+msgstr ""
+
+#: ../../product_distribution_formats.rst
+msgid "Date"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:29
+msgid "2012-03-31"
+msgstr ""
+
+#: ../../product_distribution_formats.rst
+msgid "Standard"
+msgstr "Normes"
+
+#: ../../product_distribution_formats.rst:30
+msgid ""
+"National Road Network: Data Product Specifications, Edition 2.1, "
+"2012-03-31"
+msgstr ""
+"Réseau routier national : Spécifications de produit, édition 2.1, 2012-03-31"
+
+#: ../../product_distribution_formats.rst
+msgid "Feature catalogue"
+msgstr "Catalogue d’entités"
+
+#: ../../product_distribution_formats.rst:31
+msgid "National Road Network: Feature Catalogue, Edition 2.1, 2012-03-31"
+msgstr "Réseau routier national : Catalogue d’entités, édition 2.1, 2012-03-31"
+
+#: ../../product_distribution_formats.rst:34
+msgid "Distribution Formats Identification"
+msgstr "Identification des formats de distribution"
+
+#: ../../product_distribution_formats.rst:37
+#: ../../product_distribution_formats.rst:39
+msgid "GML – Geography Markup Language"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:40
+msgid "2.1.2"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:41
+msgid "2002-09-17"
+msgstr ""
+
+#: ../../product_distribution_formats.rst
+msgid "Specifications"
+msgstr "Spécifications"
+
+#: ../../product_distribution_formats.rst:42
+msgid ""
+"Geography Markup Language – GML – 2.1.2, OpenGIS®Implementation "
+"Specifications, OGC Document Number 02-069 "
+"(http://portal.opengeospatial.org/files/?artifact_id=11339)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:46
+#: ../../product_distribution_formats.rst:48
+msgid "KML – Keyhole Markup Language"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:49
+msgid "2.2"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:50
+msgid "2008-04-14"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:51
+msgid ""
+"Open Geospatial Consortium Inc., OGC® KML, Version 2.2.0, 2008-04-14, "
+"Reference number of this OGC® project document: OGC 07-147r2 "
+"(http://portal.opengeospatial.org/files/?artifact_id=27810)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:56
+msgid "Shape – ESRI |trade|"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:58
+msgid "Shape"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:59
+msgid "01"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:60
+msgid "July 1998"
+msgstr "Juillet 1998"
+
+#: ../../product_distribution_formats.rst:61
+msgid ""
+"ESRI Shapefile Technical Description, an ESRI White Paper, July 1998 "
+"(http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:65
+msgid "GPKG – OGC Geopackage"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:67
+msgid "GeoPackage"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:68
+msgid "1.0.1"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:69
+msgid "January 2019"
+msgstr "Janvier 2019"
+
+#: ../../product_distribution_formats.rst:70
+msgid "https://www.geopackage.org/spec101/index.html"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:73
+msgid "Distribution Files Identification"
+msgstr "Identification des fichiers de distribution"
+
+#: ../../product_distribution_formats.rst:76
+msgid "GML File Names"
+msgstr "Nomenclature des fichiers GML"
+
+#: ../../product_distribution_formats.rst:78
+msgid ""
+"NRN entities distributed in GML format are grouped into separate dataset "
+"files. One file contains the geometrical entities and associated basic "
+"attributes, another file contains the addressing attributes tables, and "
+"finally up to four change management files (one for each type of content)"
+" are available. The name of a GML file is structured accordingly::"
+msgstr ""
+"Les entités du produit distribuées dans le format GML sont regroupées par jeu"
+" de données à l’intérieur de différents fichiers. Un fichier contenant les "
+"entités géométriques et leurs attributs de base (GEOM), un fichier regroupant"
+" les tables d’attributs d’adressage (ADDR), et jusqu’à quatre fichiers de "
+"gestion des modifications pour chaque type de contenu du jeu de données (GEOM"
+" et ADDR). Le nom des fichiers GML prend la forme suivante ::"
+
+#: ../../product_distribution_formats.rst:85
+msgid "NRN = Abbreviated title of the product."
+msgstr "RRN = Titre abrégé du produit."
+
+#: ../../product_distribution_formats.rst:86
+#: ../../product_distribution_formats.rst:139
+#: ../../product_distribution_formats.rst:174
+msgid ""
+"<IDENTIFIER> = Code of a province or a territory corresponding to the "
+"dataset location. Possible codes are: AB, BC, MB, ON, NB, NL, NS, NT, NU,"
+" PE, QC, SK, YT."
+msgstr ""
+"<IDENTIFIANT> = Code de province ou de territoire anglais correspondant à la "
+"localisation du jeu de données. Les codes possibles sont : AB, BC, MB, ON, "
+"NB, NL, NS, NT, NU, PE, QC, SK, YT."
+
+#: ../../product_distribution_formats.rst:88
+#: ../../product_distribution_formats.rst:141
+#: ../../product_distribution_formats.rst:176
+#: ../../product_distribution_formats.rst:199
+msgid "<edition> = Dataset edition number."
+msgstr "<édition> = Édition du jeu de données."
+
+#: ../../product_distribution_formats.rst:89
+#: ../../product_distribution_formats.rst:142
+#: ../../product_distribution_formats.rst:177
+#: ../../product_distribution_formats.rst:200
+msgid "<version> = Dataset version number."
+msgstr "<version> = Version du jeu de données."
+
+#: ../../product_distribution_formats.rst:90
+msgid ""
+"<CONTENT> = Dataset content identifier. Possible values are: GEOM "
+"(Geometrical entities and basic attributes), ADDR (Address attributes "
+"tables)."
+msgstr ""
+"<CONTENU> = Indicateur du contenu du jeu de données. Les valeurs possibles "
+"sont : GEOM (entités géométriques et attributs de base), ADDR (tables "
+"d’attributs d’adressage)."
+
+#: ../../product_distribution_formats.rst:92
+#: ../../product_distribution_formats.rst:144
+#: ../../product_distribution_formats.rst:179
+msgid ""
+"[<MODIFICATION>] = [] = Optional. Type of modification applied to the "
+"dataset entities and attributes in comparison to previous edition. "
+"Possible values are identified in section 4.5.2."
+msgstr ""
+"[<MODIFICATION>] = [] = Optionnel. Type de modification apportée aux entités "
+"et attributs du jeu de données par rapport à l’édition précédente. Les "
+"valeurs possibles sont identifiées à la section 4.5.2."
+
+#: ../../product_distribution_formats.rst:94
+msgid ".gml = File name extension."
+msgstr ".gml = Extension du nom de fichier."
+
+#: ../../product_distribution_formats.rst:96
+#: ../../product_distribution_formats.rst:158
+#: ../../product_distribution_formats.rst:183
+#: ../../product_distribution_formats.rst:206
+msgid "Examples:"
+msgstr "Exemples :"
+
+#: ../../product_distribution_formats.rst:98
+msgid ""
+"``NRN_AB_4_0_GEOM.gml`` (Geometrical entities and basic attributes of the"
+" dataset of Alberta, edition 4, version 0)."
+msgstr ""
+"``RRN_AB_4_0_GEOM.gml`` (Entités géométriques et attributs de base du jeu de "
+"données de l’Alberta, édition 4, version 0)."
+
+#: ../../product_distribution_formats.rst:100
+msgid ""
+"``NRN_AB_4_0_ADDR.gml`` (Tables of addressing attributes of the dataset "
+"of Alberta, edition 4, version 0)."
+msgstr ""
+"``RRN_AB_4_0_ADDR.gml`` (Tables d’attributs d’adressage du jeu de données de "
+"l’Alberta, édition 4, version 0)."
+
+#: ../../product_distribution_formats.rst:102
+msgid ""
+"``NRN_AB_4_0_GEOM_ADDED.gml`` (Geometrical entities and/or basic "
+"attributes added in the dataset of Alberta, edition 4, version 0)."
+msgstr ""
+"``RRN_AB_4_0_GEOM_AJOUT.gml`` (Entités géométriques et/ou attributs de base "
+"ajoutés au jeu de données de l’Alberta, édition 4, version 0)."
+
+#: ../../product_distribution_formats.rst:104
+msgid ""
+"``NRN_AB_4_0_ADDR_ADDED.gml`` (Tables of the addressing attributes added "
+"in the dataset of Alberta, edition 4, version 0)."
+msgstr ""
+"``RRN_AB_4_0_ADDR_AJOUT.gml`` (Tables des attributs d’adressage ajoutés au "
+"jeu de données de l’Alberta, édition 4, version 0)."
+
+#: ../../product_distribution_formats.rst:107
+msgid ""
+"An XML schema (XSD file) is also provided along with a GML data file. "
+"This file defines, in a structured manner, the type of content, the "
+"syntax and the semantic of GML documents. The name of this file is "
+"``NRN_<IDENTIFIER>_<edition>_<version>_<CONTENT>[_<MODIFICATION>].xsd`` "
+"and a reference is recorded within the GML file."
+msgstr ""
+"Un schéma XML (fichier XSD) est également livré pour chaque fichier GML. Ce "
+"fichier définit de façon structurée le type de contenu, la syntaxe et la "
+"sémantique des documents GML. Le nom de ce fichier est "
+"``RRN_<IDENTIFIANT>_<édition>_<version>_<CONTENU>[_<MODIFICATION>].xsd`` et "
+"est cité en référence dans le fichier GML."
+
+#: ../../product_distribution_formats.rst:113
+msgid "KML file name"
+msgstr "Nomenclature du fichier KML"
+
+#: ../../product_distribution_formats.rst:115
+msgid ""
+"The entity Road Segment (and a subset of attributes) is the only entity "
+"part of the product that is distributed in KML format. The name of the "
+"KML file is structured accordingly::"
+msgstr ""
+"Uniquement l’entité Segment routier (et un sous-ensemble d’attributs) du "
+"produit est distribuée dans le format KML. Le nom du fichier KML prend la "
+"forme suivante ::"
+
+#: ../../product_distribution_formats.rst:120
+#: ../../product_distribution_formats.rst:196
+msgid "nrn_rrn = Abbreviated English and French product title."
+msgstr "nrn-rrn = Titre abrégé anglais et français du produit."
+
+#: ../../product_distribution_formats.rst:121
+#: ../../product_distribution_formats.rst:197
+msgid ""
+"<identifier> = Code of a province or a territory corresponding to the "
+"dataset location. Possible codes are: ab, bc, mb, on, nb, nl, ns, nt, nu,"
+" pe, qc, sk, yt."
+msgstr ""
+"<identifiant> = Code de province ou de territoire anglais correspondant à la "
+"localisation du jeu de données. Les codes possibles sont : ab, bc, mb, on, "
+"nb, nl, ns, nt, nu, pe, qc, sk, yt."
+
+#: ../../product_distribution_formats.rst:122
+msgid "kml Dataset distribution format."
+msgstr "kml Format de distribution du jeu de données."
+
+#: ../../product_distribution_formats.rst:123
+msgid "en ISO code of the dataset distribution language."
+msgstr "fr Code ISO de la langue de distribution du jeu de données."
+
+#: ../../product_distribution_formats.rst:124
+msgid ".kmz = File name extension."
+msgstr ".kmz = Extension du nom de fichier."
+
+#: ../../product_distribution_formats.rst:126
+msgid "Example:"
+msgstr "Exemple :"
+
+#: ../../product_distribution_formats.rst:128
+msgid "``nrn_rrn_ab_kml_en.kmz`` (Road Segment for dataset of Alberta)."
+msgstr ""
+"``nrn_rrn_ab_4_0_kml_fr.kmz`` (Segment routier du jeu de données de "
+"l’Alberta, édition 4, version 0)."
+
+#: ../../product_distribution_formats.rst:131
+msgid "Shape file names"
+msgstr "Nomenclature des fichiers Shape"
+
+#: ../../product_distribution_formats.rst:133
+msgid ""
+"The entities of the product distributed in Shape format are divided "
+"according to their geometrical representation. The name of the Shape "
+"files is structured accordingly::"
+msgstr ""
+"Les entités du produit dans le format Shape sont divisées selon leur "
+"représentation géométrique. Le nom des fichiers Shape suit la structure "
+"suivante ::"
+
+#: ../../product_distribution_formats.rst:138
+#: ../../product_distribution_formats.rst:173
+msgid "NRN = Abbreviated product title."
+msgstr "RRN = Titre abrégé français du produit."
+
+#: ../../product_distribution_formats.rst:143
+#: ../../product_distribution_formats.rst:178
+msgid "<ENTITY> = Abbreviated entity name as defined in section 4.5.1."
+msgstr "<ENTITÉ> = Nom abrégé de l’entité tel que défini à la section 4.5.1."
+
+#: ../../product_distribution_formats.rst:146
+#: ../../product_distribution_formats.rst:181
+msgid ".shp = Extension of the main geometry file name."
+msgstr ".shp = Extension du nom de fichier principal de géométrie."
+
+#: ../../product_distribution_formats.rst:148
+msgid ""
+"There are also five other files associated with the main geometry file of"
+" an entity in Shape format:"
+msgstr ""
+"Dans le format Shape, il y a également cinq autres types de fichiers associés"
+" au fichier de géométrie de l’entité :"
+
+#: ../../product_distribution_formats.rst:151
+msgid "an attribute file (.dbf for dBASE® file);"
+msgstr "un fichier d’attributs (.dbf pour dBASE® file);"
+
+#: ../../product_distribution_formats.rst:152
+msgid ""
+"a projection file (.prj) which includes information about the reference "
+"system and the parameters of the cartographic projection;"
+msgstr ""
+"un fichier projection (.prj) contenant l’information sur le système de "
+"référence utilisé et les paramètres de la projection cartographique;"
+
+#: ../../product_distribution_formats.rst:154
+msgid ""
+"an index file (.shx) containing the offset (relative position) for each "
+"record of the main geometry file;"
+msgstr ""
+"un fichier d’index (.shx) contenant la position relative (offset) de chacun "
+"des enregistrements (records) du fichier principal de géométrie;"
+
+#: ../../product_distribution_formats.rst:156
+msgid "two spatial index files for the geometrical data (.sbn, .sbx)."
+msgstr ""
+"deux fichiers d’index spatial pour les données géométriques (.sbn, .sbx)."
+
+#: ../../product_distribution_formats.rst:160
+msgid ""
+"``NRN_AB_4_0_ROADSEG.shp`` (Entity Road segment for dataset of Alberta, "
+"edition 4, version 0);"
+msgstr ""
+"``RRN_AB_4_0_SEGMROUT.shp`` (Entité Segment routier du jeu de données de "
+"l’Alberta, édition 4, version 0);"
+
+#: ../../product_distribution_formats.rst:161
+msgid ""
+"``NRN_AB_4_0_ROADSEG_ADDED.shp`` Road segment in dataset of Alberta, GPKG"
+" file names (Geometrical entities and/or basic attributes added to "
+"edition 4, version 0)."
+msgstr ""
+"``RRN_AB_4_0_SEGMROUT_AJOUT.shp`` (Entités géométriques et/ou attributs de "
+"base du Segment routier ajoutés au jeu de données de l’Alberta, édition 4, "
+"version 0)."
+
+#: ../../product_distribution_formats.rst:165
+msgid "GeoPackage File Names"
+msgstr "Nomenclature des fichiers GeoPackage"
+
+#: ../../product_distribution_formats.rst:167
+msgid ""
+"The entities of the product distributed in GeoPackage format are "
+"distributed as a single file, with the entities divided into layers "
+"according to their geometrical representation. The name of the GeoPackage"
+" file is structured accordingly::"
+msgstr ""
+"Les entités du produit dans le format GPKG sont divisées selon leur "
+"représentation géométrique. Le nom des fichiers GPKG suit la structure "
+"suivante ::"
+
+#: ../../product_distribution_formats.rst:185
+msgid ""
+"``NRN_AB_4_0_ROADSEG.gpkg`` (All entities for dataset of Alberta, edition"
+" 4, version 0);"
+msgstr ""
+"``RRN_AB_4_0_SEGMROUT.gpkg`` (Entité Segment routier du jeu de données de "
+"l’Alberta, édition 14, version 0);"
+
+#: ../../product_distribution_formats.rst:188
+msgid "Metadata File"
+msgstr "Fichier de métadonnées"
+
+#: ../../product_distribution_formats.rst:190
+msgid ""
+"There are four metadata files that are distributed with each dataset of "
+"an NRN product. Two files are provided in FGDC/XML format (in French and "
+"in English) and two others according to FGDC/HTML format. The name of the"
+" metadata file is structured accordingly::"
+msgstr ""
+"Quatre fichiers de métadonnées sont distribués avec chaque jeu de données du "
+"produit RRN. Deux fichiers sont livrés dans le format FGDC/XML (en français "
+"et en anglais) et deux autres selon le format FGDC/HTML. La nomenclature du "
+"fichier de métadonnées est ::"
+
+#: ../../product_distribution_formats.rst:201
+msgid ""
+"fgdc = Metadata file format according to CSDGM standard of the Federal "
+"Geographic Data Committee (FGDC)."
+msgstr ""
+"fgdc = Format du fichier de métadonnées selon la norme CSDGM du Federal "
+"Geographic Data Committee."
+
+#: ../../product_distribution_formats.rst:203
+msgid ""
+"<code language> = Metadata ISO code language written in lowercase: fr "
+"(French), en (English)."
+msgstr ""
+"<code langue> = Code ISO de la langue des métadonnées écrit en minuscules : "
+"fr (français), en (anglais)."
+
+#: ../../product_distribution_formats.rst:204
+msgid "<format> = File name extension (xml or html)."
+msgstr "<format> = Extension du nom de fichier (xml ou html)."
+
+#: ../../product_distribution_formats.rst:208
+msgid ""
+"``nrn_rrn_ab_4_0_fgdc_en.xml`` (English metadata file for dataset of "
+"Alberta, edition 4, version 0 in FGDC/XML format)"
+msgstr ""
+"``nrn_rrn_ab_4_0_fgdc_fr.xml`` (Fichier de métadonnées français du jeu de "
+"données de l’Alberta, édition 4, version 0 selon le format FGDC/XML)"
+
+#: ../../product_distribution_formats.rst:210
+msgid ""
+"``nrn_rrn_ab_4_0_fgdc_fr.html`` (French metadata file for dataset of "
+"Alberta, edition 4, version 0 in FGDC/HTML format)"
+msgstr ""
+"``nrn_rrn_ab_4_0_fgdc_en.html`` (Fichier de métadonnées anglais du jeu de "
+"données de l’Alberta, édition 4, version 0 selon le format FGDC/HTML)"
+
+#: ../../product_distribution_formats.rst:214
+msgid "List of distribution file names"
+msgstr "Liste des noms de fichiers de distribution"
+
+#: ../../product_distribution_formats.rst:216
+msgid ""
+"The NRN product is comprised of two types of datasets: a file that "
+"contains up to date (actualized) data (e.g. that has been updated) and a "
+"file containing the modifications (differences) applied to the previous "
+"edition of the dataset."
+msgstr ""
+"Le produit RRN comporte deux types de jeux de données : des fichiers "
+"contenant les données actualisées (i.e. qui ont été mises à jour) et des "
+"fichiers contenant les modifications (différences) appliquées à l’édition "
+"précédente du jeu de données."
+
+#: ../../product_distribution_formats.rst:221
+msgid "Dataset"
+msgstr "Jeu de données"
+
+#: ../../product_distribution_formats.rst:223
+msgid ""
+"The name of a file in GML format is "
+"NRN_<IDENTIFER>_<edition>_<version>_<CONTENT>. The name of a file in "
+"Shape format is NRN_<IDENTIFER>_<edition>_<version>_<ENTITY>. The "
+"extension of the file name corresponds to the distribution format."
+msgstr ""
+"Le nom du fichier dans le format GML est "
+"RRN_<IDENTIFIANT>_<édition>_<version>_<CONTENU>. Le nom du fichier dans le "
+"format Shape est RRN_<IDENTIFIANT>_<édition>_<version>_<ENTITÉ>. L’extension "
+"du nom de fichier dépend directement du format de distribution."
+
+#: ../../product_distribution_formats.rst:228
+msgid "Feature catalogue Entity name"
+msgstr "Catalogue d’entités Nom d’entité"
+
+#: ../../product_distribution_formats.rst:228
+msgid "GML/KML* Entity name"
+msgstr "GML/KML Nom d’entité"
+
+#: ../../product_distribution_formats.rst:228
+msgid "Shape File name (``<entity>``)"
+msgstr "Shape Nom du fichier (``<ENTITÉ>``)"
+
+#: ../../product_distribution_formats.rst:228
+msgid "Type"
+msgstr "Type de géométrie"
+
+#: ../../product_distribution_formats.rst:231
+#: ../../product_distribution_formats.rst:316
+msgid "Address Range"
+msgstr "Intervalle d’adresse"
+
+#: ../../product_distribution_formats.rst:231
+msgid "AddressRange"
+msgstr "IntervalleAdresse"
+
+#: ../../product_distribution_formats.rst:231
+msgid "ADDRANGE"
+msgstr "INTERVADR"
+
+#: ../../product_distribution_formats.rst:231
+#: ../../product_distribution_formats.rst:233
+#: ../../product_distribution_formats.rst:243
+msgid "Table **"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:233
+#: ../../product_distribution_formats.rst:370
+msgid "Alternate Name Link"
+msgstr "Lien nom non officiel"
+
+#: ../../product_distribution_formats.rst:233
+msgid "AlternateNameLink"
+msgstr "LienNomNonOfficiel"
+
+#: ../../product_distribution_formats.rst:233
+msgid "ALTNAMLINK"
+msgstr "LIENNOFF"
+
+#: ../../product_distribution_formats.rst:235
+#: ../../product_distribution_formats.rst:390
+msgid "Blocked Passage"
+msgstr "Passage obstrué"
+
+#: ../../product_distribution_formats.rst:235
+msgid "BlockedPassage"
+msgstr "PassageObstrue"
+
+#: ../../product_distribution_formats.rst:235
+msgid "BLKPASSAGE"
+msgstr "PASSAGEOBS"
+
+#: ../../product_distribution_formats.rst:235
+#: ../../product_distribution_formats.rst:239
+#: ../../product_distribution_formats.rst:245
+msgid "Point"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:237
+#: ../../product_distribution_formats.rst:404
+msgid "Ferry Connection Segment"
+msgstr "Segment de liaison par transbordeur"
+
+#: ../../product_distribution_formats.rst:237
+msgid "FerryConnectionSegment"
+msgstr "SegmentLiaisonTransbordeur"
+
+#: ../../product_distribution_formats.rst:237
+msgid "FERRYSEG"
+msgstr "SLIAISONTR"
+
+#: ../../product_distribution_formats.rst:237
+#: ../../product_distribution_formats.rst:241
+msgid "Line"
+msgstr "Ligne"
+
+#: ../../product_distribution_formats.rst:239
+#: ../../product_distribution_formats.rst:444
+msgid "Junction"
+msgstr "Jonction"
+
+#: ../../product_distribution_formats.rst:239
+msgid "JUNCTION"
+msgstr "JONCTION"
+
+#: ../../product_distribution_formats.rst:241
+#: ../../product_distribution_formats.rst:458
+msgid "Road Segment"
+msgstr "Segment routier"
+
+#: ../../product_distribution_formats.rst:241
+msgid "RoadSegment *"
+msgstr "SegmentRoutier *"
+
+#: ../../product_distribution_formats.rst:241
+msgid "ROADSEG"
+msgstr "SEGMROUT"
+
+#: ../../product_distribution_formats.rst:243
+#: ../../product_distribution_formats.rst:547
+msgid "Street and Place Names"
+msgstr "Noms de rue et de lieu"
+
+#: ../../product_distribution_formats.rst:243
+msgid "StreetPlaceNames"
+msgstr "NomRueLieu"
+
+#: ../../product_distribution_formats.rst:243
+msgid "STRPLANAME"
+msgstr "NOMRUELIEU"
+
+#: ../../product_distribution_formats.rst:245
+#: ../../product_distribution_formats.rst:577
+msgid "Toll Point"
+msgstr "Poste de péage"
+
+#: ../../product_distribution_formats.rst:245
+msgid "TollPoint"
+msgstr "PostePeage"
+
+#: ../../product_distribution_formats.rst:245
+msgid "TOLLPOINT"
+msgstr "POSTEPEAGE"
+
+#: ../../product_distribution_formats.rst:248
+#: ../../product_distribution_formats.rst:543
+msgid "\\* KML content (simplified version of the dataset)"
+msgstr "\\* Contenu KML (version simplifiée du jeu de données)"
+
+#: ../../product_distribution_formats.rst:250
+msgid ""
+"\\** Attributes file (.dbf) in Shape format and entities without geometry"
+" in GML format."
+msgstr ""
+"\\** Fichier d’attributs (.dbf) dans le format Shape et entités sans "
+"géométrie dans le format GML."
+
+#: ../../product_distribution_formats.rst:253
+msgid "Change Management Files"
+msgstr "Fichiers de gestion des modifications"
+
+#: ../../product_distribution_formats.rst:255
+msgid ""
+"Change management consists in identifying the effects of an addition, "
+"confirmation, retirement and modification of the objects (geometry and/or"
+" attribute) between two consecutive dataset editions. A data file is "
+"produced for each effect type. The name of the file in GML format is "
+"``NRN_<IDENTIFIER>_<edition>_<version>_<CONTENT>_<MODIFICATION>`` and in "
+"Shape format is "
+"``NRN_<IDENTIFIER>_<edition>_<version>_<ENTITY>_<MODIFICATION>``. The "
+"extension of the file name corresponds to the distribution format."
+msgstr ""
+"La gestion des modifications consiste principalement à identifier l’ajout, la"
+" confirmation, l’élimination ou la modification des objets (géométrie et/ou "
+"attribut) entre deux éditions successives d’un jeu de données. Un fichier de "
+"données est généré pour chaque type d’effet. Le nom du fichier dans le format"
+" GML est ``RRN_<IDENTIFIANT>_<édition>_<version>_<CONTENU>_<MODIFICATION>``. "
+"Le nom du fichier selon le format Shape est "
+"``RRN_<IDENTIFIANT>_<édition>_<version>_<ENTITÉ>_MODIFICATION>``. L’extension"
+" du nom de fichier dépend directement du format de distribution."
+
+#: ../../product_distribution_formats.rst:263
+msgid "Change management Effect name"
+msgstr "Gestion des modifications Nom de l’effet"
+
+#: ../../product_distribution_formats.rst:263
+msgid "GML File name (<MODIFICATION>)"
+msgstr "GML Nom du fichier (<MODIFICATION>)"
+
+#: ../../product_distribution_formats.rst:263
+msgid "Shape File name (<MODIFICATION>)"
+msgstr "Shape Nom du fichier (<MODIFICATION>)"
+
+#: ../../product_distribution_formats.rst:266
+msgid "Added"
+msgstr "Ajout"
+
+#: ../../product_distribution_formats.rst:266
+msgid "<GML File Name>_ADDED"
+msgstr "<Nom du fichier GML>_AJOUT"
+
+#: ../../product_distribution_formats.rst:266
+msgid "<Shape File Name>_ADDED"
+msgstr "<Nom du fichier Shape>_AJOUT"
+
+#: ../../product_distribution_formats.rst:268
+msgid "Confirmed"
+msgstr "Confirmation"
+
+#: ../../product_distribution_formats.rst:268
+msgid "<GML File Name>_CONFIRMED"
+msgstr "<Nom du fichier GML>_CONFIRME"
+
+#: ../../product_distribution_formats.rst:268
+msgid "<Shape File Name>_CONFIRMED"
+msgstr "<Nom du fichier Shape>_CONFIRME"
+
+#: ../../product_distribution_formats.rst:270
+msgid "Modified"
+msgstr "Modification"
+
+#: ../../product_distribution_formats.rst:270
+msgid "<GML File Name>_MODIFIED"
+msgstr "<Nom du fichier GML>_MODIFIE"
+
+#: ../../product_distribution_formats.rst:270
+msgid "<Shape File Name>_MODIFIED"
+msgstr "<Nom du fichier Shape>_MODIFIE"
+
+#: ../../product_distribution_formats.rst:272
+msgid "Retired"
+msgstr "Élimination"
+
+#: ../../product_distribution_formats.rst:272
+msgid "<GML File Name>_RETIRED"
+msgstr "<Nom du fichier GML>_ELIMINE"
+
+#: ../../product_distribution_formats.rst:272
+msgid "<Shape File Name>_RETIRED"
+msgstr "<Nom du fichier Shape>_ELIMINE"
+
+#: ../../product_distribution_formats.rst:275
+msgid ""
+"A readme text file named: ``README_<IDENTIFIER>.txt`` that identifies the"
+" method used for the *follow-up of the geometrical modifications* is "
+"provided with the dataset."
+msgstr ""
+"La méthode utilisée pour le suivi des modifications géométriques est indiquée"
+" dans un fichier texte nommé : LISEZMOI_<IDENTIFIANT>.txt qui est joint au "
+"jeu de données."
+
+#: ../../product_distribution_formats.rst:279
+msgid "Attributes Identification"
+msgstr "Identification des attributs"
+
+#: ../../product_distribution_formats.rst:281
+msgid ""
+"The attributes common to all entities of the NRN product are listed in "
+"the first table. The attributes specific to each entity are presented in "
+"the following subsection."
+msgstr ""
+"Les attributs communs à l’ensemble des entités du produit RRN sont identifiés"
+" dans le premier tableau. Les attributs spécifiques à chaque entité sont "
+"présentés dans la sous-section suivante."
+
+#: ../../product_distribution_formats.rst:284
+msgid ""
+"The data type for all distribution formats is either: C(c) for character "
+"or N(n,d) for number (c = number of characters, n = total number of "
+"digits, d = number of digits in decimal)."
+msgstr ""
+"Le type de données de tous les formats de distribution est soit : C(c) pour "
+"caractères ou N(n,d) pour nombre (c = nombre de caractères, n = nombre total "
+"de chiffres, d = nombre de chiffres en décimales)."
+
+#: ../../product_distribution_formats.rst:289
+msgid "Attributes Common to All Entities Except Alternate Name Link"
+msgstr "Attributs communs pour toutes les entités (sauf Lien nom non officiel)"
+
+#: ../../product_distribution_formats.rst:292
+#: ../../product_distribution_formats.rst:319
+#: ../../product_distribution_formats.rst:373
+#: ../../product_distribution_formats.rst:393
+#: ../../product_distribution_formats.rst:407
+#: ../../product_distribution_formats.rst:447
+#: ../../product_distribution_formats.rst:461
+#: ../../product_distribution_formats.rst:550
+#: ../../product_distribution_formats.rst:580
+msgid "Feature Catalogue Attribute Name"
+msgstr "Catalogue d’entités Nom d’attribut"
+
+#: ../../product_distribution_formats.rst:292
+#: ../../product_distribution_formats.rst:319
+#: ../../product_distribution_formats.rst:373
+#: ../../product_distribution_formats.rst:393
+#: ../../product_distribution_formats.rst:407
+#: ../../product_distribution_formats.rst:447
+#: ../../product_distribution_formats.rst:461
+#: ../../product_distribution_formats.rst:550
+#: ../../product_distribution_formats.rst:580
+msgid "GML Attribute Name"
+msgstr "GML Nom d’attribut"
+
+#: ../../product_distribution_formats.rst:292
+#: ../../product_distribution_formats.rst:319
+#: ../../product_distribution_formats.rst:373
+#: ../../product_distribution_formats.rst:393
+#: ../../product_distribution_formats.rst:407
+#: ../../product_distribution_formats.rst:447
+#: ../../product_distribution_formats.rst:461
+#: ../../product_distribution_formats.rst:550
+#: ../../product_distribution_formats.rst:580
+msgid "Shape Attribute Name"
+msgstr "Shape Nom d’attribut"
+
+#: ../../product_distribution_formats.rst:292
+#: ../../product_distribution_formats.rst:319
+#: ../../product_distribution_formats.rst:373
+#: ../../product_distribution_formats.rst:393
+#: ../../product_distribution_formats.rst:407
+#: ../../product_distribution_formats.rst:447
+#: ../../product_distribution_formats.rst:461
+#: ../../product_distribution_formats.rst:550
+#: ../../product_distribution_formats.rst:580
+msgid "Shape Data Type"
+msgstr "Type de données"
+
+#: ../../product_distribution_formats.rst:295
+msgid "Acquisition Technique"
+msgstr "Technique acquisition"
+
+#: ../../product_distribution_formats.rst:295
+msgid "acquisitionTechnique"
+msgstr "techniqueAcquisition"
+
+#: ../../product_distribution_formats.rst:295
+msgid "ACQTECH"
+msgstr "TECHACQ"
+
+#: ../../product_distribution_formats.rst:295
+msgid "C(23)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:297
+msgid "Coverage"
+msgstr "Couverture"
+
+#: ../../product_distribution_formats.rst:297
+msgid "metadataCoverage"
+msgstr "couvertureMetadonnees"
+
+#: ../../product_distribution_formats.rst:297
+msgid "METACOVER"
+msgstr "COUVERMETA"
+
+#: ../../product_distribution_formats.rst:297
+#: ../../product_distribution_formats.rst:299
+#: ../../product_distribution_formats.rst:307
+#: ../../product_distribution_formats.rst:376
+#: ../../product_distribution_formats.rst:382
+#: ../../product_distribution_formats.rst:496
+msgid "C(8)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:299
+#: ../../product_distribution_formats.rst:376
+msgid "Creation Date"
+msgstr "Date création"
+
+#: ../../product_distribution_formats.rst:299
+#: ../../product_distribution_formats.rst:376
+msgid "creationDate"
+msgstr "dateCreation"
+
+#: ../../product_distribution_formats.rst:299
+#: ../../product_distribution_formats.rst:376
+msgid "CREDATE"
+msgstr "DATECRE"
+
+#: ../../product_distribution_formats.rst:301
+#: ../../product_distribution_formats.rst:378
+msgid "Dataset Name"
+msgstr "Nom jeu de données"
+
+#: ../../product_distribution_formats.rst:301
+#: ../../product_distribution_formats.rst:378
+msgid "datasetName"
+msgstr "nomJeuDonnees"
+
+#: ../../product_distribution_formats.rst:301
+msgid "DATASETNAME"
+msgstr "NOMJEUDONN"
+
+#: ../../product_distribution_formats.rst:301
+#: ../../product_distribution_formats.rst:565
+msgid "C(25)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:303
+msgid "Planimetric Accuracy"
+msgstr "Précision planimétrique"
+
+#: ../../product_distribution_formats.rst:303
+msgid "planimetricAccuracy"
+msgstr "precisionPlanimetrique"
+
+#: ../../product_distribution_formats.rst:303
+msgid "ACCURACY"
+msgstr "PRECISION"
+
+#: ../../product_distribution_formats.rst:303
+#: ../../product_distribution_formats.rst:486
+#: ../../product_distribution_formats.rst:528
+msgid "N(4,0)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:305
+msgid "Provider"
+msgstr "Fournisseur"
+
+#: ../../product_distribution_formats.rst:305
+msgid "provider"
+msgstr "fournisseur"
+
+#: ../../product_distribution_formats.rst:305
+msgid "PROVIDER"
+msgstr "FOURNISSR"
+
+#: ../../product_distribution_formats.rst:305
+msgid "C(24)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:307
+#: ../../product_distribution_formats.rst:382
+msgid "Revision Date"
+msgstr "Date révision"
+
+#: ../../product_distribution_formats.rst:307
+#: ../../product_distribution_formats.rst:382
+msgid "revisionDate"
+msgstr "dateRevision"
+
+#: ../../product_distribution_formats.rst:307
+#: ../../product_distribution_formats.rst:382
+msgid "REVDATE"
+msgstr "DATEREV"
+
+#: ../../product_distribution_formats.rst:309
+#: ../../product_distribution_formats.rst:384
+msgid "Standard Version"
+msgstr "Version normes"
+
+#: ../../product_distribution_formats.rst:309
+#: ../../product_distribution_formats.rst:384
+msgid "standardVersion"
+msgstr "versionNormes"
+
+#: ../../product_distribution_formats.rst:309
+#: ../../product_distribution_formats.rst:384
+msgid "SPECVERS"
+msgstr "VERSNORMES"
+
+#: ../../product_distribution_formats.rst:309
+#: ../../product_distribution_formats.rst:334
+#: ../../product_distribution_formats.rst:336
+#: ../../product_distribution_formats.rst:350
+#: ../../product_distribution_formats.rst:352
+#: ../../product_distribution_formats.rst:384
+#: ../../product_distribution_formats.rst:434
+#: ../../product_distribution_formats.rst:436
+#: ../../product_distribution_formats.rst:438
+#: ../../product_distribution_formats.rst:440
+#: ../../product_distribution_formats.rst:450
+#: ../../product_distribution_formats.rst:520
+#: ../../product_distribution_formats.rst:522
+#: ../../product_distribution_formats.rst:524
+#: ../../product_distribution_formats.rst:526
+#: ../../product_distribution_formats.rst:553
+#: ../../product_distribution_formats.rst:555
+#: ../../product_distribution_formats.rst:557
+msgid "C(10)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:313
+msgid "Attributes Specific to Entities"
+msgstr "Attributs spécifiques aux entités"
+
+#: ../../product_distribution_formats.rst:322
+#: ../../product_distribution_formats.rst:472
+msgid "Alternate Street Name NID (left, right)"
+msgstr "IDN nom de rue non officiel (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:322
+msgid "left_AlternateStreetNameNid"
+msgstr "idnNomRueNonOfficiel_Gauche"
+
+#: ../../product_distribution_formats.rst:322
+msgid "L_ALTNANID"
+msgstr "IDNOMNOF_G"
+
+#: ../../product_distribution_formats.rst:322
+#: ../../product_distribution_formats.rst:324
+#: ../../product_distribution_formats.rst:358
+#: ../../product_distribution_formats.rst:380
+#: ../../product_distribution_formats.rst:386
+#: ../../product_distribution_formats.rst:398
+#: ../../product_distribution_formats.rst:400
+#: ../../product_distribution_formats.rst:416
+#: ../../product_distribution_formats.rst:454
+#: ../../product_distribution_formats.rst:468
+#: ../../product_distribution_formats.rst:470
+#: ../../product_distribution_formats.rst:472
+#: ../../product_distribution_formats.rst:484
+#: ../../product_distribution_formats.rst:534
+#: ../../product_distribution_formats.rst:559
+#: ../../product_distribution_formats.rst:583
+#: ../../product_distribution_formats.rst:585
+msgid "C(32)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:324
+msgid "right_AlternateStreetNameNid"
+msgstr "idnNomRueNonOfficiel_Droite"
+
+#: ../../product_distribution_formats.rst:324
+msgid "R_ALTNANID"
+msgstr "IDNOMNOF_D"
+
+#: ../../product_distribution_formats.rst:326
+msgid "Digitizing Direction Flag (left, right)"
+msgstr "Indicateur sens numérisation (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:326
+msgid "left_DigitizingDirectionFlag"
+msgstr "sensNumerisation_Gauche"
+
+#: ../../product_distribution_formats.rst:326
+msgid "L_DIGDIRFG"
+msgstr "SENSNUM_G"
+
+#: ../../product_distribution_formats.rst:326
+#: ../../product_distribution_formats.rst:328
+#: ../../product_distribution_formats.rst:464
+#: ../../product_distribution_formats.rst:466
+#: ../../product_distribution_formats.rst:538
+msgid "C(18)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:328
+msgid "right_DigitizingDirectionFlag"
+msgstr "sensNumerisation_Droite"
+
+#: ../../product_distribution_formats.rst:328
+msgid "R_DIGDIRFG"
+msgstr "SENSNUM_D"
+
+#: ../../product_distribution_formats.rst:330
+#: ../../product_distribution_formats.rst:474
+msgid "First House Number (left, right)"
+msgstr "Numéro première maison (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:330
+#: ../../product_distribution_formats.rst:474
+msgid "left_FirstHouseNumber"
+msgstr "numPremiereMaison_Gauche"
+
+#: ../../product_distribution_formats.rst:330
+#: ../../product_distribution_formats.rst:474
+msgid "L_HNUMF"
+msgstr "NUMP_G"
+
+#: ../../product_distribution_formats.rst:330
+#: ../../product_distribution_formats.rst:332
+#: ../../product_distribution_formats.rst:346
+#: ../../product_distribution_formats.rst:348
+#: ../../product_distribution_formats.rst:412
+#: ../../product_distribution_formats.rst:502
+msgid "N(9,0)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:332
+#: ../../product_distribution_formats.rst:476
+msgid "right_FirstHouseNumber"
+msgstr "numPremiereMaison_Droite"
+
+#: ../../product_distribution_formats.rst:332
+#: ../../product_distribution_formats.rst:476
+msgid "R_HNUMF"
+msgstr "NUMP_D"
+
+#: ../../product_distribution_formats.rst:334
+msgid "First House Number Suffix (left, right)"
+msgstr "Suffixe numéro première maison (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:334
+msgid "left_FirstHouseNumberSuffix"
+msgstr "suffixNumPremiereMaison_Gauche"
+
+#: ../../product_distribution_formats.rst:334
+msgid "L_HNUMSUFF"
+msgstr "SUFNUMP_G"
+
+#: ../../product_distribution_formats.rst:336
+msgid "right_FirstHouseNumberSuffix"
+msgstr "suffixNumPremiereMaison_Droite"
+
+#: ../../product_distribution_formats.rst:336
+msgid "R_HNUMSUFF"
+msgstr "SUFNUMP_D"
+
+#: ../../product_distribution_formats.rst:338
+msgid "First House Number Type (left, right)"
+msgstr "Type numérotation première maison (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:338
+msgid "left_FirstHouseNumberType"
+msgstr "typeNumPremiereMaison_Gauche"
+
+#: ../../product_distribution_formats.rst:338
+msgid "L_HNUMTYPE"
+msgstr "TYPENUMP_G"
+
+#: ../../product_distribution_formats.rst:338
+#: ../../product_distribution_formats.rst:340
+#: ../../product_distribution_formats.rst:354
+#: ../../product_distribution_formats.rst:356
+#: ../../product_distribution_formats.rst:360
+#: ../../product_distribution_formats.rst:362
+#: ../../product_distribution_formats.rst:364
+#: ../../product_distribution_formats.rst:366
+msgid "C(16)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:340
+msgid "right_FirstHouseNumberType"
+msgstr "typeNumPremiereMaison_Droite"
+
+#: ../../product_distribution_formats.rst:340
+msgid "R_HNUMTYPE"
+msgstr "TYPENUMP_D"
+
+#: ../../product_distribution_formats.rst:342
+msgid "House Number Structure (left, right)"
+msgstr "Structure numéro maison (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:342
+msgid "left_HouseNumberStructure"
+msgstr "structureNumMaison_Gauche"
+
+#: ../../product_distribution_formats.rst:342
+msgid "L_HNUMSTR"
+msgstr "STRUNUM_G"
+
+#: ../../product_distribution_formats.rst:342
+#: ../../product_distribution_formats.rst:344
+msgid "C(9)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:344
+msgid "right_HouseNumberStructure"
+msgstr "structureNumMaison_Droite"
+
+#: ../../product_distribution_formats.rst:344
+msgid "R_HNUMSTR"
+msgstr "STRUNUM_D"
+
+#: ../../product_distribution_formats.rst:346
+#: ../../product_distribution_formats.rst:480
+#: ../../product_distribution_formats.rst:492
+msgid "Last House Number (left, right)"
+msgstr "Numéro dernière maison (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:346
+#: ../../product_distribution_formats.rst:480
+msgid "left_LastHouseNumber"
+msgstr "numDerniereMaison_Gauche"
+
+#: ../../product_distribution_formats.rst:346
+#: ../../product_distribution_formats.rst:480
+msgid "L_HNUML"
+msgstr "NUMD_G"
+
+#: ../../product_distribution_formats.rst:348
+#: ../../product_distribution_formats.rst:482
+msgid "right_LastHouseNumber"
+msgstr "numDerniereMaison_Droite"
+
+#: ../../product_distribution_formats.rst:348
+#: ../../product_distribution_formats.rst:482
+msgid "R_HNUML"
+msgstr "NUMD_D"
+
+#: ../../product_distribution_formats.rst:350
+msgid "Last House Number Suffix (left, right)"
+msgstr "Suffixe numéro dernière maison (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:350
+msgid "left_LastHouseNumberSuffix"
+msgstr "suffixNumDerniereMaison_Gauche"
+
+#: ../../product_distribution_formats.rst:350
+msgid "L_HNUMSUFL"
+msgstr "SUFNUMD_G"
+
+#: ../../product_distribution_formats.rst:352
+msgid "right_LastHouseNumberSuffix"
+msgstr "suffixNumDerniereMaison_Droite"
+
+#: ../../product_distribution_formats.rst:352
+msgid "R_HNUMSUFL"
+msgstr "SUFNUMD_D"
+
+#: ../../product_distribution_formats.rst:354
+msgid "Last House Number Type (left, right)"
+msgstr "Type numérotation dernière maison (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:354
+msgid "left_LastHouseNumberType"
+msgstr "typeNumDerniereMaison_Gauche"
+
+#: ../../product_distribution_formats.rst:354
+#: ../../product_distribution_formats.rst:360
+#: ../../product_distribution_formats.rst:364
+msgid "L_HNUMTYPL"
+msgstr "TYPENUMD_G"
+
+#: ../../product_distribution_formats.rst:356
+msgid "right_LastHouseNumberType"
+msgstr "typeNumDerniereMaison_Droite"
+
+#: ../../product_distribution_formats.rst:356
+#: ../../product_distribution_formats.rst:362
+#: ../../product_distribution_formats.rst:366
+msgid "R_HNUMTYPL"
+msgstr "TYPENUMD_D"
+
+#: ../../product_distribution_formats.rst:358
+#: ../../product_distribution_formats.rst:380
+#: ../../product_distribution_formats.rst:398
+#: ../../product_distribution_formats.rst:416
+#: ../../product_distribution_formats.rst:454
+#: ../../product_distribution_formats.rst:484
+#: ../../product_distribution_formats.rst:559
+#: ../../product_distribution_formats.rst:583
+msgid "NID"
+msgstr "IDN"
+
+#: ../../product_distribution_formats.rst:358
+#: ../../product_distribution_formats.rst:380
+#: ../../product_distribution_formats.rst:398
+#: ../../product_distribution_formats.rst:416
+#: ../../product_distribution_formats.rst:454
+#: ../../product_distribution_formats.rst:559
+#: ../../product_distribution_formats.rst:583
+msgid "nid"
+msgstr "idn"
+
+#: ../../product_distribution_formats.rst:360
+msgid "Official Street Name NID (left, right)"
+msgstr "IDN nom de rue officiel (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:360
+msgid "left_OfficialStreetNameNid"
+msgstr "idnNomRueOfficiel_Gauche"
+
+#: ../../product_distribution_formats.rst:362
+msgid "right_OfficialStreetNameNid"
+msgstr "idnNomRueOfficiel_Droite"
+
+#: ../../product_distribution_formats.rst:364
+msgid "Reference System Indicator (left, right)"
+msgstr "Indicateur système référence (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:364
+msgid "left_ReferenceSystemIndicator"
+msgstr "indicSystemeReference_Gauche"
+
+#: ../../product_distribution_formats.rst:366
+msgid "right_ReferenceSystemIndicator"
+msgstr "indicSystemeReference_Droite"
+
+#: ../../product_distribution_formats.rst:378
+msgid "DATASETNAM"
+msgstr "NOMJEUDONN"
+
+#: ../../product_distribution_formats.rst:378
+#: ../../product_distribution_formats.rst:418
+#: ../../product_distribution_formats.rst:420
+#: ../../product_distribution_formats.rst:422
+#: ../../product_distribution_formats.rst:424
+#: ../../product_distribution_formats.rst:426
+#: ../../product_distribution_formats.rst:428
+#: ../../product_distribution_formats.rst:430
+#: ../../product_distribution_formats.rst:432
+#: ../../product_distribution_formats.rst:488
+#: ../../product_distribution_formats.rst:490
+#: ../../product_distribution_formats.rst:492
+#: ../../product_distribution_formats.rst:494
+#: ../../product_distribution_formats.rst:500
+#: ../../product_distribution_formats.rst:504
+#: ../../product_distribution_formats.rst:506
+#: ../../product_distribution_formats.rst:508
+#: ../../product_distribution_formats.rst:510
+#: ../../product_distribution_formats.rst:512
+#: ../../product_distribution_formats.rst:514
+#: ../../product_distribution_formats.rst:516
+#: ../../product_distribution_formats.rst:518
+#: ../../product_distribution_formats.rst:530
+#: ../../product_distribution_formats.rst:532
+#: ../../product_distribution_formats.rst:561
+#: ../../product_distribution_formats.rst:563
+msgid "C(100)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:386
+msgid "Street Name NID"
+msgstr "IDN nom de rue"
+
+#: ../../product_distribution_formats.rst:386
+msgid "streetNameNid"
+msgstr "idnNomRue"
+
+#: ../../product_distribution_formats.rst:386
+msgid "STRNAMENID"
+msgstr "IDNOMRUE"
+
+#: ../../product_distribution_formats.rst:396
+msgid "Blocked Passage Type"
+msgstr "Type passage obstrué"
+
+#: ../../product_distribution_formats.rst:396
+msgid "blockedPassageType"
+msgstr "typePassageObstrue"
+
+#: ../../product_distribution_formats.rst:396
+msgid "BLKPASSTY"
+msgstr "TYPEOBSTRU"
+
+#: ../../product_distribution_formats.rst:396
+msgid "C(17)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:400
+#: ../../product_distribution_formats.rst:585
+msgid "Road Element NID"
+msgstr "IDN élément routier"
+
+#: ../../product_distribution_formats.rst:400
+#: ../../product_distribution_formats.rst:585
+msgid "roadElementNid"
+msgstr "idnElementRoutier"
+
+#: ../../product_distribution_formats.rst:400
+#: ../../product_distribution_formats.rst:585
+msgid "ROADNID"
+msgstr "IDNELEMRTE"
+
+#: ../../product_distribution_formats.rst:410
+msgid "Closing Period"
+msgstr "Période de fermeture"
+
+#: ../../product_distribution_formats.rst:410
+#: ../../product_distribution_formats.rst:470
+msgid "closingPeriod"
+msgstr "periodeFermeture"
+
+#: ../../product_distribution_formats.rst:410
+#: ../../product_distribution_formats.rst:470
+msgid "CLOSING"
+msgstr "FERMETURE"
+
+#: ../../product_distribution_formats.rst:410
+#: ../../product_distribution_formats.rst:498
+#: ../../product_distribution_formats.rst:540
+msgid "C(7)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:412
+msgid "Ferry Segment ID"
+msgstr "ID segment liaison par transbordeur"
+
+#: ../../product_distribution_formats.rst:412
+msgid "ferrySegmentId"
+msgstr "idSegmentLiaisonTransbordeur"
+
+#: ../../product_distribution_formats.rst:412
+msgid "FERRYSEGID"
+msgstr "IDSEGMLTR"
+
+#: ../../product_distribution_formats.rst:414
+#: ../../product_distribution_formats.rst:478
+msgid "Functional Road Class"
+msgstr "Classification routière fonctionnelle"
+
+#: ../../product_distribution_formats.rst:414
+msgid "functionalRoadClass"
+msgstr "classRoutiereFonctionnelle"
+
+#: ../../product_distribution_formats.rst:414
+#: ../../product_distribution_formats.rst:478
+msgid "ROADCLASS"
+msgstr "CLASSROUTE"
+
+#: ../../product_distribution_formats.rst:414
+#: ../../product_distribution_formats.rst:478
+msgid "C(21)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:418
+#: ../../product_distribution_formats.rst:504
+msgid "Route Name English (1, 2, 3, 4)"
+msgstr "Nom de route anglais (1, 2, 3, 4)"
+
+#: ../../product_distribution_formats.rst:418
+#: ../../product_distribution_formats.rst:504
+msgid "routeNameEnglish1"
+msgstr "nomRouteAnglais1"
+
+#: ../../product_distribution_formats.rst:418
+#: ../../product_distribution_formats.rst:504
+msgid "RTENAME1EN"
+msgstr "NOMRTE1AN"
+
+#: ../../product_distribution_formats.rst:420
+#: ../../product_distribution_formats.rst:506
+msgid "routeNameEnglish2"
+msgstr "nomRouteAnglais2"
+
+#: ../../product_distribution_formats.rst:420
+#: ../../product_distribution_formats.rst:506
+msgid "RTENAME2EN"
+msgstr "NOMRTE2AN"
+
+#: ../../product_distribution_formats.rst:422
+#: ../../product_distribution_formats.rst:508
+msgid "routeNameEnglish3"
+msgstr "nomRouteAnglais3"
+
+#: ../../product_distribution_formats.rst:422
+#: ../../product_distribution_formats.rst:508
+msgid "RTENAME3EN"
+msgstr "NOMRTE3AN"
+
+#: ../../product_distribution_formats.rst:424
+#: ../../product_distribution_formats.rst:510
+msgid "routeNameEnglish4"
+msgstr "nomRouteAnglais4"
+
+#: ../../product_distribution_formats.rst:424
+#: ../../product_distribution_formats.rst:510
+msgid "RTENAME4EN"
+msgstr "NOMRTE4AN"
+
+#: ../../product_distribution_formats.rst:426
+#: ../../product_distribution_formats.rst:512
+msgid "Route Name French (1, 2, 3, 4)"
+msgstr "Nom de route français (1, 2, 3, 4)"
+
+#: ../../product_distribution_formats.rst:426
+#: ../../product_distribution_formats.rst:512
+msgid "routeNameFrench1"
+msgstr "nomRouteFrançais1"
+
+#: ../../product_distribution_formats.rst:426
+#: ../../product_distribution_formats.rst:512
+msgid "RTENAME1FR"
+msgstr "NOMRTE1FR"
+
+#: ../../product_distribution_formats.rst:428
+#: ../../product_distribution_formats.rst:514
+msgid "routeNameFrench2"
+msgstr "nomRouteFrançais2"
+
+#: ../../product_distribution_formats.rst:428
+#: ../../product_distribution_formats.rst:514
+msgid "RTENAME2FR"
+msgstr "NOMRTE2FR"
+
+#: ../../product_distribution_formats.rst:430
+#: ../../product_distribution_formats.rst:516
+msgid "routeNameFrench3"
+msgstr "nomRouteFrançais3"
+
+#: ../../product_distribution_formats.rst:430
+#: ../../product_distribution_formats.rst:516
+msgid "RTENAME3FR"
+msgstr "NOMRTE3FR"
+
+#: ../../product_distribution_formats.rst:432
+#: ../../product_distribution_formats.rst:518
+msgid "routeNameFrench4"
+msgstr "nomRouteFrançais4"
+
+#: ../../product_distribution_formats.rst:432
+#: ../../product_distribution_formats.rst:518
+msgid "RTENAME4FR"
+msgstr "NOMRTE4FR"
+
+#: ../../product_distribution_formats.rst:434
+#: ../../product_distribution_formats.rst:520
+msgid "Route Number (1, 2, 3, 4, 5)"
+msgstr "Numéro de route (1, 2, 3, 4, 5)"
+
+#: ../../product_distribution_formats.rst:434
+#: ../../product_distribution_formats.rst:520
+msgid "routeNumber1"
+msgstr "numeroRoute1"
+
+#: ../../product_distribution_formats.rst:434
+#: ../../product_distribution_formats.rst:520
+msgid "RTNUMBER1"
+msgstr "NUMROUTE1"
+
+#: ../../product_distribution_formats.rst:436
+#: ../../product_distribution_formats.rst:522
+msgid "routeNumber2"
+msgstr "numeroRoute2"
+
+#: ../../product_distribution_formats.rst:436
+#: ../../product_distribution_formats.rst:522
+msgid "RTNUMBER2"
+msgstr "NUMROUTE2"
+
+#: ../../product_distribution_formats.rst:438
+#: ../../product_distribution_formats.rst:524
+msgid "routeNumber3"
+msgstr "numeroRoute3"
+
+#: ../../product_distribution_formats.rst:438
+#: ../../product_distribution_formats.rst:524
+msgid "RTNUMBER3"
+msgstr "NUMROUTE3"
+
+#: ../../product_distribution_formats.rst:440
+#: ../../product_distribution_formats.rst:526
+msgid "routeNumber4"
+msgstr "numeroRoute4"
+
+#: ../../product_distribution_formats.rst:440
+#: ../../product_distribution_formats.rst:526
+msgid "RTNUMBER4"
+msgstr "NUMROUTE4"
+
+#: ../../product_distribution_formats.rst:450
+#: ../../product_distribution_formats.rst:470
+msgid "Exit Number"
+msgstr "Numéro de sortie"
+
+#: ../../product_distribution_formats.rst:450
+#: ../../product_distribution_formats.rst:472
+msgid "exitNumber"
+msgstr "numeroSortie"
+
+#: ../../product_distribution_formats.rst:450
+#: ../../product_distribution_formats.rst:472
+msgid "EXITNBR"
+msgstr "NUMSORTIE"
+
+#: ../../product_distribution_formats.rst:452
+msgid "Junction Type"
+msgstr "Type jonction"
+
+#: ../../product_distribution_formats.rst:452
+msgid "junctionType"
+msgstr "typeJonction"
+
+#: ../../product_distribution_formats.rst:452
+msgid "JUNCTYPE"
+msgstr "TYPEJONC"
+
+#: ../../product_distribution_formats.rst:452
+msgid "C(12)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:464
+msgid "Address Range Digitizing Direction Flag (left, right)"
+msgstr "Indicateur sens numérisation adresse (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:464
+msgid "left_AddressDirectionFlag *"
+msgstr "sensNumerisationAdresse_Gauche *"
+
+#: ../../product_distribution_formats.rst:464
+msgid "L_ADDDIRFG"
+msgstr "ADRSENS_G"
+
+#: ../../product_distribution_formats.rst:466
+msgid "right_AddressDirectionFlag *"
+msgstr "sensNumerisationAdresse_Droite *"
+
+#: ../../product_distribution_formats.rst:466
+msgid "R_ADDDIRFG"
+msgstr "ADRSENS_D"
+
+#: ../../product_distribution_formats.rst:468
+msgid "Address Range NID"
+msgstr "IDN intervalle d’adresse"
+
+#: ../../product_distribution_formats.rst:468
+msgid "addressRangeNid"
+msgstr "idnIntervalleAdresse"
+
+#: ../../product_distribution_formats.rst:468
+msgid "ADRANGENID"
+msgstr "IDINTERVAD"
+
+#: ../../product_distribution_formats.rst:474
+#: ../../product_distribution_formats.rst:476
+#: ../../product_distribution_formats.rst:480
+#: ../../product_distribution_formats.rst:482
+#: ../../product_distribution_formats.rst:571
+#: ../../product_distribution_formats.rst:573
+msgid "C(30)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:478
+msgid "functionalRoadClass"
+msgstr "classRoutiereFonctionnelle"
+
+#: ../../product_distribution_formats.rst:484
+msgid "nid *"
+msgstr "idn *"
+
+#: ../../product_distribution_formats.rst:486
+msgid "Number Of Lanes"
+msgstr "Nombre de voies"
+
+#: ../../product_distribution_formats.rst:486
+msgid "numberLanes"
+msgstr "nombreVoies"
+
+#: ../../product_distribution_formats.rst:486
+msgid "NBRLANES"
+msgstr "NBRVOIES"
+
+#: ../../product_distribution_formats.rst:488
+msgid "Official Place Name (left, right)"
+msgstr "Nom de lieu officiel (droite, gauche)"
+
+#: ../../product_distribution_formats.rst:488
+msgid "left_OfficialPlaceName *"
+msgstr "nomLieuOfficiel_Gauche *"
+
+#: ../../product_distribution_formats.rst:488
+msgid "L_PLACENAM"
+msgstr "NOMLIEU_G"
+
+#: ../../product_distribution_formats.rst:490
+msgid "right_OfficialPlaceName *"
+msgstr "nomLieuOfficiel_Droite *"
+
+#: ../../product_distribution_formats.rst:490
+msgid "R_PLACENAM"
+msgstr "NOMLIEU_D"
+
+#: ../../product_distribution_formats.rst:492
+msgid "left_OfficialStreetNameConcat *"
+msgstr "nomRueOfficielConcat_Gauche *"
+
+#: ../../product_distribution_formats.rst:492
+msgid "L_STNAME_C"
+msgstr "NOMRUE_C_G"
+
+#: ../../product_distribution_formats.rst:494
+msgid "right_OfficialStreetNameConcat *"
+msgstr "nomRueOfficielConcat_Droite *"
+
+#: ../../product_distribution_formats.rst:494
+msgid "R_STNAME_C"
+msgstr "NOMRUE_C_D"
+
+#: ../../product_distribution_formats.rst:496
+msgid "Paved Road Surface Type"
+msgstr "Type de chaussée revêtue"
+
+#: ../../product_distribution_formats.rst:496
+msgid "pavedRoadSurfaceType"
+msgstr "typeChausseeRevetue"
+
+#: ../../product_distribution_formats.rst:496
+msgid "PAVSURF"
+msgstr "TYPEREV"
+
+#: ../../product_distribution_formats.rst:498
+msgid "Pavement Status"
+msgstr "État revêtement"
+
+#: ../../product_distribution_formats.rst:498
+msgid "pavementStatus"
+msgstr "etatRevetement"
+
+#: ../../product_distribution_formats.rst:498
+msgid "PAVSTATUS"
+msgstr "ETATREV"
+
+#: ../../product_distribution_formats.rst:500
+msgid "Road Jurisdiction"
+msgstr "Autorité route"
+
+#: ../../product_distribution_formats.rst:500
+msgid "roadJurisdiction"
+msgstr "autoriteRoute"
+
+#: ../../product_distribution_formats.rst:500
+msgid "ROADJURIS"
+msgstr "AUTORITE"
+
+#: ../../product_distribution_formats.rst:502
+msgid "Road Segment ID"
+msgstr "ID segment routier"
+
+#: ../../product_distribution_formats.rst:502
+msgid "roadSegmentId"
+msgstr "idSegmentRoutier"
+
+#: ../../product_distribution_formats.rst:502
+msgid "ROADSEGID"
+msgstr "IDSEGMRTE"
+
+#: ../../product_distribution_formats.rst:528
+msgid "Speed Restrictions"
+msgstr "Limites de vitesse"
+
+#: ../../product_distribution_formats.rst:528
+msgid "speedRestrictions"
+msgstr "limitesVitesse"
+
+#: ../../product_distribution_formats.rst:528
+msgid "SPEED"
+msgstr "VITESSE"
+
+#: ../../product_distribution_formats.rst:530
+msgid "Structure Name English"
+msgstr "Nom de structure anglais"
+
+#: ../../product_distribution_formats.rst:530
+msgid "structureNameEnglish"
+msgstr "nomStructureAnglais"
+
+#: ../../product_distribution_formats.rst:530
+msgid "STRUNAMEEN"
+msgstr "NOMSTRUCFR"
+
+#: ../../product_distribution_formats.rst:532
+msgid "Structure Name French"
+msgstr "Nom de structure français"
+
+#: ../../product_distribution_formats.rst:532
+msgid "structureNameFrench"
+msgstr "nomStructureFrançais"
+
+#: ../../product_distribution_formats.rst:532
+msgid "STRUNAMEFR"
+msgstr "NOMSTRUCAN"
+
+#: ../../product_distribution_formats.rst:534
+msgid "Structure ID"
+msgstr "ID structure"
+
+#: ../../product_distribution_formats.rst:534
+msgid "structureId"
+msgstr "idStructure"
+
+#: ../../product_distribution_formats.rst:534
+msgid "STRUCTID"
+msgstr "IDSTRUCT"
+
+#: ../../product_distribution_formats.rst:536
+msgid "Structure Type"
+msgstr "Type de structure"
+
+#: ../../product_distribution_formats.rst:536
+msgid "structureType"
+msgstr "typeStructure"
+
+#: ../../product_distribution_formats.rst:536
+msgid "STRUCTTYPE"
+msgstr "TYPESTRUCT"
+
+#: ../../product_distribution_formats.rst:536
+msgid "C(15)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:538
+msgid "Traffic Direction"
+msgstr "Sens de circulation"
+
+#: ../../product_distribution_formats.rst:538
+msgid "trafficDirection"
+msgstr "sensCirculation"
+
+#: ../../product_distribution_formats.rst:538
+msgid "TRAFFICDIR"
+msgstr "SENSCIRCUL"
+
+#: ../../product_distribution_formats.rst:540
+msgid "Unpaved Road Surface Type"
+msgstr "Type de chaussée non revêtue"
+
+#: ../../product_distribution_formats.rst:540
+msgid "unpavedRoadSurfaceType"
+msgstr "typeChausseeNonRevetue"
+
+#: ../../product_distribution_formats.rst:540
+msgid "UNPAVSURF"
+msgstr "TYPENONREV"
+
+#: ../../product_distribution_formats.rst:553
+msgid "Directional Prefix"
+msgstr "Préfixe direction"
+
+#: ../../product_distribution_formats.rst:553
+msgid "directionalPrefix"
+msgstr "prefixeDirection"
+
+#: ../../product_distribution_formats.rst:553
+msgid "DIRPREFIX"
+msgstr "PREDIR"
+
+#: ../../product_distribution_formats.rst:555
+msgid "Directional Suffix"
+msgstr "Suffixe direction"
+
+#: ../../product_distribution_formats.rst:555
+msgid "directionalSuffix"
+msgstr "suffixeDirection"
+
+#: ../../product_distribution_formats.rst:555
+msgid "DIRSUFFIX"
+msgstr "SUFDIR"
+
+#: ../../product_distribution_formats.rst:557
+msgid "Muni Quadrant"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:557
+msgid "muniQuadrant"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:557
+msgid "MUNIQUAD"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:561
+msgid "Place Name"
+msgstr "Nom de lieu"
+
+#: ../../product_distribution_formats.rst:561
+msgid "placeName"
+msgstr "nomLieu"
+
+#: ../../product_distribution_formats.rst:561
+msgid "PLACENAME"
+msgstr "NOMLIEU"
+
+#: ../../product_distribution_formats.rst:563
+msgid "Place Type"
+msgstr "Type de lieu"
+
+#: ../../product_distribution_formats.rst:563
+msgid "placeType"
+msgstr "typeLieu"
+
+#: ../../product_distribution_formats.rst:563
+msgid "PLACETYPE"
+msgstr "TYPELIEU"
+
+#: ../../product_distribution_formats.rst:565
+msgid "Province"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:565
+msgid "province"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:565
+msgid "PROVINCE"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:567
+msgid "Street Name Article"
+msgstr "Article nom rue"
+
+#: ../../product_distribution_formats.rst:567
+msgid "streetNameArticle"
+msgstr "articleNomRue"
+
+#: ../../product_distribution_formats.rst:567
+msgid "STARTICLE"
+msgstr "ARTNOMRUE"
+
+#: ../../product_distribution_formats.rst:567
+msgid "C(20)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:569
+msgid "Street Name Body"
+msgstr "Corps nom rue"
+
+#: ../../product_distribution_formats.rst:569
+msgid "streetNameBody"
+msgstr "corpsNomRue"
+
+#: ../../product_distribution_formats.rst:569
+msgid "NAMEBODY"
+msgstr "CORPSNOM"
+
+#: ../../product_distribution_formats.rst:569
+msgid "C(50)"
+msgstr ""
+
+#: ../../product_distribution_formats.rst:571
+msgid "Street Type Prefix"
+msgstr "Préfixe type rue"
+
+#: ../../product_distribution_formats.rst:571
+msgid "streetTypePrefix"
+msgstr "prefixeTypeRue"
+
+#: ../../product_distribution_formats.rst:571
+msgid "STRTYPRE"
+msgstr "PRETYPRUE"
+
+#: ../../product_distribution_formats.rst:573
+msgid "Street Type Suffix"
+msgstr "Suffixe type rue"
+
+#: ../../product_distribution_formats.rst:573
+msgid "streetTypeSuffix"
+msgstr "suffixeTypeRue"
+
+#: ../../product_distribution_formats.rst:573
+msgid "STRTYSUF"
+msgstr "SUFTYPRUE"
+
+#: ../../product_distribution_formats.rst:587
+msgid "Toll Point Type"
+msgstr "Type poste péage"
+
+#: ../../product_distribution_formats.rst:587
+msgid "tollPointType"
+msgstr "typePostePeage"
+
+#: ../../product_distribution_formats.rst:587
+msgid "TOLLPTTYPE"
+msgstr "TYPEPTEPEA"
+
+#: ../../product_distribution_formats.rst:587
+msgid "C(22)"
+msgstr ""
+

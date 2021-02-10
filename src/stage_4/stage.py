@@ -1,16 +1,11 @@
 import click
 import logging
 import os
-import pandas as pd
 import sys
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
 from validation_functions import Validator
-
-
-# Suppress pandas chained assignment warning.
-pd.options.mode.chained_assignment = None
 
 
 # Set logger.
@@ -25,16 +20,24 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source, remove):
+    def __init__(self, source: str, remove: bool = False) -> None:
+        """
+        Initializes an NRN stage.
+
+        :param str source: abbreviation for the source province / territory.
+        :param bool remove: removes pre-existing validation log within the data/processed directory for the specified
+            source, default False.
+        """
+
         self.stage = 4
         self.source = source.lower()
         self.remove = remove
         self.Validator = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath("../../data/interim/{}.gpkg".format(self.source))
+        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
         if not os.path.exists(self.data_path):
-            logger.exception("Input data not found: \"{}\".".format(self.data_path))
+            logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Configure output path.
@@ -66,7 +69,7 @@ class Stage:
 
         self.dframes = helpers.load_gpkg(self.data_path)
 
-    def log_errors(self):
+    def log_errors(self) -> None:
         """Outputs error logs returned by validation functions."""
 
         logger.info("Writing error logs.")
@@ -78,8 +81,8 @@ class Stage:
                 errors = "\n".join(map(str, errors))
                 logger.warning(f"{heading}\n{errors}\n")
 
-    def validations(self):
-        """Applies a set of validations to one or more dataframes."""
+    def validations(self) -> None:
+        """Applies a set of validations to one or more NRN datasets."""
 
         logger.info("Applying validations.")
 
@@ -87,7 +90,7 @@ class Stage:
         self.Validator = Validator(self.dframes)
         self.Validator.execute()
 
-    def execute(self):
+    def execute(self) -> None:
         """Executes an NRN stage."""
 
         self.validations()
@@ -98,8 +101,14 @@ class Stage:
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing validation log within the data/processed directory for the specified source.")
-def main(source, remove):
-    """Executes an NRN stage."""
+def main(source: str, remove: bool = False) -> None:
+    """
+    Executes an NRN stage.
+
+    :param str source: abbreviation for the source province / territory.
+    :param bool remove: removes pre-existing validation log within the data/processed directory for the specified
+        source, default False.
+    """
 
     try:
 
@@ -110,6 +119,7 @@ def main(source, remove):
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

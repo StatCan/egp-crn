@@ -1,6 +1,6 @@
-*********************************************
-Product Distribution Formats - Segmented View
-*********************************************
+****************************
+Product Distribution Formats
+****************************
 
 .. include :: <isonum.txt>
 
@@ -315,56 +315,56 @@ Attributes Specific to Entities
 Address Range
 ^^^^^^^^^^^^^
 
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| Feature Catalogue                       | GML Attribute                 | Shape Attribute | Shape     |
-| Attribute Name                          | Name                          | Name            | Data Type |
-+=========================================+===============================+=================+===========+
-| Alternate Street Name NID (left, right) | left_AlternateStreetNameNid   | L_ALTNANID      | C(32)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_AlternateStreetNameNid  | R_ALTNANID      | C(32)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| Digitizing Direction Flag (left, right) | left_DigitizingDirectionFlag  | L_DIGDIRFG      | C(18)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_DigitizingDirectionFlag | R_DIGDIRFG      | C(18)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| First House Number (left, right)        | left_FirstHouseNumber         | L_HNUMF         | N(9,0)    |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_FirstHouseNumber        | R_HNUMF         | N(9,0)    |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| First House Number Suffix (left, right) | left_FirstHouseNumberSuffix   | L_HNUMSUFF      | C(10)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_FirstHouseNumberSuffix  | R_HNUMSUFF      | C(10)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| First House Number Type (left, right)   | left_FirstHouseNumberType     | L_HNUMTYPE      | C(16)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_FirstHouseNumberType    | R_HNUMTYPE      | C(16)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| House Number Structure (left, right)    | left_HouseNumberStructure     | L_HNUMSTR       | C(9)      |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_HouseNumberStructure    | R_HNUMSTR       | C(9)      |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| Last House Number (left, right)         | left_LastHouseNumber          | L_HNUML         | N(9,0)    |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_LastHouseNumber         | R_HNUML         | N(9,0)    |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| Last House Number Suffix (left, right)  | left_LastHouseNumberSuffix    | L_HNUMSUFL      | C(10)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_LastHouseNumberSuffix   | R_HNUMSUFL      | C(10)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| Last House Number Type (left, right)    | left_LastHouseNumberType      | L_HNUMTYPL      | C(16)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_LastHouseNumberType     | R_HNUMTYPL      | C(16)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| NID                                     | nid                           | NID             | C(32)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| Official Street Name NID (left, right)  | left_OfficialStreetNameNid    | L_HNUMTYPL      | C(16)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | right_OfficialStreetNameNid   | R_HNUMTYPL      | C(16)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
-| Reference System Indicator (left, right)| left_ReferenceSystemIndicator | L_HNUMTYPL      | C(16)     |
-+                                         +-------------------------------+-----------------+-----------+
-|                                         | rght_ReferenceSystemIndicator | R_HNUMTYPL      | C(16)     |
-+-----------------------------------------+-------------------------------+-----------------+-----------+
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| Feature Catalogue                       | GML Attribute                  | Shape Attribute | Shape     |
+| Attribute Name                          | Name                           | Name            | Data Type |
++=========================================+================================+=================+===========+
+| Alternate Street Name NID (left, right) | left_AlternateStreetNameNid    | L_ALTNANID      | C(32)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_AlternateStreetNameNid   | R_ALTNANID      | C(32)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| Digitizing Direction Flag (left, right) | left_DigitizingDirectionFlag   | L_DIGDIRFG      | C(18)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_DigitizingDirectionFlag  | R_DIGDIRFG      | C(18)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| First House Number (left, right)        | left_FirstHouseNumber          | L_HNUMF         | N(9,0)    |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_FirstHouseNumber         | R_HNUMF         | N(9,0)    |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| First House Number Suffix (left, right) | left_FirstHouseNumberSuffix    | L_HNUMSUFF      | C(10)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_FirstHouseNumberSuffix   | R_HNUMSUFF      | C(10)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| First House Number Type (left, right)   | left_FirstHouseNumberType      | L_HNUMTYPE      | C(16)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_FirstHouseNumberType     | R_HNUMTYPE      | C(16)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| House Number Structure (left, right)    | left_HouseNumberStructure      | L_HNUMSTR       | C(9)      |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_HouseNumberStructure     | R_HNUMSTR       | C(9)      |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| Last House Number (left, right)         | left_LastHouseNumber           | L_HNUML         | N(9,0)    |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_LastHouseNumber          | R_HNUML         | N(9,0)    |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| Last House Number Suffix (left, right)  | left_LastHouseNumberSuffix     | L_HNUMSUFL      | C(10)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_LastHouseNumberSuffix    | R_HNUMSUFL      | C(10)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| Last House Number Type (left, right)    | left_LastHouseNumberType       | L_HNUMTYPL      | C(16)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_LastHouseNumberType      | R_HNUMTYPL      | C(16)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| NID                                     | nid                            | NID             | C(32)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| Official Street Name NID (left, right)  | left_OfficialStreetNameNid     | L_HNUMTYPL      | C(16)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_OfficialStreetNameNid    | R_HNUMTYPL      | C(16)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
+| Reference System Indicator (left, right)| left_ReferenceSystemIndicator  | L_HNUMTYPL      | C(16)     |
++                                         +--------------------------------+-----------------+-----------+
+|                                         | right_ReferenceSystemIndicator | R_HNUMTYPL      | C(16)     |
++-----------------------------------------+--------------------------------+-----------------+-----------+
 
 Alternate Name Link
 ^^^^^^^^^^^^^^^^^^^
@@ -411,7 +411,7 @@ Ferry Connection Segment
 +----------------------------------+----------------------+-----------------+-----------+
 | Ferry Segment ID                 | ferrySegmentId       | FERRYSEGID      | N(9,0)    |
 +----------------------------------+----------------------+-----------------+-----------+
-| Functional Road Class            | functionlaRoadClass  | ROADCLASS       | C(21)     |
+| Functional Road Class            | functionalRoadClass  | ROADCLASS       | C(21)     |
 +----------------------------------+----------------------+-----------------+-----------+
 | NID                              | nid                  | NID             | C(32)     |
 +----------------------------------+----------------------+-----------------+-----------+

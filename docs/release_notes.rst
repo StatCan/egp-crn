@@ -7,7 +7,7 @@ Release Notes
 Current release notes
 =====================
 
-Information on dataset updates.
+Information on the latest dataset updates.
 
 =========================  ====  =======  ============  =============  ====================
 Province / Territory       Code  Edition  Release Date  Validity Date  Number of kilometers

@@ -9,7 +9,8 @@ import sys
 from bisect import bisect
 from collections import OrderedDict
 from operator import itemgetter
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
+from typing import List, Tuple, Union
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import helpers
@@ -21,8 +22,18 @@ logger = logging.getLogger()
 class Segmentor:
     """Converts address points into segmented addrange attributes, joining the results to the roadseg source dataset."""
 
-    def __init__(self, source, addresses, roadseg, address_fields, address_join_field, roadseg_join_field):
-        """Validates and formats input data."""
+    def __init__(self, source: str, addresses: gpd.GeoDataFrame, roadseg: gpd.GeoDataFrame, address_fields: dict,
+                 address_join_field: dict, roadseg_join_field: dict) -> None:
+        """
+        Validates and formats input data for use by the address segmentation class.
+
+        :param str source: abbreviation for the source province / territory.
+        :param gpd.GeoDataFrame addresses: GeoDataFrame of address points.
+        :param gpd.GeoDataFrame roadseg: GeoDataFrame of NRN roadseg.
+        :param dict address_fields: yaml-constructed definition of addressing fields.
+        :param dict address_join_field: yaml-constructed definition of address join field.
+        :param dict roadseg_join_field: yaml-constructed definition of roadseg join field.
+        """
 
         self.source = source.lower()
 
@@ -70,7 +81,7 @@ class Segmentor:
         except ValueError:
 
             # Flag invalid address numbers.
-            invalid = self.addresses[~self.addresses["number"].map(lambda val: str(val).isdigit)]
+            invalid = self.addresses.loc[~self.addresses["number"].map(lambda val: str(val).isdigit)]
             message = "\n".join(map(str, invalid[invalid.columns.difference(["geometry"])].itertuples(index=True)))
             logger.exception(f"Invalid address number for the following record(s):\n{message}")
             sys.exit(1)
@@ -82,8 +93,12 @@ class Segmentor:
 
         logger.info("Input data is ready for segmentation.")
 
-    def __call__(self):
-        """Executes the address segmentation methods."""
+    def __call__(self) -> gpd.GeoDataFrame:
+        """
+        Executes the address segmentation methods.
+
+        :return gpd.GeoDataFrame: GeoDataFrame of NRN roadseg with NRN addrange attribution.
+        """
 
         logger.info("Segmentation initiated.")
 
@@ -95,13 +110,18 @@ class Segmentor:
 
         return self.roadseg.copy(deep=True)
 
-    def configure_addrange_attributes(self):
-        """Configures addrange attributes, where possible."""
+    def configure_addrange_attributes(self) -> None:
+        """Configures and assigns addrange attributes to NRN roadseg, where possible."""
 
         logger.info("Configuring addrange attributes.")
 
-        def get_digdirfg(sequence):
-            """Returns the digdirfg attribute for the given sequence of address numbers."""
+        def get_digdirfg(sequence: List[int, ...]) -> str:
+            """
+            Configures the addrange digdirfg value for the given sequence of address numbers.
+
+            :param List[int, ...] sequence: sequence of address numbers.
+            :return str: addrange digdirfg value.
+            """
 
             sequence = list(sequence)
 
@@ -115,8 +135,13 @@ class Segmentor:
             else:
                 return "Opposite Direction"
 
-        def get_hnumstr(sequence):
-            """Returns the hnumstr attribute for the given sequence of address numbers."""
+        def get_hnumstr(sequence: List[int, ...]) -> str:
+            """
+            Configures the addrange hnumstr value for the given sequence of address numbers.
+
+            :param List[int, ...] sequence: sequence of address numbers.
+            :return str: addrange hnumstr value.
+            """
 
             sequence = list(sequence)
 
@@ -142,8 +167,16 @@ class Segmentor:
             else:
                 return "Irregular"
 
-        def get_number_sequence(addresses):
-            """Returns the filtered number sequence for the given addresses."""
+        def get_number_sequence(addresses: Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]]) -> \
+                List[int, ...]:
+            """
+            Configures the filtered number sequence for the given addresses.
+
+            :param Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]] addresses: nested lists of
+                address numbers, address suffixes, and address distances along the associated NRN roadseg LineString,
+                respectively.
+            :return List[int, ...]: sequence of address numbers with duplicated distances dropped.
+            """
 
             # Separate address components.
             numbers, suffixes, distances = tuple(zip(*addresses))
@@ -160,13 +193,22 @@ class Segmentor:
 
             return sequence
 
-        def sort_addresses(numbers, suffixes, distances):
+        def sort_addresses(numbers: List[int, ...], suffixes: List[Union[int, str], ...], distances: List[float, ...]) \
+                -> Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]]:
             """
-            Sorts the addresses successively by:
-            1) distance - the distance of the intersection point along the road segment.
-            2) number
-            3) suffix
-            Taking into account the directionality of the addresses relative to the road segment.
+            Sorts addresses successively by its components:
+            1) distance - the distance of the address along the associated NRN roadseg LineString.
+            2) address number
+            3) address suffix
+            Sorting accounts for the directionality of the address sequence.
+
+            :param List[int, ...] numbers: sequence of address numbers.
+            :param List[Union[int, str], ...] suffixes: sequence of address suffixes.
+            :param List[float, ...] distances: sequence of address distances along the associated NRN roadseg
+                LineString.
+            :return Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]]: nested lists of address
+                numbers, address suffixes, and address distance along the associated NRN roadseg LineString,
+                respectively, sorted.
             """
 
             # Create individual address tuples from separated address components.
@@ -188,8 +230,8 @@ class Segmentor:
                     key=itemgetter(2)))
 
         # Split address dataframe on parity.
-        addresses_l = self.addresses[self.addresses["parity"] == "l"].copy(deep=True)
-        addresses_r = self.addresses[self.addresses["parity"] == "r"].copy(deep=True)
+        addresses_l = self.addresses.loc[self.addresses["parity"] == "l"].copy(deep=True)
+        addresses_r = self.addresses.loc[self.addresses["parity"] == "r"].copy(deep=True)
 
         # Create dataframes from grouped addresses.
         cols = ("number", "suffix", "distance")
@@ -250,17 +292,23 @@ class Segmentor:
 
         self.roadseg = self.roadseg.merge(addrange, how="left", left_index=True, right_index=True)
 
-    def configure_address_parity(self):
-        """Computes roadseg parity and groups linked addresses."""
+    def configure_address_parity(self) -> None:
+        """Configures each address point's parity and distance along the associated NRN roadseg LineString."""
 
         logger.info("Configuring address parity.")
 
-        def get_parity(pt, vector):
+        def get_parity(pt: Point, vector: Tuple[tuple, tuple]) -> str:
             """
-            Determines the parity (left or right side) of an address point relative to a road vector.
+            Determines the parity (left or right side) of an address point relative to a road vector. Parity is derived
+            from the sign of the determinant of the following vectors:
+            1) road segment
+            2) direct connection between the address point and road segment.
+            A positive determinant indicates 'left' parity and negative determinant indicates 'right' parity.
 
-            Parity is derived from the determinant of the vectors formed by the road segment and the address-to-roadseg
-            vectors. A positive determinant indicates 'left' parity and negative determinant indicates 'right' parity.
+            :param shapely.geometry.Point pt: address point.
+            :param Tuple[tuple, tuple] vector: nested tuple of 2 pairs of coordinates, derived from an NRN roadseg
+                LineString.
+            :return str: address parity.
             """
 
             det = (vector[1][0] - vector[0][0]) * (pt.y - vector[0][1]) - \
@@ -269,12 +317,18 @@ class Segmentor:
 
             return "l" if sign == 1 else "r"
 
-        def get_road_vector(pt, segment):
+        def get_road_vector(pt: Point, segment: LineString) -> Tuple[float, Tuple[tuple, tuple]]:
             """
-            Returns the following:
-            a) the distance of the address intersection along the roadseg segment.
-            b) the vector comprised of the roadseg segment coordinates immediately before and after the address
+            Computes the following:
+            1) the distance of the address intersection point along the NRN roadseg LineString.
+            2) the vector comprised of the NRN roadseg LineString coordinates immediately before and after the address
             intersection point.
+
+            :param shapely.geometry.Point pt: address-NRN roadseg intersection point.
+            :param shapely.geometry.LineString segment: NRN roadseg LineString.
+            :return Tuple[float, Tuple[tuple, tuple]]: nested tuple comprised of the address point distance along the
+                NRN roadseg LineString and the vector comprised of the NRN roadseg LineString coordinates immediately
+                before and after the address intersection point, respectively.
             """
 
             # Calculate the distance along the road segment of all roadseg points and the intersection point.
@@ -319,16 +373,24 @@ class Segmentor:
         self.addresses["parity"] = self.addresses[["geometry", "road_vector"]].apply(
             lambda row: get_parity(*row), axis=1)
 
-    def configure_roadseg_linkages(self):
-        """Associates each address with a roadseg record."""
+    def configure_roadseg_linkages(self) -> None:
+        """Associates each address point with an NRN roadseg record."""
 
         logger.info("Linking addresses to roadseg records.")
 
         # Configure roadseg geometry lookup dictionary.
         roadseg_geom_lookup = self.roadseg["geometry"].to_dict()
 
-        def get_nearest_linkage(pt, roadseg_indexes):
-            """Returns the roadseg index associated with the nearest roadseg geometry to the given address point."""
+        def get_nearest_linkage(pt: Point, roadseg_indexes: Tuple[int, ...]) -> int:
+            """
+            Resolves many-to-one linkages between an address point and NRN roadseg by keeping the closest (lowest
+            geometric distance) of the NRN roadseg linkages to the address point.
+
+            :param shapely.geometry.Point pt: address point.
+            :param Tuple[int, ...] roadseg_indexes: NRN roadseg indexes linked to the address point.
+            :return int: roadseg_indexes value of the closest NRN roadseg geometry to the address point (from the subset
+                of indexes in roadseg_indexes).
+            """
 
             # Get roadseg geometries.
             roadseg_geometries = itemgetter(*roadseg_indexes)(roadseg_geom_lookup)
@@ -366,7 +428,14 @@ class Segmentor:
             self.addresses.drop(self.addresses.loc[non_linked_flag].index, axis=0, inplace=True)
 
         # Convert linkages to integer tuples, if possible.
-        def as_int(val):
+        def as_int(val: Union[int, str]) -> Union[int, str]:
+            """
+            Converts the given value to integer, failed conversion returns the original value.
+
+            :param Union[int, str] val: value to be converted.
+            :return Union[int, str]: value converted to integer, or unaltered.
+            """
+
             try:
                 return int(val)
             except ValueError:
@@ -382,12 +451,12 @@ class Segmentor:
             logger.info(f"Resolving many-to-one address-roadseg linkages for {sum(flag_multi)} address records.")
 
             # Resolve many-to-one linkages.
-            self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses[flag_multi][["geometry", "roadseg_index"]]\
-                .apply(lambda row: get_nearest_linkage(*row), axis=1)
+            self.addresses.loc[flag_multi, "roadseg_index"] = self.addresses.loc[
+                flag_multi, ["geometry", "roadseg_index"]].apply(lambda row: get_nearest_linkage(*row), axis=1)
 
         # Unpack first roadseg linkage for single-linkage addresses.
-        self.addresses.loc[~flag_multi, "roadseg_index"] = self.addresses[~flag_multi]["roadseg_index"].map(
-            itemgetter(0))
+        self.addresses.loc[~flag_multi, "roadseg_index"] = self.addresses.loc[
+            ~flag_multi, "roadseg_index"].map(itemgetter(0))
 
         # Compile linked roadseg geometry for each address.
         self.addresses["roadseg_geometry"] = self.addresses.merge(

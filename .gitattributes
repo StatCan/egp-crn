@@ -1,0 +1,6 @@
+# configure linguist overrides (linguist is used by GitHub to detect the language of a project)
+# https://github.com/github/linguist#overrides
+
+data/* linguist-vendored
+docs/* linguist-documentation
+reports/* linguist-documentation
