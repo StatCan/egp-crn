@@ -19,4 +19,4 @@ dependencies:
   - sphinx=3.4.3
   - tqdm=4.53.0
   - pip:
-    - sphinx-intl=2.0.1
+    - sphinx-intl==2.0.1
