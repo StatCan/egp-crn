@@ -1,7 +1,7 @@
 # National Road Network (NRN)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/jessestewart1/nrn-rrn?style=flat)
 [![Documentation Status](https://readthedocs.org/projects/nrn-rrn-docs/badge/?version=latest;style=flat)](https://nrn-rrn-docs.readthedocs.io/en/latest/?badge=latest)
-[![GitHub license](https://img.shields.io/github/license/jessestewart1/nrn-rrn?style=flat)](https://github.com/jessestewart1/nrn-rrn/blob/master/LICENSE.md)
+[![GitHub license](https://img.shields.io/github/license/jessestewart1/nrn-rrn)](https://github.com/jessestewart1/nrn-rrn/blob/master/LICENSE.txt)
 [![Anaconda-Server Badge](https://img.shields.io/badge/Install%20with-conda-green.svg?style=flat)](https://conda.anaconda.org/conda-forge)
 ![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jessestewart1/nrn-rrn?style=flat)
 
