@@ -505,14 +505,14 @@ def get_url(url: str, max_attempts: int = 10, **kwargs: dict) -> requests.Respon
                 continue
 
 
-def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str, ...], str],
-                    list_field: str) -> pd.Series:
+def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str], str], list_field: str) -> \
+        pd.Series:
     """
     Faster alternative to :func:`~pd.groupby.apply/agg(list)`.
     Groups records by one or more fields and compiles an output field into a list for each group.
 
     :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame.
-    :param Union[List[str, ...], str] group_field: field or list of fields by which the (Geo)DataFrame records will be
+    :param Union[List[str], str] group_field: field or list of fields by which the (Geo)DataFrame records will be
         grouped.
     :param str list_field: (Geo)DataFrame field to output, based on the record groupings.
     :return pd.Series: Series of grouped values.
@@ -536,7 +536,7 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
-def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str, ...]] = None) -> \
+def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]] = None) -> \
         Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
     """
     Compiles a dictionary of NRN dataset names and associated (Geo)DataFrame from GeoPackage layers.
@@ -544,7 +544,7 @@ def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str, 
     :param str gpkg_path: path to the GeoPackage.
     :param bool find: searches for NRN datasets in the GeoPackage based on non-exact matches with the expected dataset
         names, default False.
-    :param Union[None, List[str, ...]] layers: layer name or list of layer names to return instead of all NRN datasets.
+    :param Union[None, List[str]] layers: layer name or list of layer names to return instead of all NRN datasets.
     :return Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
     """

@@ -19,13 +19,13 @@ data:
   query:
 conform:
   addrange:
-    acqtech: ACQTECH
-    metacover: METACOVER
-    credate: CREDATE
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
     datasetnam: Prince Edward Island
-    accuracy: ACCURACY
-    provider: PROVIDER
-    revdate: REVDATE
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
     specvers: 2.0
     l_altnanid:
     r_altnanid:
@@ -48,82 +48,74 @@ conform:
     nid: uuid
     l_offnanid: uuid
     r_offnanid: uuid
-    l_rfsysind: L_RFSYSIND
-    r_rfsysind: R_RFSYSIND
+    l_rfsysind: l_rfsysind
+    r_rfsysind: r_rfsysind
   roadseg:
-    acqtech: ACQTECH
-    metacover: METACOVER
-    credate: CREDATE
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
     datasetnam: Prince Edward Island
-    accuracy: ACCURACY
-    provider: PROVIDER
-    revdate: REVDATE
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
     specvers: 2.0
     l_adddirfg: l_digdirfg
     r_adddirfg: r_digdirfg
     adrangenid: uuid
-    closing: CLOSING
-    exitnbr: EXITNBR
+    closing: closing
+    exitnbr: exitnbr
     l_hnumf: l_hnumf
     r_hnumf: r_hnumf
-    roadclass: ROADCLASS
+    roadclass: roadclass
     l_hnuml: l_hnuml
     r_hnuml: r_hnuml
     nid: uuid
-    nbrlanes: NBRLANES
-    l_placenam: L_PLACENAM
-    r_placenam: R_PLACENAM
-    l_stname_c: L_STNAME_C
-    r_stname_c: R_STNAME_C
-    pavsurf: PAVSURF
-    pavstatus: PAVSTATUS
-    roadjuris: ROADJURIS
+    nbrlanes: nbrlanes
+    l_placenam: l_placenam
+    r_placenam: r_placenam
+    l_stname_c: l_stname_c
+    r_stname_c: r_stname_c
+    pavsurf: pavsurf
+    pavstatus: pavstatus
+    roadjuris: roadjuris
     roadsegid:
-    rtename1en: RTENAME1EN
-    rtename2en: RTENAME2EN
-    rtename3en: RTENAME3EN
-    rtename4en: RTENAME4EN
-    rtename1fr: RTENAME1FR
-    rtename2fr: RTENAME2FR
-    rtename3fr: RTENAME3FR
-    rtename4fr: RTENAME4FR
-    rtnumber1: RTNUMBER1
-    rtnumber2: RTNUMBER2
-    rtnumber3: RTNUMBER3
-    rtnumber4: RTNUMBER4
-    rtnumber5: RTNUMBER5
-    speed: SPEED
-    strunameen: STRUNAMEEN
-    strunamefr: STRUNAMEFR
+    rtename1en: rtename1en
+    rtename2en: rtename2en
+    rtename3en: rtename3en
+    rtename4en: rtename4en
+    rtename1fr: rtename1fr
+    rtename2fr: rtename2fr
+    rtename3fr: rtename3fr
+    rtename4fr: rtename4fr
+    rtnumber1: rtnumber1
+    rtnumber2: rtnumber2
+    rtnumber3: rtnumber3
+    rtnumber4: rtnumber4
+    rtnumber5: rtnumber5
+    speed: speed
+    strunameen: strunameen
+    strunamefr: strunamefr
     structid:
-    structtype: STRUCTTYPE
-    trafficdir: TRAFFICDIR
-    unpavsurf: UNPAVSURF
+    structtype: structtype
+    trafficdir: trafficdir
+    unpavsurf: unpavsurf
   strplaname:
-    acqtech: ACQTECH
-    metacover: METACOVER
-    credate: CREDATE
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
     datasetnam: Prince Edward Island
-    accuracy: ACCURACY
-    provider: PROVIDER
-    revdate: REVDATE
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
     specvers: 2.0
-    dirprefix: [L_DIRPREFI, R_DIRPREFI]
-    dirsuffix: [L_DIRSUFFI, R_DIRSUFFI]
+    dirprefix: [l_dirprefi, r_dirprefi]
+    dirsuffix: [l_dirsuffi, r_dirsuffi]
     muniquad:
     nid: uuid
-    placename: [L_PLACENAM, R_PLACENAM]
+    placename: [l_placenam, r_placenam]
     placetype:
     province: Prince Edward Island
-    starticle: [L_STARTICL, R_STARTICL]
-    namebody: [L_NAMEBODY, R_NAMEBODY]
-    strtypre: [L_STRTYPRE, R_STRTYPRE]
-    strtysuf:
-      fields: [L_STRTYSUF, R_STRTYSUF]
-      functions:
-        - function: map_values
-          lookup:
-            Driveway:
-            Height:
-            Roadway:
-            Strip:
+    starticle: [l_starticl, r_starticl]
+    namebody: [l_namebody, r_namebody]
+    strtypre: [l_strtypre, r_strtypre]
+    strtysuf: [l_strtysuf, r_strtysuf]

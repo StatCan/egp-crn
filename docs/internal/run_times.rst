@@ -137,6 +137,29 @@ Stage      Time
 **Total**  **08:47.59**
 =========  ====
 
+February 11, 2021
+-----------------
+
+:Source: data/raw/pe/PEI_NRN21
+:Environment:
+    :OS: Windows 10 64-bit
+    :CPU: Intel Core i7 4700HQ @ 2.40GHz
+    :RAM: 16.0GB
+    :Python: 3.6.11
+:Runtimes:
+
+=========  ====
+Stage      Time
+=========  ====
+1          00:00.00
+2          00:00.00
+3          00:00.00
+4          00:00.00
+5          00:00.00
+---------  ----
+**Total**  **00:00.00**
+=========  ====
+
 Saskatchewan (SK)
 =================
 

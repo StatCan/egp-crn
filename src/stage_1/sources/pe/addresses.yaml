@@ -19,24 +19,8 @@ data:
   query:
   segment:
     address_fields:
-      street:
-        field:
-        regex_sub:
-          pattern:
-          repl:
-      number:
-        field:
-        regex_sub:
-          pattern:
-          repl:
+      street: street_nm
+      number: street_no
       suffix:
-        field:
-        regex_sub:
-          pattern:
-          repl:
-    address_join_field:
-      fields:
-      separator:
-    roadseg_join_field:
-      fields:
-      separator:
+    address_join_field: street_nm
+    roadseg_join_field: street_nm

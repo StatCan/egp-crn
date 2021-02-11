@@ -103,7 +103,7 @@ class Stage:
             sys.exit(1)
 
     def divide_polygon(self, poly: Union[MultiPolygon, Polygon], threshold: Union[float, int], pts: pd.Series,
-                       count: int = 0) -> List[Union[None, MultiPolygon, Polygon], ...]:
+                       count: int = 0) -> List[Union[None, MultiPolygon, Polygon]]:
         """
         Recursively divides a (Multi)Polygon into 2 parts until any of the following limits are reached:
         a) both dimensions (height and width) are <= threshold.
@@ -114,8 +114,7 @@ class Stage:
         :param Union[float, int] threshold: maximum height and width of the divided Polygons.
         :param pd.Series pts: Series of coordinate tuples.
         :param int count: current recursion depth (for internal use), default 0.
-        :return List[Union[None, MultiPolygon, Polygon], ...]: list of Polygons, extracted from the original
-            (Multi)Polygon.
+        :return List[Union[None, MultiPolygon, Polygon]]: list of Polygons, extracted from the original (Multi)Polygon.
         """
 
         xmin, ymin, xmax, ymax = poly.bounds

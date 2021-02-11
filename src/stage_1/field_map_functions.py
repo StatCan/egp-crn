@@ -28,12 +28,12 @@ def apply_domain(**kwargs: dict) -> pd.Series:
     return helpers.apply_domain(**kwargs)
 
 
-def concatenate(df: pd.DataFrame, columns: List[str, ...], separator: str = " ") -> pd.Series:
+def concatenate(df: pd.DataFrame, columns: List[str], separator: str = " ") -> pd.Series:
     """
     Concatenates all non-null values across multiple columns into a single string.
 
     :param pd.DataFrame df: DataFrame.
-    :param List[str, ...] columns: list of column names.
+    :param List[str] columns: list of column names.
     :param str separator: delimiter string used to join the column values.
     :return pd.Series: Series of concatenated non-null column values.
     """
@@ -151,13 +151,13 @@ def map_values(series: pd.Series, lookup: dict, case_sensitive: bool = False) ->
         return series.map(lambda val: str(val).lower()).map(lookup).fillna(series)
 
 
-def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str, ...], lookup: dict, engine: str = "python",
+def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str], lookup: dict, engine: str = "python",
                  **kwargs: dict) -> pd.Series:
     """
     Populates a Series based on a lookup dictionary of queries. Non-matches will be Null.
 
     :param Union[pd.DataFrame, pd.Series] df: DataFrame or Series.
-    :param List[str, ...] columns: list of column names, once unnested if input is a nested Series.
+    :param List[str] columns: list of column names, once unnested if input is a nested Series.
     :param dict lookup: dictionary of query-value mappings, where queries are stored as the dictionary keys. Each query
         maps to a dictionary containing a 'value' key and 'type' key. 'type' can be either 'column' or 'string' and
         indicates whether 'value' is to be taken as raw string or column name. If 'value' is a column name, then the
@@ -217,7 +217,7 @@ def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str, ...], lo
         sys.exit(1)
 
 
-def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: Union[int, List[int, ...]],
+def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: Union[int, List[int]],
                strip_result: bool = False, sub_inplace: dict = None) -> pd.Series:
     """
     Populates a Series based on the selection or removal of a regular expression match.
@@ -225,8 +225,8 @@ def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: U
     :param pd.Series series: Series.
     :param str pattern: regular expression.
     :param int match_index: index of regular expression matches to be selected.
-    :param Union[int, List[int, ...]] group_index: index(es) of match group(s) to be selected within the regular
-        expression matches.
+    :param Union[int, List[int]] group_index: index(es) of match group(s) to be selected within the regular expression
+        matches.
     :param bool strip_result: selected match value should be stripped from the original string, default False.
     :param dict sub_inplace: keyword arguments passed to :func:`~re.sub`, default None. This allows the regular
         expression to be matched against a modification of the original string, but still return the match as it appears
@@ -377,13 +377,13 @@ def regex_sub(series: pd.Series, **kwargs: dict) -> pd.Series:
     return series
 
 
-def validate_dtypes(name: str, val: Any, dtypes: Union[Type, List[Type, ...]]) -> bool:
+def validate_dtypes(name: str, val: Any, dtypes: Union[Type, List[Type]]) -> bool:
     """
     Validates the data type of the given value against a list of acceptable data type objects.
 
     :param str name: name of the variable holding the provided value.
     :param Any val: value.
-    :param Union[Type, List[Type, ...]] dtypes: list of acceptable type objects against which the provided value will be
+    :param Union[Type, List[Type]] dtypes: list of acceptable type objects against which the provided value will be
         validated.
     :return bool: whether the provided value is an instance of one of the acceptable type objects.
     """

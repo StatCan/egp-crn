@@ -267,12 +267,12 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
-    def apply_functions(self, series: pd.Series, func_list: List[dict, ...], target_field: str) -> pd.Series:
+    def apply_functions(self, series: pd.Series, func_list: List[dict], target_field: str) -> pd.Series:
         """
         Iterates and applies field mapping function(s) to a Series.
 
         :param pd.Series series: Series.
-        :param List[dict, ...] func_list: list of yaml-constructed field mapping definitions passed to
+        :param List[dict] func_list: list of yaml-constructed field mapping definitions passed to
             :func:`field_map_functions`.
         :param str target_field: name of the destination field to which the given Series will be assigned.
         :return pd.Series: mapped Series.
