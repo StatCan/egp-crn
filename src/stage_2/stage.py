@@ -9,7 +9,6 @@ import requests
 import sys
 import uuid
 from collections import Counter
-from collections.abc import Sequence
 from datetime import datetime
 from itertools import chain
 from operator import attrgetter, itemgetter
@@ -176,12 +175,12 @@ class Stage:
 
         logger.info("Generating remaining dataset attributes.")
 
-        def compute_connected_attributes(attributes: Sequence[str, ...]) -> Dict[str, pd.Series]:
+        def compute_connected_attributes(attributes: List[str]) -> Dict[str, pd.Series]:
             """
             Computes the given attributes from NRN ferryseg and roadseg features connected to the junction dataset.
             Currently supported attributes: 'accuracy', 'exitnbr'.
 
-            :param Sequence[str, ...] attributes: sequence of attribute names.
+            :param List[str] attributes: list of attribute names.
             :return Dict[str, pd.Series]: dictionary of attributes and junction-aligned Series of attribute values.
             """
 

@@ -6,6 +6,7 @@ import networkx as nx
 import numpy as np
 import os
 import pandas as pd
+import random
 import re
 import requests
 import sqlite3
@@ -469,40 +470,32 @@ def gdf_to_nx(gdf: gpd.GeoDataFrame, keep_attributes: bool = True, endpoints_onl
     return g
 
 
-def get_url(url: str, max_attempts: int = 10, **kwargs: dict) -> requests.Response:
+def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
     """
-    Fetches a response from a url.
+    Fetches a response from a url, using exponential backoff for failed attempts.
 
     :param str url: string url.
-    :param int max_attempts: maximum attempts to get a response from the url.
+    :param int attempt: current count of attempts to get a response from the url.
     :param dict \*\*kwargs: keyword arguments passed to :func:`~requests.get`.
     :return requests.Response: response from the url.
     """
 
-    attempt = 1
-    while attempt <= max_attempts:
+    logger.info(f"Fetching url request from: {url} [attempt {attempt}].")
 
-        try:
+    try:
 
-            logger.info(f"Connecting to url (attempt {attempt} of {max_attempts}): {url}")
+        # Get url response.
+        response = requests.get(url, **kwargs)
 
-            # Get url response.
-            response = requests.get(url, **kwargs)
+    except (TimeoutError, requests.exceptions.RequestException, requests.exceptions.ConnectionError) as e:
+        logger.warning("Failed to get url response. Retrying with backoff...")
+        logger.exception(e)
 
-            return response
+        # Retry with exponential backoff.
+        time.sleep(2**attempt + random.random()*0.01)
+        return get_url(url, attempt+1, **kwargs)
 
-        except (TimeoutError, requests.exceptions.RequestException) as e:
-
-            if attempt == max_attempts:
-                logger.warning("Failed to get url response.")
-                logger.exception(e)
-                logger.warning("Maximum attempts exhausted. Exiting program.")
-                sys.exit(1)
-            else:
-                logger.warning("Failed to get url response. Retrying...")
-                attempt += 1
-                time.sleep(5)
-                continue
+    return response
 
 
 def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str], str], list_field: str) -> \
