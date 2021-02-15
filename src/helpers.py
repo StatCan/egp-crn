@@ -16,7 +16,7 @@ import time
 import yaml
 from collections import defaultdict
 from copy import deepcopy
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
@@ -427,6 +427,33 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
         logger.exception(f"Error raised when writing to GeoPackage: {output_path}.")
         logger.exception(e)
         sys.exit(1)
+
+
+def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Flattens the GeoDataFrame geometry coordinates to 2-dimensions.
+
+    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :return gpd.GeoDataFrame: GeoDataFrame with 2-dimensional coordinates.
+    """
+
+    logger.info("Flattening coordinates to 2-dimensions.")
+
+    # Flatten coordinates.
+    if len(gdf.geom_type.unique()) > 1:
+        raise Exception("Multiple geometry types detected for dataframe.")
+
+    elif gdf.geom_type.iloc[0] == "LineString":
+        gdf["geometry"] = gdf["geometry"].map(
+            lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
+
+    elif gdf.geom_type.iloc[0] == "Point":
+        gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
+
+    else:
+        raise Exception("Geometry type not supported for coordinate flattening.")
+
+    return gdf
 
 
 def gdf_to_nx(gdf: gpd.GeoDataFrame, keep_attributes: bool = True, endpoints_only: bool = False) -> nx.Graph:

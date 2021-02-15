@@ -271,21 +271,20 @@ class Stage:
         pts_uuid = np.concatenate([[id] * count for id, count in df["geometry"].map(
             lambda geom: len(geom.coords)).iteritems()])
 
-        # Construct x-, y-, and z-coordinate series aligned to the series of points.
-        pts_x, pts_y, pts_z = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
+        # Construct x- and y-coordinate series aligned to the series of points.
+        pts_x, pts_y = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
 
-        # Join the uuids, x-, y-, and z-coordinates.
-        pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "z": pts_z, "uuid": pts_uuid})
+        # Join the uuids, x- and y-coordinates.
+        pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
 
         # Query unique points (all) and endpoints.
-        pts_unique = set(map(tuple, pts_df.loc[
-            ~pts_df[["x", "y", "z"]].duplicated(keep=False), ["x", "y", "z"]].values))
+        pts_unique = set(map(tuple, pts_df.loc[~pts_df[["x", "y"]].duplicated(keep=False), ["x", "y"]].values))
         endpoints_unique = set(map(tuple, np.unique(np.concatenate(
             df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)))
 
         # Query non-unique points (all), keep only the first duplicated point from self-loops.
-        pts_dup = pts_df.loc[(pts_df[["x", "y", "z"]].duplicated(keep=False)) &
-                             (~pts_df.duplicated(keep="first")), ["x", "y", "z"]].values
+        pts_dup = pts_df.loc[(pts_df[["x", "y"]].duplicated(keep=False)) &
+                             (~pts_df.duplicated(keep="first")), ["x", "y"]].values
 
         # Query junctypes.
 

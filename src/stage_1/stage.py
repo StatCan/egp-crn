@@ -706,6 +706,9 @@ class Stage:
                 # Reproject to EPSG:4617.
                 df = helpers.reproject_gdf(df, int(source_yaml["data"]["crs"].split(":")[-1]), 4617)
 
+                # Force coordinates to 2D.
+                df = helpers.flatten_coordinates(df)
+
                 # Round coordinates to decimal precision = 7.
                 df = helpers.round_coordinates(df, 7)
 
@@ -789,6 +792,9 @@ class Stage:
 
                         # Reproject to EPSG:4617.
                         df = helpers.reproject_gdf(df, df.crs.to_epsg(), 4617)
+
+                        # Force coordinates to 2D.
+                        df = helpers.flatten_coordinates(df)
 
                         # Round coordinates to decimal precision = 7.
                         df = helpers.round_coordinates(df, precision=7)
