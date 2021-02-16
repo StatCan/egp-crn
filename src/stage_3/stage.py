@@ -176,19 +176,21 @@ class Stage:
             merge = pd.merge(roadseg_old_grouped, roadseg_grouped, how="outer", on="geometry", suffixes=("_old", ""),
                              indicator=True)
 
-            # Recover old structids via uuid index.
-            # Merge uuids onto recovery dataframe.
-            recovery = merge.loc[merge["_merge"] == "both"]\
-                .merge(roadseg[["structid", "uuid"]], how="left", on="structid")\
-                .drop_duplicates(subset="structid", keep="first")
-            recovery.index = recovery["uuid"]
+            # Recover old structids.
+            # Process: Filter merged dataframes to only those with matches on both, create a lookup dict between the new
+            # and old structids.
+            recovery = merge.loc[merge["_merge"] == "both"].drop_duplicates(subset="structid", keep="first")
+            recovery.index = recovery["structid"]
 
             # Filter invalid structids from old data.
             recovery = recovery.loc[self.get_valid_ids(recovery["structid_old"])]
 
             # Recover old structids.
-            if len(recovery):
-                roadseg.loc[recovery.index, "structid"] = recovery["structid_old"]
+            recovery_lookup = recovery["structid_old"].to_dict()
+
+            if len(recovery_lookup):
+                flag = roadseg["structid"].isin(recovery_lookup)
+                roadseg.loc[flag, "structid"] = roadseg.loc[flag, "structid"].map(recovery_lookup)
 
             # Store results.
             self.roadseg.loc[roadseg.index, "structid"] = roadseg["structid"].copy(deep=True)
@@ -264,18 +266,21 @@ class Stage:
                         "confirmed": merge.loc[merge["_merge"] == "both"]
                     }
 
-                    # Recover old nids for confirmed and modified nid groups via uuid index.
-                    # Merge uuids onto recovery dataframe.
-                    recovery = classified_nids["confirmed"].merge(df["nid"], how="left", on="nid")\
-                        .drop_duplicates(subset="nid", keep="first")
-                    recovery.index = recovery["uuid"]
+                    # Recover old nids for confirmed and modified nid groups.
+                    # Process: Filter merged dataframes to only those with matches on both, create a lookup dict between
+                    # the new and old nids.
+                    recovery = merge.loc[merge["_merge"] == "both"].drop_duplicates(subset="nid", keep="first")
+                    recovery.index = recovery["nid"]
 
                     # Filter invalid nids from old data.
                     recovery = recovery.loc[self.get_valid_ids(recovery["nid_old"])]
 
                     # Recover old nids.
-                    if len(recovery):
-                        df.loc[recovery.index, "nid"] = recovery["nid_old"]
+                    recovery_lookup = recovery["nid_old"].to_dict()
+
+                    if len(recovery_lookup):
+                        flag = df["nid"].isin(recovery_lookup)
+                        df.loc[flag, "nid"] = df.loc[flag, "nid"].map(recovery_lookup)
 
                     # Store results.
                     self.dframes[table].loc[df.index, "nid"] = df["nid"].copy(deep=True)
@@ -488,18 +493,21 @@ class Stage:
             "confirmed": merge.loc[merge["_merge"] == "both"]
         }
 
-        # Recover old nids for confirmed and modified nid groups via uuid index.
-        # Merge uuids onto recovery dataframe.
-        recovery = classified_nids["confirmed"].merge(roadseg[["nid", "uuid"]], how="left", on="nid")\
-            .drop_duplicates(subset="nid", keep="first")
-        recovery.index = recovery["uuid"]
+        # Recover old nids for confirmed and modified nid groups.
+        # Process: Filter merged dataframes to only those with matches on both, create a lookup dict between the new and
+        # old nids.
+        recovery = merge.loc[merge["_merge"] == "both"].drop_duplicates(subset="nid", keep="first")
+        recovery.index = recovery["nid"]
 
         # Filter invalid nids from old data.
         recovery = recovery.loc[self.get_valid_ids(recovery["nid_old"])]
 
         # Recover old nids.
-        if len(recovery):
-            self.roadseg.loc[recovery.index, "nid"] = recovery["nid_old"]
+        recovery_lookup = recovery["nid_old"].to_dict()
+
+        if len(recovery_lookup):
+            flag = self.roadseg["nid"].isin(recovery_lookup)
+            self.roadseg.loc[flag, "nid"] = self.roadseg.loc[flag, "nid"].map(recovery_lookup)
 
         # Store results.
         self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
