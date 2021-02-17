@@ -1,0 +1,26 @@
+coverage:
+  country: ca
+  province: pe
+  ISO3166:
+    alpha2: CA-PE
+    country: Canada
+    subdivision: Prince Edward Island
+  website: http://www.gov.pe.ca/gis/
+license:
+  url: http://www.gov.pe.ca/gis/index.php3?number=77462
+  text: GIS Data Layers - Licensing Agreements
+language: en
+data:
+  filename: PEI_NRN21/ca_points.shp
+  layer:
+  driver: ESRI Shapefile
+  crs: "EPSG:2954"
+  spatial: True
+  query:
+  segment:
+    address_fields:
+      street: street_nm
+      number: street_no
+      suffix:
+    address_join_field: street_nm
+    roadseg_join_field: street_nm

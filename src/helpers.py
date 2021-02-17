@@ -6,6 +6,7 @@ import networkx as nx
 import numpy as np
 import os
 import pandas as pd
+import random
 import re
 import requests
 import sqlite3
@@ -15,7 +16,7 @@ import time
 import yaml
 from collections import defaultdict
 from copy import deepcopy
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
@@ -428,6 +429,33 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
         sys.exit(1)
 
 
+def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Flattens the GeoDataFrame geometry coordinates to 2-dimensions.
+
+    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :return gpd.GeoDataFrame: GeoDataFrame with 2-dimensional coordinates.
+    """
+
+    logger.info("Flattening coordinates to 2-dimensions.")
+
+    # Flatten coordinates.
+    if len(gdf.geom_type.unique()) > 1:
+        raise Exception("Multiple geometry types detected for dataframe.")
+
+    elif gdf.geom_type.iloc[0] == "LineString":
+        gdf["geometry"] = gdf["geometry"].map(
+            lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
+
+    elif gdf.geom_type.iloc[0] == "Point":
+        gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
+
+    else:
+        raise Exception("Geometry type not supported for coordinate flattening.")
+
+    return gdf
+
+
 def gdf_to_nx(gdf: gpd.GeoDataFrame, keep_attributes: bool = True, endpoints_only: bool = False) -> nx.Graph:
     """
     Converts a GeoDataFrame to a networkx Graph.
@@ -469,50 +497,42 @@ def gdf_to_nx(gdf: gpd.GeoDataFrame, keep_attributes: bool = True, endpoints_onl
     return g
 
 
-def get_url(url: str, max_attempts: int = 10, **kwargs: dict) -> requests.Response:
+def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
     """
-    Fetches a response from a url.
+    Fetches a response from a url, using exponential backoff for failed attempts.
 
     :param str url: string url.
-    :param int max_attempts: maximum attempts to get a response from the url.
+    :param int attempt: current count of attempts to get a response from the url.
     :param dict \*\*kwargs: keyword arguments passed to :func:`~requests.get`.
     :return requests.Response: response from the url.
     """
 
-    attempt = 1
-    while attempt <= max_attempts:
+    logger.info(f"Fetching url request from: {url} [attempt {attempt}].")
 
-        try:
+    try:
 
-            logger.info(f"Connecting to url (attempt {attempt} of {max_attempts}): {url}")
+        # Get url response.
+        response = requests.get(url, **kwargs)
 
-            # Get url response.
-            response = requests.get(url, **kwargs)
+    except (TimeoutError, requests.exceptions.RequestException, requests.exceptions.ConnectionError) as e:
+        logger.warning("Failed to get url response. Retrying with backoff...")
+        logger.exception(e)
 
-            return response
+        # Retry with exponential backoff.
+        time.sleep(2**attempt + random.random()*0.01)
+        return get_url(url, attempt+1, **kwargs)
 
-        except (TimeoutError, requests.exceptions.RequestException) as e:
-
-            if attempt == max_attempts:
-                logger.warning("Failed to get url response.")
-                logger.exception(e)
-                logger.warning("Maximum attempts exhausted. Exiting program.")
-                sys.exit(1)
-            else:
-                logger.warning("Failed to get url response. Retrying...")
-                attempt += 1
-                time.sleep(5)
-                continue
+    return response
 
 
-def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str, ...], str],
-                    list_field: str) -> pd.Series:
+def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str], str], list_field: str) -> \
+        pd.Series:
     """
     Faster alternative to :func:`~pd.groupby.apply/agg(list)`.
     Groups records by one or more fields and compiles an output field into a list for each group.
 
     :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame.
-    :param Union[List[str, ...], str] group_field: field or list of fields by which the (Geo)DataFrame records will be
+    :param Union[List[str], str] group_field: field or list of fields by which the (Geo)DataFrame records will be
         grouped.
     :param str list_field: (Geo)DataFrame field to output, based on the record groupings.
     :return pd.Series: Series of grouped values.
@@ -536,7 +556,7 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
-def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str, ...]] = None) -> \
+def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]] = None) -> \
         Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
     """
     Compiles a dictionary of NRN dataset names and associated (Geo)DataFrame from GeoPackage layers.
@@ -544,7 +564,7 @@ def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str, 
     :param str gpkg_path: path to the GeoPackage.
     :param bool find: searches for NRN datasets in the GeoPackage based on non-exact matches with the expected dataset
         names, default False.
-    :param Union[None, List[str, ...]] layers: layer name or list of layer names to return instead of all NRN datasets.
+    :param Union[None, List[str]] layers: layer name or list of layer names to return instead of all NRN datasets.
     :return Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
     """

@@ -288,14 +288,14 @@ class LRS:
 
         calibrations_df = self.src_datasets[self.calibrations["dataset"]]
 
-        def merge_breakpoints_endpoints(breakpts: List[Union[float, int], ...],
-                                        geom: Union[LineString, MultiLineString]) -> List[Union[float, int], ...]:
+        def merge_breakpoints_endpoints(breakpts: List[Union[float, int]], geom: Union[LineString, MultiLineString]) \
+                -> List[Union[float, int]]:
             """
             Reconfigures breakpts to include the endpoints of all LineStrings.
 
-            :param List[Union[float, int], ...] breakpts: sequence of breakpts (event measurements).
+            :param List[Union[float, int]] breakpts: sequence of breakpts (event measurements).
             :param Union[LineString, MultiLineString] geom: geometry object which represents the breakpts.
-            :return List[Union[float, int], ...]: sequence of breakpts (event measurements), modified to include the
+            :return List[Union[float, int]]: sequence of breakpts (event measurements), modified to include the
                 endpoints of all LineStrings.
             """
 
@@ -312,13 +312,13 @@ class LRS:
             # Return appended and sorted list of breakpoint and endpoints.
             return sorted(chain(breakpts, endpts))
 
-        def segment_geometry(breakpts: List[Union[float, int], ...], geom: Union[LineString, MultiLineString]) -> \
+        def segment_geometry(breakpts: List[Union[float, int]], geom: Union[LineString, MultiLineString]) -> \
                 Union[LineString, MultiLineString]:
             """
             Segments a (Multi)LineString at a set of breakpoints. To increase splitting accuracy, breakpoints are
             snapped to pre-existing nodes in the geometry, where possible.
 
-            :param List[Union[float, int], ...] breakpts: sequence of breakpts (event measurements).
+            :param List[Union[float, int]] breakpts: sequence of breakpts (event measurements).
             :param Union[LineString, MultiLineString] geom: geometry object which represents the breakpts.
             :return Union[LineString, MultiLineString]: (Multi)LineString, segmented from the original geometry.
             """
@@ -851,13 +851,13 @@ class LRS:
         actually intersect or just cross at different elevations.
         """
 
-        def split_geometry_indexes(geom: LineString, indexes: List[int, ...]) -> List[LineString, ...]:
+        def split_geometry_indexes(geom: LineString, indexes: List[int]) -> List[LineString]:
             """
             Splits a LineString at the given node indexes.
 
             :param LineString geom: LineString.
-            :param List[int, ...] indexes: list of node indexes at which the LineString will be split.
-            :return List[LineString, ...]: list of LineStrings, segemented from the original geometry.
+            :param List[int] indexes: list of node indexes at which the LineString will be split.
+            :return List[LineString]: list of LineStrings, segemented from the original geometry.
             """
 
             # Compile LineString coordinates as splitting Points.

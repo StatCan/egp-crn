@@ -9,7 +9,6 @@ import requests
 import sys
 import uuid
 from collections import Counter
-from collections.abc import Sequence
 from datetime import datetime
 from itertools import chain
 from operator import attrgetter, itemgetter
@@ -103,7 +102,7 @@ class Stage:
             sys.exit(1)
 
     def divide_polygon(self, poly: Union[MultiPolygon, Polygon], threshold: Union[float, int], pts: pd.Series,
-                       count: int = 0) -> List[Union[None, MultiPolygon, Polygon], ...]:
+                       count: int = 0) -> List[Union[None, MultiPolygon, Polygon]]:
         """
         Recursively divides a (Multi)Polygon into 2 parts until any of the following limits are reached:
         a) both dimensions (height and width) are <= threshold.
@@ -114,8 +113,7 @@ class Stage:
         :param Union[float, int] threshold: maximum height and width of the divided Polygons.
         :param pd.Series pts: Series of coordinate tuples.
         :param int count: current recursion depth (for internal use), default 0.
-        :return List[Union[None, MultiPolygon, Polygon], ...]: list of Polygons, extracted from the original
-            (Multi)Polygon.
+        :return List[Union[None, MultiPolygon, Polygon]]: list of Polygons, extracted from the original (Multi)Polygon.
         """
 
         xmin, ymin, xmax, ymax = poly.bounds
@@ -177,12 +175,12 @@ class Stage:
 
         logger.info("Generating remaining dataset attributes.")
 
-        def compute_connected_attributes(attributes: Sequence[str, ...]) -> Dict[str, pd.Series]:
+        def compute_connected_attributes(attributes: List[str]) -> Dict[str, pd.Series]:
             """
             Computes the given attributes from NRN ferryseg and roadseg features connected to the junction dataset.
             Currently supported attributes: 'accuracy', 'exitnbr'.
 
-            :param Sequence[str, ...] attributes: sequence of attribute names.
+            :param List[str] attributes: list of attribute names.
             :return Dict[str, pd.Series]: dictionary of attributes and junction-aligned Series of attribute values.
             """
 
@@ -273,21 +271,20 @@ class Stage:
         pts_uuid = np.concatenate([[id] * count for id, count in df["geometry"].map(
             lambda geom: len(geom.coords)).iteritems()])
 
-        # Construct x-, y-, and z-coordinate series aligned to the series of points.
-        pts_x, pts_y, pts_z = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
+        # Construct x- and y-coordinate series aligned to the series of points.
+        pts_x, pts_y = np.concatenate(df["geometry"].map(attrgetter("coords")).to_numpy()).T
 
-        # Join the uuids, x-, y-, and z-coordinates.
-        pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "z": pts_z, "uuid": pts_uuid})
+        # Join the uuids, x- and y-coordinates.
+        pts_df = pd.DataFrame({"x": pts_x, "y": pts_y, "uuid": pts_uuid})
 
         # Query unique points (all) and endpoints.
-        pts_unique = set(map(tuple, pts_df.loc[
-            ~pts_df[["x", "y", "z"]].duplicated(keep=False), ["x", "y", "z"]].values))
+        pts_unique = set(map(tuple, pts_df.loc[~pts_df[["x", "y"]].duplicated(keep=False), ["x", "y"]].values))
         endpoints_unique = set(map(tuple, np.unique(np.concatenate(
             df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).to_numpy()), axis=0)))
 
         # Query non-unique points (all), keep only the first duplicated point from self-loops.
-        pts_dup = pts_df.loc[(pts_df[["x", "y", "z"]].duplicated(keep=False)) &
-                             (~pts_df.duplicated(keep="first")), ["x", "y", "z"]].values
+        pts_dup = pts_df.loc[(pts_df[["x", "y"]].duplicated(keep=False)) &
+                             (~pts_df.duplicated(keep="first")), ["x", "y"]].values
 
         # Query junctypes.
 

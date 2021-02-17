@@ -36,18 +36,21 @@ logger.addHandler(handler)
 class Stage:
     """Defines an NRN stage."""
 
-    def __init__(self, source: str, remove: bool = False) -> None:
+    def __init__(self, source: str, remove: bool = False, exclude_old: bool = False) -> None:
         """
         Initializes an NRN stage.
 
         :param str source: abbreviation for the source province / territory.
         :param bool remove: removes pre-existing files within the data/interim directory for the specified source,
             default False.
+        :param bool exclude_old: excludes the previous NRN vintage for the specified source from being removed if
+            remove=True, default False. Option has no effect if remove=False.
         """
 
         self.stage = 1
         self.source = source.lower()
         self.remove = remove
+        self.exclude_old = exclude_old
 
         # Configure raw data path.
         self.data_path = os.path.abspath(f"../../data/raw/{self.source}")
@@ -79,6 +82,13 @@ class Stage:
                 logger.warning("Parameter remove=True: Removing conflicting files.")
 
                 for f in namespace:
+
+                    # Conditionally exclude previous NRN vintage.
+                    if self.exclude_old and f == f"{self.nrn_old_path}.gpkg":
+                        logger.info(f"Parameter exclude-old=True: Excluding conflicting file from removal: \"{f}\".")
+                        continue
+
+                    # Remove files.
                     logger.info(f"Removing conflicting file: \"{f}\".")
 
                     try:
@@ -267,12 +277,12 @@ class Stage:
                     # Store updated target dataframe.
                     self.target_gdframes[target_name] = target_gdf.copy(deep=True)
 
-    def apply_functions(self, series: pd.Series, func_list: List[dict, ...], target_field: str) -> pd.Series:
+    def apply_functions(self, series: pd.Series, func_list: List[dict], target_field: str) -> pd.Series:
         """
         Iterates and applies field mapping function(s) to a Series.
 
         :param pd.Series series: Series.
-        :param List[dict, ...] func_list: list of yaml-constructed field mapping definitions passed to
+        :param List[dict] func_list: list of yaml-constructed field mapping definitions passed to
             :func:`field_map_functions`.
         :param str target_field: name of the destination field to which the given Series will be assigned.
         :return pd.Series: mapped Series.
@@ -537,47 +547,53 @@ class Stage:
 
         logger.info("Retrieving previous NRN vintage.")
 
-        # Download previous NRN vintage.
-        logger.info("Downloading previous NRN vintage.")
-        download_url = None
+        # Determine download requirement.
+        if os.path.exists(f"{self.nrn_old_path}.gpkg"):
+            logger.warning(f"Previous NRN vintage already exists: \"{self.nrn_old_path}.gpkg\". Skipping step.")
 
-        try:
+        else:
 
-            # Get download url.
-            download_url = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"][self.source]
+            # Download previous NRN vintage.
+            logger.info("Downloading previous NRN vintage.")
+            download_url = None
 
-            # Get raw content stream from download url.
-            download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)
-
-            # Copy download content to file.
-            with open(f"{self.nrn_old_path}.zip", "wb") as f:
-                shutil.copyfileobj(download.raw, f)
-
-        except (requests.exceptions.RequestException, shutil.Error) as e:
-            logger.exception(f"Unable to download previous NRN vintage: \"{download_url}\".")
-            logger.exception(e)
-            sys.exit(1)
-
-        # Extract zipped data.
-        logger.info("Extracting zipped data for previous NRN vintage.")
-
-        gpkg_path = [f for f in zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r").namelist() if
-                     f.lower().startswith("nrn") and os.path.splitext(f.lower())[1] == ".gpkg"][0]
-
-        with zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r") as zip_f:
-            with zip_f.open(gpkg_path) as zsrc, open(f"{self.nrn_old_path}.gpkg", "wb") as zdest:
-                shutil.copyfileobj(zsrc, zdest)
-
-        # Remove temporary files.
-        logger.info("Removing temporary files for previous NRN vintage.")
-
-        path = f"{self.nrn_old_path}.zip"
-        if os.path.exists(path):
             try:
-                os.remove(path)
-            except OSError as e:
-                logger.warning(f"Unable to remove file: {path}.")
-                logger.warning(e)
+
+                # Get download url.
+                download_url = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"][self.source]
+
+                # Get raw content stream from download url.
+                download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)
+
+                # Copy download content to file.
+                with open(f"{self.nrn_old_path}.zip", "wb") as f:
+                    shutil.copyfileobj(download.raw, f)
+
+            except (requests.exceptions.RequestException, shutil.Error) as e:
+                logger.exception(f"Unable to download previous NRN vintage: \"{download_url}\".")
+                logger.exception(e)
+                sys.exit(1)
+
+            # Extract zipped data.
+            logger.info("Extracting zipped data for previous NRN vintage.")
+
+            gpkg_path = [f for f in zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r").namelist() if
+                         f.lower().startswith("nrn") and os.path.splitext(f.lower())[1] == ".gpkg"][0]
+
+            with zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r") as zip_f:
+                with zip_f.open(gpkg_path) as zsrc, open(f"{self.nrn_old_path}.gpkg", "wb") as zdest:
+                    shutil.copyfileobj(zsrc, zdest)
+
+            # Remove temporary files.
+            logger.info("Removing temporary files for previous NRN vintage.")
+
+            path = f"{self.nrn_old_path}.zip"
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError as e:
+                    logger.warning(f"Unable to remove file: {path}.")
+                    logger.warning(e)
 
     def export_gpkg(self) -> None:
         """Exports the target (Geo)DataFrames as GeoPackage layers."""
@@ -690,6 +706,9 @@ class Stage:
                 # Reproject to EPSG:4617.
                 df = helpers.reproject_gdf(df, int(source_yaml["data"]["crs"].split(":")[-1]), 4617)
 
+                # Force coordinates to 2D.
+                df = helpers.flatten_coordinates(df)
+
                 # Round coordinates to decimal precision = 7.
                 df = helpers.round_coordinates(df, 7)
 
@@ -773,6 +792,9 @@ class Stage:
 
                         # Reproject to EPSG:4617.
                         df = helpers.reproject_gdf(df, df.crs.to_epsg(), 4617)
+
+                        # Force coordinates to 2D.
+                        df = helpers.flatten_coordinates(df)
 
                         # Round coordinates to decimal precision = 7.
                         df = helpers.round_coordinates(df, precision=7)
@@ -932,19 +954,24 @@ class Stage:
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing files within the data/interim directory for the specified source.")
-def main(source: str, remove: bool = False) -> None:
+@click.option("--exclude-old / --no-exclude-old", "-e", default=False, show_default=True,
+              help="Excludes the previous NRN vintage for the specified source from being removed if remove=True. "
+                   "Option has no effect if remove=False.")
+def main(source: str, remove: bool = False, exclude_old: bool = False) -> None:
     """
     Executes an NRN stage.
 
     :param str source: abbreviation for the source province / territory.
     :param bool remove: removes pre-existing files within the data/interim directory for the specified source, default
         False.
+    :param bool exclude_old: excludes the previous NRN vintage for the specified source from being removed if
+        remove=True, default False. Option has no effect if remove=False.
     """
 
     try:
 
         with helpers.Timer():
-            stage = Stage(source, remove)
+            stage = Stage(source, remove, exclude_old)
             stage.execute()
 
     except KeyboardInterrupt:

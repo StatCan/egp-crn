@@ -36,6 +36,7 @@ class Segmentor:
         """
 
         self.source = source.lower()
+        self.export_gpkg = os.path.abspath(f"../../data/interim/{self.source}_addresses_review.gpkg")
 
         logger.info("Configuring address attributes.")
 
@@ -45,15 +46,16 @@ class Segmentor:
 
         # Configure and populate required address source attributes.
         for attribute, data in address_fields.items():
+            if data:
 
-            # Apply regex substitution to field.
-            if isinstance(data, dict):
-                field, regex_sub = itemgetter("field", "regex_sub")(data)
-                self.addresses[attribute] = addresses[field].map(
-                    lambda val: re.sub(**regex_sub, string=val, flags=re.I)).copy(deep=True)
+                # Apply regex substitution to field.
+                if isinstance(data, dict):
+                    field, regex_sub = itemgetter("field", "regex_sub")(data)
+                    self.addresses[attribute] = addresses[field].map(
+                        lambda val: re.sub(**regex_sub, string=val, flags=re.I)).copy(deep=True)
 
-            else:
-                self.addresses[attribute] = addresses[data].copy(deep=True)
+                else:
+                    self.addresses[attribute] = addresses[data].copy(deep=True)
 
         # Configure and populate address join attribute - optionally apply concatenation to input fields.
         if isinstance(address_join_field, dict):
@@ -115,11 +117,11 @@ class Segmentor:
 
         logger.info("Configuring addrange attributes.")
 
-        def get_digdirfg(sequence: List[int, ...]) -> str:
+        def get_digdirfg(sequence: List[int]) -> str:
             """
             Configures the addrange digdirfg value for the given sequence of address numbers.
 
-            :param List[int, ...] sequence: sequence of address numbers.
+            :param List[int] sequence: sequence of address numbers.
             :return str: addrange digdirfg value.
             """
 
@@ -135,11 +137,11 @@ class Segmentor:
             else:
                 return "Opposite Direction"
 
-        def get_hnumstr(sequence: List[int, ...]) -> str:
+        def get_hnumstr(sequence: List[int]) -> str:
             """
             Configures the addrange hnumstr value for the given sequence of address numbers.
 
-            :param List[int, ...] sequence: sequence of address numbers.
+            :param List[int] sequence: sequence of address numbers.
             :return str: addrange hnumstr value.
             """
 
@@ -168,14 +170,14 @@ class Segmentor:
                 return "Irregular"
 
         def get_number_sequence(addresses: Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]]) -> \
-                List[int, ...]:
+                List[int]:
             """
             Configures the filtered number sequence for the given addresses.
 
             :param Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]] addresses: nested lists of
                 address numbers, address suffixes, and address distances along the associated NRN roadseg LineString,
                 respectively.
-            :return List[int, ...]: sequence of address numbers with duplicated distances dropped.
+            :return List[int]: sequence of address numbers with duplicated distances dropped.
             """
 
             # Separate address components.
@@ -193,7 +195,7 @@ class Segmentor:
 
             return sequence
 
-        def sort_addresses(numbers: List[int, ...], suffixes: List[Union[int, str], ...], distances: List[float, ...]) \
+        def sort_addresses(numbers: List[int], suffixes: List[Union[int, str]], distances: List[float]) \
                 -> Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]]:
             """
             Sorts addresses successively by its components:
@@ -202,10 +204,9 @@ class Segmentor:
             3) address suffix
             Sorting accounts for the directionality of the address sequence.
 
-            :param List[int, ...] numbers: sequence of address numbers.
-            :param List[Union[int, str], ...] suffixes: sequence of address suffixes.
-            :param List[float, ...] distances: sequence of address distances along the associated NRN roadseg
-                LineString.
+            :param List[int] numbers: sequence of address numbers.
+            :param List[Union[int, str]] suffixes: sequence of address suffixes.
+            :param List[float] distances: sequence of address distances along the associated NRN roadseg LineString.
             :return Tuple[Tuple[int, ...], Tuple[Union[int, str], ...], Tuple[float, ...]]: nested lists of address
                 numbers, address suffixes, and address distance along the associated NRN roadseg LineString,
                 respectively, sorted.
@@ -373,6 +374,20 @@ class Segmentor:
         self.addresses["parity"] = self.addresses[["geometry", "road_vector"]].apply(
             lambda row: get_parity(*row), axis=1)
 
+        # Export address-roadseg connections for review.
+        layer = "address_roadseg_connections"
+        logger.info(f"Exporting address-roadseg connections for review: {self.export_gpkg}, layer={layer}.")
+
+        # Generate connection LineStrings as new GeoDataFrame.
+        connections = gpd.GeoDataFrame(
+            self.addresses[["street", "number", "suffix"]],
+            geometry=self.addresses[["geometry", "intersection"]].apply(
+                lambda row: LineString([itemgetter(0, 1)(itemgetter(0)(pt.coords)) for pt in row]), axis=1),
+            crs=self.addresses.crs)
+
+        # Export connections to Geopackage.
+        connections.to_file(self.export_gpkg, driver="GPKG", layer=layer)
+
     def configure_roadseg_linkages(self) -> None:
         """Associates each address point with an NRN roadseg record."""
 
@@ -417,12 +432,14 @@ class Segmentor:
         non_linked_flag = self.addresses["roadseg_index"].map(itemgetter(0)).isna()
 
         if sum(non_linked_flag):
-            export_path = os.path.abspath("../../data/interim/non_linked_addresses.gpkg")
-            logger.info(f"Exporting {sum(non_linked_flag)} non-linked addresses for review: {export_path}.")
+
+            layer = "non_linked_addresses"
+            logger.info(f"Exporting {sum(non_linked_flag)} non-linked addresses for review: {self.export_gpkg}, "
+                        f"layer={layer}.")
 
             # Export addresses to GeoPackage.
             self.addresses.loc[non_linked_flag, ["street", "number", "suffix", "geometry"]].to_file(
-                export_path, driver="GPKG", layer=self.source)
+                self.export_gpkg, driver="GPKG", layer=layer)
 
             # Discard non-linked addresses.
             self.addresses.drop(self.addresses.loc[non_linked_flag].index, axis=0, inplace=True)

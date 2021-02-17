@@ -1,0 +1,121 @@
+coverage:
+  country: ca
+  province: pe
+  ISO3166:
+    alpha2: CA-PE
+    country: Canada
+    subdivision: Prince Edward Island
+  website: http://www.gov.pe.ca/gis/
+license:
+  url: http://www.gov.pe.ca/gis/index.php3?number=77462
+  text: GIS Data Layers - Licensing Agreements
+language: en
+data:
+  filename: PEI_NRN21/PEI_NRN21.shp
+  layer:
+  driver: ESRI Shapefile
+  crs: "EPSG:2954"
+  spatial: True
+  query:
+conform:
+  addrange:
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
+    datasetnam: Prince Edward Island
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
+    specvers: 2.0
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg: l_digdirfg
+    r_digdirfg: r_digdirfg
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    l_hnumsuff: l_hnumsuff
+    r_hnumsuff: r_hnumsuff
+    l_hnumtypf: l_hnumtypf
+    r_hnumtypf: r_hnumtypf
+    l_hnumstr: l_hnumstr
+    r_hnumstr: r_hnumstr
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    l_hnumsufl: l_hnumsufl
+    r_hnumsufl: r_hnumsufl
+    l_hnumtypl: l_hnumtypl
+    r_hnumtypl: r_hnumtypl
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind: l_rfsysind
+    r_rfsysind: r_rfsysind
+  roadseg:
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
+    datasetnam: Prince Edward Island
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
+    specvers: 2.0
+    l_adddirfg: l_digdirfg
+    r_adddirfg: r_digdirfg
+    adrangenid: uuid
+    closing: closing
+    exitnbr: exitnbr
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    roadclass: roadclass
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    nid: uuid
+    nbrlanes: nbrlanes
+    l_placenam: l_placenam
+    r_placenam: r_placenam
+    l_stname_c: l_stname_c
+    r_stname_c: r_stname_c
+    pavsurf: pavsurf
+    pavstatus: pavstatus
+    roadjuris: roadjuris
+    roadsegid:
+    rtename1en: rtename1en
+    rtename2en: rtename2en
+    rtename3en: rtename3en
+    rtename4en: rtename4en
+    rtename1fr: rtename1fr
+    rtename2fr: rtename2fr
+    rtename3fr: rtename3fr
+    rtename4fr: rtename4fr
+    rtnumber1: rtnumber1
+    rtnumber2: rtnumber2
+    rtnumber3: rtnumber3
+    rtnumber4: rtnumber4
+    rtnumber5: rtnumber5
+    speed: speed
+    strunameen: strunameen
+    strunamefr: strunamefr
+    structid:
+    structtype: structtype
+    trafficdir: trafficdir
+    unpavsurf: unpavsurf
+  strplaname:
+    acqtech: acqtech
+    metacover: metacover
+    credate: credate
+    datasetnam: Prince Edward Island
+    accuracy: accuracy
+    provider: provider
+    revdate: revdate
+    specvers: 2.0
+    dirprefix: [l_dirprefi, r_dirprefi]
+    dirsuffix: [l_dirsuffi, r_dirsuffi]
+    muniquad:
+    nid: uuid
+    placename: [l_placenam, r_placenam]
+    placetype:
+    province: Prince Edward Island
+    starticle: [l_starticl, r_starticl]
+    namebody: [l_namebody, r_namebody]
+    strtypre: [l_strtypre, r_strtypre]
+    strtysuf: [l_strtysuf, r_strtysuf]

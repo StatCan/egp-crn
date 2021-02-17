@@ -536,6 +536,10 @@ tables:
       157: Wood
       158: Woods
       159: Wynd
+      160: Driveway
+      161: Height
+      162: Roadway
+      163: Strip
     strtysuf: *strtypre
   tollpoint:
     acqtech: *acqtech
