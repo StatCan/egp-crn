@@ -513,18 +513,20 @@ class Stage:
         self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
-        # Restore match fields.
-        roadseg_confirmed_new = classified_nids["confirmed"]\
-            .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
-        roadseg_confirmed_old = classified_nids["confirmed"]\
+        # Process: for each of the current and old dataframes, compile the first instance of the NID, then compare the
+        # equality of the match fields between the current and old dataframes to determine if a record was modified.
+        confirmed_new = classified_nids["confirmed"]\
+            .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid")\
+            .drop_duplicates(keep="first")
+        confirmed_old = classified_nids["confirmed"]\
             .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
             .drop_duplicates(keep="first")
 
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
-        flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        classified_nids["modified"] = classified_nids["confirmed"].loc[flags.values, "nid"].to_list()
-        classified_nids["confirmed"] = classified_nids["confirmed"].loc[~flags.values, "nid"].to_list()
+        flags = (confirmed_new[self.match_fields].values == confirmed_old[self.match_fields].values).all(axis=1)
+        classified_nids["modified"] = classified_nids["confirmed"].loc[~flags, "nid"].to_list()
+        classified_nids["confirmed"] = classified_nids["confirmed"].loc[flags, "nid"].to_list()
 
         # Store nid classifications as change logs.
         self.change_logs["roadseg"] = {
