@@ -443,7 +443,7 @@ class Validator:
         """
 
         errors = defaultdict(list)
-        df = self.dframes[name]
+        df = self.dframes_m[name]
 
         # Keep only required fields.
         series = df["geometry"]
@@ -516,8 +516,7 @@ class Validator:
             if len(coord_pairs_dup_grouped):
                 for uuid_group, pairs in coord_pairs_dup_grouped.iteritems():
                     vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
-                    errors[3].append(f"Overlap identified for uuids: {vals}; number of overlapping segments: "
-                                     f"{len(pairs)}.")
+                    errors[3].append(f"{len(pairs)} overlapping segments identified between uuids: {vals}.")
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -1002,10 +1001,13 @@ class Validator:
         results = uuids_proxi - uuids_exclude
         results = results.loc[results.map(len) > 0]
 
+        # Explode result groups and filter duplicates.
+        results = results.map(list).explode()
+        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+
         # Compile error properties.
-        for source_uuid, target_uuids in results.iteritems():
-            target_uuids = ", ".join(map(lambda val: f"'{val}'", target_uuids))
-            errors[1].append(f"uuid '{source_uuid}' is too close to uuid(s): {target_uuids}.")
+        for source_uuid, target_uuid in sorted(results_filtered):
+            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
 
         return errors
 
@@ -1167,10 +1169,13 @@ class Validator:
         results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(pts_idx_uuid_lookup))
         results = results.map(lambda vals: set(vals) if isinstance(vals, tuple) else {vals})
 
+        # Explode result groups and filter duplicates.
+        results = results.map(list).explode()
+        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+
         # Compile error properties.
-        for source_uuid, target_uuids in results.iteritems():
-            target_uuids = ", ".join(map(lambda val: f"'{val}'", target_uuids))
-            errors[1].append(f"uuid '{source_uuid}' is too close to uuid(s): {target_uuids}.")
+        for source_uuid, target_uuid in sorted(results_filtered):
+            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
 
         return errors
 
