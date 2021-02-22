@@ -101,12 +101,22 @@ class Stage:
 
         try:
 
+            headers = ("Code", "Edition", "Release Date")
+            headers_rng = None
+
             for line in open(release_notes, "r"):
-                if line.find(self.source.upper()) >= 0:
-                    specs = [val for val in line.split(" ") if val != ""]
-                    self.major_version, self.minor_version = list(map(int, specs[2].split(".")))
-                    release_year = int(specs[3][:4])
-                    break
+
+                # Identify index range for data columns.
+                if all(line.find(header) >= 0 for header in headers):
+                    headers_rng = {header: (line.find(header), line.find(header) + len(header)) for header in headers}
+
+                # Identify data values for source.
+                if headers_rng:
+                    if line[headers_rng["Code"][0]: headers_rng["Code"][1]].strip(" ") == self.source.upper():
+                        version = line[headers_rng["Edition"][0]: headers_rng["Edition"][1]].split(".")
+                        self.major_version, self.minor_version = list(map(int, version))
+                        release_year = int(line[headers_rng["Release Date"][0]: headers_rng["Release Date"][1]][:4])
+                        break
 
         except (IndexError, ValueError) as e:
             logger.exception(f"Unable to extract version number and / or release date from \"{release_notes}\".")
@@ -124,6 +134,8 @@ class Stage:
         else:
             self.major_version += 1
             self.minor_version = 0
+
+        logger.info(f"Configured NRN release version: {self.major_version}.{self.minor_version}")
 
     def define_kml_groups(self) -> None:
         """
