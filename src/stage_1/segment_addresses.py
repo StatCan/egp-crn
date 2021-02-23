@@ -244,7 +244,7 @@ class Segmentor:
         addresses_r = addresses_r.apply(lambda row: sort_addresses(*row), axis=1)
 
         # Configure addrange attributes.
-        addrange = pd.DataFrame(index=map(int, {*addresses_l.index, *addresses_r.index}))
+        addrange = pd.DataFrame(index=list(map(int, {*addresses_l.index, *addresses_r.index})))
 
         # Configure addrange attributes - hnumf, hnuml.
         logger.info("Configuring addrange attributes: hnumf, hnuml.")
@@ -265,10 +265,10 @@ class Segmentor:
         # Configuring addrange attributes - hnumtypf, hnumtypl.
         logger.info("Configuring addrange attributes: hnumtypf, hnumtypl.")
 
-        addrange.loc[addresses_l.index, "l_hnumtypf"] = addresses_l.map(lambda addresses: "Actual Located")
-        addrange.loc[addresses_l.index, "l_hnumtypl"] = addresses_l.map(lambda addresses: "Actual Located")
-        addrange.loc[addresses_r.index, "r_hnumtypf"] = addresses_r.map(lambda addresses: "Actual Located")
-        addrange.loc[addresses_r.index, "r_hnumtypl"] = addresses_r.map(lambda addresses: "Actual Located")
+        addrange.loc[addresses_l.index, "l_hnumtypf"] = "Actual Located"
+        addrange.loc[addresses_l.index, "l_hnumtypl"] = "Actual Located"
+        addrange.loc[addresses_r.index, "r_hnumtypf"] = "Actual Located"
+        addrange.loc[addresses_r.index, "r_hnumtypl"] = "Actual Located"
 
         # Get address number sequence.
         logger.info("Configuring address number sequence.")
@@ -291,7 +291,8 @@ class Segmentor:
         # Merge addrange attributes with roadseg.
         logger.info("Merging addrange attributes with roadseg.")
 
-        self.roadseg = self.roadseg.merge(addrange, how="left", left_index=True, right_index=True)
+        self.roadseg = self.roadseg[self.roadseg.columns.difference(addrange.columns)].merge(
+            addrange, how="left", left_index=True, right_index=True)
 
     def configure_address_parity(self) -> None:
         """Configures each address point's parity and distance along the associated NRN roadseg LineString."""
