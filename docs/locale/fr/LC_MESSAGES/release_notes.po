@@ -261,8 +261,8 @@ msgid "2020-04"
 msgstr ""
 
 #: ../../release_notes.rst:24
-msgid "6,961"
-msgstr "6 961"
+msgid "6,988"
+msgstr "6 988"
 
 #: ../../release_notes.rst:25
 msgid "Quebec"
