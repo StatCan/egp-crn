@@ -4,19 +4,18 @@ import logging
 import math
 import networkx as nx
 import numpy as np
-import os
 import pandas as pd
-import pathlib
 import string
 import sys
 import uuid
 from itertools import chain, compress
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import linemerge, split
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 
@@ -46,39 +45,27 @@ class Stage:
         self.remove = remove
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
-        if not os.path.exists(self.data_path):
+        self.data_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = os.path.abspath(f"../../data/processed/{self.source}/{self.source}_change_logs")
+        self.output_path = Path(__file__).resolve().parents[2] / \
+                           f"data/processed/{self.source}/{self.source}_change_logs"
 
         # Conditionally clear output namespace.
-        if os.path.exists(self.output_path):
-            namespace = set(map(lambda f: os.path.join(self.output_path, f), os.listdir(self.output_path)))
+        if self.output_path.exists():
+            logger.warning("Output namespace already occupied.")
 
-            if len(namespace):
-                logger.warning("Output namespace already occupied.")
+            if self.remove:
+                logger.warning("Parameter remove=True: Removing directory.")
+                helpers.rm_tree(self.output_path)
 
-                if self.remove:
-                    logger.warning("Parameter remove=True: Removing conflicting files.")
-
-                    for f in namespace:
-                        logger.info(f"Removing conflicting file: \"{f}\".")
-
-                        try:
-                            os.remove(f)
-                        except OSError as e:
-                            logger.exception(f"Unable to remove file: \"{f}\".")
-                            logger.exception(e)
-                            sys.exit(1)
-
-                else:
-                    logger.exception(
-                        "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
-                        "remove=True (-r) or manually clear the output namespace.")
-                    sys.exit(1)
+            else:
+                logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                                 "remove=True (-r) or manually clear the output namespace.")
+                sys.exit(1)
 
         # Compile match fields (fields which must be equal across records).
         self.match_fields = ["r_stname_c"]
@@ -95,14 +82,14 @@ class Stage:
         logger.info(f"Writing change logs to: \"{self.output_path}\".")
 
         # Create change logs directory.
-        pathlib.Path(self.output_path).mkdir(parents=True, exist_ok=True)
+        Path(self.output_path).mkdir(parents=True, exist_ok=True)
 
         # Iterate tables and change types.
         for table in self.change_logs:
             for change, log in self.change_logs[table].items():
 
                 # Configure log path.
-                log_path = os.path.join(self.output_path, f"{self.source}_{table}_{change}.log")
+                log_path = self.output_path / f"{self.source}_{table}_{change}.log"
 
                 # Write log.
                 with helpers.TempHandlerSwap(logger, log_path):

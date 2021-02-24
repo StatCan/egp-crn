@@ -3,7 +3,6 @@ import geopandas as gpd
 import logging
 import networkx as nx
 import numpy as np
-import os
 import pandas as pd
 import shapely.ops
 import string
@@ -12,11 +11,12 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from itertools import chain, compress, groupby, permutations, tee
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
 from typing import Dict, List, Tuple, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 

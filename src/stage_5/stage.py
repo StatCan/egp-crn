@@ -2,7 +2,6 @@ import click
 import logging
 import os
 import pandas as pd
-import pathlib
 import re
 import shutil
 import sys
@@ -10,11 +9,13 @@ import zipfile
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from osgeo import ogr
+from pathlib import Path
 from tqdm import tqdm
+from typing import Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 
@@ -46,17 +47,16 @@ class Stage:
         self.minor_version = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
-        if not os.path.exists(self.data_path):
+        self.data_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        if not self.data_path.exists():
             logger.exception(f"Input data not found: {self.data_path}.")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = os.path.abspath(f"../../data/processed/{self.source}")
+        self.output_path = Path(__file__).resolve().parents[2] / f"data/processed/{self.source}"
 
         # Conditionally clear output namespace.
-        namespace = set(map(lambda f: os.path.join(self.output_path, f),
-                            set(os.listdir(self.output_path)) - {f"{self.source}_change_logs"}))
+        namespace = list(filter(lambda f: f.stem != f"{self.source}_change_logs", self.output_path.glob("*")))
 
         if len(namespace):
             logger.warning("Output namespace already occupied.")
@@ -67,24 +67,19 @@ class Stage:
                 for f in namespace:
                     logger.info(f"Removing conflicting file: \"{f}\".")
 
-                    try:
-                        if os.path.isdir(f):
-                            shutil.rmtree(f)
-                        else:
-                            os.remove(f)
-                    except OSError as e:
-                        logger.exception(f"Unable to remove file: \"{f}\".")
-                        logger.exception(e)
-                        sys.exit(1)
+                    if f.is_file():
+                        f.unlink()
+                    else:
+                        helpers.rmtree(f)
 
             else:
-                logger.exception(
-                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
-                    "remove=True (-r) or manually clear the output namespace.")
+                logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                                 "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
         # Compile output formats.
-        self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
+        self.formats = list(map(attrgetter("stem"),
+                                (Path(__file__).resolve().parent / "distribution_formats/en").glob("*")))
 
         # Configure field defaults and domains.
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
@@ -97,7 +92,7 @@ class Stage:
 
         # Iterate release notes to extract the version number and release year for current source.
         release_year = None
-        release_notes = os.path.abspath("../../docs/release_notes.rst")
+        release_notes = Path(__file__).resolve().parents[2] / "docs/release_notes.rst"
 
         try:
 
@@ -240,17 +235,17 @@ class Stage:
                 export_specs = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")
 
                 # Configure temporary data path.
-                temp_path = os.path.abspath(f"../../data/interim/{self.source}_{frmt}_{lang}_temp.gpkg")
+                temp_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_{frmt}_{lang}_temp.gpkg"
 
                 # Configure and format export paths and table names.
-                export_dir = os.path.join(self.output_path, self.format_path(export_specs["data"]["dir"]))
+                export_dir = self.output_path / self.format_path(export_specs["data"]["dir"])
                 export_file = self.format_path(export_specs["data"]["file"]) if export_specs["data"]["file"] else None
                 export_tables = {table: self.format_path(export_specs["conform"][table]["name"]) for table in
                                  self.dframes[frmt][lang]}
 
                 # Generate directory structure.
                 logger.info(f"Format: {frmt}, language: {lang}; generating directory structure.")
-                pathlib.Path(export_dir).mkdir(parents=True, exist_ok=True)
+                Path(export_dir).mkdir(parents=True, exist_ok=True)
 
                 # Iterate tables.
                 for table in export_tables:
@@ -262,7 +257,7 @@ class Stage:
                         "driver": f"-f \"{export_specs['data']['driver']}\"",
                         "append": "-append",
                         "pre_args": "",
-                        "dest": f"\"{os.path.join(export_dir, export_file if export_file else export_tables[table])}\"",
+                        "dest": f"\"{export_dir / (export_file if export_file else export_tables[table])}\"",
                         "src": f"\"{temp_path}\"",
                         "src_layer": table,
                         "nln": f"-nln {export_tables[table]}" if export_file else ""
@@ -278,7 +273,8 @@ class Stage:
 
                         # Configure kml path properties.
                         kml_groups = self.kml_groups[lang]
-                        kml_path, kml_ext = os.path.splitext(kwargs["dest"])
+                        kml_dir = kwargs["dest"].parent
+                        kml_ext = f".{kwargs['dest'].suffix}"
 
                         # Iterate kml groups.
                         for kml_group in tqdm(kml_groups.itertuples(index=False), total=len(kml_groups),
@@ -287,7 +283,7 @@ class Stage:
 
                             # Add kml group name and query to ogr2ogr parameters.
                             name, query = itemgetter("names", "queries")(kml_group._asdict())
-                            kwargs["dest"] = f"{os.path.join(os.path.dirname(kml_path), name)}{kml_ext}"
+                            kwargs["dest"] = kml_dir / (name + kml_ext)
                             kwargs["pre_args"] = query
 
                             # Run ogr2ogr subprocess.
@@ -303,7 +299,7 @@ class Stage:
 
                 # Delete temporary file.
                 logger.info(f"Format: {frmt}, language: {lang}; deleting temporary GeoPackage.")
-                if os.path.exists(temp_path):
+                if temp_path.exists():
                     driver = ogr.GetDriverByName("GPKG")
                     driver.DeleteDataSource(temp_path)
                     del driver
@@ -322,28 +318,30 @@ class Stage:
             for lang in self.dframes[frmt]:
 
                 # Configure paths.
-                temp_path = os.path.abspath(f"../../data/interim/{self.source}_{frmt}_{lang}_temp.gpkg")
-                export_schemas_path = os.path.abspath(f"distribution_formats/{lang}/{frmt}.yaml")
+                temp_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_{frmt}_{lang}_temp.gpkg"
+                export_schemas_path = Path(__file__).resolve().parent / f"distribution_formats/{lang}/{frmt}.yaml"
 
                 # Export to GeoPackage.
                 helpers.export_gpkg(self.dframes[frmt][lang], temp_path, export_schemas_path)
 
-    def format_path(self, path: str) -> str:
+    def format_path(self, path: Union[Path, str]) -> Path:
         """
         Formats a path with class variables: source, major_version, minor_version.
 
-        :param str path: string path requiring formatting.
-        :return str: formatted path.
+        :param Union[Path, str] path: path requiring formatting.
+        :return Path: formatted path.
         """
 
-        upper = True if os.path.basename(path)[0].isupper() else False
+        upper = Path(path).stem.isupper()
 
-        for key in ("source", "major_version", "minor_version"):
-            val = str(eval(f"self.{key}"))
+        for key, val in {"source": self.source,
+                         "major_version": self.major_version,
+                         "minor_version": self.minor_version}.items():
+
             val = val.upper() if upper else val.lower()
-            path = path.replace(f"<{key}>", val)
+            path = str(path).replace(f"<{key}>", val)
 
-        return path
+        return Path(path)
 
     def gen_french_dataframes(self) -> None:
         """
@@ -445,14 +443,13 @@ class Stage:
 
     def zip_data(self) -> None:
         """Compresses all exported data directories into .zip files."""
+        # TODO: change path and os references to pathlib. This is the last remaining file and function.
 
         logger.info("Apply compression and zip to output data directories.")
 
         # Iterate output directories.
-        root = os.path.abspath(f"../../data/processed/{self.source}")
-        for data_dir in os.listdir(root):
-
-            data_dir = os.path.join(root, data_dir)
+        root = Path(__file__).resolve().parents[2] / f"data/processed/{self.source}"
+        for data_dir in root.glob("*"):
 
             # Walk directory, compress, and zip contents.
             logger.info(f"Applying compression and writing .zip from directory {data_dir}.")
@@ -479,15 +476,7 @@ class Stage:
 
             # Remove original directory.
             logger.info(f"Removing original directory: {data_dir}.")
-
-            try:
-
-                shutil.rmtree(data_dir)
-
-            except (OSError, shutil.Error) as e:
-                logger.exception("Unable to remove directory.")
-                logger.exception(e)
-                sys.exit(1)
+            helpers.rmtree(data_dir)
 
     def execute(self) -> None:
         """Executes an NRN stage."""

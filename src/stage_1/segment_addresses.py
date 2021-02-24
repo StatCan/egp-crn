@@ -1,7 +1,6 @@
 import geopandas as gpd
 import logging
 import numpy as np
-import os
 import pandas as pd
 import re
 import shapely
@@ -9,10 +8,11 @@ import sys
 from bisect import bisect
 from collections import OrderedDict
 from operator import itemgetter
+from pathlib import Path
 from shapely.geometry import LineString, Point
 from typing import List, Tuple, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 
@@ -36,7 +36,7 @@ class Segmentor:
         """
 
         self.source = source.lower()
-        self.export_gpkg = os.path.abspath(f"../../data/interim/{self.source}_addresses_review.gpkg")
+        self.export_gpkg = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_addresses_review.gpkg"
 
         logger.info("Configuring address attributes.")
 

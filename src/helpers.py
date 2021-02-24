@@ -4,7 +4,6 @@ import geopandas as gpd
 import logging
 import networkx as nx
 import numpy as np
-import os
 import pandas as pd
 import random
 import re
@@ -18,6 +17,7 @@ from collections import defaultdict
 from copy import deepcopy
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
+from pathlib import Path
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
 from tqdm import tqdm
@@ -28,19 +28,27 @@ logger = logging.getLogger()
 ogr.UseExceptions()
 
 
+# Define universally accessible variables.
+distribution_format_path = Path(__file__).resolve().parent / "distribution_format.yaml"
+field_domains_path = {
+    "en": Path(__file__).resolve().parent / "field_domains_en.yaml",
+    "fr": Path(__file__).resolve().parent / "field_domains_fr.yaml"
+}
+
+
 class TempHandlerSwap:
     """Temporarily swaps all Logger StreamHandlers with a FileHandler."""
 
-    def __init__(self, class_logger: logging.Logger, log_path: str) -> None:
+    def __init__(self, class_logger: logging.Logger, log_path: Union[Path, str]) -> None:
         """
         Initializes the TempHandlerSwap contextmanager class.
 
         :param logging.Logger class_logger: Logger.
-        :param str log_path: path where the FileHandler will write logs to.
+        :param Union[Path, str] log_path: path where the FileHandler will write logs to.
         """
 
         self.logger = class_logger
-        self.log_path = log_path
+        self.log_path = Path(log_path).resolve()
 
         # Store stream handlers.
         self.stream_handlers = [h for h in self.logger.handlers if isinstance(h, logging.StreamHandler)]
@@ -155,8 +163,8 @@ def compile_default_values(lang: str = "en") -> dict:
     :return dict: dictionary of default values for each attribute of each NRN dataset.
     """
 
-    dft_vals = load_yaml(os.path.abspath(f"../field_domains_{lang}.yaml"))["default"]
-    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    dft_vals = load_yaml(field_domains_path[lang])["default"]
+    dist_format = load_yaml(distribution_format_path)
     defaults = dict()
 
     try:
@@ -242,7 +250,7 @@ def compile_domains(mapped_lang: str = "en") -> dict:
                     raise TypeError
 
             except (AttributeError, KeyError, TypeError, ValueError):
-                yaml_paths = ", ".join(os.path.abspath(f"../field_domains_{lang}.yaml") for lang in ("en", "fr"))
+                yaml_paths = ", ".join(str(field_domains_path[lang]) for lang in ("en", "fr"))
                 logger.exception(f"Unable to compile domains from config yamls: {yaml_paths}. Invalid schema "
                                  f"definition for table: {table}, field: {field}.")
                 sys.exit(1)
@@ -258,7 +266,7 @@ def compile_dtypes(length: bool = False) -> dict:
     :return dict: dictionary of dtypes and, optionally, length for each attribute of each NRN dataset.
     """
 
-    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    dist_format = load_yaml(distribution_format_path)
     dtypes = dict()
 
     try:
@@ -308,7 +316,7 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         return gdf.copy(deep=True)
 
 
-def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: str,
+def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
                 export_schemas: Union[None, str] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as GeoPackage layers.
@@ -316,12 +324,12 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
 
     :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
-    :param str output_path: GeoPackage output path.
+    :param Union[Path, str] output_path: GeoPackage output path.
     :param Union[None, str] export_schemas: optional dictionary mapping of field names for each field in each of the
         provided datasets.
     """
 
-    output_path = os.path.abspath(output_path)
+    output_path = Path(output_path).resolve()
     logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
 
     try:
@@ -330,13 +338,13 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
 
         # Create / open GeoPackage.
         driver = ogr.GetDriverByName("GPKG")
-        if os.path.exists(output_path):
+        if output_path.exists():
             gpkg = driver.Open(output_path, update=1)
         else:
             gpkg = driver.CreateDataSource(output_path)
 
         # Compile schemas.
-        schemas = load_yaml(os.path.abspath("../distribution_format.yaml"))
+        schemas = load_yaml(distribution_format_path)
         if export_schemas:
             export_schemas = load_yaml(export_schemas)["conform"]
         else:
@@ -556,12 +564,12 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
-def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]] = None) -> \
+def load_gpkg(gpkg_path: Union[Path, str], find: bool = False, layers: Union[None, List[str]] = None) -> \
         Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
     """
     Compiles a dictionary of NRN dataset names and associated (Geo)DataFrame from GeoPackage layers.
 
-    :param str gpkg_path: path to the GeoPackage.
+    :param Union[Path, str] gpkg_path: path to the GeoPackage.
     :param bool find: searches for NRN datasets in the GeoPackage based on non-exact matches with the expected dataset
         names, default False.
     :param Union[None, List[str]] layers: layer name or list of layer names to return instead of all NRN datasets.
@@ -570,9 +578,10 @@ def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]]
     """
 
     dframes = dict()
-    distribution_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    distribution_format = load_yaml(distribution_format_path)
+    gpkg_path = Path(gpkg_path).resolve()
 
-    if os.path.exists(gpkg_path):
+    if gpkg_path.exists():
 
         # Filter layers to load.
         if layers:
@@ -650,13 +659,15 @@ def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]]
     return dframes
 
 
-def load_yaml(path: str) -> Any:
+def load_yaml(path: Union[Path, str]) -> Any:
     """
     Loads the content of a YAML file as a Python object.
 
-    :param str path: path to the YAML file.
+    :param Union[Path, str] path: path to the YAML file.
     :return Any: Python object consisting of the YAML content.
     """
+
+    path = Path(path).resolve()
 
     with open(path, "r", encoding="utf8") as f:
 
@@ -801,6 +812,30 @@ def reproject_gdf(gdf: Union[gpd.GeoDataFrame, gpd.GeoSeries], epsg_source: int,
         return gdf["geometry"]
     else:
         return gdf
+
+
+def rm_tree(path: Path) -> None:
+    """
+    Recursively removes a directory and all of its contents.
+
+    :param Path path: path to the directory to be removed.
+    """
+
+    if path.exists():
+
+        # Recursively remove directory contents.
+        for child in path.iterdir():
+            if child.is_file():
+                child.unlink()
+            else:
+                rm_tree(child)
+
+        # Remove original directory.
+        path.rmdir()
+
+    else:
+        logger.exception(f"Path does not exist: \"{path}\".")
+        sys.exit(1)
 
 
 def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataFrame:

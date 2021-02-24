@@ -3,7 +3,6 @@ import fiona
 import geopandas as gpd
 import logging
 import numpy as np
-import os
 import pandas as pd
 import requests
 import sys
@@ -12,11 +11,12 @@ from collections import Counter
 from datetime import datetime
 from itertools import chain
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from scipy.spatial import cKDTree
 from shapely.geometry import box, Point, Polygon, MultiPolygon, GeometryCollection
 from typing import Dict, List, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 
@@ -44,8 +44,8 @@ class Stage:
         self.boundary = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
-        if not os.path.exists(self.data_path):
+        self.data_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
@@ -87,7 +87,7 @@ class Stage:
         table = field = None
 
         # Load yaml.
-        self.target_attributes = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        self.target_attributes = helpers.load_yaml(Path(__file__).resolve().parents[1] / "distribution_format.yaml")
 
         # Remove field length from dtype attribute.
         logger.info("Configuring target attributes.")
@@ -221,6 +221,7 @@ class Stage:
             for attribute in attributes:
                 attribute_uuid = attributes_uuid[attribute]
                 default = self.defaults[attribute]
+                connected_attribute = None
 
                 # Attribute: accuracy.
                 if attribute == "accuracy":

@@ -1,15 +1,15 @@
 import logging
 import numpy as np
-import os
 import pandas as pd
 import re
 import sys
 import uuid
 from copy import deepcopy
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from typing import Any, List, Type, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 

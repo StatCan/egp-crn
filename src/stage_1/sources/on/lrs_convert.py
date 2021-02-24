@@ -2,7 +2,6 @@ import click
 import geopandas as gpd
 import logging
 import numpy as np
-import os
 import pandas as pd
 import shapely
 import sqlite3
@@ -13,11 +12,12 @@ from collections.abc import Sequence
 from itertools import chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
+from pathlib import Path
 from shapely.geometry import LineString, MultiLineString
 from tqdm import tqdm
 from typing import List, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
+sys.path.insert(1, str(Path(__file__).resolve().parents[3]))
 import helpers
 
 
@@ -33,12 +33,12 @@ logger.addHandler(handler)
 class ORN:
     """Class to convert Ontario ORN data from Linear Reference System (LRS) to GeoPackage."""
 
-    def __init__(self, src: str, dst: str) -> None:
+    def __init__(self, src: Union[Path, str], dst: Union[Path, str]) -> None:
         """
         Initializes the LRS conversion class.
 
-        :param str src: source path.
-        :param str dst: destination path.
+        :param Union[Path, str] src: source path.
+        :param Union[Path, str] dst: destination path.
         """
 
         self.nrn_datasets = dict()
@@ -56,17 +56,17 @@ class ORN:
         self.address_dataset = "orn_address_info"
 
         # Validate src.
-        self.src = os.path.abspath(src)
-        if os.path.splitext(self.src)[-1] != ".gdb":
+        self.src = Path(src).resolve()
+        if self.src.suffix != ".gdb":
             logger.exception(f"Invalid src input: {src}. Must be a File GeoDatabase.")
             sys.exit(1)
 
         # Validate dst.
-        self.dst = os.path.abspath(dst)
-        if os.path.splitext(self.dst)[-1] != ".gpkg":
+        self.dst = Path(dst).resolve()
+        if self.dst.suffix != ".gpkg":
             logger.exception(f"Invalid dst input: {dst}. Must be a GeoPackage.")
             sys.exit(1)
-        if os.path.exists(self.dst):
+        if self.dst.exists():
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
 
     def assemble_nrn_datasets(self) -> None:
@@ -945,14 +945,16 @@ class ORN:
 
 @click.command()
 @click.argument("src", type=click.Path(exists=True))
-@click.option("--dst", type=click.Path(exists=False), default=os.path.abspath("../../../../data/raw/on/orn.gpkg"),
-              show_default=True)
-def main(src: str, dst: str = os.path.abspath("../../../../data/raw/on/orn.gpkg")) -> None:
+@click.option("--dst", type=click.Path(exists=False),
+              default=Path(__file__).resolve().parents[4] / "data/raw/on/orn.gpkg", show_default=True)
+def main(src: Union[Path, str],
+         dst: Union[Path, str] = Path(__file__).resolve().parents[4] / "data/raw/on/orn.gpkg") -> None:
     """
     Executes the ORN class.
 
-    :param str src: source path.
-    :param str dst: destination path, default = '../../../../data/raw/on/orn.gpkg'.
+    :param Union[Path, str] src: source path.
+    :param Union[Path, str] dst: destination path,
+        default = Path(__file__).resolve().parents[4] / 'data/raw/on/orn.gpkg'.
     """
 
     try:
