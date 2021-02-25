@@ -223,10 +223,8 @@ class Stage:
         logger.info("Exporting output data.")
 
         # Iterate export formats and languages.
-        for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
-
-                logger.info(f"Format: {frmt}, language: {lang}; configuring export parameters.")
+        for frmt in tqdm(self.dframes, desc=f"Exporting all formats"):
+            for lang in tqdm(self.dframes[frmt], desc=f"Format: {frmt}; exporting all languages"):
 
                 # Retrieve export specifications.
                 export_specs = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")
@@ -240,25 +238,27 @@ class Stage:
                 export_tables = {table: self.format_path(export_specs["conform"][table]["name"]) for table in
                                  self.dframes[frmt][lang]}
 
+                # Configure ogr2ogr inputs.
+                kwargs = {
+                    "driver": f"-f \"{export_specs['data']['driver']}\"",
+                    "append": "-append",
+                    "pre_args": "",
+                    "dest": "",
+                    "src": f"\"{temp_path}\"",
+                    "src_layer": "",
+                    "nln": ""
+                }
+
                 # Generate directory structure.
-                logger.info(f"Format: {frmt}, language: {lang}; generating directory structure.")
                 Path(export_dir).mkdir(parents=True, exist_ok=True)
 
                 # Iterate tables.
-                for table in export_tables:
+                for table in tqdm(export_tables, desc=f"Format: {frmt}; language: {lang}; exporting all tables"):
 
-                    logger.info(f"Format: {frmt}, language: {lang}, table: {table}; configuring ogr2ogr parameters.")
-
-                    # Configure ogr2ogr inputs.
-                    kwargs = {
-                        "driver": f"-f \"{export_specs['data']['driver']}\"",
-                        "append": "-append",
-                        "pre_args": "",
-                        "dest": export_dir / (export_file if export_file else export_tables[table]),
-                        "src": f"\"{temp_path}\"",
-                        "src_layer": table,
-                        "nln": f"-nln {export_tables[table]}" if export_file else ""
-                    }
+                    # Modify table-specific ogr2ogr inputs.
+                    kwargs["dest"] = export_dir / (export_file if export_file else export_tables[table])
+                    kwargs["src_layer"] = table
+                    kwargs["nln"] = f"-nln {export_tables[table]}" if export_file else ""
 
                     # Handle kml.
                     if frmt == "kml":
@@ -275,8 +275,8 @@ class Stage:
 
                         # Iterate kml groups.
                         for kml_group in tqdm(kml_groups.itertuples(index=False), total=len(kml_groups),
-                                              desc=f"Format: {frmt}, language: {lang}, table: {table}; generating "
-                                                   f"output"):
+                                              desc=f"Format: {frmt}, language: {lang}, table: {table}; exporting all "
+                                                   f"KMLs"):
 
                             # Add kml group name and query to ogr2ogr parameters.
                             name, query = itemgetter("names", "queries")(kml_group._asdict())
@@ -288,14 +288,10 @@ class Stage:
 
                     else:
 
-                        logger.info(f"Format: {frmt}, language: {lang}, table: {table}; generating output: "
-                                    f"{kwargs['dest']}.")
-
                         # Run ogr2ogr subprocess.
                         helpers.ogr2ogr(kwargs)
 
                 # Delete temporary file.
-                logger.info(f"Format: {frmt}, language: {lang}; deleting temporary GeoPackage.")
                 if temp_path.exists():
                     driver = ogr.GetDriverByName("GPKG")
                     driver.DeleteDataSource(str(temp_path))
@@ -311,15 +307,15 @@ class Stage:
         logger.info("Exporting temporary GeoPackages.")
 
         # Iterate formats and languages.
-        for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
+        for frmt in tqdm(self.dframes, desc=f"Exporting all formats"):
+            for lang in tqdm(self.dframes[frmt], desc=f"Format: {frmt}; exporting all languages"):
 
                 # Configure paths.
                 temp_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_{frmt}_{lang}_temp.gpkg"
                 export_schemas_path = Path(__file__).resolve().parent / f"distribution_formats/{lang}/{frmt}.yaml"
 
                 # Export to GeoPackage.
-                helpers.export_gpkg(self.dframes[frmt][lang], temp_path, export_schemas_path)
+                helpers.export_gpkg(self.dframes[frmt][lang], temp_path, export_schemas_path, suppress_logs=True)
 
     def format_path(self, path: Union[Path, str]) -> Path:
         """
@@ -444,9 +440,9 @@ class Stage:
 
         logger.info("Applying compression and zipping output data directories.")
 
-        # Iterate output directories.
+        # Iterate output directories. Ignore change logs if already zipped.
         root = Path(__file__).resolve().parents[2] / f"data/processed/{self.source}"
-        for data_dir in root.glob("*"):
+        for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
 
             logger.info(f"Applying compression and zipping output directory: {data_dir}.")
 

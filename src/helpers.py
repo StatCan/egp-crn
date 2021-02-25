@@ -317,7 +317,7 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
-                export_schemas: Union[None, str] = None) -> None:
+                export_schemas: Union[None, str] = None, suppress_logs: bool = False) -> None:
     """
     Exports one or more (Geo)DataFrames as GeoPackage layers.
     Optionally accepts an export schemas yaml path which will override the default distribution format column names.
@@ -327,14 +327,17 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
     :param Union[Path, str] output_path: GeoPackage output path.
     :param Union[None, str] export_schemas: optional dictionary mapping of field names for each field in each of the
         provided datasets.
+    :param bool suppress_logs: suppress log messages, excluding exceptions, default False.
     """
 
     output_path = Path(output_path).resolve()
-    logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
+    if not suppress_logs:
+        logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
 
     try:
 
-        logger.info(f"Creating / opening data source: {output_path}.")
+        if not suppress_logs:
+            logger.info(f"Creating / opening data source: {output_path}.")
 
         # Create / open GeoPackage.
         driver = ogr.GetDriverByName("GPKG")
@@ -355,7 +358,8 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
         # Iterate dataframes.
         for table_name, df in dataframes.items():
 
-            logger.info(f"Layer {table_name}: creating layer.")
+            if not suppress_logs:
+                logger.info(f"Layer {table_name}: creating layer.")
 
             # Configure layer shape type and spatial reference.
             if isinstance(df, gpd.GeoDataFrame):
@@ -378,7 +382,8 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
             # Create layer.
             layer = gpkg.CreateLayer(name=table_name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
 
-            logger.info(f"Layer {table_name}: configuring schema.")
+            if not suppress_logs:
+                logger.info(f"Layer {table_name}: configuring schema.")
 
             # Configure layer schema (field definitions).
             ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
@@ -400,7 +405,7 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
 
             # Filter invalid columns from dataframe.
             invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"].values(), "uuid", "geometry"}
-            if invalid_cols:
+            if invalid_cols and not suppress_logs:
                 logger.warning(f"Layer {table_name}: extraneous columns detected and will not be written to output: "
                                f"{', '.join(map(str, invalid_cols))}.")
 
