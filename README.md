@@ -63,7 +63,7 @@ as a command line interface.
 
 1. Download and unzip the repository: https://github.com/jessestewart1/nrn-rrn
 
-2. Create a virtual conda environment from the file `src/environment.yml`:
+2. Create a virtual conda environment from the file `environment.yml`:
 
    `conda env create -f <path to environment.yml>`
 

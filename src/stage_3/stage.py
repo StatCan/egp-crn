@@ -126,9 +126,9 @@ class Stage:
         if len(roadseg):
 
             # Group contiguous structures.
-            # Process: compile network x subgraphs, assign a structid to each list of subgraph uuids.
-            subgraphs = nx.connected_component_subgraphs(
-                helpers.gdf_to_nx(roadseg, keep_attributes=True, endpoints_only=True))
+            # Process: compile networkx subgraphs, assign a structid to each list of subgraph uuids.
+            graph = helpers.gdf_to_nx(roadseg, keep_attributes=True, endpoints_only=True)
+            subgraphs = map(graph.subgraph, nx.connected_components(graph))
             structids = dict()
 
             for subgraph in subgraphs:

@@ -1506,7 +1506,7 @@ class Validator:
         segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
 
         # Configure subgraphs.
-        sub_g = pd.Series(nx.connected_component_subgraphs(segments_graph))
+        sub_g = pd.Series(list(map(segments_graph.subgraph, nx.connected_components(segments_graph))))
 
         # Validation 3.
         default = defaults["structid"]

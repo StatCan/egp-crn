@@ -1,15 +1,13 @@
 import click
 import logging
-import os
 import pandas as pd
 import re
-import shutil
 import sys
 import zipfile
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime
-from operator import attrgetter, itemgetter
+from operator import itemgetter
 from osgeo import ogr
 from pathlib import Path
 from tqdm import tqdm
@@ -70,7 +68,7 @@ class Stage:
                     if f.is_file():
                         f.unlink()
                     else:
-                        helpers.rmtree(f)
+                        helpers.rm_tree(f)
 
             else:
                 logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
@@ -78,8 +76,7 @@ class Stage:
                 sys.exit(1)
 
         # Compile output formats.
-        self.formats = list(map(attrgetter("stem"),
-                                (Path(__file__).resolve().parent / "distribution_formats/en").glob("*")))
+        self.formats = [f.stem for f in (Path(__file__).resolve().parent / "distribution_formats/en").glob("*")]
 
         # Configure field defaults and domains.
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
@@ -257,7 +254,7 @@ class Stage:
                         "driver": f"-f \"{export_specs['data']['driver']}\"",
                         "append": "-append",
                         "pre_args": "",
-                        "dest": f"\"{export_dir / (export_file if export_file else export_tables[table])}\"",
+                        "dest": export_dir / (export_file if export_file else export_tables[table]),
                         "src": f"\"{temp_path}\"",
                         "src_layer": table,
                         "nln": f"-nln {export_tables[table]}" if export_file else ""
@@ -301,7 +298,7 @@ class Stage:
                 logger.info(f"Format: {frmt}, language: {lang}; deleting temporary GeoPackage.")
                 if temp_path.exists():
                     driver = ogr.GetDriverByName("GPKG")
-                    driver.DeleteDataSource(temp_path)
+                    driver.DeleteDataSource(str(temp_path))
                     del driver
 
     def export_temp_data(self) -> None:
@@ -332,14 +329,15 @@ class Stage:
         :return Path: formatted path.
         """
 
-        upper = Path(path).stem.isupper()
+        # Construct replacement dictionary.
+        lookup = {k: str(v).upper() for k, v in (("<source>", self.source),
+                                                 ("<major_version>", self.major_version),
+                                                 ("<minor_version>", self.minor_version))}
 
-        for key, val in {"source": self.source,
-                         "major_version": self.major_version,
-                         "minor_version": self.minor_version}.items():
-
-            val = val.upper() if upper else val.lower()
-            path = str(path).replace(f"<{key}>", val)
+        # Replace path keywords with variables.
+        path = re.sub(string=str(path),
+                      pattern=f"({'|'.join(lookup.keys())})",
+                      repl=lambda match: lookup[match.string[match.start(): match.end()]])
 
         return Path(path)
 
@@ -442,32 +440,27 @@ class Stage:
         self.dframes = helpers.load_gpkg(self.data_path)
 
     def zip_data(self) -> None:
-        """Compresses all exported data directories into .zip files."""
-        # TODO: change path and os references to pathlib. This is the last remaining file and function.
+        """Compresses and zips all export data directories."""
 
-        logger.info("Apply compression and zip to output data directories.")
+        logger.info("Applying compression and zipping output data directories.")
 
         # Iterate output directories.
         root = Path(__file__).resolve().parents[2] / f"data/processed/{self.source}"
         for data_dir in root.glob("*"):
 
-            # Walk directory, compress, and zip contents.
-            logger.info(f"Applying compression and writing .zip from directory {data_dir}.")
+            logger.info(f"Applying compression and zipping output directory: {data_dir}.")
 
             try:
 
+                # Recursively iterate directory files, compress, and zip contents.
                 with zipfile.ZipFile(f"{data_dir}.zip", "w") as zip_f:
-                    for dir, subdirs, files in os.walk(data_dir):
-                        for file in files:
+                    for file in filter(Path.is_file, data_dir.rglob("*")):
 
-                            # Configure path.
-                            path = os.path.join(dir, file)
+                        # Configure new relative path inside .zip file.
+                        arcname = data_dir.stem / file.relative_to(data_dir)
 
-                            # Configure new relative path inside .zip file.
-                            arcname = os.path.join(os.path.basename(data_dir), os.path.relpath(path, data_dir))
-
-                            # Write to and compress .zip file.
-                            zip_f.write(path, arcname=arcname, compress_type=zipfile.ZIP_DEFLATED)
+                        # Write to and compress .zip file.
+                        zip_f.write(file, arcname=arcname, compress_type=zipfile.ZIP_DEFLATED)
 
             except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
                 logger.exception("Unable to compress directory.")
@@ -476,7 +469,7 @@ class Stage:
 
             # Remove original directory.
             logger.info(f"Removing original directory: {data_dir}.")
-            helpers.rmtree(data_dir)
+            helpers.rm_tree(data_dir)
 
     def execute(self) -> None:
         """Executes an NRN stage."""

@@ -613,7 +613,7 @@ class ORN:
 
             # Create GeoPackage.
             driver = ogr.GetDriverByName("GPKG")
-            gpkg = driver.CreateDataSource(self.dst)
+            gpkg = driver.CreateDataSource(str(self.dst))
 
             # Iterate dataframes.
             for name, df in self.nrn_datasets.items():

@@ -339,9 +339,9 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
         # Create / open GeoPackage.
         driver = ogr.GetDriverByName("GPKG")
         if output_path.exists():
-            gpkg = driver.Open(output_path, update=1)
+            gpkg = driver.Open(str(output_path), update=1)
         else:
-            gpkg = driver.CreateDataSource(output_path)
+            gpkg = driver.CreateDataSource(str(output_path))
 
         # Compile schemas.
         schemas = load_yaml(distribution_format_path)
