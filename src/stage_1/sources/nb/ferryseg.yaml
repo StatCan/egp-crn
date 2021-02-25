@@ -11,7 +11,7 @@ license:
   text: GeoNB Open Data Licence
 language: en
 data:
-  filename: NBRN_Export.gdb
+  filename: 2021/geonb_nbrn-rrnb.gdb
   layer: Road_Segment_Entity
   driver: OpenFileGDB
   crs: "EPSG:2953"

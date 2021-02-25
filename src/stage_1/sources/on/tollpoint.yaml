@@ -11,7 +11,7 @@ license:
   text: Open Government License - Ontario
 language: en
 data:
-  filename: orn.gpkg
+  filename: 2020/orn.gpkg
   layer: tollpoint
   driver: GPKG
   crs: "EPSG:4269"

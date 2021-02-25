@@ -11,7 +11,7 @@ license:
   text:
 language: en
 data:
-  filename: NTRN/NT_ROADSEG.shp
+  filename: 2020/NT_ROADSEG.shp
   layer:
   driver: ESRI Shapefile
   crs: "EPSG:3857"

@@ -11,14 +11,14 @@ license:
   text: Open Government License - Ontario
 language: en
 data:
-  filename: orn.gpkg
-  layer: ferryseg
+  filename: 2020/orn.gpkg
+  layer: roadseg
   driver: GPKG
   crs: "EPSG:4269"
   spatial: True
   query:
 conform:
-  ferryseg:
+  roadseg:
     acqtech: acqtech
     metacover:
     credate: credate
@@ -27,10 +27,26 @@ conform:
     provider:
     revdate: revdate
     specvers: 2.0
+    l_adddirfg:
+    r_adddirfg:
+    adrangenid: adrangenid
     closing:
-    ferrysegid:
-    roadclass:
+    exitnbr: exitnbr
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    roadclass: roadclass
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
     nid: nid
+    nbrlanes: nbrlanes
+    l_placenam: l_placenam
+    r_placenam: r_placenam
+    l_stname_c: l_stname_c
+    r_stname_c: r_stname_c
+    pavsurf: pavsurf
+    pavstatus: pavstatus
+    roadjuris: roadjuris
+    roadsegid:
     rtename1en: rtename1en
     rtename2en: rtename2en
     rtename3en: rtename3en
@@ -44,3 +60,10 @@ conform:
     rtnumber3: rtnumber3
     rtnumber4: rtnumber4
     rtnumber5: rtnumber5
+    speed: speed
+    strunameen: strunameen
+    strunamefr: strunamefr
+    structid:
+    structtype: structtype
+    trafficdir: trafficdir
+    unpavsurf: unpavsurf

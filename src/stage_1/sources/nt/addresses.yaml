@@ -12,7 +12,7 @@ license:
     text: City of Yellowknife Open Data License & Terms of Use
 language: en
 data:
-  filename: OpenAddresses/addresses.geojson
+  filename: 2020/addresses.geojson
   layer:
   driver: GeoJSON
   crs: "EPSG:3857"

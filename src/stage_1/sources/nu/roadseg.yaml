@@ -23,7 +23,7 @@ license:
   text:
 language: en
 data:
-  filename: nu.gpkg
+  filename: 2020/nu.gpkg
   layer: data
   driver: GPKG
   crs: "EPSG:4617"

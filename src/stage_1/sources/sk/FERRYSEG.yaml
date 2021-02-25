@@ -11,7 +11,7 @@ license:
   text:
 language: en
 data:
-  filename: SURN_Feb_2019/FERRYSEG.shp
+  filename: 2020/FERRYSEG.shp
   layer:
   driver: ESRI Shapefile
   crs: "EPSG:26913"
