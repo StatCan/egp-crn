@@ -10,7 +10,7 @@ from datetime import datetime
 from operator import itemgetter
 from osgeo import ogr
 from pathlib import Path
-from tqdm import tqdm
+from tqdm.auto import trange
 from typing import Union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -81,6 +81,10 @@ class Stage:
         # Configure field defaults and domains.
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
         self.domains = helpers.compile_domains(mapped_lang="fr")
+
+        # Define custom progress bar format.
+        # Note: the only change from default is moving the percentage to the right end of the progress bar.
+        self.bar_format = "{desc}|{bar}|{percentage:3.0f}%{r_bar}"
 
     def configure_release_version(self) -> None:
         """Configures the major and minor release versions for the current NRN vintage."""
@@ -222,9 +226,19 @@ class Stage:
 
         logger.info("Exporting output data.")
 
+        # Configure export progress bar.
+        file_count = 0
+        for frmt in self.dframes:
+            for lang in self.dframes[frmt]:
+                if frmt == "kml":
+                    file_count += len(self.kml_groups[lang])
+                else:
+                    file_count += len(self.dframes[frmt][lang])
+        export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format, position=0)
+
         # Iterate export formats and languages.
-        for frmt in tqdm(self.dframes, desc=f"Exporting all formats"):
-            for lang in tqdm(self.dframes[frmt], desc=f"Format: {frmt}; exporting all languages"):
+        for frmt in self.dframes:
+            for lang in self.dframes[frmt]:
 
                 # Retrieve export specifications.
                 export_specs = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")
@@ -253,7 +267,7 @@ class Stage:
                 Path(export_dir).mkdir(parents=True, exist_ok=True)
 
                 # Iterate tables.
-                for table in tqdm(export_tables, desc=f"Format: {frmt}; language: {lang}; exporting all tables"):
+                for table in export_tables:
 
                     # Modify table-specific ogr2ogr inputs.
                     kwargs["dest"] = export_dir / (export_file if export_file else export_tables[table])
@@ -274,9 +288,7 @@ class Stage:
                         kml_ext = f".{kwargs['dest'].suffix}"
 
                         # Iterate kml groups.
-                        for kml_group in tqdm(kml_groups.itertuples(index=False), total=len(kml_groups),
-                                              desc=f"Format: {frmt}, language: {lang}, table: {table}; exporting all "
-                                                   f"KMLs"):
+                        for kml_group in kml_groups.itertuples(index=False):
 
                             # Add kml group name and query to ogr2ogr parameters.
                             name, query = itemgetter("names", "queries")(kml_group._asdict())
@@ -284,18 +296,26 @@ class Stage:
                             kwargs["pre_args"] = query
 
                             # Run ogr2ogr subprocess.
+                            export_progress.set_description(f"Exporting file={kwargs['dest'].name}")
                             helpers.ogr2ogr(kwargs)
+                            export_progress.update(1)
 
                     else:
 
                         # Run ogr2ogr subprocess.
+                        export_progress.set_description(
+                            f"Exporting file={kwargs['dest'].name}, layer={kwargs['src_layer']}")
                         helpers.ogr2ogr(kwargs)
+                        export_progress.update(1)
 
                 # Delete temporary file.
                 if temp_path.exists():
                     driver = ogr.GetDriverByName("GPKG")
                     driver.DeleteDataSource(str(temp_path))
                     del driver
+
+        # Close progress bar.
+        export_progress.close()
 
     def export_temp_data(self) -> None:
         """
@@ -306,16 +326,30 @@ class Stage:
         # Export temporary files.
         logger.info("Exporting temporary GeoPackages.")
 
+        # Configure export progress bar.
+        file_count = 0
+        for frmt in self.dframes:
+            for lang in self.dframes[frmt]:
+                file_count += len(self.dframes[frmt][lang])
+        export_progress = trange(file_count, desc="Exporting temp data", bar_format=self.bar_format, position=0)
+
         # Iterate formats and languages.
-        for frmt in tqdm(self.dframes, desc=f"Exporting all formats"):
-            for lang in tqdm(self.dframes[frmt], desc=f"Format: {frmt}; exporting all languages"):
+        for frmt in self.dframes:
+            for lang in self.dframes[frmt]:
 
                 # Configure paths.
                 temp_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_{frmt}_{lang}_temp.gpkg"
                 export_schemas_path = Path(__file__).resolve().parent / f"distribution_formats/{lang}/{frmt}.yaml"
 
-                # Export to GeoPackage.
-                helpers.export_gpkg(self.dframes[frmt][lang], temp_path, export_schemas_path, suppress_logs=True)
+                # Iterate datasets and export to GeoPackage.
+                for table, df in self.dframes[frmt][lang].items():
+
+                    export_progress.set_description(f"Exporting file={temp_path.name}, layer={table}")
+                    helpers.export_gpkg({table: df}, temp_path, export_schemas_path, suppress_logs=True)
+                    export_progress.update(1)
+
+        # Close progress bar.
+        export_progress.close()
 
     def format_path(self, path: Union[Path, str]) -> Path:
         """
@@ -440,11 +474,17 @@ class Stage:
 
         logger.info("Applying compression and zipping output data directories.")
 
-        # Iterate output directories. Ignore change logs if already zipped.
+        # Configure root directory.
         root = Path(__file__).resolve().parents[2] / f"data/processed/{self.source}"
-        for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
 
-            logger.info(f"Applying compression and zipping output directory: {data_dir}.")
+        # Configure zip progress bar.
+        file_count = 0
+        for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
+            file_count += len(list(filter(Path.is_file, data_dir.rglob("*"))))
+        zip_progress = trange(file_count, desc="Compressing data", bar_format=self.bar_format, position=0)
+
+        # Iterate output directories. Ignore change logs if already zipped.
+        for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
 
             try:
 
@@ -452,11 +492,14 @@ class Stage:
                 with zipfile.ZipFile(f"{data_dir}.zip", "w") as zip_f:
                     for file in filter(Path.is_file, data_dir.rglob("*")):
 
+                        zip_progress.set_description(f"Compressing file={file.name}")
+
                         # Configure new relative path inside .zip file.
                         arcname = data_dir.stem / file.relative_to(data_dir)
 
                         # Write to and compress .zip file.
                         zip_f.write(file, arcname=arcname, compress_type=zipfile.ZIP_DEFLATED)
+                        zip_progress.update(1)
 
             except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
                 logger.exception("Unable to compress directory.")
@@ -464,8 +507,10 @@ class Stage:
                 sys.exit(1)
 
             # Remove original directory.
-            logger.info(f"Removing original directory: {data_dir}.")
             helpers.rm_tree(data_dir)
+
+        # Close progress bar.
+        zip_progress.close()
 
     def execute(self) -> None:
         """Executes an NRN stage."""

@@ -803,7 +803,8 @@ class LRS:
                 # Write layer.
                 layer.StartTransaction()
 
-                for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {name}: writing to file"):
+                for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {name}: writing to file",
+                                 bar_format="{desc}|{bar}|{percentage:3.0f}%{r_bar}"):
 
                     # Instantiate feature.
                     feature = ogr.Feature(layer.GetLayerDefn())
