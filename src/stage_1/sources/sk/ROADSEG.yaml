@@ -5,7 +5,8 @@ coverage:
     alpha2: CA-SK
     country: Canada
     subdivision: Saskatchewan
-  website: https://www.isc.ca/Pages/default.aspx
+  website: https://www.isc.ca/MapsandPhotos/GISData/Pages/SaskatchewanUpgradedRoadNetwork(SURN).aspx
+  update_frequency: unknown
 license:
   url: https://www.isc.ca/About/Legal/Pages/default.aspx
   text:
