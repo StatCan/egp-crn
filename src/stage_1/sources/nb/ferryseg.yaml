@@ -6,6 +6,7 @@ coverage:
     country: Canada
     subdivision: New Brunswick
   website: http://geonb.snb.ca/downloads/nbrn/maintenance/
+  update_frequency: monthly
 license:
   url: http://geonb.snb.ca/documents/license/geonb-odl_en.pdf
   text: GeoNB Open Data Licence

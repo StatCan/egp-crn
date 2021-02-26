@@ -6,6 +6,7 @@ coverage:
     country: Canada
     subdivision: Northwest Territories
   website: http://www.geomatics.gov.nt.ca/datashare/
+  update_frequency: unknown
 license:
   url: http://www.geomatics.gov.nt.ca/Legal.aspx
   text:

@@ -5,7 +5,8 @@ coverage:
     alpha2: CA-YT
     country: Canada
     subdivision: Yukon
-  website:
+  website: Provided directly from data contact.
+  update_frequency: continuous
 license:
   url:
   text:

@@ -18,6 +18,7 @@ coverage:
     ICSP Toolkit (community maps, except Iqaluit):
       contact: Department of Community and Government Services (community maps, excluding Iqaluit)
       url: http://www.buildingnunavut.com/en/communityprofiles/communityprofiles.asp
+  update_frequency: unknown
 license:
   url:
   text:
