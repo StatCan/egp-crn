@@ -221,6 +221,40 @@ class Stage:
             # Store results.
             self.kml_groups[lang] = placenames_df
 
+    def export_data_test(self) -> None:
+        """Exports and packages all data."""
+
+        logger.info("Exporting output data.")
+
+        # Configure export progress bar.
+        file_count = ((len(self.dframes["gpkg"]["en"]) * 3) + len(self.kml_groups["en"])) * 2
+        export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format)
+
+        # Iterate export formats and languages.
+        for frmt in self.dframes:
+            for lang, dframes in self.dframes[frmt].items():
+
+                # Retrieve export specifications.
+                export_specs = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")
+
+                # Configure export directory.
+                export_dir, export_file = itemgetter("dir", "file")(export_specs["data"])
+                export_dir = self.output_path / self.format_path(export_dir) / self.format_path(export_file)
+
+                # Configure mapped layer names.
+                nln_map = {table: self.format_path(export_specs["conform"][table]["name"]) for table in dframes}
+
+                # Configure KML.
+                if frmt == "kml":
+                    logger.info("KML process . . .")
+                    pass
+
+                else:
+                    # Export data.
+                    driver = {"gml": "GML", "gpkg": "GPKG", "kml": "KML", "shp": "ESRI Shapefile"}[frmt]
+                    helpers.export(dframes, export_dir, driver=driver, nln_map=nln_map, lang=lang,
+                                   outer_pbar=export_progress)
+
     def export_data(self) -> None:
         """Exports and packages all data."""
 
@@ -352,13 +386,16 @@ class Stage:
         # Close progress bar.
         export_progress.close()
 
-    def format_path(self, path: Union[Path, str]) -> Path:
+    def format_path(self, path: Union[Path, str, None]) -> Union[Path, str]:
         """
         Formats a path with class variables: source, major_version, minor_version.
 
-        :param Union[Path, str] path: path requiring formatting.
-        :return Path: formatted path.
+        :param Union[Path, str, None] path: path requiring formatting.
+        :return Union[Path, str]: formatted path or empty str.
         """
+
+        if not path:
+            return ""
 
         # Construct replacement dictionary.
         lookup = {k: str(v).upper() for k, v in (("<source>", self.source),
@@ -521,8 +558,9 @@ class Stage:
         self.gen_french_dataframes()
         self.gen_output_schemas()
         self.define_kml_groups()
-        self.export_temp_data()
-        self.export_data()
+        # self.export_temp_data()
+        # self.export_data()
+        self.export_data_test()
         self.zip_data()
 
 

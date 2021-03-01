@@ -316,6 +316,136 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         return gdf.copy(deep=True)
 
 
+def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str], driver: str,
+           nln_map: Dict[str, str], lang: str, outer_pbar: Union[Any, None]) -> None:
+    """
+    Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
+
+    :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
+        (Geo)DataFrames.
+    :param Union[Path, str] output_path: output path.
+    :param str driver: OGR driver short name.
+    :param Dict[str] nln_map: dictionary mapping of new layer names.
+    :param str lang: language of the distribution format ('en' or 'fr').
+    :param Union[Any, None] outer_pbar: a pre-existing tqdm progress bar.
+    """
+
+    try:
+
+        # Validate driver.
+        if driver not in {"ESRI Shapefile", "GML", "GPKG", "KML"}:
+            raise ValueError("Invalid OGR driver, must be one of: ESRI Shapefile, GML, GPKG, KML.")
+
+        # Validate language.
+        if lang not in {"en", "fr"}:
+            raise ValueError("Invalid language, must be one of: en, fr.")
+
+        # Configure output directory structure.
+        output_path = Path(output_path).resolve()
+        if output_path.suffix:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            output_path.mkdir(parents=True, exist_ok=True)
+
+        # Compile schemas.
+        schemas = load_yaml(distribution_format_path)
+        export_schemas = {"ESRI Shapefile": "shp", "GML": "gml", "GPKG": "gpkg", "KML": "kml"}[driver] + ".yaml"
+        export_schemas = load_yaml(
+            Path(__file__).resolve().parent / f"stage_5/distribution_formats/{lang}/{export_schemas}")["conform"]
+
+        # Get driver and create source (layer-based drivers only).
+        driver, source = ogr.GetDriverByName(driver), None
+        if output_path.suffix:
+            source = driver.CreateDataSource(str(output_path))
+
+        # Iterate dataframes.
+        for table_name in set(dataframes).intersection(set(export_schemas)):
+            df = dataframes[table_name].copy(deep=True)
+
+            # Configure layer shape type and spatial reference.
+            if isinstance(df, gpd.GeoDataFrame):
+
+                srs = osr.SpatialReference()
+                srs.ImportFromEPSG(df.crs.to_epsg())
+
+                if len(df.geom_type.unique()) > 1:
+                    raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
+                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
+                elif df.geom_type.iloc[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
+                    shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
+                else:
+                    raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
+                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
+            else:
+                shape_type = ogr.wkbNone
+                srs = None
+
+            # Create source (non-layer-based drivers only) and layer.
+            nln = str(nln_map[table_name])
+            if output_path.suffix:
+                layer = source.CreateLayer(name=nln, srs=srs, geom_type=shape_type)
+            else:
+                source = driver.CreateDataSource(str(output_path / nln))
+                layer = source.CreateLayer(name=Path(nln).stem, srs=srs, geom_type=shape_type)
+
+            # Configure layer schema (field definitions).
+            ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
+
+            for field_name, mapped_field_name in export_schemas[table_name]["fields"].items():
+                field_type, field_width = schemas[table_name]["fields"][field_name]
+                field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
+                field_defn.SetWidth(field_width)
+                layer.CreateField(field_defn)
+
+            # Map dataframe column names (does nothing if already mapped).
+            df.rename(columns=export_schemas[table_name]["fields"], inplace=True)
+
+            # Filter invalid columns from dataframe.
+            invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"].values(), "geometry"}
+
+            # Write layer.
+            layer.StartTransaction()
+
+            for feat in tqdm(df.itertuples(index=False), total=len(df),
+                             desc=f"Writing to file={source.GetName()}, layer={table_name}",
+                             bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}", leave=not bool(outer_pbar)):
+
+                # Instantiate feature.
+                feature = ogr.Feature(layer.GetLayerDefn())
+
+                # Set feature properties.
+                properties = feat._asdict()
+                for prop in set(properties) - invalid_cols - {"geometry"}:
+                    field_index = feature.GetFieldIndex(prop)
+                    feature.SetField(field_index, properties[prop])
+
+                # Set feature geometry, if spatial.
+                if srs:
+                    geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
+                    feature.SetGeometry(geom)
+
+                # Create feature.
+                layer.CreateFeature(feature)
+
+                # Clear pointer for next iteration.
+                feature = None
+
+            layer.CommitTransaction()
+
+            # Update outer progress bar.
+            if outer_pbar:
+                outer_pbar.update(1)
+
+    except FileExistsError as e:
+        logger.exception(f"Invalid output directory - already exists.")
+        logger.exception(e)
+        sys.exit(1)
+    except (Exception, KeyError, ValueError, sqlite3.Error) as e:
+        logger.exception(f"Error raised when writing output: {output_path}.")
+        logger.exception(e)
+        sys.exit(1)
+
+
 def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
                 export_schemas: Union[None, str] = None, suppress_logs: bool = False,
                 nested_pbar: bool = False) -> None:
