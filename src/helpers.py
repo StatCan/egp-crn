@@ -317,7 +317,8 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
-                export_schemas: Union[None, str] = None, suppress_logs: bool = False) -> None:
+                export_schemas: Union[None, str] = None, suppress_logs: bool = False,
+                nested_pbar: bool = False) -> None:
     """
     Exports one or more (Geo)DataFrames as GeoPackage layers.
     Optionally accepts an export schemas yaml path which will override the default distribution format column names.
@@ -328,6 +329,7 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
     :param Union[None, str] export_schemas: optional dictionary mapping of field names for each field in each of the
         provided datasets.
     :param bool suppress_logs: suppress log messages, excluding exceptions, default False.
+    :param bool nested_pbar: the progress bar will be nested (an outer progress bar already exists), default False.
     """
 
     output_path = Path(output_path).resolve()
@@ -412,8 +414,9 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
             # Write layer.
             layer.StartTransaction()
 
-            for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {table_name}: writing to file",
-                             bar_format="{desc}|{bar}|{percentage:3.0f}%{r_bar}"):
+            for feat in tqdm(df.itertuples(index=False), total=len(df),
+                             desc=f"Writing to file={output_path.name}, layer={table_name}",
+                             bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}", leave=not nested_pbar):
 
                 # Instantiate feature.
                 feature = ogr.Feature(layer.GetLayerDefn())

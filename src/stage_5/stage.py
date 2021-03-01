@@ -84,7 +84,7 @@ class Stage:
 
         # Define custom progress bar format.
         # Note: the only change from default is moving the percentage to the right end of the progress bar.
-        self.bar_format = "{desc}|{bar}|{percentage:3.0f}%{r_bar}"
+        self.bar_format = "{desc}: |{bar}| {percentage:3.0f}% {r_bar}"
 
     def configure_release_version(self) -> None:
         """Configures the major and minor release versions for the current NRN vintage."""
@@ -234,7 +234,7 @@ class Stage:
                     file_count += len(self.kml_groups[lang])
                 else:
                     file_count += len(self.dframes[frmt][lang])
-        export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format, position=0)
+        export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format)
 
         # Iterate export formats and languages.
         for frmt in self.dframes:
@@ -296,14 +296,14 @@ class Stage:
                             kwargs["pre_args"] = query
 
                             # Run ogr2ogr subprocess.
-                            export_progress.set_description(f"Exporting file={kwargs['dest'].name}")
+                            export_progress.set_description_str(f"Exporting file={kwargs['dest'].name}")
                             helpers.ogr2ogr(kwargs)
                             export_progress.update(1)
 
                     else:
 
                         # Run ogr2ogr subprocess.
-                        export_progress.set_description(
+                        export_progress.set_description_str(
                             f"Exporting file={kwargs['dest'].name}, layer={kwargs['src_layer']}")
                         helpers.ogr2ogr(kwargs)
                         export_progress.update(1)
@@ -331,7 +331,7 @@ class Stage:
         for frmt in self.dframes:
             for lang in self.dframes[frmt]:
                 file_count += len(self.dframes[frmt][lang])
-        export_progress = trange(file_count, desc="Exporting temp data", bar_format=self.bar_format, position=0)
+        export_progress = trange(file_count, desc="Exporting temporary data", bar_format=self.bar_format)
 
         # Iterate formats and languages.
         for frmt in self.dframes:
@@ -344,8 +344,9 @@ class Stage:
                 # Iterate datasets and export to GeoPackage.
                 for table, df in self.dframes[frmt][lang].items():
 
-                    export_progress.set_description(f"Exporting file={temp_path.name}, layer={table}")
-                    helpers.export_gpkg({table: df}, temp_path, export_schemas_path, suppress_logs=True)
+                    export_progress.set_description_str(f"Exporting temporary file={temp_path.name}, layer={table}")
+                    helpers.export_gpkg({table: df}, temp_path, export_schemas_path, suppress_logs=True,
+                                        nested_pbar=True)
                     export_progress.update(1)
 
         # Close progress bar.
@@ -481,7 +482,7 @@ class Stage:
         file_count = 0
         for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
             file_count += len(list(filter(Path.is_file, data_dir.rglob("*"))))
-        zip_progress = trange(file_count, desc="Compressing data", bar_format=self.bar_format, position=0)
+        zip_progress = trange(file_count, desc="Compressing data", bar_format=self.bar_format)
 
         # Iterate output directories. Ignore change logs if already zipped.
         for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
@@ -492,7 +493,7 @@ class Stage:
                 with zipfile.ZipFile(f"{data_dir}.zip", "w") as zip_f:
                     for file in filter(Path.is_file, data_dir.rglob("*")):
 
-                        zip_progress.set_description(f"Compressing file={file.name}")
+                        zip_progress.set_description_str(f"Compressing file={file.name}")
 
                         # Configure new relative path inside .zip file.
                         arcname = data_dir.stem / file.relative_to(data_dir)
