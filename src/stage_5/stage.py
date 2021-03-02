@@ -1,5 +1,6 @@
 import click
 import logging
+import numpy as np
 import pandas as pd
 import re
 import sys
@@ -147,7 +148,7 @@ class Stage:
         # Iterate languages.
         for lang in ("en", "fr"):
 
-            logger.info(f"Defining KML groups for language: {lang}.")
+            logger.info(f"Defining KML queries for language: {lang}.")
 
             # Determine language-specific field names.
             l_placenam, r_placenam = itemgetter("l_placenam", "r_placenam")(
@@ -159,67 +160,49 @@ class Stage:
             # Compile placenames.
             if placenames is None:
 
-                # Compile sorted placenames.
-                placenames = pd.concat([df[l_placenam], df.loc[df[l_placenam] != df[r_placenam], r_placenam]],
-                                       ignore_index=True).sort_values(ascending=True)
+                # Compile placenames.
+                placenames = pd.Series([*df[l_placenam], *df.loc[df[l_placenam] != df[r_placenam], r_placenam]])
 
-                # Flag limit-exceeding and non-limit-exceeding placenames.
+                # Flag limit-exceeding placenames.
                 placenames_exceeded = {name for name, count in Counter(placenames).items() if count > kml_limit}
-                placenames = pd.Series(sorted(set(placenames.unique()) - placenames_exceeded))
 
-                # Sanitize placenames for sql syntax.
-                placenames = placenames.map(lambda name: name.replace("'", "''"))
-                placenames_exceeded = set(map(lambda name: name.replace("'", "''"), placenames_exceeded))
+                # Compile sorted unique placename values.
+                placenames = pd.Series(sorted(placenames.unique()))
 
-            # Swap English-French default placename.
+            # Swap English-French default placename value.
             else:
-                default_add = self.defaults[lang]["roadseg"]["l_placenam"]
-                default_rm = self.defaults["en" if lang == "fr" else "fr"]["roadseg"]["l_placenam"]
-                if default_rm in placenames:
-                    placenames = {*placenames - {default_rm}, default_add}
+                default_add = self.defaults["fr"]["roadseg"]["l_placenam"]
+                default_rm = self.defaults["en"]["roadseg"]["l_placenam"]
+                placenames = {*placenames - {default_rm}, default_add}
+                placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
+
+            # Compile export parameters.
+            # name: placenames as valid file names.
+            # query: placenames pandas query.
+            names = list()
+            queries = list()
+
+            # Iterate placenames and compile export parameters.
+            for placename in placenames:
+
+                if placename in placenames_exceeded:
+
+                    # Compile indexes of placename records.
+                    indexes = list(df.query(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"").index)
+                    for index, indexes_range in enumerate(np.array_split(indexes, (len(indexes) // 250) + 1)):
+
+                        # Configure export parameters.
+                        names.append(re.sub(r"[\W_]+", "_", f"{placename}_{index}"))
+                        queries.append(f"index.isin({indexes_range})")
+
                 else:
-                    placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
-            # Generate dataframe with export parameters.
-            # names: Conform placenames to valid file names.
-            # queries: Configure ogr2ogr -where query.
-            placenames_df = pd.DataFrame({
-                "names": map(lambda name: re.sub(r"[\W_]+", "_", name), placenames),
-                "queries": placenames.map(
-                    lambda name: f"-where \"\\\"{l_placenam}\\\"='{name}' or \\\"{r_placenam}\\\"='{name}'\"")
-            })
-
-            # Add rowid field to simulate SQLite column.
-            df["ROWID"] = range(1, len(df) + 1)
-
-            # Compile rowid ranges of size=kml_limit for each limit-exceeding placename.
-            for placename in sorted(placenames_exceeded):
-
-                logger.info(f"Separating features for limit-exceeding placename: {placename}.")
-
-                # Compile rowids for placename.
-                rowids = df.loc[(df[l_placenam] == placename) | (df[r_placenam] == placename), "ROWID"].values
-
-                # Split rowids into kml_limit-sized chunks and configure sql queries.
-                sql_queries = list()
-                for i in range(0, len(rowids), kml_limit):
-                    ids = ','.join(map(str, rowids[i: i + kml_limit]))
-                    sql_queries.append(f"-sql \"select * from roadseg where ROWID in ({ids})\" -dialect SQLITE")
-
-                # Generate dataframe with export parameters.
-                # names: Conform placenames to valid file names and add chunk id as suffix.
-                # queries: Configure ogr2ogr -sql query.
-                placename_valid = re.sub(r"[\W_]+", "_", placename)
-                placenames_exceeded_df = pd.DataFrame({
-                    "names": map(lambda i: f"{placename_valid}_{i}", range(1, len(sql_queries) + 1)),
-                    "queries": sql_queries
-                })
-
-                # Append dataframe to full placenames dataframe.
-                placenames_df = placenames_df.append(placenames_exceeded_df).reset_index(drop=True)
+                    # Configure export parameters.
+                    names.append(re.sub(r"[\W_]+", "_", placename))
+                    queries.append(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"")
 
             # Store results.
-            self.kml_groups[lang] = placenames_df
+            self.kml_groups[lang] = pd.DataFrame({"name": names, "query": queries})
 
     def export_data_test(self) -> None:
         """Exports and packages all data."""
@@ -244,16 +227,31 @@ class Stage:
                 # Configure mapped layer names.
                 nln_map = {table: self.format_path(export_specs["conform"][table]["name"]) for table in dframes}
 
+                # Configure export kwargs.
+                kwargs = {
+                    "driver": {"gml": "GML", "gpkg": "GPKG", "kml": "KML", "shp": "ESRI Shapefile"}[frmt],
+                    "nln_map": nln_map,
+                    "lang": lang,
+                    "outer_pbar": export_progress
+                }
+
                 # Configure KML.
                 if frmt == "kml":
-                    logger.info("KML process . . .")
-                    pass
 
+                    # Iterate KML groups.
+                    for kml_group in self.kml_groups[lang].itertuples(index=False):
+
+                        # Export data.
+                        helpers.export(
+                            {table: df.query(kml_group.query) for table, df in dframes.items()},
+                            export_dir.replace("<name>", kml_group.name),
+                            **kwargs
+                        )
+
+                # Configure non-KML.
                 else:
                     # Export data.
-                    driver = {"gml": "GML", "gpkg": "GPKG", "kml": "KML", "shp": "ESRI Shapefile"}[frmt]
-                    helpers.export(dframes, export_dir, driver=driver, nln_map=nln_map, lang=lang,
-                                   outer_pbar=export_progress)
+                    helpers.export(dframes, export_dir, **kwargs)
 
     def export_data(self) -> None:
         """Exports and packages all data."""
@@ -325,7 +323,7 @@ class Stage:
                         for kml_group in kml_groups.itertuples(index=False):
 
                             # Add kml group name and query to ogr2ogr parameters.
-                            name, query = itemgetter("names", "queries")(kml_group._asdict())
+                            name, query = itemgetter("name", "query")(kml_group._asdict())
                             kwargs["dest"] = kml_dir / (name + kml_ext)
                             kwargs["pre_args"] = query
 
