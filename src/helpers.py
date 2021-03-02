@@ -318,7 +318,8 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str], driver: str,
-           nln_map: Dict[str, str], lang: str, outer_pbar: Union[tqdm, trange, None]) -> None:
+           export_schemas: Union[None, Path, str] = None, nln_map: Union[Dict[str, str], None] = None, lang: str = "en",
+           outer_pbar: Union[tqdm, trange, None] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
@@ -326,9 +327,10 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         (Geo)DataFrames.
     :param Union[Path, str] output_path: output path.
     :param str driver: OGR driver short name.
-    :param Dict[str] nln_map: dictionary mapping of new layer names.
-    :param str lang: language of the distribution format ('en' or 'fr').
-    :param Union[tqdm, trange, None] outer_pbar: a pre-existing tqdm progress bar.
+    :param Union[None, Path, str] export_schemas: optional dictionary mapping of field names for each provided dataset.
+    :param Union[Dict[str], None] nln_map: optional dictionary mapping of new layer names.
+    :param str lang: optional language of the distribution format ('en' or 'fr'), default 'en'.
+    :param Union[tqdm, trange, None] outer_pbar: optional pre-existing tqdm progress bar.
     """
 
     try:
@@ -350,9 +352,12 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
 
         # Compile schemas.
         schemas = load_yaml(distribution_format_path)
-        export_schemas = {"ESRI Shapefile": "shp", "GML": "gml", "GPKG": "gpkg", "KML": "kml"}[driver] + ".yaml"
-        export_schemas = load_yaml(
-            Path(__file__).resolve().parent / f"stage_5/distribution_formats/{lang}/{export_schemas}")["conform"]
+        if export_schemas:
+            export_schemas = load_yaml(export_schemas)["conform"]
+        else:
+            export_schemas = defaultdict(dict)
+            for table in schemas:
+                export_schemas[table]["fields"] = {field: field for field in schemas[table]["fields"]}
 
         # Get driver and create source (layer-based drivers only).
         driver, source = ogr.GetDriverByName(driver), None
@@ -360,8 +365,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
             source = driver.CreateDataSource(str(output_path))
 
         # Iterate dataframes.
-        for table_name in set(dataframes).intersection(set(export_schemas)):
-            df = dataframes[table_name].copy(deep=True)
+        for table_name, df in dataframes.items():
 
             # Configure layer shape type and spatial reference.
             if isinstance(df, gpd.GeoDataFrame):
@@ -382,7 +386,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
                 srs = None
 
             # Create source (non-layer-based drivers only) and layer.
-            nln = str(nln_map[table_name])
+            nln = str(nln_map[table_name]) if nln_map else table_name
             if output_path.suffix:
                 layer = source.CreateLayer(name=nln, srs=srs, geom_type=shape_type)
             else:
@@ -448,8 +452,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
 
 
 def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
-                export_schemas: Union[None, str] = None, suppress_logs: bool = False,
-                nested_pbar: bool = False) -> None:
+                export_schemas: Union[None, str] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as GeoPackage layers.
     Optionally accepts an export schemas yaml path which will override the default distribution format column names.
@@ -459,18 +462,14 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
     :param Union[Path, str] output_path: GeoPackage output path.
     :param Union[None, str] export_schemas: optional dictionary mapping of field names for each field in each of the
         provided datasets.
-    :param bool suppress_logs: suppress log messages, excluding exceptions, default False.
-    :param bool nested_pbar: the progress bar will be nested (an outer progress bar already exists), default False.
     """
 
     output_path = Path(output_path).resolve()
-    if not suppress_logs:
-        logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
+    logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
 
     try:
 
-        if not suppress_logs:
-            logger.info(f"Creating / opening data source: {output_path}.")
+        logger.info(f"Creating / opening data source: {output_path}.")
 
         # Create / open GeoPackage.
         driver = ogr.GetDriverByName("GPKG")
@@ -491,8 +490,7 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
         # Iterate dataframes.
         for table_name, df in dataframes.items():
 
-            if not suppress_logs:
-                logger.info(f"Layer {table_name}: creating layer.")
+            logger.info(f"Layer {table_name}: creating layer.")
 
             # Configure layer shape type and spatial reference.
             if isinstance(df, gpd.GeoDataFrame):
@@ -515,8 +513,7 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
             # Create layer.
             layer = gpkg.CreateLayer(name=table_name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
 
-            if not suppress_logs:
-                logger.info(f"Layer {table_name}: configuring schema.")
+            logger.info(f"Layer {table_name}: configuring schema.")
 
             # Configure layer schema (field definitions).
             ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
@@ -538,7 +535,7 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
 
             # Filter invalid columns from dataframe.
             invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"].values(), "uuid", "geometry"}
-            if invalid_cols and not suppress_logs:
+            if invalid_cols:
                 logger.warning(f"Layer {table_name}: extraneous columns detected and will not be written to output: "
                                f"{', '.join(map(str, invalid_cols))}.")
 
@@ -547,7 +544,7 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
 
             for feat in tqdm(df.itertuples(index=False), total=len(df),
                              desc=f"Writing to file={output_path.name}, layer={table_name}",
-                             bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}", leave=not nested_pbar):
+                             bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}"):
 
                 # Instantiate feature.
                 feature = ogr.Feature(layer.GetLayerDefn())

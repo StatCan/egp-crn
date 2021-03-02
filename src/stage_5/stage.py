@@ -9,7 +9,6 @@ from collections import Counter
 from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
-from osgeo import ogr
 from pathlib import Path
 from tqdm.auto import trange
 from typing import Union
@@ -76,12 +75,13 @@ class Stage:
                                  "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
-        # Compile output formats.
-        self.formats = [f.stem for f in (Path(__file__).resolve().parent / "distribution_formats/en").glob("*")]
-
         # Configure field defaults and domains.
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
         self.domains = helpers.compile_domains(mapped_lang="fr")
+
+        # Configure export formats.
+        self.distribution_formats = Path(__file__).resolve().parent / "distribution_formats"
+        self.formats = [f.stem for f in (self.distribution_formats / "en").glob("*")]
 
         # Define custom progress bar format.
         # Note: the only change from default is moving the percentage to the right end of the progress bar.
@@ -148,11 +148,11 @@ class Stage:
         # Iterate languages.
         for lang in ("en", "fr"):
 
-            logger.info(f"Defining KML queries for language: {lang}.")
+            logger.info(f"Defining KML groups for language: {lang}.")
 
             # Determine language-specific field names.
             l_placenam, r_placenam = itemgetter("l_placenam", "r_placenam")(
-                helpers.load_yaml(f"distribution_formats/{lang}/kml.yaml")["conform"]["roadseg"]["fields"])
+                helpers.load_yaml(self.distribution_formats / f"{lang}/kml.yaml")["conform"]["roadseg"]["fields"])
 
             # Retrieve source dataframe.
             df = self.dframes["kml"][lang]["roadseg"].copy(deep=True)
@@ -166,15 +166,16 @@ class Stage:
                 # Flag limit-exceeding placenames.
                 placenames_exceeded = {name for name, count in Counter(placenames).items() if count > kml_limit}
 
-                # Compile sorted unique placename values.
-                placenames = pd.Series(sorted(placenames.unique()))
+                # Compile unique placename values.
+                placenames = set(placenames)
 
             # Swap English-French default placename value.
             else:
                 default_add = self.defaults["fr"]["roadseg"]["l_placenam"]
                 default_rm = self.defaults["en"]["roadseg"]["l_placenam"]
                 placenames = {*placenames - {default_rm}, default_add}
-                placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
+                if default_rm in placenames_exceeded:
+                    placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
             # Compile export parameters.
             # name: placenames as valid file names.
@@ -183,17 +184,17 @@ class Stage:
             queries = list()
 
             # Iterate placenames and compile export parameters.
-            for placename in placenames:
+            for placename in sorted(placenames):
 
                 if placename in placenames_exceeded:
 
                     # Compile indexes of placename records.
-                    indexes = list(df.query(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"").index)
-                    for index, indexes_range in enumerate(np.array_split(indexes, (len(indexes) // 250) + 1)):
+                    indexes = df.query(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"").index
+                    for index, indexes_range in enumerate(np.array_split(indexes, (len(indexes) // kml_limit) + 1)):
 
                         # Configure export parameters.
                         names.append(re.sub(r"[\W_]+", "_", f"{placename}_{index}"))
-                        queries.append(f"index.isin({indexes_range})")
+                        queries.append(f"index.isin({list(indexes_range)})")
 
                 else:
 
@@ -204,7 +205,7 @@ class Stage:
             # Store results.
             self.kml_groups[lang] = pd.DataFrame({"name": names, "query": queries})
 
-    def export_data_test(self) -> None:
+    def export_data(self) -> None:
         """Exports and packages all data."""
 
         logger.info("Exporting output data.")
@@ -218,7 +219,7 @@ class Stage:
             for lang, dframes in self.dframes[frmt].items():
 
                 # Retrieve export specifications.
-                export_specs = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")
+                export_specs = helpers.load_yaml(self.distribution_formats / f"{lang}/{frmt}.yaml")
 
                 # Configure export directory.
                 export_dir, export_file = itemgetter("dir", "file")(export_specs["data"])
@@ -244,7 +245,7 @@ class Stage:
                         # Export data.
                         helpers.export(
                             {table: df.query(kml_group.query) for table, df in dframes.items()},
-                            export_dir.replace("<name>", kml_group.name),
+                            str(export_dir).replace("<name>", kml_group.name),
                             **kwargs
                         )
 
@@ -252,134 +253,8 @@ class Stage:
                 else:
                     # Export data.
                     helpers.export(dframes, export_dir, **kwargs)
-
-    def export_data(self) -> None:
-        """Exports and packages all data."""
-
-        logger.info("Exporting output data.")
-
-        # Configure export progress bar.
-        file_count = 0
-        for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
-                if frmt == "kml":
-                    file_count += len(self.kml_groups[lang])
-                else:
-                    file_count += len(self.dframes[frmt][lang])
-        export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format)
-
-        # Iterate export formats and languages.
-        for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
-
-                # Retrieve export specifications.
-                export_specs = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")
-
-                # Configure temporary data path.
-                temp_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_{frmt}_{lang}_temp.gpkg"
-
-                # Configure and format export paths and table names.
-                export_dir = self.output_path / self.format_path(export_specs["data"]["dir"])
-                export_file = self.format_path(export_specs["data"]["file"]) if export_specs["data"]["file"] else None
-                export_tables = {table: self.format_path(export_specs["conform"][table]["name"]) for table in
-                                 self.dframes[frmt][lang]}
-
-                # Configure ogr2ogr inputs.
-                kwargs = {
-                    "driver": f"-f \"{export_specs['data']['driver']}\"",
-                    "append": "-append",
-                    "pre_args": "",
-                    "dest": "",
-                    "src": f"\"{temp_path}\"",
-                    "src_layer": "",
-                    "nln": ""
-                }
-
-                # Generate directory structure.
-                Path(export_dir).mkdir(parents=True, exist_ok=True)
-
-                # Iterate tables.
-                for table in export_tables:
-
-                    # Modify table-specific ogr2ogr inputs.
-                    kwargs["dest"] = export_dir / (export_file if export_file else export_tables[table])
-                    kwargs["src_layer"] = table
-                    kwargs["nln"] = f"-nln {export_tables[table]}" if export_file else ""
-
-                    # Handle kml.
-                    if frmt == "kml":
-
-                        # Remove ogr2ogr src layer parameter since kml exporting uses -sql.
-                        # This is purely to avoid an ogr2ogr warning.
-                        if "src_layer" in kwargs:
-                            del kwargs["src_layer"]
-
-                        # Configure kml path properties.
-                        kml_groups = self.kml_groups[lang]
-                        kml_dir = kwargs["dest"].parent
-                        kml_ext = f".{kwargs['dest'].suffix}"
-
-                        # Iterate kml groups.
-                        for kml_group in kml_groups.itertuples(index=False):
-
-                            # Add kml group name and query to ogr2ogr parameters.
-                            name, query = itemgetter("name", "query")(kml_group._asdict())
-                            kwargs["dest"] = kml_dir / (name + kml_ext)
-                            kwargs["pre_args"] = query
-
-                            # Run ogr2ogr subprocess.
-                            export_progress.set_description_str(f"Exporting file={kwargs['dest'].name}")
-                            helpers.ogr2ogr(kwargs)
-                            export_progress.update(1)
-
-                    else:
-
-                        # Run ogr2ogr subprocess.
-                        export_progress.set_description_str(
-                            f"Exporting file={kwargs['dest'].name}, layer={kwargs['src_layer']}")
-                        helpers.ogr2ogr(kwargs)
-                        export_progress.update(1)
-
-                # Delete temporary file.
-                if temp_path.exists():
-                    driver = ogr.GetDriverByName("GPKG")
-                    driver.DeleteDataSource(str(temp_path))
-                    del driver
-
-        # Close progress bar.
-        export_progress.close()
-
-    def export_temp_data(self) -> None:
-        """
-        Exports temporary data as GeoPackages.
-        Temporary file is required since ogr2ogr (which is used for data transformation) is file based.
-        """
-
-        # Export temporary files.
-        logger.info("Exporting temporary GeoPackages.")
-
-        # Configure export progress bar.
-        file_count = 0
-        for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
-                file_count += len(self.dframes[frmt][lang])
-        export_progress = trange(file_count, desc="Exporting temporary data", bar_format=self.bar_format)
-
-        # Iterate formats and languages.
-        for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
-
-                # Configure paths.
-                temp_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_{frmt}_{lang}_temp.gpkg"
-                export_schemas_path = Path(__file__).resolve().parent / f"distribution_formats/{lang}/{frmt}.yaml"
-
-                # Iterate datasets and export to GeoPackage.
-                for table, df in self.dframes[frmt][lang].items():
-
-                    export_progress.set_description_str(f"Exporting temporary file={temp_path.name}, layer={table}")
-                    helpers.export_gpkg({table: df}, temp_path, export_schemas_path, suppress_logs=True,
-                                        nested_pbar=True)
-                    export_progress.update(1)
+                    print(dframes["roadseg"])
+                    sys.exit(1)
 
         # Close progress bar.
         export_progress.close()
@@ -469,7 +344,7 @@ class Stage:
                 for lang in dframes[frmt]:
 
                     # Retrieve schemas.
-                    schemas = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")["conform"]
+                    schemas = helpers.load_yaml(self.distribution_formats / f"{lang}/{frmt}.yaml")["conform"]
 
                     # Iterate tables.
                     for table in [t for t in schemas if t in self.dframes[lang]]:
@@ -556,9 +431,7 @@ class Stage:
         self.gen_french_dataframes()
         self.gen_output_schemas()
         self.define_kml_groups()
-        # self.export_temp_data()
-        # self.export_data()
-        self.export_data_test()
+        self.export_data()
         self.zip_data()
 
 
