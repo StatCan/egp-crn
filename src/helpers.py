@@ -21,6 +21,7 @@ from pathlib import Path
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
 from tqdm import tqdm
+from tqdm.auto import trange
 from typing import Any, Dict, List, Tuple, Union
 
 
@@ -317,7 +318,7 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str], driver: str,
-           nln_map: Dict[str, str], lang: str, outer_pbar: Union[Any, None]) -> None:
+           nln_map: Dict[str, str], lang: str, outer_pbar: Union[tqdm, trange, None]) -> None:
     """
     Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
@@ -327,7 +328,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
     :param str driver: OGR driver short name.
     :param Dict[str] nln_map: dictionary mapping of new layer names.
     :param str lang: language of the distribution format ('en' or 'fr').
-    :param Union[Any, None] outer_pbar: a pre-existing tqdm progress bar.
+    :param Union[tqdm, trange, None] outer_pbar: a pre-existing tqdm progress bar.
     """
 
     try:
