@@ -236,6 +236,7 @@ class Stage:
                 kwargs = {
                     "driver": {"gml": "GML", "gpkg": "GPKG", "kml": "KML", "shp": "ESRI Shapefile"}[frmt],
                     "nln_map": nln_map,
+                    "keep_uuid": False,
                     "outer_pbar": export_progress
                 }
 
@@ -247,7 +248,7 @@ class Stage:
 
                         # Export data.
                         helpers.export(
-                            {table: df.query(kml_group.query) for table, df in dframes.items()},
+                            {table: df.query(kml_group.query).copy(deep=True) for table, df in dframes.items()},
                             str(export_dir).replace("<name>", kml_group.name),
                             **kwargs
                         )

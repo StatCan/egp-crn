@@ -316,7 +316,8 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
            driver: str = "GPKG", export_schemas: Union[None, Path, str] = None,
-           nln_map: Union[Dict[str, str], None] = None, outer_pbar: Union[tqdm, trange, None] = None) -> None:
+           nln_map: Union[Dict[str, str], None] = None, keep_uuid: bool = True,
+           outer_pbar: Union[tqdm, trange, None] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
@@ -326,6 +327,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
     :param str driver: OGR driver short name, default 'GPKG'.
     :param Union[None, Path, str] export_schemas: optional dictionary mapping of field names for each provided dataset.
     :param Union[Dict[str], None] nln_map: optional dictionary mapping of new layer names.
+    :param bool keep_uuid: optional flag to preserve the uuid column, default = True.
     :param Union[tqdm, trange, None] outer_pbar: optional pre-existing tqdm progress bar.
     """
 
@@ -354,7 +356,10 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         # Get driver and create source (layer-based drivers only).
         driver, source = ogr.GetDriverByName(driver), None
         if output_path.suffix:
-            source = driver.CreateDataSource(str(output_path))
+            if output_path.exists():
+                source = driver.Open(str(output_path), update=1)
+            else:
+                source = driver.CreateDataSource(str(output_path))
 
         # Iterate dataframes.
         for table_name, df in dataframes.items():
@@ -379,7 +384,9 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
 
             # Create source (non-layer-based drivers only) and layer.
             nln = str(nln_map[table_name]) if nln_map else table_name
-            if output_path.suffix:
+            if driver.name == "GPKG":
+                layer = source.CreateLayer(name=nln, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
+            elif output_path.suffix:
                 layer = source.CreateLayer(name=nln, srs=srs, geom_type=shape_type)
             else:
                 source = driver.CreateDataSource(str(output_path / nln))
@@ -387,6 +394,11 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
 
             # Configure layer schema (field definitions).
             ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
+
+            # Conditionally add uuid to schema.
+            if keep_uuid and "uuid" in df.columns:
+                schemas[table_name]["fields"]["uuid"] = ["str", 32]
+                export_schemas[table_name]["fields"]["uuid"] = "uuid"
 
             for field_name, mapped_field_name in export_schemas[table_name]["fields"].items():
                 field_type, field_width = schemas[table_name]["fields"][field_name]
