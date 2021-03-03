@@ -9,7 +9,6 @@ import random
 import re
 import requests
 import sqlite3
-import subprocess
 import sys
 import time
 import yaml
@@ -314,19 +313,18 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         return gdf.copy(deep=True)
 
 
-def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str], driver: str,
-           export_schemas: Union[None, Path, str] = None, nln_map: Union[Dict[str, str], None] = None, lang: str = "en",
-           outer_pbar: Union[tqdm, trange, None] = None) -> None:
+def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
+           driver: str = "GPKG", export_schemas: Union[None, Path, str] = None,
+           nln_map: Union[Dict[str, str], None] = None, outer_pbar: Union[tqdm, trange, None] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
     :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
     :param Union[Path, str] output_path: output path.
-    :param str driver: OGR driver short name.
+    :param str driver: OGR driver short name, default 'GPKG'.
     :param Union[None, Path, str] export_schemas: optional dictionary mapping of field names for each provided dataset.
     :param Union[Dict[str], None] nln_map: optional dictionary mapping of new layer names.
-    :param str lang: optional language of the distribution format ('en' or 'fr'), default 'en'.
     :param Union[tqdm, trange, None] outer_pbar: optional pre-existing tqdm progress bar.
     """
 
@@ -335,10 +333,6 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         # Validate driver.
         if driver not in {"ESRI Shapefile", "GML", "GPKG", "KML"}:
             raise ValueError("Invalid OGR driver, must be one of: ESRI Shapefile, GML, GPKG, KML.")
-
-        # Validate language.
-        if lang not in {"en", "fr"}:
-            raise ValueError("Invalid language, must be one of: en, fr.")
 
         # Configure output directory structure.
         output_path = Path(output_path).resolve()
@@ -444,129 +438,6 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         sys.exit(1)
     except (Exception, KeyError, ValueError, sqlite3.Error) as e:
         logger.exception(f"Error raised when writing output: {output_path}.")
-        logger.exception(e)
-        sys.exit(1)
-
-
-def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
-                export_schemas: Union[None, str] = None) -> None:
-    """
-    Exports one or more (Geo)DataFrames as GeoPackage layers.
-    Optionally accepts an export schemas yaml path which will override the default distribution format column names.
-
-    :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
-        (Geo)DataFrames.
-    :param Union[Path, str] output_path: GeoPackage output path.
-    :param Union[None, str] export_schemas: optional dictionary mapping of field names for each field in each of the
-        provided datasets.
-    """
-
-    output_path = Path(output_path).resolve()
-    logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
-
-    try:
-
-        logger.info(f"Creating / opening data source: {output_path}.")
-
-        # Create / open GeoPackage.
-        driver = ogr.GetDriverByName("GPKG")
-        if output_path.exists():
-            gpkg = driver.Open(str(output_path), update=1)
-        else:
-            gpkg = driver.CreateDataSource(str(output_path))
-
-        # Compile schemas.
-        schemas = load_yaml(distribution_format_path)
-        if export_schemas:
-            export_schemas = load_yaml(export_schemas)["conform"]
-        else:
-            export_schemas = defaultdict(dict)
-            for table in schemas:
-                export_schemas[table]["fields"] = {field: field for field in schemas[table]["fields"]}
-
-        # Iterate dataframes.
-        for table_name, df in dataframes.items():
-
-            logger.info(f"Layer {table_name}: creating layer.")
-
-            # Configure layer shape type and spatial reference.
-            if isinstance(df, gpd.GeoDataFrame):
-
-                srs = osr.SpatialReference()
-                srs.ImportFromEPSG(df.crs.to_epsg())
-
-                if len(df.geom_type.unique()) > 1:
-                    raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
-                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
-                elif df.geom_type.iloc[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                    shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
-                else:
-                    raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
-                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
-            else:
-                shape_type = ogr.wkbNone
-                srs = None
-
-            # Create layer.
-            layer = gpkg.CreateLayer(name=table_name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
-
-            logger.info(f"Layer {table_name}: configuring schema.")
-
-            # Configure layer schema (field definitions).
-            ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
-
-            for field_name, mapped_field_name in export_schemas[table_name]["fields"].items():
-                field_type, field_width = schemas[table_name]["fields"][field_name]
-                field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
-                field_defn.SetWidth(field_width)
-                layer.CreateField(field_defn)
-
-            # Map dataframe column names (does nothing if already mapped).
-            df.rename(columns=export_schemas[table_name]["fields"], inplace=True)
-
-            # Add uuid field to schema, if available.
-            if "uuid" in df.columns:
-                field_defn = ogr.FieldDefn("uuid", ogr.OFTString)
-                field_defn.SetWidth(32)
-                layer.CreateField(field_defn)
-
-            # Filter invalid columns from dataframe.
-            invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"].values(), "uuid", "geometry"}
-            if invalid_cols:
-                logger.warning(f"Layer {table_name}: extraneous columns detected and will not be written to output: "
-                               f"{', '.join(map(str, invalid_cols))}.")
-
-            # Write layer.
-            layer.StartTransaction()
-
-            for feat in tqdm(df.itertuples(index=False), total=len(df),
-                             desc=f"Writing to file={output_path.name}, layer={table_name}",
-                             bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}"):
-
-                # Instantiate feature.
-                feature = ogr.Feature(layer.GetLayerDefn())
-
-                # Set feature properties.
-                properties = feat._asdict()
-                for prop in set(properties) - invalid_cols - {"geometry"}:
-                    field_index = feature.GetFieldIndex(prop)
-                    feature.SetField(field_index, properties[prop])
-
-                # Set feature geometry, if spatial.
-                if srs:
-                    geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
-                    feature.SetGeometry(geom)
-
-                # Create feature.
-                layer.CreateFeature(feature)
-
-                # Clear pointer for next iteration.
-                feature = None
-
-            layer.CommitTransaction()
-
-    except (Exception, KeyError, ValueError, sqlite3.Error) as e:
-        logger.exception(f"Error raised when writing to GeoPackage: {output_path}.")
         logger.exception(e)
         sys.exit(1)
 
@@ -853,45 +724,6 @@ def nx_to_gdf(g: nx.Graph, nodes: bool = True, edges: bool = True) -> \
         return gdf_nodes
     else:
         return gdf_edges
-
-
-def ogr2ogr(expression: dict, log: Union[None, str] = None, max_attempts: int = 5) -> None:
-    """
-    Executes an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters.
-
-    :param dict expression: dictionary of ogr2ogr parameters.
-    :param Union[None, str] log: None or a message to log prior to executing the ogr2ogr subprocess.
-    :param int max_attempts: maximum attempts to execute the ogr2ogr subprocess.
-    """
-
-    # Write log.
-    if log:
-        logger.info(log)
-
-    # Format ogr2ogr command.
-    expression = f"ogr2ogr {' '.join(map(str, expression.values()))}"
-
-    # Execute ogr2ogr.
-    attempt = 1
-    while attempt <= max_attempts:
-
-        try:
-
-            # Run subprocess.
-            subprocess.run(expression, shell=True, check=True)
-            break
-
-        except subprocess.CalledProcessError as e:
-
-            if attempt == max_attempts:
-                logger.exception("Unable to transform data source.")
-                logger.exception(f"ogr2ogr error: {e}")
-                logger.warning("Maximum attempts reached. Exiting program.")
-                sys.exit(1)
-            else:
-                logger.warning(f"Attempt {attempt} of {max_attempts} failed. Retrying.")
-                attempt += 1
-                continue
 
 
 def reproject_gdf(gdf: Union[gpd.GeoDataFrame, gpd.GeoSeries], epsg_source: int, epsg_target: int) -> \

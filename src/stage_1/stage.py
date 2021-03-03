@@ -926,7 +926,7 @@ class Stage:
         self.apply_domains()
         self.clean_datasets()
         self.filter_and_relink_strplaname()
-        helpers.export_gpkg(self.target_gdframes, self.output_path)
+        helpers.export(self.target_gdframes, self.output_path)
 
 
 @click.command()

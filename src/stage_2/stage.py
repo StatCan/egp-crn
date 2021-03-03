@@ -402,7 +402,7 @@ class Stage:
         self.gen_junctions()
         self.gen_attributes()
         self.apply_domains()
-        helpers.export_gpkg({"junction": self.dframes["junction"]}, self.data_path)
+        helpers.export({"junction": self.dframes["junction"]}, self.data_path)
 
 
 @click.command()

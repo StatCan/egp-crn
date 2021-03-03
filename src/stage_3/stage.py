@@ -581,7 +581,7 @@ class Stage:
         self.recover_and_classify_nids()
         self.gen_and_recover_structids()
         self.export_change_logs()
-        helpers.export_gpkg(self.dframes, self.data_path)
+        helpers.export(self.dframes, self.data_path)
 
 
 @click.command()

@@ -235,7 +235,6 @@ class Stage:
                 kwargs = {
                     "driver": {"gml": "GML", "gpkg": "GPKG", "kml": "KML", "shp": "ESRI Shapefile"}[frmt],
                     "nln_map": nln_map,
-                    "lang": lang,
                     "outer_pbar": export_progress
                 }
 
@@ -256,8 +255,6 @@ class Stage:
                 else:
                     # Export data.
                     helpers.export(dframes, export_dir, **kwargs)
-                    print(dframes["roadseg"])
-                    sys.exit(1)
 
         # Close progress bar.
         export_progress.close()
