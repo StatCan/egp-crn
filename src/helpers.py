@@ -29,8 +29,9 @@ ogr.UseExceptions()
 
 
 # Define universally accessible variables.
-distribution_format_path = Path(__file__).resolve().parent / "distribution_format.yaml"
-field_domains_path = {lang: Path(__file__).resolve().parent / f"field_domains_{lang}.yaml" for lang in ("en", "fr")}
+filepath = Path(__file__).resolve()
+distribution_format_path = filepath.parent / "distribution_format.yaml"
+field_domains_path = {lang: filepath.parent / f"field_domains_{lang}.yaml" for lang in ("en", "fr")}
 
 
 class TempHandlerSwap:

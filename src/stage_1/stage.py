@@ -18,7 +18,8 @@ from operator import itemgetter
 from pathlib import Path
 from typing import Any, List, Type, Union
 
-sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import field_map_functions
 import helpers
 from segment_addresses import Segmentor
@@ -53,10 +54,10 @@ class Stage:
         self.exclude_old = exclude_old
 
         # Configure raw data path.
-        self.data_path = Path(__file__).resolve().parents[2] / f"data/raw/{self.source}"
+        self.data_path = filepath.parents[2] / f"data/raw/{self.source}"
 
         # Configure attribute paths.
-        self.source_attribute_path = Path(__file__).resolve().parent / f"sources/{self.source}"
+        self.source_attribute_path = filepath.parent / f"sources/{self.source}"
         self.source_attributes = dict()
         self.target_attributes = dict()
 
@@ -65,11 +66,11 @@ class Stage:
         self.target_gdframes = dict()
 
         # Configure previous NRN vintage path and clear namespace.
-        self.nrn_old_path = {ext: Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_old.{ext}"
+        self.nrn_old_path = {ext: filepath.parents[2] / f"data/interim/{self.source}_old.{ext}"
                              for ext in ("gpkg", "zip")}
 
         # Configure output path.
-        self.output_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        self.output_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
 
         # Conditionally clear output namespace.
         namespace = list(filter(Path.is_file, self.output_path.parent.glob(f"{self.source}[_.]*")))
@@ -519,7 +520,7 @@ class Stage:
         table = field = None
 
         # Load yaml.
-        self.target_attributes = helpers.load_yaml(Path(__file__).resolve().parents[1] / "distribution_format.yaml")
+        self.target_attributes = helpers.load_yaml(filepath.parents[1] / "distribution_format.yaml")
 
         # Remove field length from dtype attribute.
         logger.info("Configuring target attributes.")
@@ -552,7 +553,7 @@ class Stage:
 
                 # Get download url.
                 download_url = helpers.load_yaml(
-                    Path(__file__).resolve().parents[1] / "downloads.yaml")["previous_nrn_vintage"][self.source]
+                    filepath.parents[1] / "downloads.yaml")["previous_nrn_vintage"][self.source]
 
                 # Get raw content stream from download url.
                 download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)

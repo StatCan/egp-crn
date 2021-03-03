@@ -13,7 +13,8 @@ from pathlib import Path
 from tqdm.auto import trange
 from typing import Union
 
-sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
@@ -45,13 +46,13 @@ class Stage:
         self.minor_version = None
 
         # Configure and validate input data path.
-        self.data_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
         if not self.data_path.exists():
             logger.exception(f"Input data not found: {self.data_path}.")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = Path(__file__).resolve().parents[2] / f"data/processed/{self.source}"
+        self.output_path = filepath.parents[2] / f"data/processed/{self.source}"
 
         # Conditionally clear output namespace.
         namespace = list(filter(lambda f: f.stem != f"{self.source}_change_logs", self.output_path.glob("*")))
@@ -80,7 +81,7 @@ class Stage:
         self.domains = helpers.compile_domains(mapped_lang="fr")
 
         # Configure export formats.
-        self.distribution_formats = Path(__file__).resolve().parent / "distribution_formats"
+        self.distribution_formats = filepath.parent / "distribution_formats"
         self.formats = [f.stem for f in (self.distribution_formats / "en").glob("*")]
 
         # Define custom progress bar format.
@@ -97,7 +98,7 @@ class Stage:
 
         # Iterate release notes to extract the version number and release year for current source.
         release_year = None
-        release_notes = Path(__file__).resolve().parents[2] / "docs/release_notes.rst"
+        release_notes = filepath.parents[2] / "docs/release_notes.rst"
 
         try:
 
@@ -378,7 +379,7 @@ class Stage:
         logger.info("Applying compression and zipping output data directories.")
 
         # Configure root directory.
-        root = Path(__file__).resolve().parents[2] / f"data/processed/{self.source}"
+        root = filepath.parents[2] / f"data/processed/{self.source}"
 
         # Configure zip progress bar.
         file_count = 0

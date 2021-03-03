@@ -16,7 +16,8 @@ from scipy.spatial import cKDTree
 from shapely.geometry import box, Point, Polygon, MultiPolygon, GeometryCollection
 from typing import Dict, List, Union
 
-sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
@@ -44,7 +45,7 @@ class Stage:
         self.boundary = None
 
         # Configure and validate input data path.
-        self.data_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
         if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
@@ -90,7 +91,7 @@ class Stage:
         table = field = None
 
         # Load yaml.
-        self.target_attributes = helpers.load_yaml(Path(__file__).resolve().parents[1] / "distribution_format.yaml")
+        self.target_attributes = helpers.load_yaml(filepath.parents[1] / "distribution_format.yaml")
 
         # Remove field length from dtype attribute.
         logger.info("Configuring target attributes.")
@@ -368,7 +369,7 @@ class Stage:
 
         # Download administrative boundaries.
         logger.info("Downloading administrative boundary file.")
-        source = helpers.load_yaml((Path(__file__).resolve().parents[1] / "downloads.yaml"))["provincial_boundaries"]
+        source = helpers.load_yaml(filepath.parents[1] / "downloads.yaml")["provincial_boundaries"]
         download_url, source_crs = itemgetter("url", "crs")(source)
 
         try:

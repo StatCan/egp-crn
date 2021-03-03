@@ -3,7 +3,8 @@ import logging
 import sys
 from pathlib import Path
 
-sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 from validation_functions import Validator
 
@@ -35,13 +36,13 @@ class Stage:
         self.Validator = None
 
         # Configure and validate input data path.
-        self.data_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
         if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_validation_errors.log"
+        self.output_path = filepath.parents[2] / f"data/interim/{self.source}_validation_errors.log"
 
         # Conditionally clear output namespace.
         if self.output_path.exists():

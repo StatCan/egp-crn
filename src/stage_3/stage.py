@@ -15,7 +15,8 @@ from scipy.spatial import cKDTree
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import linemerge, split
 
-sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
@@ -45,14 +46,13 @@ class Stage:
         self.remove = remove
 
         # Configure and validate input data path.
-        self.data_path = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}.gpkg"
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
         if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = Path(__file__).resolve().parents[2] / \
-                           f"data/processed/{self.source}/{self.source}_change_logs"
+        self.output_path = filepath.parents[2] / f"data/processed/{self.source}/{self.source}_change_logs"
 
         # Conditionally clear output namespace.
         if self.output_path.exists():

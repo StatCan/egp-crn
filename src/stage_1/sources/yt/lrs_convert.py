@@ -15,7 +15,8 @@ from shapely.ops import linemerge
 from tqdm import tqdm
 from typing import List, Union
 
-sys.path.insert(1, str(Path(__file__).resolve().parents[3]))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[3]))
 import helpers
 
 
@@ -923,10 +924,9 @@ class LRS:
 
 @click.command()
 @click.argument("src", type=click.Path(exists=True))
-@click.option("--dst", type=click.Path(exists=False),
-              default=Path(__file__).resolve().parents[4] / "data/raw/yt/yt.gpkg", show_default=True)
-def main(src: Union[Path, str],
-         dst: Union[Path, str] = Path(__file__).resolve().parents[4] / "data/raw/yt/yt.gpkg") -> None:
+@click.option("--dst", type=click.Path(exists=False), default=filepath.parents[4] / "data/raw/yt/yt.gpkg",
+              show_default=True)
+def main(src: Union[Path, str], dst: Union[Path, str] = filepath.parents[4] / "data/raw/yt/yt.gpkg") -> None:
     """
     Executes the LRS class.
 

@@ -12,7 +12,8 @@ from pathlib import Path
 from shapely.geometry import LineString, Point
 from typing import List, Tuple, Union
 
-sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
@@ -36,7 +37,7 @@ class Segmentor:
         """
 
         self.source = source.lower()
-        self.export_gpkg = Path(__file__).resolve().parents[2] / f"data/interim/{self.source}_addresses_review.gpkg"
+        self.export_gpkg = filepath.parents[2] / f"data/interim/{self.source}_addresses_review.gpkg"
 
         logger.info("Configuring address attributes.")
 
