@@ -54,6 +54,9 @@ class Stage:
         self.dtypes = helpers.compile_dtypes()["junction"]
         self.domains = helpers.compile_domains(mapped_lang="en")["junction"]
 
+        # Load data.
+        self.dframes = helpers.load_gpkg(self.data_path, layers=["ferryseg", "roadseg"])
+
     def apply_domains(self) -> None:
         """Applies domain restrictions to each column in the target (Geo)DataFrames."""
 
@@ -161,14 +164,6 @@ class Stage:
                     final_result.append(g)
 
         return final_result
-
-    def export_gpkg(self) -> None:
-        """Exports the junction GeoDataFrame as GeoPackage layer."""
-
-        logger.info("Exporting junctions dataframe to GeoPackage layer.")
-
-        # Export junctions dataframe to GeoPackage layer.
-        helpers.export_gpkg({"junction": self.dframes["junction"]}, self.data_path)
 
     def gen_attributes(self) -> None:
         """Generate the remaining attributes for the output junction dataset."""
@@ -373,7 +368,7 @@ class Stage:
 
         # Download administrative boundaries.
         logger.info("Downloading administrative boundary file.")
-        source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
+        source = helpers.load_yaml((Path(__file__).resolve().parents[1] / "downloads.yaml"))["provincial_boundaries"]
         download_url, source_crs = itemgetter("url", "crs")(source)
 
         try:
@@ -398,24 +393,16 @@ class Stage:
             logger.exception(e)
             sys.exit(1)
 
-    def load_gpkg(self) -> None:
-        """Loads input GeoPackage layers into (Geo)DataFrames."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path, layers=["ferryseg", "roadseg"])
-
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.load_gpkg()
         self.load_boundaries()
         self.compile_target_attributes()
         self.gen_target_dataframe()
         self.gen_junctions()
         self.gen_attributes()
         self.apply_domains()
-        self.export_gpkg()
+        helpers.export_gpkg({"junction": self.dframes["junction"]}, self.data_path)
 
 
 @click.command()

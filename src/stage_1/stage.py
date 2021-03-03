@@ -551,7 +551,8 @@ class Stage:
             try:
 
                 # Get download url.
-                download_url = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"][self.source]
+                download_url = helpers.load_yaml(
+                    Path(__file__).resolve().parents[1] / "downloads.yaml")["previous_nrn_vintage"][self.source]
 
                 # Get raw content stream from download url.
                 download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)
@@ -580,14 +581,6 @@ class Stage:
 
             if self.nrn_old_path["zip"].exists():
                 self.nrn_old_path["zip"].unlink()
-
-    def export_gpkg(self) -> None:
-        """Exports the target (Geo)DataFrames as GeoPackage layers."""
-
-        logger.info("Exporting target dataframes to GeoPackage layers.")
-
-        # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.target_gdframes, self.output_path)
 
     def filter_and_relink_strplaname(self) -> None:
         """Reduces duplicated records, where possible, in NRN strplaname and repairs the remaining NID linkages."""
@@ -933,7 +926,7 @@ class Stage:
         self.apply_domains()
         self.clean_datasets()
         self.filter_and_relink_strplaname()
-        self.export_gpkg()
+        helpers.export_gpkg(self.target_gdframes, self.output_path)
 
 
 @click.command()

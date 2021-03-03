@@ -31,10 +31,7 @@ ogr.UseExceptions()
 
 # Define universally accessible variables.
 distribution_format_path = Path(__file__).resolve().parent / "distribution_format.yaml"
-field_domains_path = {
-    "en": Path(__file__).resolve().parent / "field_domains_en.yaml",
-    "fr": Path(__file__).resolve().parent / "field_domains_fr.yaml"
-}
+field_domains_path = {lang: Path(__file__).resolve().parent / f"field_domains_{lang}.yaml" for lang in ("en", "fr")}
 
 
 class TempHandlerSwap:
@@ -206,7 +203,7 @@ def compile_domains(mapped_lang: str = "en") -> dict:
     domains = defaultdict(dict)
 
     # Load domain yamls.
-    domain_yamls = {lang: load_yaml(f"../field_domains_{lang}.yaml") for lang in ("en", "fr")}
+    domain_yamls = {lang: load_yaml(field_domains_path[lang]) for lang in ("en", "fr")}
 
     # Iterate tables and fields with domains.
     for table in domain_yamls["en"]["tables"]:
@@ -713,6 +710,8 @@ def load_gpkg(gpkg_path: Union[Path, str], find: bool = False, layers: Union[Non
     :return Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
     """
+
+    logger.info(f"Loading GeoPackage: {gpkg_path}.")
 
     dframes = dict()
     distribution_format = load_yaml(distribution_format_path)

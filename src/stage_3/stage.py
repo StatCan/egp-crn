@@ -76,6 +76,10 @@ class Stage:
         # Load default field values.
         self.defaults = helpers.compile_default_values()["roadseg"]
 
+        # Load data - current and previous vintage.
+        self.dframes = helpers.load_gpkg(self.data_path)
+        self.dframes_old = helpers.load_gpkg(self.data_path.parent / f"{self.source}_old.gpkg", find=True)
+
     def export_change_logs(self) -> None:
         """Exports the dataset differences as logs - based on nids."""
 
@@ -94,14 +98,6 @@ class Stage:
                 # Write log.
                 with helpers.TempHandlerSwap(logger, log_path):
                     logger.info(log)
-
-    def export_gpkg(self) -> None:
-        """Exports the (Geo)DataFrames as GeoPackage layers."""
-
-        logger.info("Exporting dataframes to GeoPackage layers.")
-
-        # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.dframes, self.data_path)
 
     def gen_and_recover_structids(self) -> None:
         """Recovers structids from the previous NRN vintage or generates new ones."""
@@ -202,17 +198,6 @@ class Stage:
                   (series.map(lambda val: not set(str(val)).issubset(hexdigits))))
 
         return flags
-
-    def load_gpkg(self) -> None:
-        """Loads input GeoPackage layers into (Geo)DataFrames."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path)
-
-        logger.info("Loading Geopackage layers - previous vintage.")
-
-        self.dframes_old = helpers.load_gpkg(f"../../data/interim/{self.source}_old.gpkg", find=True)
 
     def recover_and_classify_nids(self) -> None:
         """
@@ -589,7 +574,6 @@ class Stage:
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.load_gpkg()
         self.roadseg_gen_full()
         self.roadseg_gen_nids()
         self.roadseg_recover_and_classify_nids()
@@ -597,7 +581,7 @@ class Stage:
         self.recover_and_classify_nids()
         self.gen_and_recover_structids()
         self.export_change_logs()
-        self.export_gpkg()
+        helpers.export_gpkg(self.dframes, self.data_path)
 
 
 @click.command()

@@ -87,6 +87,9 @@ class Stage:
         # Note: the only change from default is moving the percentage to the right end of the progress bar.
         self.bar_format = "{desc}: |{bar}| {percentage:3.0f}% {r_bar}"
 
+        # Load data.
+        self.dframes = helpers.load_gpkg(self.data_path)
+
     def configure_release_version(self) -> None:
         """Configures the major and minor release versions for the current NRN vintage."""
 
@@ -291,11 +294,10 @@ class Stage:
         logger.info("Generating French dataframes.")
 
         # Reconfigure dataframes dict to hold English and French data.
-        dframes = {
+        self.dframes = {
             "en": {table: df.copy(deep=True) for table, df in self.dframes.items()},
             "fr": {table: df.copy(deep=True) for table, df in self.dframes.items()}
         }
-        self.dframes = deepcopy(dframes)
 
         # Apply French translations to field values.
         table = None
@@ -304,7 +306,7 @@ class Stage:
         try:
 
             # Iterate dataframes and fields.
-            for table, df in dframes["fr"].items():
+            for table, df in self.dframes["fr"].items():
                 for field in set(df.columns) - {"uuid", "geometry"}:
 
                     logger.info(f"Applying French translations for table: {table}, field: {field}.")
@@ -364,21 +366,14 @@ class Stage:
                         df.rename(columns=schemas[table]["fields"], inplace=True)
 
                         # Store results.
-                        dframes[frmt][lang][table] = df
+                        dframes[frmt][lang][table] = df.copy(deep=True)
 
             # Store result.
-            self.dframes = dframes
+            self.dframes = deepcopy(dframes)
 
         except (AttributeError, KeyError, ValueError):
             logger.exception(f"Unable to apply output schema for format: {frmt}, language: {lang}, table: {table}.")
             sys.exit(1)
-
-    def load_gpkg(self) -> None:
-        """Loads input GeoPackage layers into (Geo)DataFrames."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path)
 
     def zip_data(self) -> None:
         """Compresses and zips all export data directories."""
@@ -426,7 +421,6 @@ class Stage:
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.load_gpkg()
         self.configure_release_version()
         self.gen_french_dataframes()
         self.gen_output_schemas()

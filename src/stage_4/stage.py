@@ -56,9 +56,7 @@ class Stage:
                                  "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
-        # Load and classify data.
-        logger.info("Loading Geopackage layers.")
-
+        # Load data.
         self.dframes = helpers.load_gpkg(self.data_path)
 
     def log_errors(self) -> None:
