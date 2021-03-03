@@ -326,6 +326,8 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
     :param Union[Path, str] output_path: output path.
     :param str driver: OGR driver short name, default 'GPKG'.
     :param Union[None, Path, str] export_schemas: optional dictionary mapping of field names for each provided dataset.
+        export_schemas='merge' will merge the schemas into a single dataset schema; useful for when attributes from
+        multiple datasets exist in a single provided dataset.
     :param Union[Dict[str], None] nln_map: optional dictionary mapping of new layer names.
     :param bool keep_uuid: optional flag to preserve the uuid column, default = True.
     :param Union[tqdm, trange, None] outer_pbar: optional pre-existing tqdm progress bar.
@@ -345,13 +347,25 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
             output_path.mkdir(parents=True, exist_ok=True)
 
         # Compile schemas.
+        merge_schemas = export_schemas == "merge"
         schemas = load_yaml(distribution_format_path)
-        if export_schemas:
+        if Path(export_schemas).exists() and export_schemas != "merge":
             export_schemas = load_yaml(export_schemas)["conform"]
         else:
             export_schemas = defaultdict(dict)
             for table in schemas:
                 export_schemas[table]["fields"] = {field: field for field in schemas[table]["fields"]}
+
+        # Conditionally merge schemas.
+        if merge_schemas:
+            schemas_merged, export_schemas_merged = defaultdict(dict), defaultdict(dict)
+            for table in schemas:
+                schemas_merged["fields"] |= schemas[table]["fields"]
+                export_schemas_merged["fields"] |= export_schemas[table]["fields"]
+
+            # Update schemas with merged results.
+            schemas = {table: schemas_merged for table in schemas}
+            export_schemas = {table: export_schemas_merged for table in export_schemas}
 
         # Get driver and create source (layer-based drivers only).
         driver, source = ogr.GetDriverByName(driver), None
@@ -401,10 +415,11 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
                 export_schemas[table_name]["fields"]["uuid"] = "uuid"
 
             for field_name, mapped_field_name in export_schemas[table_name]["fields"].items():
-                field_type, field_width = schemas[table_name]["fields"][field_name]
-                field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
-                field_defn.SetWidth(field_width)
-                layer.CreateField(field_defn)
+                if field_name in df.columns:
+                    field_type, field_width = schemas[table_name]["fields"][field_name]
+                    field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
+                    field_defn.SetWidth(field_width)
+                    layer.CreateField(field_defn)
 
             # Map dataframe column names (does nothing if already mapped).
             df.rename(columns=export_schemas[table_name]["fields"], inplace=True)

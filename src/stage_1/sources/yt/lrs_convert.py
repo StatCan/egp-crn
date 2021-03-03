@@ -3,16 +3,13 @@ import fiona
 import geopandas as gpd
 import logging
 import pandas as pd
-import sqlite3
 import sys
 from collections import Counter
 from itertools import accumulate, chain
 from operator import attrgetter, itemgetter
-from osgeo import ogr, osr
 from pathlib import Path
 from shapely.geometry import LineString, MultiLineString, Point
 from shapely.ops import linemerge
-from tqdm import tqdm
 from typing import List, Union
 
 filepath = Path(__file__).resolve()
@@ -749,91 +746,17 @@ class LRS:
     def export_gpkg(self) -> None:
         """Exports the NRN datasets to a GeoPackage."""
 
-        logger.info(f"Exporting datasets to GeoPackage: {self.dst}.")
+        logger.info("Exporting datasets to GeoPackage.")
 
-        try:
+        # Conditionally explode geometries.
+        for table, df in self.nrn_datasets.items():
 
-            logger.info(f"Creating data source: {self.dst}.")
+            geom_types = set(df.geom_type)
+            if geom_types.issubset({"Point", "MultiPoint"}) or geom_types.issubset({"LineString", "MultiLineString"}):
+                self.nrn_datasets[table] = helpers.explode_geometry(df).copy(deep=True)
 
-            # Create GeoPackage.
-            driver = ogr.GetDriverByName("GPKG")
-            gpkg = driver.CreateDataSource(str(self.dst))
-
-            # Iterate dataframes.
-            for name, df in self.nrn_datasets.items():
-
-                logger.info(f"Layer {name}: creating layer.")
-
-                # Configure layer shape type and spatial reference.
-                if isinstance(df, gpd.GeoDataFrame):
-
-                    srs = osr.SpatialReference()
-                    srs.ImportFromEPSG(df.crs.to_epsg())
-
-                    if len(df.geom_type.unique()) > 1:
-                        geom_types = set(df.geom_type)
-                        if geom_types.issubset({"Point", "MultiPoint"}) or \
-                                geom_types.issubset({"LineString", "MultiLineString"}):
-                            df = helpers.explode_geometry(df).copy(deep=True)
-                            shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
-                        else:
-                            raise ValueError(f"Mixed geometry types detected for dataframe {name}: "
-                                             f"{', '.join(geom_types)}.")
-                    elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                        shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
-                    else:
-                        raise ValueError(f"Invalid geometry type(s) for dataframe {name}: "
-                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
-                else:
-                    shape_type = ogr.wkbNone
-                    srs = None
-
-                # Create layer.
-                layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
-
-                logger.info(f"Layer {name}: configuring schema.")
-
-                # Configure layer schema (field definitions).
-                ogr_field_map = {"f": ogr.OFTReal, "i": ogr.OFTInteger, "O": ogr.OFTString}
-
-                for field_name, dtype in df.dtypes.items():
-                    if field_name != "geometry":
-                        field_defn = ogr.FieldDefn(field_name, ogr_field_map[dtype.kind])
-                        layer.CreateField(field_defn)
-
-                # Write layer.
-                layer.StartTransaction()
-
-                for feat in tqdm(df.itertuples(index=False), total=len(df),
-                                 desc=f"Writing to file={self.dst.name}, layer={name}",
-                                 bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}"):
-
-                    # Instantiate feature.
-                    feature = ogr.Feature(layer.GetLayerDefn())
-
-                    # Set feature properties.
-                    properties = feat._asdict()
-                    for prop in set(properties) - {"geometry"}:
-                        field_index = feature.GetFieldIndex(prop)
-                        feature.SetField(field_index, properties[prop])
-
-                    # Set feature geometry, if required.
-                    if srs:
-                        geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
-                        feature.SetGeometry(geom)
-
-                    # Create feature.
-                    layer.CreateFeature(feature)
-
-                    # Clear pointer for next iteration.
-                    feature = None
-
-                layer.CommitTransaction()
-
-        except (Exception, KeyError, ValueError, sqlite3.Error) as e:
-            logger.exception(f"Error raised when writing to GeoPackage: {self.dst}.")
-            logger.exception(e)
-            sys.exit(1)
+        # Export to GeoPackage.
+        helpers.export(self.nrn_datasets, self.dst, export_schemas="merge")
 
     def get_con_id_field(self, name: str) -> str:
         """
