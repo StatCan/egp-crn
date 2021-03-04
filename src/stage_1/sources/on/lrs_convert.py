@@ -719,36 +719,12 @@ class ORN:
             "strtypre":
                 {
                     "Bypass": "By-pass",
-                    "Concession Road": "Concession",
-                    "Corner": "Corners",
-                    "County Road": "Road",
-                    "Crossroad": "Crossroads",
-                    "Cul De Sac": "Cul-de-sac",
-                    "Fire Route": "Route",
-                    "Garden": "Gardens",
-                    "Height": "Heights",
-                    "Hills": "Hill",
-                    "Isle": "Island",
-                    "Lanes": "Lane",
-                    "Pointe": "Point",
-                    "Regional Road": "Road"
+                    "Cul De Sac": "Cul-de-sac"
                 },
             "strtysuf":
                 {
                     "Bypass": "By-pass",
-                    "Concession Road": "Concession",
-                    "Corner": "Corners",
-                    "County Road": "Road",
-                    "Crossroad": "Crossroads",
-                    "Cul De Sac": "Cul-de-sac",
-                    "Fire Route": "Route",
-                    "Garden": "Gardens",
-                    "Height": "Heights",
-                    "Hills": "Hill",
-                    "Isle": "Island",
-                    "Lanes": "Lane",
-                    "Pointe": "Point",
-                    "Regional Road": "Road"
+                    "Cul De Sac": "Cul-de-sac"
                 },
             "tollpttype":
                 {

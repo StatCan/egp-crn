@@ -540,6 +540,17 @@ tables:
       161: Height
       162: Roadway
       163: Strip
+      164: Concession Road
+      165: Corner
+      166: County Road
+      167: Crossroad
+      168: Fire Route
+      169: Garden
+      170: Hills
+      171: Isle
+      172: Lanes
+      173: Pointe
+      174: Regional Road
     strtysuf: *strtypre
   tollpoint:
     acqtech: *acqtech
