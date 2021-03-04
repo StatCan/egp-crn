@@ -349,8 +349,11 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         # Compile schemas.
         merge_schemas = export_schemas == "merge"
         schemas = load_yaml(distribution_format_path)
-        if Path(export_schemas).exists() and export_schemas != "merge":
-            export_schemas = load_yaml(export_schemas)["conform"]
+        if export_schemas and export_schemas != "merge":
+            if Path(export_schemas).exists():
+                export_schemas = load_yaml(export_schemas)["conform"]
+            else:
+                raise ValueError(f"Invalid export schemas: {export_schemas}.")
         else:
             export_schemas = defaultdict(dict)
             for table in schemas:

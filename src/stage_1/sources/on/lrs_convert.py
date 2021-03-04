@@ -4,17 +4,14 @@ import logging
 import numpy as np
 import pandas as pd
 import shapely
-import sqlite3
 import sys
 import uuid
 from collections import Counter
 from collections.abc import Sequence
 from itertools import chain
-from operator import attrgetter, itemgetter
-from osgeo import ogr, osr
+from operator import itemgetter
 from pathlib import Path
 from shapely.geometry import LineString, MultiLineString
-from tqdm import tqdm
 from typing import List, Union
 
 filepath = Path(__file__).resolve()
@@ -489,14 +486,14 @@ class ORN:
 
         logger.info("Configuring structures.")
 
-        def update_geoms(geom: LineString, ranges: List[tuple, ...]) -> Union[None, List[LineString, ...]]:
+        def update_geoms(geom: LineString, ranges: List[tuple]) -> Union[None, List[LineString]]:
             """
             Splits the LineString into smaller LineStrings by removing the given ranges (event measurements) from the
             geometry.
 
             :param LineString geom: LineString.
-            :param List[tuple, ...] ranges: nested list of event measurements.
-            :return Union[None, List[LineString, ...]]: None or a list of LineStrings, segmented from the original
+            :param List[tuple] ranges: nested list of event measurements.
+            :return Union[None, List[LineString]]: None or a list of LineStrings, segmented from the original
                 LineString.
             """
 
@@ -602,89 +599,6 @@ class ORN:
                     self.source_datasets[name] = df_valid.copy(deep=True)
                 else:
                     del self.source_datasets[name]
-
-    def export_gpkg(self) -> None:
-        """Exports the NRN datasets to a GeoPackage."""
-
-        logger.info(f"Exporting datasets to GeoPackage: {self.dst}.")
-
-        try:
-
-            logger.info(f"Creating data source: {self.dst}.")
-
-            # Create GeoPackage.
-            driver = ogr.GetDriverByName("GPKG")
-            gpkg = driver.CreateDataSource(str(self.dst))
-
-            # Iterate dataframes.
-            for name, df in self.nrn_datasets.items():
-
-                logger.info(f"Layer {name}: creating layer.")
-
-                # Configure layer shape type and spatial reference.
-                if isinstance(df, gpd.GeoDataFrame):
-
-                    srs = osr.SpatialReference()
-                    srs.ImportFromEPSG(df.crs.to_epsg())
-
-                    if len(df.geom_type.unique()) > 1:
-                        raise ValueError(f"Multiple geometry types detected for dataframe {name}: "
-                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
-                    elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                        shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
-                    else:
-                        raise ValueError(f"Invalid geometry type(s) for dataframe {name}: "
-                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
-                else:
-                    shape_type = ogr.wkbNone
-                    srs = None
-
-                # Create layer.
-                layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
-
-                logger.info(f"Layer {name}: configuring schema.")
-
-                # Configure layer schema (field definitions).
-                ogr_field_map = {"f": ogr.OFTReal, "i": ogr.OFTInteger, "O": ogr.OFTString}
-
-                for field_name, dtype in df.dtypes.items():
-                    if field_name != "geometry":
-                        field_defn = ogr.FieldDefn(field_name, ogr_field_map[dtype.kind])
-                        layer.CreateField(field_defn)
-
-                # Write layer.
-                layer.StartTransaction()
-
-                for feat in tqdm(df.itertuples(index=False), total=len(df),
-                                 desc=f"Writing to file={self.dst.name}, layer={name}",
-                                 bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}"):
-
-                    # Instantiate feature.
-                    feature = ogr.Feature(layer.GetLayerDefn())
-
-                    # Set feature properties.
-                    properties = feat._asdict()
-                    for prop in set(properties) - {"geometry"}:
-                        field_index = feature.GetFieldIndex(prop)
-                        feature.SetField(field_index, properties[prop])
-
-                    # Set feature geometry, if required.
-                    if srs:
-                        geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
-                        feature.SetGeometry(geom)
-
-                    # Create feature.
-                    layer.CreateFeature(feature)
-
-                    # Clear pointer for next iteration.
-                    feature = None
-
-                layer.CommitTransaction()
-
-        except (Exception, KeyError, ValueError, sqlite3.Error) as e:
-            logger.exception(f"Error raised when writing to GeoPackage: {self.dst}.")
-            logger.exception(e)
-            sys.exit(1)
 
     def map_unrecognized_values(self) -> None:
         """Maps unrecognized attribute values to presumed NRN equivalents."""
@@ -817,11 +731,11 @@ class ORN:
         Exception: address dataset will keep the longest event for both "Left" and "Right" paritized instances.
         """
 
-        def configure_address_structure(structures: List[str, ...]) -> str:
+        def configure_address_structure(structures: List[str]) -> str:
             """
             Configures the address structure given an iterable of structure values.
 
-            :param List[str, ...] structures: list of structure values.
+            :param List[str] structures: list of structure values.
             :return str: structure value.
             """
 
@@ -919,7 +833,7 @@ class ORN:
         self.reduce_events()
         self.assemble_nrn_datasets()
         self.map_unrecognized_values()
-        self.export_gpkg()
+        helpers.export(self.nrn_datasets, self.dst)
 
 
 @click.command()
