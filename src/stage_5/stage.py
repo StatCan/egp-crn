@@ -8,7 +8,7 @@ import zipfile
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from pathlib import Path
 from tqdm.auto import trange
 from typing import Union
@@ -215,7 +215,8 @@ class Stage:
         logger.info("Exporting output data.")
 
         # Configure export progress bar.
-        file_count = ((len(self.dframes["gpkg"]["en"]) * 3) + len(self.kml_groups["en"])) * 2
+        file_count = sum(len(self.dframes[frmt][lang]) * (1 if frmt != "kml" else len(self.kml_groups[lang]))
+                         for frmt in self.dframes for lang in self.dframes[frmt])
         export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format)
 
         # Iterate export formats and languages.
@@ -243,15 +244,23 @@ class Stage:
                 # Configure KML.
                 if frmt == "kml":
 
-                    # Iterate KML groups.
-                    for kml_group in self.kml_groups[lang].itertuples(index=False):
+                    # Configure export names.
+                    self.kml_groups[lang]["name"] = self.kml_groups[lang]["name"].map(
+                        lambda name: str(export_dir).replace("<name>", name))
 
-                        # Export data.
-                        helpers.export(
-                            {table: df.query(kml_group.query).copy(deep=True) for table, df in dframes.items()},
-                            str(export_dir).replace("<name>", kml_group.name),
-                            **kwargs
-                        )
+                    # Iterate export datasets.
+                    for table, df in dframes.items():
+
+                        # Map dataframe queries (more efficient than iteratively querying).
+                        self.kml_groups[lang]["df"] = self.kml_groups[lang]["query"].map(
+                            lambda query: df.query(query).copy(deep=True))
+
+                        # Iterate KML groups.
+                        for kml_group in self.kml_groups[lang].itertuples(index=False):
+
+                            # Export data.
+                            kml_name, kml_df = attrgetter("name", "df")(kml_group)
+                            helpers.export({table: kml_df}, kml_name, **kwargs)
 
                 # Configure non-KML.
                 else:
