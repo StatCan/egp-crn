@@ -756,7 +756,7 @@ class LRS:
                 self.nrn_datasets[table] = helpers.explode_geometry(df).copy(deep=True)
 
         # Export to GeoPackage.
-        helpers.export(self.nrn_datasets, self.dst, export_schemas="merge")
+        helpers.export(self.nrn_datasets, self.dst, merge_schemas=True)
 
     def get_con_id_field(self, name: str) -> str:
         """

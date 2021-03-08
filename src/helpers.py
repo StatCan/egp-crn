@@ -315,9 +315,11 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
-           driver: str = "GPKG", export_schemas: Union[None, Path, str] = None,
+           driver: str = "GPKG", type_schemas: Union[None, dict, Path, str] = None,
+           export_schemas: Union[None, dict, Path, str] = None, merge_schemas: bool = False,
            nln_map: Union[Dict[str, str], None] = None, keep_uuid: bool = True,
-           outer_pbar: Union[tqdm, trange, None] = None) -> None:
+           outer_pbar: Union[tqdm, trange, None] = None, epsg: Union[None, str] = None,
+           geom_type: Union[Dict[str, str], None] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
@@ -325,82 +327,124 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         (Geo)DataFrames.
     :param Union[Path, str] output_path: output path.
     :param str driver: OGR driver short name, default 'GPKG'.
-    :param Union[None, Path, str] export_schemas: optional dictionary mapping of field names for each provided dataset.
-        export_schemas='merge' will merge the schemas into a single dataset schema; useful for when attributes from
-        multiple datasets exist in a single provided dataset.
+    :param Union[None, dict, Path, str] type_schemas: optional dictionary mapping of field types and widths for each
+        provided dataset. Can also be a Path or str path to a pre-existing yaml. Expected dictionary format:
+        {
+            <dataset_name>:
+                spatial: <bool>
+                fields:
+                    <field_name>: [<field_type>, <field_length>]
+                    ...
+                ...
+        }
+    :param Union[None, dict, Path, str] export_schemas: optional dictionary mapping of field names for each provided
+        dataset. Can also be a Path or str path to a pre-existing yaml. Expected dictionary format:
+        {
+            conform:
+                <dataset_name>:
+                    fields:
+                        <field_name>: <new_field_name>
+                        ...
+                ...
+        }
+    :param bool merge_schemas: optional flag to merge type and export schemas such that attributes from any dataset can
+        exist on each provided dataset, default False.
     :param Union[Dict[str], None] nln_map: optional dictionary mapping of new layer names.
-    :param bool keep_uuid: optional flag to preserve the uuid column, default = True.
+    :param bool keep_uuid: optional flag to preserve the uuid column, default True.
     :param Union[tqdm, trange, None] outer_pbar: optional pre-existing tqdm progress bar.
+    :param Union[None, int] epsg: optional EPSG code used as the output CRS.
+    :param Union[Dict[str, str], None] geom_type: optional dictionary mapping of Shapely geometry types used as the
+        output geometry for the provided datasets. Must be one of 'Point', 'MultiPoint', 'LineString',
+        'MultiLineString'.
     """
 
     try:
 
-        # Validate driver.
+        # Validate / create driver.
         if driver not in {"ESRI Shapefile", "GML", "GPKG", "KML"}:
             raise ValueError("Invalid OGR driver, must be one of: ESRI Shapefile, GML, GPKG, KML.")
+        driver = ogr.GetDriverByName(driver)
 
-        # Configure output directory structure.
+        # Create directory structure and data source (only create source for layer-based drivers).
         output_path = Path(output_path).resolve()
+
         if output_path.suffix:
             output_path.parent.mkdir(parents=True, exist_ok=True)
-        else:
-            output_path.mkdir(parents=True, exist_ok=True)
-
-        # Compile schemas.
-        merge_schemas = export_schemas == "merge"
-        schemas = load_yaml(distribution_format_path)
-        if export_schemas and export_schemas != "merge":
-            if Path(export_schemas).exists():
-                export_schemas = load_yaml(export_schemas)["conform"]
-            else:
-                raise ValueError(f"Invalid export schemas: {export_schemas}.")
-        else:
-            export_schemas = defaultdict(dict)
-            for table in schemas:
-                export_schemas[table]["fields"] = {field: field for field in schemas[table]["fields"]}
-
-        # Conditionally merge schemas.
-        if merge_schemas:
-            schemas_merged, export_schemas_merged = defaultdict(dict), defaultdict(dict)
-            for table in schemas:
-                schemas_merged["fields"] |= schemas[table]["fields"]
-                export_schemas_merged["fields"] |= export_schemas[table]["fields"]
-
-            # Update schemas with merged results.
-            schemas = {table: schemas_merged for table in schemas}
-            export_schemas = {table: export_schemas_merged for table in export_schemas}
-
-        # Get driver and create source (layer-based drivers only).
-        driver, source = ogr.GetDriverByName(driver), None
-        if output_path.suffix:
             if output_path.exists():
                 source = driver.Open(str(output_path), update=1)
             else:
                 source = driver.CreateDataSource(str(output_path))
+        else:
+            output_path.mkdir(parents=True, exist_ok=True)
+            source = None
+
+        # Compile type schemas.
+        if isinstance(type_schemas, (dict, Path, str)):
+            if isinstance(type_schemas, (Path, str)):
+                if Path(type_schemas).exists():
+                    type_schemas = load_yaml(type_schemas)
+                else:
+                    raise ValueError(f"Invalid type schemas: {type_schemas}.")
+        else:
+            type_schemas = load_yaml(distribution_format_path)
+
+        # Compile export schemas (filter datasets and fields within the existing type schemas and dataframe columns).
+        if isinstance(export_schemas, (dict, Path, str)):
+            if isinstance(export_schemas, (Path, str)):
+                if Path(export_schemas).exists():
+                    export_schemas, load_yaml(export_schemas)
+                else:
+                    raise ValueError(f"Invalid export schemas: {export_schemas}.")
+            export_schemas = export_schemas["conform"]
+        else:
+            export_schemas = defaultdict(dict)
+            for table, df in dataframes.items():
+                export_schemas[table]["fields"] = {field: field for field in type_schemas[table]["fields"]}
+
+        # Conditionally merge schemas.
+        if merge_schemas:
+            type_schemas_merged, export_schemas_merged = defaultdict(dict), defaultdict(dict)
+            for table in dataframes:
+                type_schemas_merged["fields"] |= type_schemas[table]["fields"]
+                export_schemas_merged["fields"] |= export_schemas[table]["fields"]
+
+            # Update schemas with merged results.
+            type_schemas = {table: type_schemas_merged for table in type_schemas}
+            export_schemas = {table: export_schemas_merged for table in export_schemas}
 
         # Iterate dataframes.
-        for table_name, df in dataframes.items():
+        for table, df in dataframes.items():
 
             # Configure layer shape type and spatial reference.
-            if isinstance(df, gpd.GeoDataFrame):
+            spatial = type_schemas[table]["spatial"]
+            if spatial:
 
+                # Configure spatial reference.
                 srs = osr.SpatialReference()
-                srs.ImportFromEPSG(df.crs.to_epsg())
-
-                if len(df.geom_type.unique()) > 1:
-                    raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
-                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
-                elif df.geom_type.iloc[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                    shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
+                if isinstance(epsg, int):
+                    srs.ImportFromEPSG(epsg)
                 else:
-                    raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
-                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
+                    srs.ImportFromEPSG(df.crs.to_epsg())
+
+                # Configure shape type.
+                if isinstance(geom_type, dict):
+                    try:
+                        shape_type = attrgetter(f"wkb{geom_type[table]}")(ogr)
+                    except KeyError:
+                        raise KeyError(f"Invalid geom_type mapping: {geom_type}.")
+                else:
+                    if len(df.geom_type.unique()) > 1:
+                        raise ValueError(f"Multiple geometry types detected for dataframe {table}: "
+                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
+                    else:
+                        shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
+
             else:
                 shape_type = ogr.wkbNone
                 srs = None
 
             # Create source (non-layer-based drivers only) and layer.
-            nln = str(nln_map[table_name]) if nln_map else table_name
+            nln = str(nln_map[table]) if nln_map else table
             if driver.name == "GPKG":
                 layer = source.CreateLayer(name=nln, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
             elif output_path.suffix:
@@ -412,44 +456,54 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
             # Configure layer schema (field definitions).
             ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
 
-            # Conditionally add uuid to schema.
-            if keep_uuid and "uuid" in df.columns:
-                schemas[table_name]["fields"]["uuid"] = ["str", 32]
-                export_schemas[table_name]["fields"]["uuid"] = "uuid"
+            # Filter type and export schemas.
+            type_schema = {field: specs for field, specs in type_schemas[table]["fields"].items() if field in df}
+            valid_fields = set(type_schema).intersection(set(df.columns))
+            export_schema = {field: map_field for field, map_field in export_schemas[table]["fields"].items()
+                             if field in valid_fields}
 
-            for field_name, mapped_field_name in export_schemas[table_name]["fields"].items():
-                if field_name in df.columns:
-                    field_type, field_width = schemas[table_name]["fields"][field_name]
-                    field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
-                    field_defn.SetWidth(field_width)
-                    layer.CreateField(field_defn)
+            # Conditionally add uuid to schemas.
+            if keep_uuid and "uuid" in df.columns:
+                type_schema["uuid"] = ["str", 32]
+                export_schema["uuid"] = "uuid"
+
+            # Set field definitions from schemas.
+            for field_name, mapped_field_name in export_schema.items():
+                field_type, field_width = type_schema[field_name]
+                field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
+                field_defn.SetWidth(field_width)
+                layer.CreateField(field_defn)
+
+            # Remove invalid columns and reorder dataframe to match export schema.
+            if spatial:
+                df = df[[*export_schema, "geometry"]].copy(deep=True)
+            else:
+                df = df[[*export_schema]].copy(deep=True)
 
             # Map dataframe column names (does nothing if already mapped).
-            df.rename(columns=export_schemas[table_name]["fields"], inplace=True)
-
-            # Filter invalid columns from dataframe.
-            invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"].values(), "geometry"}
+            df.rename(columns=export_schema, inplace=True)
 
             # Write layer.
             layer.StartTransaction()
 
             for feat in tqdm(df.itertuples(index=False), total=len(df),
-                             desc=f"Writing to file={source.GetName()}, layer={table_name}",
+                             desc=f"Writing to file={source.GetName()}, layer={table}",
                              bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}", leave=not bool(outer_pbar)):
 
                 # Instantiate feature.
                 feature = ogr.Feature(layer.GetLayerDefn())
 
-                # Set feature properties.
+                # Compile feature properties.
                 properties = feat._asdict()
-                for prop in set(properties) - invalid_cols - {"geometry"}:
-                    field_index = feature.GetFieldIndex(prop)
-                    feature.SetField(field_index, properties[prop])
 
                 # Set feature geometry, if spatial.
-                if srs:
-                    geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
+                if spatial:
+                    geom = ogr.CreateGeometryFromWkb(properties.pop("geometry").wkb)
                     feature.SetGeometry(geom)
+
+                # Iterate and set feature properties (attributes).
+                for field_index, prop in enumerate(properties.items()):
+                    feature.SetField(field_index, prop[-1])
 
                 # Create feature.
                 layer.CreateFeature(feature)

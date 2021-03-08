@@ -236,9 +236,14 @@ class Stage:
                 # Configure export kwargs.
                 kwargs = {
                     "driver": {"gml": "GML", "gpkg": "GPKG", "kml": "KML", "shp": "ESRI Shapefile"}[frmt],
+                    "type_schemas": helpers.load_yaml(filepath.parents[1] / "distribution_format.yaml"),
+                    "export_schemas": export_specs,
                     "nln_map": nln_map,
                     "keep_uuid": False,
-                    "outer_pbar": export_progress
+                    "outer_pbar": export_progress,
+                    "epsg": 4617,
+                    "geom_type": {table: df.geom_type.iloc[0] for table, df in dframes.items() if "geometry" in
+                                  df.columns}
                 }
 
                 # Configure KML.
