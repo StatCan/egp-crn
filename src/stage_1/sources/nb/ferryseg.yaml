@@ -23,14 +23,42 @@ conform:
     acqtech: Element_Acquisition_Technique
     metacover:
     credate: Element_Creation_Date
-    datasetnam: "New Brunswick"
-    accuracy: Element_Planimetric_Accuracy
-    provider: Element_Provider
+    datasetnam: New Brunswick
+    accuracy:
+      fields: Element_Planimetric_Accuracy
+      functions:
+        - function: map_values
+          lookup:
+            401: 1
+            402: 3
+            403: 5
+            404: 10
+            405: 15
+            406: 20
+            407: 25
+    provider:
+      fields: Element_Provider
+      functions:
+        - function: map_values
+          lookup:
+            1: Other
+            2: Federal
+            3: Provincial / Territorial
+            4: Municipal
+            405: Provincial / Territorial
+            406: Provincial / Territorial
+            407: Provincial / Territorial
+            408: Provincial / Territorial
+            409: Municipal
+            410: Municipal
+            411: Municipal
+            412: Other
+            413: # TODO: ask NB for value
     revdate: Element_Revision_Date
     specvers: 2.0
     closing: Closing_Period
     ferrysegid:
-    roadclass: Functional_Road_Class
+    roadclass: Unknown
     nid: uuid
     rtename1en: Route_Name_English_1
     rtename2en: Route_Name_English_2

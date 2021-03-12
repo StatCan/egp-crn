@@ -23,9 +23,37 @@ conform:
     acqtech: Element_Acquisition_Technique
     metacover:
     credate: Element_Creation_Date
-    datasetnam: "New Brunswick"
-    accuracy: Element_Planimetric_Accuracy
-    provider: Element_Provider
+    datasetnam: New Brunswick
+    accuracy: &accuracy
+      fields: Element_Planimetric_Accuracy
+      functions:
+        - function: map_values
+          lookup:
+            401: 1
+            402: 3
+            403: 5
+            404: 10
+            405: 15
+            406: 20
+            407: 25
+    provider: &provider
+      fields: Element_Provider
+      functions:
+        - function: map_values
+          lookup:
+            1: Other
+            2: Federal
+            3: Provincial / Territorial
+            4: Municipal
+            405: Provincial / Territorial
+            406: Provincial / Territorial
+            407: Provincial / Territorial
+            408: Provincial / Territorial
+            409: Municipal
+            410: Municipal
+            411: Municipal
+            412: Other
+            413: # TODO: ask NB for value
     revdate: Element_Revision_Date
     specvers: 2.0
     l_altnanid:
@@ -50,8 +78,48 @@ conform:
           group_index: 0
     l_hnumtypf: First_House_Number_Type_Left
     r_hnumtypf: First_House_Number_Type_Right
-    l_hnumstr: House_Number_Structure_Left
-    r_hnumstr: House_Number_Structure_Right
+    l_hnumstr:
+      fields: House_Number_Structure_Left
+      functions:
+        - function: direct
+          cast_type: int
+        - function: map_values
+          lookup:
+            -1: Unknown
+            0: None
+            1: Even
+            2: Odd
+            3: Mixed
+            4: Irregular
+            405: Even
+            406: Unknown
+            407: Odd
+            408: Unknown
+            409: Mixed
+            410: Unknown
+            411: Irregular
+            412: Unknown
+    r_hnumstr:
+      fields: House_Number_Structure_Right
+      functions:
+        - function: direct
+          cast_type: int
+        - function: map_values
+          lookup:
+            -1: Unknown
+            0: None
+            1: Even
+            2: Odd
+            3: Mixed
+            4: Irregular
+            405: Unknown
+            406: Even
+            407: Unknown
+            408: Odd
+            409: Unknown
+            410: Mixed
+            411: Unknown
+            412: Irregular
     l_hnuml: Last_House_Number_Left
     r_hnuml: Last_House_Number_Right
     l_hnumsufl:
@@ -79,9 +147,9 @@ conform:
     acqtech: Element_Acquisition_Technique
     metacover:
     credate: Element_Creation_Date
-    datasetnam: "New Brunswick"
-    accuracy: Element_Planimetric_Accuracy
-    provider: Element_Provider
+    datasetnam: New Brunswick
+    accuracy: *accuracy
+    provider: *provider
     revdate: Element_Revision_Date
     specvers: 2.0
     l_adddirfg: Digitizing_Direction_Flag_Left
@@ -91,7 +159,38 @@ conform:
     exitnbr: Exit_Number
     l_hnumf: First_House_Number_Left
     r_hnumf: First_House_Number_Right
-    roadclass: Functional_Road_Class
+    roadclass:
+      fields: Functional_Road_Class
+      functions:
+        - function: map_values
+          lookup:
+            -1: Unknown
+            1: Freeway
+            2: Expressway / Highway
+            3: Arterial
+            4: Collector
+            5: Local / Street
+            6: Local / Strata
+            7: Local / Unknown
+            8: Alleyway / Lane
+            9: Ramp
+            10: Resource / Recreation
+            11: Rapid Transit
+            12: Service Lane
+            13: Winter
+            414: Local / Street
+            415: Local / Street
+            416: Unknown
+            417: Local / Street
+            418: Resource / Recreation
+            419: Resource / Recreation
+            420: Resource / Recreation
+            421: Resource / Recreation
+            422: Local / Street
+            423: Unknown
+            424: Service Lane
+            426: Resource / Recreation
+            427: Resource / Recreation
     l_hnuml: Last_House_Number_Left
     r_hnuml: Last_House_Number_Right
     nid: uuid
@@ -128,57 +227,115 @@ conform:
     acqtech: Element_Acquisition_Technique
     metacover:
     credate: Element_Creation_Date
-    datasetnam: "New Brunswick"
-    accuracy: Element_Planimetric_Accuracy
-    provider: Element_Provider
+    datasetnam: New Brunswick
+    accuracy: *accuracy
+    provider: *provider
     revdate: Element_Revision_Date
     specvers: 2.0
     dirprefix:
       fields: [SPN_L_Directional_Prefix, SPN_R_Directional_Prefix]
       process_separately: True
-      functions:
-        - function: direct
-          cast_type: int
     dirsuffix:
       fields: [SPN_L_Directional_Suffix, SPN_R_Directional_Suffix]
       process_separately: True
-      functions:
-        - function: direct
-          cast_type: int
     muniquad:
       fields: [SPN_L_Muni_Quadrant, SPN_R_Muni_Quadrant]
       process_separately: True
-      functions:
-        - function: direct
     nid: uuid
     placename: [SPN_L_Place_Name, SPN_R_Place_Name]
     placetype:
       fields: [SPN_L_Place_Type, SPN_R_Place_Type]
       process_separately: True
       functions:
-        - function: direct
+        - function: map_values
+          lookup:
+            1: Unknown
+            2: CV
+            3: CM
+            4: COM
+            5: TP
+            6: CU
+            7: DM
+            8: HAM
+            9: ID
+            10: IGD
+            11: LGD
+            12: LOT
+            13: MD
+            14: NH
+            15: NV
+            16: P
+            17: P
+            18: IRI
+            19: RM
+            20: RV
+            21: S-É
+            22: SA
+            23: SC
+            24: M
+            25: SÉ
+            26: SNO
+            27: SNO
+            28: SV
+            29: TV
+            30: TP
+            31: IRI
+            32: NO
+            33: CV
+            34: VC
+            35: VK
+            36: VL
+            37: NV
+            38: CY
+            39: RCR
+            40: CC
+            41: M
+            42: SM
+            43: MRM
+            44: TI
+            45: VN
+            46: RG
+            47: RDA
+            48: IM
+            49: NL
+            50: NVL
+            51: TL
+            52: CN
     province:
       fields: [SPN_L_Province, SPN_R_Province]
       process_separately: True
-      functions:
-        - function: direct
     starticle:
       fields: [SPN_L_Street_Name_Article, SPN_R_Street_Name_Article]
       process_separately: True
       functions:
-        - function: direct
+        - function: map_values
+          lookup:
+            0: None
+            1: la
+            2: le
+            3: l'
+            4: de
+            5: de la
+            6: de l'
+            7: du
+            8: des
+            9: à la
+            10: à
+            11: chez
+            12: les
+            13: au
+            14: aux
+            15: d'
+            16: à l'
+            17: the
+            18: of the
+            19: by the
     namebody:
       fields: [SPN_L_Street_Name_Body, SPN_R_Street_Name_Body]
       process_separately: True
-      functions:
-        - function: direct
-    strtypre:
+    strtypre: # TODO: review values in codeset provided by NB
       fields: [SPN_L_Street_Type_Prefix, SPN_R_Street_Type_Prefix]
       process_separately: True
-      functions:
-        - function: direct
-    strtysuf:
+    strtysuf: # TODO: review values in codeset provided by NB
       fields: [SPN_L_Street_Type_Suffix, SPN_R_Street_Type_Suffix]
       process_separately: True
-      functions:
-        - function: direct

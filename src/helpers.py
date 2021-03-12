@@ -193,7 +193,7 @@ def compile_domains(mapped_lang: str = "en") -> dict:
     keys:
     1) 'values': all English and French values and keys flattened into a single list.
     2) 'lookup': a lookup dictionary mapping each English and French value and key to the value of the given map
-    language.
+    language. Integer keys and their float-equivalents are both added to accommodate incorrectly casted data.
 
     :param str mapped_lang: output language: 'en', 'fr'.
     :return dict: dictionary of domain values and lookup dictionary for each attribute of each NRN dataset.

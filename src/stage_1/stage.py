@@ -453,28 +453,36 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def title_case_route_names(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+        def title_case_names(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
                 Union[gpd.GeoDataFrame, pd.DataFrame]:
             """
-            Sets to title case all NRN route name attributes:
-                rtename1en, rtename2en, rtename3en, rtename4en,
-                rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+            Sets to title case all NRN name attributes:
+                ferryseg: rtename1en, rtename1fr, rtename2en, rtename2fr, rtename3en, rtename3fr, rtename4en, rtename4fr
+                roadseg: l_placenam, l_stname_c, r_placenam, r_stname_c, rtename1en, rtename1fr, rtename2en, rtename2fr,
+                         rtename3en, rtename3fr, rtename4en, rtename4fr, strunameen, strunamefr
+                strplaname: namebody, placename
 
             :param str table: name of an NRN dataset.
             :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
             :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
             """
 
-            if table in {"ferryseg", "roadseg"}:
+            if table in {"ferryseg", "roadseg", "strplaname"}:
 
-                logger.info(f"Applying data cleanup \"title case route names\" to dataset: {table}.")
+                logger.info(f"Applying data cleanup \"title case names\" to dataset: {table}.")
 
-                # Identify columns to iterate.
-                cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
-                                        "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
+                # Define name fields.
+                name_fields = {
+                    "ferryseg": ["rtename1en", "rtename1fr", "rtename2en", "rtename2fr", "rtename3en", "rtename3fr",
+                                 "rtename4en", "rtename4fr"],
+                    "roadseg": ["l_placenam", "l_stname_c", "r_placenam", "r_stname_c", "rtename1en", "rtename1fr",
+                                "rtename2en", "rtename2fr", "rtename3en", "rtename3fr", "rtename4en", "rtename4fr",
+                                "strunameen", "strunamefr"],
+                    "strplaname": ["namebody", "placename"]
+                }
 
                 # Iterate columns.
-                for col in cols:
+                for col in name_fields[table]:
 
                     # Filter records to non-default values which are not already title case.
                     default = self.defaults[table][col]
@@ -494,8 +502,8 @@ class Stage:
         for table, df in self.target_gdframes.items():
 
             # Iterate cleanup functions.
-            for func in (lower_case_ids, strip_whitespace, standardize_nones, overwrite_segment_ids,
-                         title_case_route_names, enforce_accuracy_limits):
+            for func in (lower_case_ids, strip_whitespace, standardize_nones, overwrite_segment_ids, title_case_names,
+                         enforce_accuracy_limits):
                 df = func(table, df)
 
             # Store updated dataframe.
