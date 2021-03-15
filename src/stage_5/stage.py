@@ -81,8 +81,12 @@ class Stage:
         self.domains = helpers.compile_domains(mapped_lang="fr")
 
         # Configure export formats.
-        self.distribution_formats = filepath.parent / "distribution_formats"
-        self.formats = [f.stem for f in (self.distribution_formats / "en").glob("*")]
+        distribution_formats_path = filepath.parent / "distribution_formats"
+        self.formats = [f.stem for f in (distribution_formats_path / "en").glob("*")]
+        self.distribution_formats = {
+            "en": {frmt: helpers.load_yaml(distribution_formats_path / f"en/{frmt}.yaml") for frmt in self.formats},
+            "fr": {frmt: helpers.load_yaml(distribution_formats_path / f"fr/{frmt}.yaml") for frmt in self.formats}
+        }
 
         # Define custom progress bar format.
         # Note: the only change from default is moving the percentage to the right end of the progress bar.
@@ -156,7 +160,7 @@ class Stage:
 
             # Determine language-specific field names.
             l_placenam, r_placenam = itemgetter("l_placenam", "r_placenam")(
-                helpers.load_yaml(self.distribution_formats / f"{lang}/kml.yaml")["conform"]["roadseg"]["fields"])
+                self.distribution_formats[lang]["kml"]["conform"]["roadseg"]["fields"])
 
             # Retrieve source dataframe.
             df = self.dframes["kml"][lang]["roadseg"].copy(deep=True)
@@ -224,7 +228,7 @@ class Stage:
             for lang, dframes in self.dframes[frmt].items():
 
                 # Retrieve export specifications.
-                export_specs = helpers.load_yaml(self.distribution_formats / f"{lang}/{frmt}.yaml")
+                export_specs = self.distribution_formats[lang][frmt]
 
                 # Configure export directory.
                 export_dir, export_file = itemgetter("dir", "file")(export_specs["data"])
@@ -353,13 +357,12 @@ class Stage:
 
         try:
 
-            # Iterate formats.
+            # Iterate formats and languages.
             for frmt in dframes:
-                # Iterate languages.
                 for lang in dframes[frmt]:
 
                     # Retrieve schemas.
-                    schemas = helpers.load_yaml(self.distribution_formats / f"{lang}/{frmt}.yaml")["conform"]
+                    schemas = self.distribution_formats[lang][frmt]["conform"]
 
                     # Iterate tables.
                     for table in [t for t in schemas if t in self.dframes[lang]]:
