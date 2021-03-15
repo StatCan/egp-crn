@@ -551,6 +551,37 @@ tables:
       172: Lanes
       173: Pointe
       174: Regional Road
+      175: Bluff
+      176: Bocage
+      177: Bois
+      178: Boucle
+      179: Bretelle
+      180: Causeway
+      181: Chaussée
+      182: Couloir
+      183: Créte
+      184: Dead End
+      185: Debarquement
+      186: Entrance
+      187: Evergreen
+      188: Exit
+      189: Étang
+      190: Falaise
+      191: Jardin
+      192: Lawn
+      193: Lien
+      194: Manoir
+      195: Pente
+      196: Pond
+      197: Roundabout
+      198: Sortie
+      199: Throughway
+      200: Turn
+      201: Turnpike
+      202: Vallée
+      203: Villas
+      204: Virage
+      205: Vue
     strtysuf: *strtypre
   tollpoint:
     acqtech: *acqtech
