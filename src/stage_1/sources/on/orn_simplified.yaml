@@ -1,0 +1,192 @@
+coverage:
+  country:
+  province:
+  ISO3166:
+    alpha2:
+    country:
+    subdivision:
+  website:
+  update_frequency:
+license:
+  url:
+  text:
+language:
+data:
+  filename:
+  layer:
+  driver:
+  crs:
+  spatial:
+  query:
+conform:
+  addrange:
+    acqtech: #TODO: get from LRS
+    metacover:
+    credate: GEOMETRY_UPDATE_DATETIME
+    datasetnam: Ontario
+    accuracy: #TODO: get from LRS
+    provider:
+    revdate: EFFECTIVE_DATETIME
+    specvers: 2.0
+    l_altnanid: uuid
+    r_altnanid: uuid
+    l_digdirfg:
+    r_digdirfg:
+    l_hnumf: L_FIRST_HOUSE_NUMBER
+    r_hnumf: R_FIRST_HOUSE_NUMBER
+    l_hnumsuff:
+    r_hnumsuff:
+    l_hnumtypf:
+    r_hnumtypf:
+    l_hnumstr: L_HOUSE_NUMBER_STRUCTURE
+    r_hnumstr: R_HOUSE_NUMBER_STRUCTURE
+    l_hnuml: L_LAST_HOUSE_NUMBER
+    r_hnuml: R_LAST_HOUSE_NUMBER
+    l_hnumsufl:
+    r_hnumsufl:
+    l_hnumtypl:
+    r_hnumtypl:
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind:
+    r_rfsysind:
+  altnamlink:
+    credate: GEOMETRY_UPDATE_DATETIME
+    datasetnam: Ontario
+    nid: uuid
+    revdate: EFFECTIVE_DATETIME
+    specvers: 2.0
+    strnamenid: uuid
+  blkpassage:
+    acqtech: #TODO: get from LRS
+    metacover:
+    credate: GEOMETRY_UPDATE_DATETIME
+    datasetnam: Ontario
+    accuracy: #TODO: get from LRS
+    provider:
+    revdate: EFFECTIVE_DATETIME
+    specvers: 2.0
+    blkpassty: #TODO: get from LRS
+    nid: uuid
+    roadnid:
+  ferryseg:
+    acqtech: #TODO: get from LRS
+    metacover:
+    credate: GEOMETRY_UPDATE_DATETIME
+    datasetnam: Ontario
+    accuracy: #TODO: get from LRS
+    provider:
+    revdate: EFFECTIVE_DATETIME
+    specvers: 2.0
+    closing:
+    ferrysegid:
+    roadclass: ROAD_CLASS
+    nid: uuid
+    rtename1en: ROUTE_NAME_1
+    rtename2en: ROUTE_NAME_2
+    rtename3en: ROUTE_NAME_3
+    rtename4en: ROUTE_NAME_4
+    rtename1fr: #TODO: get from LRS
+    rtename2fr: #TODO: get from LRS
+    rtename3fr: #TODO: get from LRS
+    rtename4fr: #TODO: get from LRS
+    rtnumber1: ROUTE_NUMBER_1
+    rtnumber2: ROUTE_NUMBER_2
+    rtnumber3: ROUTE_NUMBER_3
+    rtnumber4: #TODO: get from LRS
+    rtnumber5: #TODO: get from LRS
+  roadseg:
+    acqtech: #TODO: get from LRS
+    metacover:
+    credate: GEOMETRY_UPDATE_DATETIME
+    datasetnam: Ontario
+    accuracy: #TODO: get from LRS
+    provider:
+    revdate: EFFECTIVE_DATETIME
+    specvers: 2.0
+    l_adddirfg:
+    r_adddirfg:
+    adrangenid: uuid
+    closing:
+    exitnbr: #TODO: get from LRS
+    l_hnumf: L_FIRST_HOUSE_NUMBER
+    r_hnumf: R_FIRST_HOUSE_NUMBER
+    roadclass: ROAD_CLASS
+    l_hnuml: L_LAST_HOUSE_NUMBER
+    r_hnuml: R_LAST_HOUSE_NUMBER
+    nid: uuid
+    nbrlanes: #TODO: get from LRS
+    l_placenam: L_STANDARD_MUNICIPALITY
+    r_placenam: R_STANDARD_MUNICIPALITY
+    l_stname_c: OFFICIAL_STREET_NAME
+    r_stname_c: OFFICIAL_STREET_NAME
+    pavsurf: #TODO: get from LRS
+    pavstatus: #TODO: get from LRS
+    roadjuris: #TODO: get from LRS
+    roadsegid:
+    rtename1en: ROUTE_NAME_1
+    rtename2en: ROUTE_NAME_2
+    rtename3en: ROUTE_NAME_3
+    rtename4en: ROUTE_NAME_4
+    rtename1fr: #TODO: get from LRS
+    rtename2fr: #TODO: get from LRS
+    rtename3fr: #TODO: get from LRS
+    rtename4fr: #TODO: get from LRS
+    rtnumber1: ROUTE_NUMBER_1
+    rtnumber2: ROUTE_NUMBER_2
+    rtnumber3: ROUTE_NUMBER_3
+    rtnumber4: #TODO: get from LRS
+    rtnumber5: #TODO: get from LRS
+    speed: #TODO: get from LRS
+    strunameen: #TODO: get from LRS
+    strunamefr: #TODO: get from LRS
+    structid:
+    structtype: #TODO: get from LRS
+    trafficdir: DIRECTION_OF_TRAFFIC_FLOW
+    unpavsurf: #TODO: get from LRS
+  strplaname:
+    acqtech: #TODO: get from LRS
+    metacover:
+    credate: GEOMETRY_UPDATE_DATETIME
+    datasetnam: Ontario
+    accuracy: #TODO: get from LRS
+    provider:
+    revdate: EFFECTIVE_DATETIME
+    specvers: 2.0
+    dirprefix: DIRECTIONAL_PREFIX
+    dirsuffix: DIRECTIONAL_SUFFIX
+    muniquad:
+    nid: uuid
+    placename: [L_STANDARD_MUNICIPALITY, R_STANDARD_MUNICIPALITY]
+    placetype:
+    province: Ontario
+    starticle:
+      fields: STREET_NAME_BODY
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+    namebody:
+      fields: STREET_NAME_BODY
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+    strtypre: STREET_TYPE_PREFIX
+    strtysuf: STREET_TYPE_SUFFIX
+  tollpoint:
+    acqtech: #TODO: get from LRS
+    metacover:
+    credate: GEOMETRY_UPDATE_DATETIME
+    datasetnam: Ontario
+    accuracy: #TODO: get from LRS
+    provider:
+    revdate: EFFECTIVE_DATETIME
+    specvers: 2.0
+    nid: uuid
+    roadnid:
+    tollpttype: #TODO: get from LRS
