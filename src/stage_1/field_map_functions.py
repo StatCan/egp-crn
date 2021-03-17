@@ -28,11 +28,11 @@ def apply_domain(**kwargs: dict) -> pd.Series:
     return helpers.apply_domain(**kwargs)
 
 
-def concatenate(df: pd.DataFrame, columns: List[str], separator: str = " ") -> pd.Series:
+def concatenate(df: Union[pd.DataFrame, pd.Series], columns: List[str], separator: str = " ") -> pd.Series:
     """
     Concatenates all non-null values across multiple columns into a single string.
 
-    :param pd.DataFrame df: DataFrame.
+    :param Union[pd.DataFrame, pd.Series] df: DataFrame.
     :param List[str] columns: list of column names.
     :param str separator: delimiter string used to join the column values.
     :return pd.Series: Series of concatenated non-null column values.
