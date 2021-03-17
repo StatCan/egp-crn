@@ -551,37 +551,57 @@ tables:
       172: Lanes
       173: Pointe
       174: Regional Road
-      175: Bluff
-      176: Bocage
-      177: Bois
-      178: Boucle
-      179: Bretelle
-      180: Causeway
-      181: Chaussée
-      182: Couloir
-      183: Créte
-      184: Dead End
-      185: Debarquement
-      186: Entrance
-      187: Evergreen
-      188: Exit
-      189: Étang
-      190: Falaise
-      191: Jardin
-      192: Lawn
-      193: Lien
-      194: Manoir
-      195: Pente
-      196: Pond
-      197: Roundabout
-      198: Sortie
-      199: Throughway
-      200: Turn
-      201: Turnpike
-      202: Vallée
-      203: Villas
-      204: Virage
-      205: Vue
+      175: Autoroute à péage
+      176: Baie
+      177: Bluff
+      178: Bocage
+      179: Bois
+      180: Boucle
+      181: Bretelle
+      182: Cap
+      183: Causeway
+      184: Chaussée
+      185: Contournement
+      186: Couloir
+      187: Créte
+      188: Croix
+      189: Cross
+      190: Dead End
+      191: Débarquement
+      192: Entrance
+      193: Entrée
+      194: Evergreen
+      195: Exit
+      196: Étang
+      197: Falaise
+      198: Jardin
+      199: Lawn
+      200: Lien
+      201: Ligne
+      202: Manoir
+      203: Pass
+      204: Pente
+      205: Pond
+      206: Quai
+      207: Ramp
+      208: Rampe
+      209: Rangée
+      210: Roundabout
+      211: Route de plaisance
+      212: Route sur élevée
+      213: Side
+      214: Sortie
+      215: Throughway
+      216: Took
+      217: Turn
+      218: Turnpike
+      219: Vallée
+      220: Villas
+      221: Virage
+      222: Voie oust
+      223: Voie rapide
+      224: Vue
+      225: Westway
     strtysuf: *strtypre
   tollpoint:
     acqtech: *acqtech
