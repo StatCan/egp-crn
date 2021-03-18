@@ -30,12 +30,12 @@ def apply_domain(**kwargs: dict) -> pd.Series:
 
 def concatenate(df: Union[pd.DataFrame, pd.Series], columns: List[str], separator: str = " ") -> pd.Series:
     """
-    Concatenates all non-null values across multiple columns into a single string.
+    Concatenates all values across multiple columns into a single string, excluding Nulls, Nones, and Unknowns.
 
     :param Union[pd.DataFrame, pd.Series] df: DataFrame.
     :param List[str] columns: list of column names.
     :param str separator: delimiter string used to join the column values.
-    :return pd.Series: Series of concatenated non-null column values.
+    :return pd.Series: Series of concatenated column values, excluding Nulls, Nones, and Unknowns.
     """
 
     try:
@@ -49,9 +49,10 @@ def concatenate(df: Union[pd.DataFrame, pd.Series], columns: List[str], separato
         if len(invalid):
             logger.exception(f"Invalid column(s): {', '.join(invalid)}.")
 
-        # Concatenate non-null values.
+        # Concatenate values, excluding Nulls, Nones, and Unknowns.
         sep = str(separator)
-        return df[columns].apply(lambda row: sep.join(map(str, filter(lambda val: not pd.isna(val), row))), axis=1)
+        return df[columns].apply(lambda row: sep.join(map(str, filter(
+            lambda val: not pd.isna(val) and val not in {"None", "Unknown"}, row))), axis=1)
 
     except (KeyError, ValueError):
         logger.exception(f"Unable to concatenate columns: {', '.join(columns)} by \"{separator}\".")

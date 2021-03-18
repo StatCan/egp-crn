@@ -1,4 +1,3 @@
-import ast
 import click
 import fiona
 import geopandas as gpd
@@ -285,7 +284,7 @@ class Stage:
         # Iterate functions.
         for func in func_list:
             func_name = func["function"]
-            params = {k: v for k, v in func.items() if k != "function"}
+            params = {k: v for k, v in func.items() if k not in {"function", "iterate_cols"}}
 
             logger.info(f"Target field {target_field}: Applying field mapping function: {func_name}.")
 
@@ -294,18 +293,26 @@ class Stage:
 
             try:
 
-                # Sanitize expression.
-                parsed = ast.parse(expr, mode="eval")
-                fixed = ast.fix_missing_locations(parsed)
-                compile(fixed, "<string>", "eval")
+                # Iterate nested columns.
+                if "iterate_cols" in func and isinstance(series.iloc[0], list):
 
-                # Execute expression.
-                if func_name == "direct":
-                    series = field_map_functions.direct(series, **params)
+                    # Unpack nested Series as DataFrame and iterate required columns.
+                    df = pd.DataFrame(series.tolist(), index=series.index)
+                    for col_index in func["iterate_cols"]:
+
+                        # Execute expression against individual Series.
+                        series = df[col_index].copy(deep=True)
+                        df[col_index] = eval(expr).copy(deep=True)
+
+                    # Reconstruct nested Series.
+                    series = df.apply(lambda row: row.values, axis=1)
+
                 else:
+
+                    # Execute expression.
                     series = eval(expr).copy(deep=True)
 
-            except (SyntaxError, ValueError):
+            except (IndexError, SyntaxError, ValueError):
                 logger.exception(f"Invalid expression: {expr}.")
                 sys.exit(1)
 
