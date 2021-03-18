@@ -238,13 +238,13 @@ def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: U
     :return pd.Series: Series populated with the result of a regular expression.
     """
 
-    def regex_find_multiple_idx(val: str, pattern: str) -> Union[str, np.nan]:
+    def regex_find_multiple_idx(val: str, pattern: str) -> Union[str, None]:
         """
         Returns the selected or removed result of a regular expression match. Non-matches will return Null.
 
         :param str val: value.
         :param str pattern: regular expression.
-        :return Union[str, np.nan]: Null or the string resulting from the regular expression match. Since there are
+        :return Union[str, None]: Null or the string resulting from the regular expression match. Since there are
             multiple group_index values, the first group_index with a match will be returned.
         """
 
@@ -260,13 +260,13 @@ def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: U
         except (IndexError, ValueError):
             return val if strip_result else np.nan
 
-    def regex_find_single_idx(val: str, pattern: str) -> Union[str, np.nan]:
+    def regex_find_single_idx(val: str, pattern: str) -> Union[str, None]:
         """
         Returns the selected or removed result of a regular expression match. Non-matches will return Null.
 
         :param str val: value.
         :param str pattern: regular expression.
-        :return Union[str, np.nan]: Null or the string resulting from the regular expression match.
+        :return Union[str, None]: Null or the string resulting from the regular expression match.
         """
 
         try:
@@ -280,14 +280,14 @@ def regex_find(series: pd.Series, pattern: str, match_index: int, group_index: U
         except (IndexError, ValueError):
             return val if strip_result else np.nan
 
-    def strip(val: str, start: int, end: int) -> Union[str, np.nan]:
+    def strip(val: str, start: int, end: int) -> Union[str, None]:
         """
         Strips the characters between the provided index range, inclusively, from the given string.
 
         :param str val: value.
         :param int start: the starting index of the character range to be removed.
         :param int end: the ending index of the character range to be removed.
-        :return Union[str, np.nan]: Null or the provided string excluding the given character range.
+        :return Union[str, None]: Null or the provided string excluding the given character range.
         """
 
         try:
