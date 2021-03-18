@@ -1628,8 +1628,7 @@ conform:
     placename:
       fields: [SPN_L_Place_Name, SPN_R_Place_Name]
       process_separately: True
-      functions:
-        - function: *placename
+      functions: *placename
     placetype:
       fields: [SPN_L_Place_Type, SPN_R_Place_Type]
       process_separately: True
