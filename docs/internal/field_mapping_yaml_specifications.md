@@ -125,6 +125,8 @@ Example:
         group_index: 0
 
 #### Special Parameters
+
+##### process_separately
 process_separately: A boolean flag (default False) to indicate if source fields should be processed through the function chain separately or together.
                     The resulting output of the chain will always join the fields back together in a pandas series.
 
@@ -145,29 +147,26 @@ Example (True):
         pattern: "-"
         repl: ""
 
-### Special Field Mapping Functions
+##### iterate_cols
+iterate_cols: A list of integers representing the indexes of columns within a nested Series which should be passed through the specified function.
+              iterate_cols must be specified for each function where it is required. Indexes not listed will retain their original values.
 
-#### split_records
-Keeps one of the two source field values:
-- First value if source fields' values are equal.
-- Second value if source fields' values are unequal, after splitting the record into two records.
-split_records can exists within a function chain (see section "Limitations/split_records").
-
-Example (generic):
-  target_field:
-    fields: [source_field, source_field]
+Example: In this example, the directional prefix and suffix fields are given as codes, and must be run through the map_values function prior to concatenate. Nesting is required, but not all fields should be run through the first function.
+  l_stname_c:
+    fields: [SPN_Directional_Prefix, SPN_Street_Type_Prefix, SPN_Street_Name_Article, SPN_Street_Name_Body, SPN_Street_Type_Suffix, SPN_Directional_Suffix]
     functions:
-      - function: split_records
-        field: None
+      - function: map_values
+        iterate_cols: [0, 5]
+        lookup:
+          1: North
+          2: South
+          3: East
+          4: West
+      - function: concatenate
+        columns: [dirprefix, strtypre, starticle, namebody, strtysuf, dirsuffix]
+        separator: " "
 
-Example:
-  placename:
-    fields: [place_l, place_r]
-    functions:
-      - function: split_records
-        field: None
-
-#### Regular Expressions
+##### Regular Expressions
 Several field mapping functions take regular expressions as parameters, which are then analyzed using python's re package.
 You can validate a regular expression using this resource: https://regex101.com/.
 
@@ -196,22 +195,9 @@ Example:
 
 # Limitations
 
-## Chaining
-**Limitation 1:** All field mapping functions within a chain must accept the same amount of source fields.  
-**Explanation 1:** When specifying multiple source fields in a field mapping, consider the following:
-1. Source fields will always be compiled as a single pandas series (each record will be a list if multiple fields are given).
-2. Most functions expect to receive a certain amount of input values for each record.
-
-This results in the following erroneous scenarios:
-1. Multiple fields being passed to a field mapping functions which only expects one source field.
-2. Only one field being passed to a field mapping function which expects multiple source fields.
-
-## split_records
-**Limitation 1:** split_records must be the last function within a function chain.  
-**Explanation 1:** The possibility of splitting records would create duplicate indexes. This would raise an error once the function chain finishes because the size of the target and source fields are no longer the same.
-
-**Limitation 2:** split_records must only apply to a tabular dataset (pandas DataFrame).  
-**Explanation 2:** split_records uses pandas.explode to split records on a field of nested values, however geopandas.explode will attempt to explode multipart geometries.
+## Nested Series
+**Limitation 1:** Not all field mapping functions accept nested Series.
+**Explanation 1:** If a nested Series is passed to a field mapping function which does not support it, an error will be raised.
 
 # Missing table linkages.
-Primary and foreign key fields which do not have any source field to map to will become the default field value. If this field must be populated, use "uuid" as the mapping field.
+Primary and foreign key fields which do not have any source field to map to will be set to the default field value. If this field must be populated, use "uuid" as the mapping field.

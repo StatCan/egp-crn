@@ -1,20 +1,20 @@
 import click
 import logging
-import os
+import numpy as np
 import pandas as pd
-import pathlib
 import re
-import shutil
 import sys
 import zipfile
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime
-from operator import itemgetter
-from osgeo import ogr
-from tqdm import tqdm
+from operator import attrgetter, itemgetter
+from pathlib import Path
+from tqdm.auto import trange
+from typing import Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
@@ -46,17 +46,16 @@ class Stage:
         self.minor_version = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
-        if not os.path.exists(self.data_path):
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
+        if not self.data_path.exists():
             logger.exception(f"Input data not found: {self.data_path}.")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = os.path.abspath(f"../../data/processed/{self.source}")
+        self.output_path = filepath.parents[2] / f"data/processed/{self.source}"
 
         # Conditionally clear output namespace.
-        namespace = set(map(lambda f: os.path.join(self.output_path, f),
-                            set(os.listdir(self.output_path)) - {f"{self.source}_change_logs"}))
+        namespace = list(filter(lambda f: f.stem != f"{self.source}_change_logs", self.output_path.glob("*")))
 
         if len(namespace):
             logger.warning("Output namespace already occupied.")
@@ -67,28 +66,34 @@ class Stage:
                 for f in namespace:
                     logger.info(f"Removing conflicting file: \"{f}\".")
 
-                    try:
-                        if os.path.isdir(f):
-                            shutil.rmtree(f)
-                        else:
-                            os.remove(f)
-                    except OSError as e:
-                        logger.exception(f"Unable to remove file: \"{f}\".")
-                        logger.exception(e)
-                        sys.exit(1)
+                    if f.is_file():
+                        f.unlink()
+                    else:
+                        helpers.rm_tree(f)
 
             else:
-                logger.exception(
-                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
-                    "remove=True (-r) or manually clear the output namespace.")
+                logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                                 "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
-
-        # Compile output formats.
-        self.formats = [os.path.splitext(f)[0] for f in os.listdir("distribution_formats/en")]
 
         # Configure field defaults and domains.
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
         self.domains = helpers.compile_domains(mapped_lang="fr")
+
+        # Configure export formats.
+        distribution_formats_path = filepath.parent / "distribution_formats"
+        self.formats = [f.stem for f in (distribution_formats_path / "en").glob("*")]
+        self.distribution_formats = {
+            "en": {frmt: helpers.load_yaml(distribution_formats_path / f"en/{frmt}.yaml") for frmt in self.formats},
+            "fr": {frmt: helpers.load_yaml(distribution_formats_path / f"fr/{frmt}.yaml") for frmt in self.formats}
+        }
+
+        # Define custom progress bar format.
+        # Note: the only change from default is moving the percentage to the right end of the progress bar.
+        self.bar_format = "{desc}: |{bar}| {percentage:3.0f}% {r_bar}"
+
+        # Load data.
+        self.dframes = helpers.load_gpkg(self.data_path)
 
     def configure_release_version(self) -> None:
         """Configures the major and minor release versions for the current NRN vintage."""
@@ -97,16 +102,26 @@ class Stage:
 
         # Iterate release notes to extract the version number and release year for current source.
         release_year = None
-        release_notes = os.path.abspath("../../docs/release_notes.rst")
+        release_notes = filepath.parents[2] / "docs/release_notes.rst"
 
         try:
 
+            headers = ("Code", "Edition", "Release Date")
+            headers_rng = None
+
             for line in open(release_notes, "r"):
-                if line.find(self.source.upper()) >= 0:
-                    specs = [val for val in line.split(" ") if val != ""]
-                    self.major_version, self.minor_version = list(map(int, specs[2].split(".")))
-                    release_year = int(specs[3][:4])
-                    break
+
+                # Identify index range for data columns.
+                if all(line.find(header) >= 0 for header in headers):
+                    headers_rng = {header: (line.find(header), line.find(header) + len(header)) for header in headers}
+
+                # Identify data values for source.
+                if headers_rng:
+                    if line[headers_rng["Code"][0]: headers_rng["Code"][1]].strip(" ") == self.source.upper():
+                        version = line[headers_rng["Edition"][0]: headers_rng["Edition"][1]].split(".")
+                        self.major_version, self.minor_version = list(map(int, version))
+                        release_year = int(line[headers_rng["Release Date"][0]: headers_rng["Release Date"][1]][:4])
+                        break
 
         except (IndexError, ValueError) as e:
             logger.exception(f"Unable to extract version number and / or release date from \"{release_notes}\".")
@@ -124,6 +139,8 @@ class Stage:
         else:
             self.major_version += 1
             self.minor_version = 0
+
+        logger.info(f"Configured NRN release version: {self.major_version}.{self.minor_version}")
 
     def define_kml_groups(self) -> None:
         """
@@ -143,7 +160,7 @@ class Stage:
 
             # Determine language-specific field names.
             l_placenam, r_placenam = itemgetter("l_placenam", "r_placenam")(
-                helpers.load_yaml(f"distribution_formats/{lang}/kml.yaml")["conform"]["roadseg"]["fields"])
+                self.distribution_formats[lang]["kml"]["conform"]["roadseg"]["fields"])
 
             # Retrieve source dataframe.
             df = self.dframes["kml"][lang]["roadseg"].copy(deep=True)
@@ -151,187 +168,139 @@ class Stage:
             # Compile placenames.
             if placenames is None:
 
-                # Compile sorted placenames.
-                placenames = pd.concat([df[l_placenam], df.loc[df[l_placenam] != df[r_placenam], r_placenam]],
-                                       ignore_index=True).sort_values(ascending=True)
+                # Compile placenames.
+                placenames = pd.Series([*df[l_placenam], *df.loc[df[l_placenam] != df[r_placenam], r_placenam]])
 
-                # Flag limit-exceeding and non-limit-exceeding placenames.
+                # Flag limit-exceeding placenames.
                 placenames_exceeded = {name for name, count in Counter(placenames).items() if count > kml_limit}
-                placenames = pd.Series(sorted(set(placenames.unique()) - placenames_exceeded))
 
-                # Sanitize placenames for sql syntax.
-                placenames = placenames.map(lambda name: name.replace("'", "''"))
-                placenames_exceeded = set(map(lambda name: name.replace("'", "''"), placenames_exceeded))
+                # Compile unique placename values.
+                placenames = set(placenames)
 
-            # Swap English-French default placename.
+            # Swap English-French default placename value.
             else:
-                default_add = self.defaults[lang]["roadseg"]["l_placenam"]
-                default_rm = self.defaults["en" if lang == "fr" else "fr"]["roadseg"]["l_placenam"]
-                if default_rm in placenames:
-                    placenames = {*placenames - {default_rm}, default_add}
-                else:
+                default_add = self.defaults["fr"]["roadseg"]["l_placenam"]
+                default_rm = self.defaults["en"]["roadseg"]["l_placenam"]
+                placenames = {*placenames - {default_rm}, default_add}
+                if default_rm in placenames_exceeded:
                     placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
-            # Generate dataframe with export parameters.
-            # names: Conform placenames to valid file names.
-            # queries: Configure ogr2ogr -where query.
-            placenames_df = pd.DataFrame({
-                "names": map(lambda name: re.sub(r"[\W_]+", "_", name), placenames),
-                "queries": placenames.map(
-                    lambda name: f"-where \"\\\"{l_placenam}\\\"='{name}' or \\\"{r_placenam}\\\"='{name}'\"")
-            })
+            # Compile export parameters.
+            # name: placenames as valid file names.
+            # query: placenames pandas query.
+            names = list()
+            queries = list()
 
-            # Add rowid field to simulate SQLite column.
-            df["ROWID"] = range(1, len(df) + 1)
+            # Iterate placenames and compile export parameters.
+            for placename in sorted(placenames):
 
-            # Compile rowid ranges of size=kml_limit for each limit-exceeding placename.
-            for placename in sorted(placenames_exceeded):
+                if placename in placenames_exceeded:
 
-                logger.info(f"Separating features for limit-exceeding placename: {placename}.")
+                    # Compile indexes of placename records.
+                    indexes = df.query(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"").index
+                    for index, indexes_range in enumerate(np.array_split(indexes, (len(indexes) // kml_limit) + 1)):
 
-                # Compile rowids for placename.
-                rowids = df.loc[(df[l_placenam] == placename) | (df[r_placenam] == placename), "ROWID"].values
+                        # Configure export parameters.
+                        names.append(re.sub(r"[\W_]+", "_", f"{placename}_{index}"))
+                        queries.append(f"index.isin({list(indexes_range)})")
 
-                # Split rowids into kml_limit-sized chunks and configure sql queries.
-                sql_queries = list()
-                for i in range(0, len(rowids), kml_limit):
-                    ids = ','.join(map(str, rowids[i: i + kml_limit]))
-                    sql_queries.append(f"-sql \"select * from roadseg where ROWID in ({ids})\" -dialect SQLITE")
+                else:
 
-                # Generate dataframe with export parameters.
-                # names: Conform placenames to valid file names and add chunk id as suffix.
-                # queries: Configure ogr2ogr -sql query.
-                placename_valid = re.sub(r"[\W_]+", "_", placename)
-                placenames_exceeded_df = pd.DataFrame({
-                    "names": map(lambda i: f"{placename_valid}_{i}", range(1, len(sql_queries) + 1)),
-                    "queries": sql_queries
-                })
-
-                # Append dataframe to full placenames dataframe.
-                placenames_df = placenames_df.append(placenames_exceeded_df).reset_index(drop=True)
+                    # Configure export parameters.
+                    names.append(re.sub(r"[\W_]+", "_", placename))
+                    queries.append(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"")
 
             # Store results.
-            self.kml_groups[lang] = placenames_df
+            self.kml_groups[lang] = pd.DataFrame({"name": names, "query": queries})
 
     def export_data(self) -> None:
         """Exports and packages all data."""
 
         logger.info("Exporting output data.")
 
+        # Configure export progress bar.
+        file_count = sum(len(self.dframes[frmt][lang]) * (1 if frmt != "kml" else len(self.kml_groups[lang]))
+                         for frmt in self.dframes for lang in self.dframes[frmt])
+        export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format)
+
         # Iterate export formats and languages.
         for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
-
-                logger.info(f"Format: {frmt}, language: {lang}; configuring export parameters.")
+            for lang, dframes in self.dframes[frmt].items():
 
                 # Retrieve export specifications.
-                export_specs = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")
+                export_specs = self.distribution_formats[lang][frmt]
 
-                # Configure temporary data path.
-                temp_path = os.path.abspath(f"../../data/interim/{self.source}_{frmt}_{lang}_temp.gpkg")
+                # Configure export directory.
+                export_dir, export_file = itemgetter("dir", "file")(export_specs["data"])
+                export_dir = self.output_path / self.format_path(export_dir) / self.format_path(export_file)
 
-                # Configure and format export paths and table names.
-                export_dir = os.path.join(self.output_path, self.format_path(export_specs["data"]["dir"]))
-                export_file = self.format_path(export_specs["data"]["file"]) if export_specs["data"]["file"] else None
-                export_tables = {table: self.format_path(export_specs["conform"][table]["name"]) for table in
-                                 self.dframes[frmt][lang]}
+                # Configure mapped layer names.
+                nln_map = {table: self.format_path(export_specs["conform"][table]["name"]) for table in dframes}
 
-                # Generate directory structure.
-                logger.info(f"Format: {frmt}, language: {lang}; generating directory structure.")
-                pathlib.Path(export_dir).mkdir(parents=True, exist_ok=True)
+                # Configure export kwargs.
+                kwargs = {
+                    "driver": {"gml": "GML", "gpkg": "GPKG", "kml": "KML", "shp": "ESRI Shapefile"}[frmt],
+                    "type_schemas": helpers.load_yaml(filepath.parents[1] / "distribution_format.yaml"),
+                    "export_schemas": export_specs,
+                    "nln_map": nln_map,
+                    "keep_uuid": False,
+                    "outer_pbar": export_progress,
+                    "epsg": 4617,
+                    "geom_type": {table: df.geom_type.iloc[0] for table, df in dframes.items() if "geometry" in
+                                  df.columns}
+                }
 
-                # Iterate tables.
-                for table in export_tables:
+                # Configure KML.
+                if frmt == "kml":
 
-                    logger.info(f"Format: {frmt}, language: {lang}, table: {table}; configuring ogr2ogr parameters.")
+                    # Configure export names.
+                    self.kml_groups[lang]["name"] = self.kml_groups[lang]["name"].map(
+                        lambda name: str(export_dir).replace("<name>", name))
 
-                    # Configure ogr2ogr inputs.
-                    kwargs = {
-                        "driver": f"-f \"{export_specs['data']['driver']}\"",
-                        "append": "-append",
-                        "pre_args": "",
-                        "dest": f"\"{os.path.join(export_dir, export_file if export_file else export_tables[table])}\"",
-                        "src": f"\"{temp_path}\"",
-                        "src_layer": table,
-                        "nln": f"-nln {export_tables[table]}" if export_file else ""
-                    }
+                    # Iterate export datasets.
+                    for table, df in dframes.items():
 
-                    # Handle kml.
-                    if frmt == "kml":
+                        # Map dataframe queries (more efficient than iteratively querying).
+                        self.kml_groups[lang]["df"] = self.kml_groups[lang]["query"].map(
+                            lambda query: df.query(query).copy(deep=True))
 
-                        # Remove ogr2ogr src layer parameter since kml exporting uses -sql.
-                        # This is purely to avoid an ogr2ogr warning.
-                        if "src_layer" in kwargs:
-                            del kwargs["src_layer"]
+                        # Iterate KML groups.
+                        for kml_group in self.kml_groups[lang].itertuples(index=False):
 
-                        # Configure kml path properties.
-                        kml_groups = self.kml_groups[lang]
-                        kml_path, kml_ext = os.path.splitext(kwargs["dest"])
+                            # Export data.
+                            kml_name, kml_df = attrgetter("name", "df")(kml_group)
+                            helpers.export({table: kml_df}, kml_name, **kwargs)
 
-                        # Iterate kml groups.
-                        for kml_group in tqdm(kml_groups.itertuples(index=False), total=len(kml_groups),
-                                              desc=f"Format: {frmt}, language: {lang}, table: {table}; generating "
-                                                   f"output"):
+                # Configure non-KML.
+                else:
+                    # Export data.
+                    helpers.export(dframes, export_dir, **kwargs)
 
-                            # Add kml group name and query to ogr2ogr parameters.
-                            name, query = itemgetter("names", "queries")(kml_group._asdict())
-                            kwargs["dest"] = f"{os.path.join(os.path.dirname(kml_path), name)}{kml_ext}"
-                            kwargs["pre_args"] = query
+        # Close progress bar.
+        export_progress.close()
 
-                            # Run ogr2ogr subprocess.
-                            helpers.ogr2ogr(kwargs)
-
-                    else:
-
-                        logger.info(f"Format: {frmt}, language: {lang}, table: {table}; generating output: "
-                                    f"{kwargs['dest']}.")
-
-                        # Run ogr2ogr subprocess.
-                        helpers.ogr2ogr(kwargs)
-
-                # Delete temporary file.
-                logger.info(f"Format: {frmt}, language: {lang}; deleting temporary GeoPackage.")
-                if os.path.exists(temp_path):
-                    driver = ogr.GetDriverByName("GPKG")
-                    driver.DeleteDataSource(temp_path)
-                    del driver
-
-    def export_temp_data(self) -> None:
-        """
-        Exports temporary data as GeoPackages.
-        Temporary file is required since ogr2ogr (which is used for data transformation) is file based.
-        """
-
-        # Export temporary files.
-        logger.info("Exporting temporary GeoPackages.")
-
-        # Iterate formats and languages.
-        for frmt in self.dframes:
-            for lang in self.dframes[frmt]:
-
-                # Configure paths.
-                temp_path = os.path.abspath(f"../../data/interim/{self.source}_{frmt}_{lang}_temp.gpkg")
-                export_schemas_path = os.path.abspath(f"distribution_formats/{lang}/{frmt}.yaml")
-
-                # Export to GeoPackage.
-                helpers.export_gpkg(self.dframes[frmt][lang], temp_path, export_schemas_path)
-
-    def format_path(self, path: str) -> str:
+    def format_path(self, path: Union[Path, str, None]) -> Union[Path, str]:
         """
         Formats a path with class variables: source, major_version, minor_version.
 
-        :param str path: string path requiring formatting.
-        :return str: formatted path.
+        :param Union[Path, str, None] path: path requiring formatting.
+        :return Union[Path, str]: formatted path or empty str.
         """
 
-        upper = True if os.path.basename(path)[0].isupper() else False
+        if not path:
+            return ""
 
-        for key in ("source", "major_version", "minor_version"):
-            val = str(eval(f"self.{key}"))
-            val = val.upper() if upper else val.lower()
-            path = path.replace(f"<{key}>", val)
+        # Construct replacement dictionary.
+        lookup = {k: str(v).upper() for k, v in (("<source>", self.source),
+                                                 ("<major_version>", self.major_version),
+                                                 ("<minor_version>", self.minor_version))}
 
-        return path
+        # Replace path keywords with variables.
+        path = re.sub(string=str(path),
+                      pattern=f"({'|'.join(lookup.keys())})",
+                      repl=lambda match: lookup[match.string[match.start(): match.end()]])
+
+        return Path(path)
 
     def gen_french_dataframes(self) -> None:
         """
@@ -342,11 +311,10 @@ class Stage:
         logger.info("Generating French dataframes.")
 
         # Reconfigure dataframes dict to hold English and French data.
-        dframes = {
+        self.dframes = {
             "en": {table: df.copy(deep=True) for table, df in self.dframes.items()},
             "fr": {table: df.copy(deep=True) for table, df in self.dframes.items()}
         }
-        self.dframes = deepcopy(dframes)
 
         # Apply French translations to field values.
         table = None
@@ -355,7 +323,7 @@ class Stage:
         try:
 
             # Iterate dataframes and fields.
-            for table, df in dframes["fr"].items():
+            for table, df in self.dframes["fr"].items():
                 for field in set(df.columns) - {"uuid", "geometry"}:
 
                     logger.info(f"Applying French translations for table: {table}, field: {field}.")
@@ -389,13 +357,12 @@ class Stage:
 
         try:
 
-            # Iterate formats.
+            # Iterate formats and languages.
             for frmt in dframes:
-                # Iterate languages.
                 for lang in dframes[frmt]:
 
                     # Retrieve schemas.
-                    schemas = helpers.load_yaml(f"distribution_formats/{lang}/{frmt}.yaml")["conform"]
+                    schemas = self.distribution_formats[lang][frmt]["conform"]
 
                     # Iterate tables.
                     for table in [t for t in schemas if t in self.dframes[lang]]:
@@ -415,50 +382,46 @@ class Stage:
                         df.rename(columns=schemas[table]["fields"], inplace=True)
 
                         # Store results.
-                        dframes[frmt][lang][table] = df
+                        dframes[frmt][lang][table] = df.copy(deep=True)
 
             # Store result.
-            self.dframes = dframes
+            self.dframes = deepcopy(dframes)
 
         except (AttributeError, KeyError, ValueError):
             logger.exception(f"Unable to apply output schema for format: {frmt}, language: {lang}, table: {table}.")
             sys.exit(1)
 
-    def load_gpkg(self) -> None:
-        """Loads input GeoPackage layers into (Geo)DataFrames."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path)
-
     def zip_data(self) -> None:
-        """Compresses all exported data directories into .zip files."""
+        """Compresses and zips all export data directories."""
 
-        logger.info("Apply compression and zip to output data directories.")
+        logger.info("Applying compression and zipping output data directories.")
 
-        # Iterate output directories.
-        root = os.path.abspath(f"../../data/processed/{self.source}")
-        for data_dir in os.listdir(root):
+        # Configure root directory.
+        root = filepath.parents[2] / f"data/processed/{self.source}"
 
-            data_dir = os.path.join(root, data_dir)
+        # Configure zip progress bar.
+        file_count = 0
+        for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
+            file_count += len(list(filter(Path.is_file, data_dir.rglob("*"))))
+        zip_progress = trange(file_count, desc="Compressing data", bar_format=self.bar_format)
 
-            # Walk directory, compress, and zip contents.
-            logger.info(f"Applying compression and writing .zip from directory {data_dir}.")
+        # Iterate output directories. Ignore change logs if already zipped.
+        for data_dir in filter(lambda f: f.name != f"{self.source}_change_logs.zip", root.glob("*")):
 
             try:
 
+                # Recursively iterate directory files, compress, and zip contents.
                 with zipfile.ZipFile(f"{data_dir}.zip", "w") as zip_f:
-                    for dir, subdirs, files in os.walk(data_dir):
-                        for file in files:
+                    for file in filter(Path.is_file, data_dir.rglob("*")):
 
-                            # Configure path.
-                            path = os.path.join(dir, file)
+                        zip_progress.set_description_str(f"Compressing file={file.name}")
 
-                            # Configure new relative path inside .zip file.
-                            arcname = os.path.join(os.path.basename(data_dir), os.path.relpath(path, data_dir))
+                        # Configure new relative path inside .zip file.
+                        arcname = data_dir.stem / file.relative_to(data_dir)
 
-                            # Write to and compress .zip file.
-                            zip_f.write(path, arcname=arcname, compress_type=zipfile.ZIP_DEFLATED)
+                        # Write to and compress .zip file.
+                        zip_f.write(file, arcname=arcname, compress_type=zipfile.ZIP_DEFLATED)
+                        zip_progress.update(1)
 
             except (zipfile.BadZipFile, zipfile.LargeZipFile) as e:
                 logger.exception("Unable to compress directory.")
@@ -466,26 +429,18 @@ class Stage:
                 sys.exit(1)
 
             # Remove original directory.
-            logger.info(f"Removing original directory: {data_dir}.")
+            helpers.rm_tree(data_dir)
 
-            try:
-
-                shutil.rmtree(data_dir)
-
-            except (OSError, shutil.Error) as e:
-                logger.exception("Unable to remove directory.")
-                logger.exception(e)
-                sys.exit(1)
+        # Close progress bar.
+        zip_progress.close()
 
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.load_gpkg()
         self.configure_release_version()
         self.gen_french_dataframes()
         self.gen_output_schemas()
         self.define_kml_groups()
-        self.export_temp_data()
         self.export_data()
         self.zip_data()
 

@@ -1,9 +1,21 @@
 # National Road Network (NRN)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/jessestewart1/nrn-rrn?style=flat)
-[![Documentation Status](https://readthedocs.org/projects/nrn-rrn-docs/badge/?version=latest;style=flat)](https://nrn-rrn-docs.readthedocs.io/en/latest/?badge=latest)
 [![GitHub license](https://img.shields.io/github/license/jessestewart1/nrn-rrn)](https://github.com/jessestewart1/nrn-rrn/blob/master/LICENSE.txt)
-[![Anaconda-Server Badge](https://img.shields.io/badge/Install%20with-conda-green.svg?style=flat)](https://conda.anaconda.org/conda-forge)
-![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jessestewart1/nrn-rrn?style=flat)
+[![Documentation Status](https://readthedocs.org/projects/nrn-rrn-docs/badge/?version=latest;style=flat)](https://nrn-rrn-docs.readthedocs.io/en/latest/?badge=latest)
+[![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/jessestewart1/nrn-rrn)](https://libraries.io/github/jessestewart1/nrn-rrn)
+[![Anaconda-Server Badge](https://img.shields.io/badge/Install%20with-conda-green.svg?style=flat)](https://github.com/jessestewart1/nrn-rrn/blob/master/environment.yml)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jessestewart1/nrn-rrn/HEAD)
+
+## Table of Contents
+
+- [Brief](#brief)
+- [Developments - NRNv3 (working title)](#developments---nrnv3--working-title-)
+- [Setup](#setup)
+  * [Prerequisites](#prerequisites)
+  * [Installation](#installation)
+- [Usage](#usage)
+
+## Brief
 
 The NRN was adopted by members from the Inter-Agency Committee on Geomatics (IACG) and the Canadian Council on Geomatics
 (CCOG) to provide quality geospatial and attributive data (current, accurate, consistent), homogeneous and normalized of
@@ -17,15 +29,7 @@ available on the open government data portal (https://open.canada.ca/en).
 
 The NRN content largely conforms to ISO 14825 (https://www.iso.org/standard/54610.html).
 
-### Table of Contents
-
-- [Developments - NRNv3 (working title)](#developments---nrnv3--working-title-)
-- [Setup](#setup)
-  * [Prerequisites](#prerequisites)
-  * [Installation](#installation)
-- [Usage](#usage)
-
-### Developments - NRNv3 (working title)
+## Developments - NRNv3 (working title)
 
 Since the acquisition of the NRN by Statistics Canada from Natural Resources Canada in 2018, numerous modernization 
 initiatives have been conceived, facilitating significant redevelopment of the NRN. The following outlines the primary
@@ -46,23 +50,23 @@ product.
 
 * [ ] Updated documentation following NRN simplification and integration tasks.
 
-### Setup
+## Setup
 
 The pipeline is divided into fives stages where each stage is implemented as a directly callable python module, executed 
 as a command line interface.
 
-#### Prerequisites
+### Prerequisites
 
 - Anaconda with conda >= 4.9.
   - Note: the latest version of Anaconda 3 should satisfy this requirement.
   - Download: https://docs.anaconda.com/anaconda/install/
   - Validate the conda version in the command line with `conda -V`
 
-#### Installation
+### Installation
 
 1. Download and unzip the repository: https://github.com/jessestewart1/nrn-rrn
 
-2. Create a virtual conda environment from the file `src/environment.yml`:
+2. Create a virtual conda environment from the file `environment.yml`:
 
    `conda env create -f <path to environment.yml>`
 
@@ -70,7 +74,7 @@ as a command line interface.
 
    `conda env list`
 
-### Usage
+## Usage
 
 1. Activate the conda virtual environment:
 

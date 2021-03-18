@@ -21,7 +21,7 @@ Northwest Territories      NT    11.0     2020-12       2020-07        7,909
 Nova Scotia                NS    13.0     2016-05       2016-02        50,266
 Nunavut                    NU    8.0      2020-12       2020-10        927
 Ontario                    ON    13.0     2020-12       2020-08        261,714
-Prince Edward Island       PE    19.0     2020-07       2020-04        6,961
+Prince Edward Island       PE    20.0     2021-02       2021-02        6,988
 Quebec                     QC    9.0      2016-08       2016-02        162,768
 Saskatchewan               SK    11.0     2020-07       2020-05        251,860
 Yukon                      YT    16.0     2021-01       2020-12        6,406

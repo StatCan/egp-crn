@@ -1,10 +1,8 @@
-import ast
 import click
 import fiona
 import geopandas as gpd
 import logging
 import numpy as np
-import os
 import pandas as pd
 import re
 import requests
@@ -16,9 +14,11 @@ from collections import Counter
 from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
+from pathlib import Path
 from typing import Any, List, Type, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import field_map_functions
 import helpers
 from segment_addresses import Segmentor
@@ -53,10 +53,10 @@ class Stage:
         self.exclude_old = exclude_old
 
         # Configure raw data path.
-        self.data_path = os.path.abspath(f"../../data/raw/{self.source}")
+        self.data_path = filepath.parents[2] / f"data/raw/{self.source}"
 
         # Configure attribute paths.
-        self.source_attribute_path = os.path.abspath(f"sources/{self.source}")
+        self.source_attribute_path = filepath.parent / f"sources/{self.source}"
         self.source_attributes = dict()
         self.target_attributes = dict()
 
@@ -65,15 +65,14 @@ class Stage:
         self.target_gdframes = dict()
 
         # Configure previous NRN vintage path and clear namespace.
-        self.nrn_old_path = os.path.abspath(f"../../data/interim/{self.source}_old")
+        self.nrn_old_path = {ext: filepath.parents[2] / f"data/interim/{self.source}_old.{ext}"
+                             for ext in ("gpkg", "zip")}
 
         # Configure output path.
-        self.output_path = os.path.join(os.path.abspath("../../data/interim"), f"{self.source}.gpkg")
+        self.output_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
 
         # Conditionally clear output namespace.
-        output_dir = os.path.dirname(self.output_path)
-        namespace = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if
-                     f.startswith(f"{self.source}_") or f.startswith(f"{self.source}.")]
+        namespace = list(filter(Path.is_file, self.output_path.parent.glob(f"{self.source}[_.]*")))
 
         if len(namespace):
             logger.warning("Output namespace already occupied.")
@@ -84,19 +83,13 @@ class Stage:
                 for f in namespace:
 
                     # Conditionally exclude previous NRN vintage.
-                    if self.exclude_old and f == f"{self.nrn_old_path}.gpkg":
+                    if self.exclude_old and f.name == self.nrn_old_path["gpkg"].name:
                         logger.info(f"Parameter exclude-old=True: Excluding conflicting file from removal: \"{f}\".")
                         continue
 
                     # Remove files.
                     logger.info(f"Removing conflicting file: \"{f}\".")
-
-                    try:
-                        os.remove(f)
-                    except OSError as e:
-                        logger.exception(f"Unable to remove file: \"{f}\".")
-                        logger.exception(e)
-                        sys.exit(1)
+                    f.unlink()
 
             else:
                 logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
@@ -291,7 +284,7 @@ class Stage:
         # Iterate functions.
         for func in func_list:
             func_name = func["function"]
-            params = {k: v for k, v in func.items() if k != "function"}
+            params = {k: v for k, v in func.items() if k not in {"function", "iterate_cols"}}
 
             logger.info(f"Target field {target_field}: Applying field mapping function: {func_name}.")
 
@@ -300,18 +293,26 @@ class Stage:
 
             try:
 
-                # Sanitize expression.
-                parsed = ast.parse(expr, mode="eval")
-                fixed = ast.fix_missing_locations(parsed)
-                compile(fixed, "<string>", "eval")
+                # Iterate nested columns.
+                if "iterate_cols" in func and isinstance(series.iloc[0], list):
 
-                # Execute expression.
-                if func_name == "direct":
-                    series = field_map_functions.direct(series, **params)
+                    # Unpack nested Series as DataFrame and iterate required columns.
+                    df = pd.DataFrame(series.tolist(), index=series.index)
+                    for col_index in func["iterate_cols"]:
+
+                        # Execute expression against individual Series.
+                        series = df[col_index].copy(deep=True)
+                        df[col_index] = eval(expr).copy(deep=True)
+
+                    # Reconstruct nested Series.
+                    series = df.apply(lambda row: row.values, axis=1)
+
                 else:
+
+                    # Execute expression.
                     series = eval(expr).copy(deep=True)
 
-            except (SyntaxError, ValueError):
+            except (IndexError, SyntaxError, ValueError):
                 logger.exception(f"Invalid expression: {expr}.")
                 sys.exit(1)
 
@@ -459,28 +460,36 @@ class Stage:
 
             return df.copy(deep=True)
 
-        def title_case_route_names(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
+        def title_case_names(table: str, df: Union[gpd.GeoDataFrame, pd.DataFrame]) -> \
                 Union[gpd.GeoDataFrame, pd.DataFrame]:
             """
-            Sets to title case all NRN route name attributes:
-                rtename1en, rtename2en, rtename3en, rtename4en,
-                rtename1fr, rtename2fr, rtename3fr, rtename4fr.
+            Sets to title case all NRN name attributes:
+                ferryseg: rtename1en, rtename1fr, rtename2en, rtename2fr, rtename3en, rtename3fr, rtename4en, rtename4fr
+                roadseg: l_placenam, l_stname_c, r_placenam, r_stname_c, rtename1en, rtename1fr, rtename2en, rtename2fr,
+                         rtename3en, rtename3fr, rtename4en, rtename4fr, strunameen, strunamefr
+                strplaname: namebody, placename
 
             :param str table: name of an NRN dataset.
             :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame containing the target NRN attribute(s).
             :return Union[gpd.GeoDataFrame, pd.DataFrame]: (Geo)DataFrame with attribute modifications.
             """
 
-            if table in {"ferryseg", "roadseg"}:
+            if table in {"ferryseg", "roadseg", "strplaname"}:
 
-                logger.info(f"Applying data cleanup \"title case route names\" to dataset: {table}.")
+                logger.info(f"Applying data cleanup \"title case names\" to dataset: {table}.")
 
-                # Identify columns to iterate.
-                cols = [col for col in ("rtename1en", "rtename2en", "rtename3en", "rtename4en",
-                                        "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr") if col in df.columns]
+                # Define name fields.
+                name_fields = {
+                    "ferryseg": ["rtename1en", "rtename1fr", "rtename2en", "rtename2fr", "rtename3en", "rtename3fr",
+                                 "rtename4en", "rtename4fr"],
+                    "roadseg": ["l_placenam", "l_stname_c", "r_placenam", "r_stname_c", "rtename1en", "rtename1fr",
+                                "rtename2en", "rtename2fr", "rtename3en", "rtename3fr", "rtename4en", "rtename4fr",
+                                "strunameen", "strunamefr"],
+                    "strplaname": ["namebody", "placename"]
+                }
 
                 # Iterate columns.
-                for col in cols:
+                for col in name_fields[table]:
 
                     # Filter records to non-default values which are not already title case.
                     default = self.defaults[table][col]
@@ -500,8 +509,8 @@ class Stage:
         for table, df in self.target_gdframes.items():
 
             # Iterate cleanup functions.
-            for func in (lower_case_ids, strip_whitespace, standardize_nones, overwrite_segment_ids,
-                         title_case_route_names, enforce_accuracy_limits):
+            for func in (lower_case_ids, strip_whitespace, standardize_nones, overwrite_segment_ids, title_case_names,
+                         enforce_accuracy_limits):
                 df = func(table, df)
 
             # Store updated dataframe.
@@ -510,16 +519,14 @@ class Stage:
     def compile_source_attributes(self) -> None:
         """Compiles the yaml files in the sources' directory into a dictionary."""
 
-        logger.info("Identifying source attribute files.")
-        files = [os.path.join(self.source_attribute_path, f) for f in os.listdir(self.source_attribute_path) if
-                 f.endswith(".yaml")]
-
         logger.info("Compiling source attribute yamls.")
         self.source_attributes = dict()
 
-        for f in files:
+        # Iterate source yamls.
+        for f in filter(Path.is_file, Path(self.source_attribute_path).glob("*.yaml")):
+
             # Load yaml and store contents.
-            self.source_attributes[os.path.splitext(os.path.basename(f))[0]] = helpers.load_yaml(f)
+            self.source_attributes[f.stem] = helpers.load_yaml(f)
 
     def compile_target_attributes(self) -> None:
         """Compiles the yaml file for the target (Geo)DataFrames (distribution format) into a dictionary."""
@@ -528,7 +535,7 @@ class Stage:
         table = field = None
 
         # Load yaml.
-        self.target_attributes = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        self.target_attributes = helpers.load_yaml(filepath.parents[1] / "distribution_format.yaml")
 
         # Remove field length from dtype attribute.
         logger.info("Configuring target attributes.")
@@ -548,8 +555,8 @@ class Stage:
         logger.info("Retrieving previous NRN vintage.")
 
         # Determine download requirement.
-        if os.path.exists(f"{self.nrn_old_path}.gpkg"):
-            logger.warning(f"Previous NRN vintage already exists: \"{self.nrn_old_path}.gpkg\". Skipping step.")
+        if self.nrn_old_path["gpkg"].exists():
+            logger.warning(f"Previous NRN vintage already exists: \"{self.nrn_old_path['gpkg']}\". Skipping step.")
 
         else:
 
@@ -560,13 +567,14 @@ class Stage:
             try:
 
                 # Get download url.
-                download_url = helpers.load_yaml("../downloads.yaml")["previous_nrn_vintage"][self.source]
+                download_url = helpers.load_yaml(
+                    filepath.parents[1] / "downloads.yaml")["previous_nrn_vintage"][self.source]
 
                 # Get raw content stream from download url.
                 download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)
 
                 # Copy download content to file.
-                with open(f"{self.nrn_old_path}.zip", "wb") as f:
+                with open(self.nrn_old_path["zip"], "wb") as f:
                     shutil.copyfileobj(download.raw, f)
 
             except (requests.exceptions.RequestException, shutil.Error) as e:
@@ -577,31 +585,18 @@ class Stage:
             # Extract zipped data.
             logger.info("Extracting zipped data for previous NRN vintage.")
 
-            gpkg_path = [f for f in zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r").namelist() if
-                         f.lower().startswith("nrn") and os.path.splitext(f.lower())[1] == ".gpkg"][0]
+            gpkg_download = [f for f in zipfile.ZipFile(self.nrn_old_path["zip"], "r").namelist() if
+                             f.lower().startswith("nrn") and Path(f).suffix == ".gpkg"][0]
 
-            with zipfile.ZipFile(f"{self.nrn_old_path}.zip", "r") as zip_f:
-                with zip_f.open(gpkg_path) as zsrc, open(f"{self.nrn_old_path}.gpkg", "wb") as zdest:
+            with zipfile.ZipFile(self.nrn_old_path["zip"], "r") as zip_f:
+                with zip_f.open(gpkg_download) as zsrc, open(self.nrn_old_path["gpkg"], "wb") as zdest:
                     shutil.copyfileobj(zsrc, zdest)
 
             # Remove temporary files.
             logger.info("Removing temporary files for previous NRN vintage.")
 
-            path = f"{self.nrn_old_path}.zip"
-            if os.path.exists(path):
-                try:
-                    os.remove(path)
-                except OSError as e:
-                    logger.warning(f"Unable to remove file: {path}.")
-                    logger.warning(e)
-
-    def export_gpkg(self) -> None:
-        """Exports the target (Geo)DataFrames as GeoPackage layers."""
-
-        logger.info("Exporting target dataframes to GeoPackage layers.")
-
-        # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.target_gdframes, self.output_path)
+            if self.nrn_old_path["zip"].exists():
+                self.nrn_old_path["zip"].unlink()
 
     def filter_and_relink_strplaname(self) -> None:
         """Reduces duplicated records, where possible, in NRN strplaname and repairs the remaining NID linkages."""
@@ -673,7 +668,7 @@ class Stage:
             # Load source data into a geodataframe.
             try:
 
-                df = gpd.read_file(os.path.join(self.data_path, source_yaml["data"]["filename"]),
+                df = gpd.read_file(self.data_path / source_yaml["data"]["filename"],
                                    driver=source_yaml["data"]["driver"],
                                    layer=source_yaml["data"]["layer"])
 
@@ -772,7 +767,7 @@ class Stage:
             logger.info("Recovering missing datasets from the previous NRN vintage.")
 
             # Iterate datasets from previous NRN vintage.
-            for table, df in helpers.load_gpkg(f"{self.nrn_old_path}.gpkg", find=True, layers=recovery_tables).items():
+            for table, df in helpers.load_gpkg(self.nrn_old_path["gpkg"], find=True, layers=recovery_tables).items():
 
                 # Recover non-empty datasets.
                 if len(df):
@@ -947,7 +942,7 @@ class Stage:
         self.apply_domains()
         self.clean_datasets()
         self.filter_and_relink_strplaname()
-        self.export_gpkg()
+        helpers.export(self.target_gdframes, self.output_path)
 
 
 @click.command()

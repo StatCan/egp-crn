@@ -6,6 +6,7 @@ coverage:
     country:
     subdivision:
   website:
+  update_frequency:
 license:
   url:
   text:

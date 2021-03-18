@@ -6,12 +6,13 @@ coverage:
     country: Canada
     subdivision: Northwest Territories
   website: http://www.geomatics.gov.nt.ca/datashare/
+  update_frequency: unknown
 license:
   url: http://www.geomatics.gov.nt.ca/Legal.aspx
   text:
 language: en
 data:
-  filename: NTRN/NT_ROADSEG.shp
+  filename: 2020/NT_ROADSEG.shp
   layer:
   driver: ESRI Shapefile
   crs: "EPSG:3857"

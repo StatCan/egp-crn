@@ -1,0 +1,1707 @@
+coverage:
+  country: ca
+  province: nb
+  ISO3166:
+    alpha2: CA-NB
+    country: Canada
+    subdivision: New Brunswick
+  website: https://geonb-t.snb.ca/downloads/nbrn/geonb_nbrn-rrnb_orig.zip
+  update_frequency: weekly
+license:
+  url: http://geonb.snb.ca/documents/license/geonb-odl_en.pdf
+  text: GeoNB Open Data Licence
+language: en
+data:
+  filename: 2021/geonb_nbrn-rrnb.gdb
+  layer: Road_Segment_Entity
+  driver: OpenFileGDB
+  crs: "EPSG:2953"
+  spatial: True
+  query: "Functional_Road_Class != 425"
+conform:
+  addrange:
+    acqtech: Element_Acquisition_Technique
+    metacover:
+    credate: Element_Creation_Date
+    datasetnam: New Brunswick
+    accuracy: &accuracy
+      fields: Element_Planimetric_Accuracy
+      functions:
+        - function: map_values
+          lookup:
+            401: 1
+            402: 3
+            403: 5
+            404: 10
+            405: 15
+            406: 20
+            407: 25
+    provider: &provider
+      fields: Element_Provider
+      functions:
+        - function: map_values
+          lookup:
+            1: Other
+            2: Federal
+            3: Provincial / Territorial
+            4: Municipal
+            405: Provincial / Territorial
+            406: Provincial / Territorial
+            407: Provincial / Territorial
+            408: Provincial / Territorial
+            409: Municipal
+            410: Municipal
+            411: Municipal
+            412: Other
+            413: Municipal / Territorial
+    revdate: Element_Revision_Date
+    specvers: 2.0
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg: Digitizing_Direction_Flag_Left
+    r_digdirfg: Digitizing_Direction_Flag_Right
+    l_hnumf: First_House_Number_Left
+    r_hnumf: First_House_Number_Right
+    l_hnumsuff:
+      fields: First_House_Number_Suffix_Left
+      functions: &hnumsuf
+        - function: regex_find
+          pattern: "(None|0)"
+          match_index: 0
+          group_index: 0
+    r_hnumsuff:
+      fields: First_House_Number_Suffix_Right
+      functions: *hnumsuf
+    l_hnumtypf: First_House_Number_Type_Left
+    r_hnumtypf: First_House_Number_Type_Right
+    l_hnumstr: House_Number_Structure_Left
+    r_hnumstr: House_Number_Structure_Right
+    l_hnuml: Last_House_Number_Left
+    r_hnuml: Last_House_Number_Right
+    l_hnumsufl:
+      fields: Last_House_Number_Suffix_Left
+      functions: *hnumsuf
+    r_hnumsufl:
+      fields: Last_House_Number_Suffix_Right
+      functions: *hnumsuf
+    l_hnumtypl: Last_House_Number_Type_Left
+    r_hnumtypl: Last_House_Number_Type_Right
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind: Reference_System_Indicator_Left
+    r_rfsysind: Reference_System_Indicator_Righ
+  roadseg:
+    acqtech: Element_Acquisition_Technique
+    metacover:
+    credate: Element_Creation_Date
+    datasetnam: New Brunswick
+    accuracy: *accuracy
+    provider: *provider
+    revdate: Element_Revision_Date
+    specvers: 2.0
+    l_adddirfg: Digitizing_Direction_Flag_Left
+    r_adddirfg: Digitizing_Direction_Flag_Right
+    adrangenid: uuid
+    closing: Closing_Period
+    exitnbr: Exit_Number
+    l_hnumf: First_House_Number_Left
+    r_hnumf: First_House_Number_Right
+    roadclass:
+      fields: Functional_Road_Class
+      functions:
+        - function: map_values
+          lookup:
+            414: Local / Street
+            415: Local / Street
+            416: Unknown
+            417: Local / Street
+            418: Resource / Recreation
+            419: Resource / Recreation
+            420: Resource / Recreation
+            421: Resource / Recreation
+            422: Local / Street
+            423: Unknown
+            424: Service Lane
+            426: Resource / Recreation
+            427: Resource / Recreation
+            428: Resource / Recreation
+            500: Unknown
+    l_hnuml: Last_House_Number_Left
+    r_hnuml: Last_House_Number_Right
+    nid: uuid
+    nbrlanes: Number_Of_Lanes
+    l_placenam:
+      fields: SPN_L_Place_Name
+      functions: &placename
+        - function: map_values
+          lookup:
+            1: Aboujagane
+            2: Acadie Siding
+            3: Acadieville
+            4: Adams Gulch
+            5: Adamsville
+            6: Albert Mines
+            7: Albrights Corner
+            8: Alcida
+            9: Alderwood
+            10: Aldouane
+            11: Allainville
+            12: Allandale
+            13: Allardville
+            14: Allison
+            15: Alma
+            16: Ammon
+            17: Anagance
+            18: Anagance
+            19: Anderson Road
+            20: Anderson Settlement
+            21: Andersonville
+            22: Anfield
+            23: Anse-Bleue
+            24: Apohaqui
+            25: Arbeau Settlement
+            26: Armond
+            27: Aroostook
+            28: Aroostook Junction
+            29: Arthurette
+            30: Ashland
+            31: Astle
+            32: Atholville
+            33: Aulac
+            34: Avondale
+            35: Back Bay
+            36: Baie de Bouctouche
+            37: Baie de Petit-Pokemouche
+            38: Baie Verte
+            39: Baie-Sainte-Anne
+            40: Baillie
+            41: Bains Corner
+            42: Bairdsville
+            43: Baker Brook
+            44: Balla Philip
+            45: Balmoral
+            46: Balmoral Est
+            47: Balmoral Sud
+            48: Baltimore
+            49: Bannon
+            50: Barnaby River
+            51: Barnesville
+            52: Barnesville
+            53: Barnettville
+            54: Barony
+            55: Barryville
+            56: Barter Settlement
+            57: Bartholomew
+            58: Bartibog
+            59: Bartibog Bridge
+            60: Bartletts Mills
+            61: Bas-Cap-Pele
+            62: Bas-Caraquet
+            63: Bas-Paquetville
+            64: Bass River
+            65: Basswood Ridge
+            66: Bath
+            67: Bathurst
+            68: Baxters Corner
+            69: Bay du Vin
+            70: Bay View
+            71: Bayfield
+            72: Bayside
+            73: Bayswater
+            74: Beaconsfield
+            75: Bear Island
+            76: Beardsley
+            77: Beaubears Island
+            78: Beaver Dam
+            79: Beaver Harbour
+            80: Beaverbrook
+            81: Beaverbrook
+            82: Beckim Settlement
+            83: Bedell
+            84: Beechwood
+            85: Beersville
+            86: Belledune
+            87: Belledune
+            88: Bellefond
+            89: Belleisle Creek
+            90: Belleville
+            91: Benjamin River
+            92: Benoit
+            93: Benton
+            94: Benton
+            95: Beresford
+            96: Berry Mills
+            97: Berryton
+            98: Bertrand
+            99: Berwick
+            100: Bethel
+            101: Bettsburg
+            102: Big Cove
+            103: Big Hole
+            104: Big River
+            105: Birch Ridge
+            106: Birdton
+            107: Black Point
+            108: Black River
+            109: Black River Bridge
+            110: Black Rock
+            111: Blackland
+            112: Blacks Harbour
+            113: Blackville
+            114: Blair Athol
+            115: Blissfield
+            116: Bloomfield
+            117: Bloomfield
+            118: Bloomfield Ridge
+            119: Bloomfield Ridge
+            120: Blue Bell
+            121: Blue Mountain Bend
+            122: Bocabec
+            123: Boiestown
+            124: Bois-Blanc
+            125: Bois-Gagnon
+            126: Bon Accord
+            127: Bonny River
+            128: Boom Road
+            129: Bouctouche
+            130: Bouctouche Cove
+            131: Bouctouche Reserve
+            132: Bouctouche Sud
+            133: Boudreau-Ouest
+            134: Boundary Creek
+            135: Brantville
+            136: Breadalbane
+            137: Brewers Mills
+            138: Briggs Corner
+            139: Bristol Junction
+            140: Brockway
+            141: Bronson Settlement
+            142: Brookvale
+            143: Brookville
+            144: Browns Flat
+            145: Browns Yard
+            146: Brunswick Mines
+            147: Bryenton
+            148: Bubartown
+            149: Bull Lake
+            150: Bull Lake
+            151: Bulls Creek
+            152: Burnsville
+            153: Burnt Church
+            154: Burnt Church First Nation
+            155: Burnt Hill
+            156: Burntland Brook
+            157: Burpee
+            158: Burton
+            159: Burtts Corner
+            160: Cails Mills
+            161: Cains River
+            162: Caissie Road
+            163: Caithness
+            164: Calders Head
+            165: Caledonia Mountain
+            166: Calhoun
+            167: California Settlement
+            168: Cambridge-Narrows
+            169: Campbell Settlement
+            170: Campbell Settlement
+            171: Campbellton
+            172: Canaan Forks
+            173: Canaan Station
+            174: Canal
+            175: Canisto
+            176: Canobie
+            177: Canoose
+            178: Canterbury
+            179: Canton des Basques
+            180: Cap-Bateau
+            181: Cape Spear
+            182: Cape Station
+            183: Cape Tormentine
+            184: Cap-Pele
+            185: Caraquet
+            186: Cardigan
+            187: Carlingford
+            188: Carlisle
+            189: Carlow
+            190: Carroll Ridge
+            191: Carrolls Crossing
+            192: Carsonville
+            193: Carsonville
+            194: Carters Point
+            195: Cassidy Lake
+            196: Cassilis
+            197: Cedar Camp
+            198: Central Blissville
+            199: Central Greenwich
+            200: Central Greenwich
+            201: Central Hainesville
+            202: Central Hampstead
+            203: Central Waterville
+            204: Centre Village
+            205: Centreville
+            206: CFB Gagetown
+            207: CFB Gagetown
+            208: Chamberlain Settlement
+            209: Chambers Settlement
+            210: Chamcook
+            211: Chance Harbour
+            212: Chaplin Island Road
+            213: Charleston
+            214: Charlie Lake
+            215: Charlo
+            216: Charlo South
+            217: Charters Settlement
+            218: Chelmsford
+            219: Cherry Burton
+            220: Chiasson Office
+            221: Childs Creek
+            222: Chipman
+            223: Chocolate Cove
+            224: Christies Landing
+            225: Christies Landing
+            226: Clair
+            227: Clairville
+            228: Clarendon
+            229: Clarks Corner
+            230: Clarkville
+            231: Clearview
+            232: Clifton
+            233: Clifton Royal
+            234: Clover Hill
+            235: Clover Valley
+            236: Cloverdale
+            237: Coal Branch
+            238: Coal Creek
+            239: Coburg
+            240: Cocagne
+            241: Codys
+            242: Coldstream
+            243: Coles Island
+            244: Collette
+            245: Collina
+            246: Colpitts Settlement
+            247: Colpitts Settlement
+            248: Connell
+            249: Cookville
+            250: Cormier-Village
+            251: Cornhill
+            252: Cornhill
+            253: Coteau Road
+            254: Craig Flats
+            255: Crocker Hill
+            256: Crombie Settlement
+            257: Cross Creek
+            258: Crow Hill
+            259: Cumberland Bay
+            260: Cummings Cove
+            261: Currie Siding
+            262: Currieburg
+            263: Curryville
+            264: Curventon
+            265: Dalhousie
+            266: Dalhousie Junction
+            267: Damascus
+            268: Darlings Island
+            269: Dauversiere
+            270: Dawson Settlement
+            271: Dawsonville
+            272: Dead Creek
+            273: Debec
+            274: Deersdale
+            275: Deersdale
+            276: Deerville
+            277: Dennis Beach
+            278: Derby
+            279: Derby Junction
+            280: Dewolfe
+            281: Diamond Square
+            282: Diamond Square
+            283: Dieppe
+            284: Digdeguash
+            285: Dipper Harbour
+            286: Dipper Harbour
+            287: Divide
+            288: Doaktown
+            289: Dobson Corner
+            290: Donegal
+            291: Dorchester
+            292: Dorchester Cape
+            293: Dorrington Hill
+            294: Douglas
+            295: Douglas Harbour
+            296: Dow Settlement
+            297: Doyles Brook
+            298: Drummond
+            299: Drurys Cove
+            300: DSL de Drummond
+            301: DSL de Grand-Sault/Falls
+            302: DSL de Riviere-Verte
+            303: DSL de Saint-Basile
+            304: DSL de Sainte-Anne-de-Madawaska
+            305: DSL de Saint-Hilaire
+            306: DSL de Saint-Jacques
+            307: DSL de Saint-Leonard
+            308: DSL de Saint-Leonard
+            309: DSL de Saint-Quentin
+            310: Dubee Settlement
+            311: Dufferin
+            312: Dufferin
+            313: Dugas
+            314: Duguayville
+            315: Dumfries
+            316: Dundas
+            317: Dundas
+            318: Dundee
+            319: Dunlop
+            320: Dunsinane
+            321: Durham Bridge
+            322: Dutch Valley
+            323: East Branch
+            324: East Brighton
+            325: East Centreville
+            326: East Coldstream
+            327: East Newbridge
+            328: Edgetts Landing
+            329: Edmundston
+            330: Eel Ground
+            331: Eel River Bar First Nation
+            332: Eel River Cove
+            333: Eel River Crossing
+            334: Eel River Lake
+            335: Elgin
+            336: Elgin
+            337: Elm Hill
+            338: Elmsville
+            339: Elmwood
+            340: Elsipogtog First Nation
+            341: English Settlement
+            342: Enterprise
+            343: Erb Settlement
+            344: Erbs Cove
+            345: Escuminac
+            346: Estey's Bridge
+            347: Evandale
+            348: Evangeline
+            349: Evans Road
+            350: Everett
+            351: Exmoor
+            352: Fairfield
+            353: Fairfield
+            354: Fairhaven
+            355: Fairisle
+            356: Fawcett Hill
+            357: Fielding
+            358: Flatlands
+            359: Flemington
+            360: Florenceville-Bristol
+            361: Flowers Cove
+            362: Flume Ridge
+            363: Ford Bank
+            364: Fords Mills
+            365: Forest City
+            366: Forest Glen
+            367: Fosterville
+            368: Four Corners
+            369: Four Falls
+            370: Four Roads
+            371: Fredericksburg
+            372: Fredericton
+            373: Fredericton
+            374: Fredericton Junction
+            375: Free Grant
+            376: French Lake
+            377: French Village
+            378: French Village
+            379: Frosty Hollow
+            380: Fundy National Park
+            381: Fundy National Park
+            382: Gagetown
+            383: Gallagher Ridge
+            384: Galloway
+            385: Gardiner Point
+            386: Gardner Creek
+            387: Garnett Settlement
+            388: Gaspereau Forks
+            389: Gauvreau
+            390: Geary
+            391: Germantown
+            392: Giants Glen
+            393: Gladeside
+            394: Gladwyn
+            395: Glassville
+            396: Glen Levit
+            397: Glencoe
+            398: Glenvale
+            399: Glenvale
+            400: Glenwood
+            401: Glenwood
+            402: Glenwood
+            403: Gloucester Junction
+            404: Good Corner
+            405: Goodwin Mill
+            406: Gordonsville
+            407: Grafton
+            408: Grand Bay-Westfield
+            409: Grand Lake Road
+            410: Grand Manan
+            411: Grand-Barachois
+            412: Grande-Anse
+            413: Grande-Digue
+            414: Grand-Sault/Grand Falls
+            415: Grand-Sault/Grand Falls
+            416: Granite Hill
+            417: Gravel Hill
+            418: Gray Rapids
+            419: Greater Lakeburn
+            420: Green Hill
+            421: Green Mountain
+            422: Green Road
+            423: Greenfield
+            424: Greenhill Lake
+            425: Gregg Settlement
+            426: Grove Hill
+            427: Hacheyville
+            428: Halcomb
+            429: Hammondvale
+            430: Hampstead
+            431: Hampton
+            432: Hamtown Corner
+            433: Haneytown
+            434: Hanford Brook
+            435: Hanford Brook
+            436: Hanwell
+            437: Harcourt
+            438: Hardwicke
+            439: Hardwood Ridge
+            440: Harewood
+            441: Hartfield
+            442: Hartford
+            443: Hartin Settlement
+            444: Hartland
+            445: Hartley Settlement
+            446: Harvey
+            447: Harvey
+            448: Harvey Station
+            449: Hatfield Point
+            450: Haute-Aboujagane
+            451: Haut-Lameque
+            452: Haut-Paquetville
+            453: Haut-Riviere-du-Portage
+            454: Haut-Saint-Antoine
+            455: Haut-Sheila
+            456: Haut-Shippagan
+            457: Havelock
+            458: Havelock
+            459: Hawkins Corner
+            460: Hawkshaw
+            461: Hay Settlement
+            462: Hayesville
+            463: Hayman Hill
+            464: Hazeldean
+            465: Hazelton
+            466: Head Of Millstream
+            467: Heathland
+            468: Hebert
+            469: Hebron
+            470: Henderson Settlement
+            471: Hersonville
+            472: Hibernia Cove
+            473: Highfield
+            474: Hillandale
+            475: Hillgrove
+            476: Hillsborough
+            477: Hillsborough West
+            478: Hillsdale
+            479: Hilltop
+            480: Holmesville
+            481: Holtville
+            482: Honeydale
+            483: Hopewell Cape
+            484: Hopewell Hill
+            485: Howard
+            486: Howard Brook
+            487: Howland Ridge
+            488: Hoyt
+            489: Hunters Home
+            490: Immigrant Road
+            491: Indian Island
+            492: Indian Mountain
+            493: Inkerman
+            494: Inkerman Ferry
+            495: Intervale
+            496: Irish Settlement
+            497: Irishtown
+            498: Iron Bound Cove
+            499: Island View
+            500: Jackson Falls
+            501: Jacksontown
+            502: Jacksonville
+            503: Janeville
+            504: Jardineville
+            505: Jeffries Corner
+            506: Jemseg
+            507: Jewetts Mills
+            508: Johnson Settlement
+            509: Johnson Settlement
+            510: Johnson's Mills
+            511: Johnston Point
+            512: Johnville
+            513: Jolicure
+            514: Jordan Mountain
+            515: Juniper
+            516: Kars
+            517: Kedgwick
+            518: Kedgwick River
+            519: Kedgwick Sud
+            520: Kedgwick-Nord
+            521: Kedgwick-Ouest
+            522: Keenans
+            523: Kennebecasis Island
+            524: Kent Junction
+            525: Keswick
+            526: Keswick Ridge
+            527: Kierstead Mountain
+            528: Kiersteadville
+            529: Kilburn
+            530: Killams Mills
+            531: Killarney Road
+            532: Killoween
+            533: Kilmarnock
+            534: Kincardine
+            535: Kings Landing Historical Settlement
+            536: Kingsclear First Nation
+            537: Kingsley
+            538: Kingston
+            539: Kinnear Settlement
+            540: Kirkland
+            541: Knightville
+            542: Knowlesville
+            543: Kouchibouguac
+            544: Kouchibouguac National Park
+            545: Lac Baker
+            546: Lagaceville
+            547: Lake Edward
+            548: Lake George
+            549: Lakeside
+            550: Laketon
+            551: Laketon
+            552: Lakeville
+            553: Lakeville
+            554: Lakeville Corner
+            555: Lambert's Cove
+            556: Lambertville
+            557: Lameque
+            558: Landry Office
+            559: Lansdowne
+            560: Laplante
+            561: Lavillette
+            562: Lawrence Station
+            563: Le Goulet
+            564: Lee Settlement
+            565: Leech
+            566: Leonard Colony
+            567: Leonardville
+            568: Lepreau
+            569: Lepreau
+            570: Letang
+            571: L'Etete
+            572: Leverville
+            573: Lewis Mountain
+            574: Limekiln
+            575: Limestone
+            576: Lincoln
+            577: Lindsay
+            578: Linton Corner
+            579: Lisson Settlement
+            580: Little Bartibog
+            581: Little Lepreau
+            582: Little Lepreau
+            583: Little Ridge
+            584: Little River
+            585: Little River
+            586: Little River Hill
+            587: Little Salmon River East
+            588: Little Salmon River West
+            589: Little Salmon River West
+            590: Little Shemogue
+            591: Lockstead
+            592: Londonderry
+            593: Long Creek
+            594: Long Point
+            595: Long Reach
+            596: Long Settlement
+            597: Long Settlement
+            598: Lord's Cove
+            599: Lorne
+            600: Losier Settlement
+            601: Lower Brighton
+            602: Lower Cambridge
+            603: Lower Cape
+            604: Lower Cove
+            605: Lower Coverdale
+            606: Lower Derby
+            607: Lower Gagetown
+            608: Lower Greenwich
+            609: Lower Hainesville
+            610: Lower Kingsclear
+            611: Lower Kintore
+            612: Lower Knoxford
+            613: Lower Millstream
+            614: Lower Newcastle
+            615: Lower Norton
+            616: Lower Queensbury
+            617: Lower St Marys
+            618: Lower Woodland
+            619: Lower Woodstock
+            620: Ludlow
+            621: Lugar
+            622: Lutes Mountain
+            623: Lynnfield
+            624: Lyttleton
+            625: MacDougall Settlement
+            626: MacDougall Settlement
+            627: Maces Bay
+            628: Maces Bay
+            629: MacLaggan Bridge
+            630: Mactaquac
+            631: Madawaska Maliseet First Nation
+            632: Madran
+            633: Main River
+            634: Mainstream
+            635: Maisonnette
+            636: Malden
+            637: Maltempec
+            638: Mann Mountain
+            639: Mannhurst
+            640: Maple Glen
+            641: Maple Grove
+            642: Maple Ridge
+            643: Maple View
+            644: Mapledale
+            645: Maplehurst
+            646: Maplewood
+            647: Maquapit Lake
+            648: Maquapit Lake
+            649: Markhamville
+            650: Marne
+            651: Marrtown
+            652: Marrtown
+            653: Martin Head
+            654: Martin Head
+            655: Mascarene
+            656: Mates Corner
+            657: Matthews Settlement
+            658: Maugerville
+            659: Maugerville
+            660: Maxwell
+            661: Mayfield
+            662: Mazerolle Settlement
+            663: McAdam
+            664: McGivney
+            665: McIntosh Hill
+            666: McKees Mills
+            667: McKenna
+            668: McKenzie Corner
+            669: McKinleyville
+            670: McLaughlin
+            671: McLeod Hill
+            672: McLeods
+            673: McNamee
+            674: McQuade
+            675: Meadow Brook
+            676: Mechanic Settlement
+            677: Medford
+            678: Meductic
+            679: Melrose
+            680: Memramcook
+            681: Memramcook East
+            682: Menneval
+            683: Middle Hainesville
+            684: Middle River
+            685: Middle Sackville
+            686: Middleton
+            687: Midgic
+            688: Midland
+            689: Midland
+            690: Midway
+            691: Mill Brook
+            692: Mill Cove
+            693: Millerton
+            694: Millville
+            695: Ministers Island
+            696: Minto
+            697: Minto
+            698: Miramichi
+            699: Miramichi Bay
+            700: Miramichi Road
+            701: Miscou
+            702: Mispec
+            703: Mohannes
+            704: Moncton
+            705: Monquart
+            706: Monteagle
+            707: Monument
+            708: Moores Mills
+            709: Moose Mountain
+            710: Moosehorn Creek
+            711: Morrell Siding
+            712: Morrisdale
+            713: Mount Carleton
+            714: Mount Delight
+            715: Mount Hebron
+            716: Mount Hope
+            717: Mount Pisgah
+            718: Mount Pleasant
+            719: Mt Middleton
+            720: Mundleville
+            721: Muniac
+            722: Murray Corner
+            723: Murray Settlement
+            724: Musquash
+            725: Nackawic
+            726: Napadogan
+            727: Napan
+            728: Nash Creek
+            729: Nashwaak Bridge
+            730: Nashwaak Village
+            731: Nasonworth
+            732: Nauwigewauk
+            733: Neguac
+            734: Nelson Hollow
+            735: Nepisiguit Falls
+            736: Nerepis
+            737: New Avon
+            738: New Bandon
+            739: New Bandon
+            740: New Canaan
+            741: New Canaan
+            742: New Denmark
+            743: New England Settlement
+            744: New Horton
+            745: New Jersey
+            746: New Line
+            747: New Market
+            748: New Maryland
+            749: New Mills
+            750: New River Beach
+            751: New Scotland
+            752: New Zion
+            753: Newbridge
+            754: Newburg
+            755: Newcastle Centre
+            756: Newcastle Creek
+            757: Newtown
+            758: Nicholas Denys
+            759: Nictau
+            760: Nigadoo
+            761: Noinville
+            762: Noonan
+            763: North Forks
+            764: North Forks
+            765: North Lake
+            766: North Shannonvale
+            767: North Tay
+            768: North Tetagouche
+            769: North View
+            770: Northampton
+            771: Northern Harbour
+            772: Norton
+            773: Nortondale
+            774: Notre-Dame
+            775: Notre-Dame
+            776: Notre-Dame-de-Lourdes
+            777: Notre-Dame-des-Erables
+            778: Oak Bay
+            779: Oak Haven
+            780: Oak Hill
+            781: Oak Mountain
+            782: Oak Point
+            783: Oak Point
+            784: Oakland
+            785: Oakville
+            786: Odell
+            787: Old Avon
+            788: Old Ridge
+            789: Orange Hill
+            790: Oromocto
+            791: Osborne Corner
+            792: Otter Creek
+            793: Oxbow
+            794: Pabineau Falls
+            795: Pabineau First Nation
+            796: Painsec
+            797: Paquetville
+            798: Parker Ridge
+            799: Parker Road
+            800: Parkindale
+            801: Parlee Brook
+            802: Parleeville
+            803: Passekeag
+            804: Pearsonville
+            805: Peel
+            806: Pelerin
+            807: Peltoma Settlement
+            808: Pemberton Ridge
+            809: Pembroke
+            810: Pennfield
+            811: Penniac
+            812: Penobsquis
+            813: Perry Settlement
+            814: Perth-Andover
+            815: Petit-Cap
+            816: Petitcodiac
+            817: Petitcodiac East
+            818: Petitcodiac West
+            819: Petitcodiac West
+            820: Petite-Lameque
+            821: Petite-Riviere-de l'Ile
+            822: Petit-Paquetville
+            823: Petit-Rocher
+            824: Petit-Rocher-Nord
+            825: Petit-Rocher-Ouest
+            826: Petit-Rocher-Sud
+            827: Petit-Shippagan
+            828: Petit-Tracadie
+            829: Philamunroe
+            830: Picadilly
+            831: Picketts Cove
+            832: Piercemont
+            833: Pigeon Hill
+            834: Pine Glen
+            835: Pine Ridge
+            836: Pineville
+            837: Plaster Rock
+            838: Pleasant Ridge
+            839: Pleasant Ridge
+            840: Pleasant Villa
+            841: Plumweseep
+            842: Plymouth
+            843: Pocologan
+            844: Point de Bute
+            845: Point la Nim
+            846: Pointe Dixon Point
+            847: Pointe-a-Bouleau
+            848: Pointe-Alexandre
+            849: Pointe-a-Tom
+            850: Pointe-Brulee
+            851: Pointe-Canot
+            852: Pointe-des-Robichaud
+            853: Pointe-du-Chene
+            854: Pointe-Sapin
+            855: Pointe-Sauvage
+            856: Pointe-Verte
+            857: Poirier Subdivision
+            858: Pokemouche
+            859: Pokeshaw
+            860: Pokesudie
+            861: Pokiok
+            862: Pole Hill
+            863: Pollett River
+            864: Pomeroy Ridge
+            865: Pondstream
+            866: Pont-Lafrance
+            867: Pont-Lafrance
+            868: Pont-Landry
+            869: Poodiac
+            870: Port Elgin
+            871: Portage
+            872: Portage St-Louis
+            873: Portage Vale
+            874: Portage Vale
+            875: Porter Cove
+            876: Priceville
+            877: Prince of Wales
+            878: Prince William
+            879: Princess Park
+            880: Printz Cove
+            881: Prospect Ridge
+            882: Prosser Brook
+            883: Public Landing
+            884: Quaker Brook
+            885: Quarryville
+            886: Queenstown
+            887: Quispamsis
+            888: Rang-Saint-Georges
+            889: Ratter Corner
+            890: Red Bank
+            891: Red Bank
+            892: Red Bank Indian Reserve
+            893: Red Bridge
+            894: Red Rapids
+            895: Red Rock
+            896: Redmondville
+            897: Renauds Mills
+            898: Renous
+            899: Rexton
+            900: Riceville
+            901: Richardson
+            902: Richibouctou-Village
+            903: Richibucto
+            904: Richibucto Road
+            905: Richmond Corner
+            906: Richmond Settlement
+            907: Riley Brook
+            908: Rio Grande
+            909: Ripples
+            910: Ritchie
+            911: River de Chute
+            912: River de Chute
+            913: River Glade
+            914: Riverbank
+            915: Riverbank
+            916: Riverbank South
+            917: Riverside-Albert
+            918: Riverview
+            920: Riviere du Nord
+            921: Riviere-a-la-Truite
+            922: Riviere-du-Portage
+            923: Riviere-du-Portage
+            924: Riviere-Verte
+            925: Roachville
+            926: Robertville
+            927: Robichaud Settlement
+            928: Robinsonville
+            929: Rocheville
+            930: Rockland
+            931: Rockport
+            932: Rockville
+            933: Rocky Brook
+            934: Rogersville
+            935: Rogersville-Est
+            936: Rogersville-Est
+            937: Rogersville-Ouest
+            938: Rogersville-Ouest
+            939: Rollingdam
+            940: Rooth
+            941: Rosaireville
+            942: Rosedale
+            943: Rosehill
+            944: Rosevale
+            945: Rossville
+            946: Rothesay
+            947: Rough Waters
+            948: Rowena
+            949: Rowley
+            950: Royal Road
+            951: Royalton
+            952: Rusagonis
+            953: Russellville
+            954: Sackville
+            955: Sackville Road
+            956: Saint John
+            957: Saint-Amateur
+            958: Saint-Andre
+            959: Saint-Andre
+            960: Saint-Andre-Leblanc
+            961: Saint-Antoine
+            962: Saint-Antoine Sud
+            963: Saint-Arthur
+            964: Saint-Basile
+            965: Saint-Charles
+            966: Saint-Damien
+            967: Sainte-Anne
+            968: Sainte-Anne-de-Kent
+            969: Sainte-Anne-de-Madawaska
+            970: Sainte-Cecile
+            971: Saint-Edouard-de-Kent
+            972: Sainte-Louise
+            973: Sainte-Marie-de-Kent
+            974: Sainte-Marie-Saint-Raphael
+            975: Sainte-Rose
+            976: Sainte-Rosette
+            977: Sainte-Therese Sud
+            978: Saint-Francois-de-Madawaska
+            979: Saint-Gregoire
+            980: Saint-Ignace
+            981: Saint-Irenee
+            982: Saint-Isidore
+            983: Saint-Jacques
+            984: Saint-Joseph-de-Kent
+            985: Saint-Joseph-de-Madawaska
+            986: Saint-Laurent
+            987: Saint-Laurent Nord
+            988: Saint-Leolin
+            989: Saint-Leonard
+            990: Saint-Leonard-Parent
+            991: Saint-Louis
+            992: Saint-Louis-de-Kent
+            993: Saint-Martin-de-Restigouche
+            994: Saint-Maure
+            995: Saint-Maurice
+            996: Saint-Norbert
+            997: Saint-Paul
+            998: Saint-Philippe
+            999: Saint-Pons
+            1000: Saint-Quentin
+            1001: Saint-Sauveur
+            1002: Saint-Simon
+            1003: Saint-Thomas-de-Kent
+            1004: Saint-Wilfred
+            1005: Salem
+            1006: Salisbury
+            1007: Salisbury West
+            1008: Salmon Beach
+            1009: Salmon Creek
+            1010: Salmon Creek
+            1011: Salmon River
+            1012: Salmon River Road
+            1013: Salt Springs
+            1014: Saumarez
+            1015: Savoie Landing
+            1016: Scotch Lake
+            1017: Scotch Ridge
+            1018: Scotch Settlement
+            1019: Scotch Settlement
+            1020: Scotchtown
+            1021: Scott Siding
+            1022: Scoudouc
+            1023: Scoudouc Road
+            1024: Sea Side
+            1025: Searsville
+            1026: Second Falls
+            1027: Second North River
+            1028: Seeleys Cove
+            1029: Sevogle
+            1030: Shanklin
+            1031: Shannon
+            1032: Shediac
+            1033: Shediac Bridge
+            1034: Shediac Bridge
+            1035: Shediac Cape
+            1036: Shediac River
+            1037: Sheffield
+            1038: Sheffield
+            1039: Shemogue
+            1040: Shenstone
+            1041: Shepody
+            1042: Shepody
+            1043: Shippagan
+            1044: Siegas
+            1045: Sillikers
+            1046: Simonds
+            1047: Sisson Brook
+            1048: Sisson Ridge
+            1049: Six Roads
+            1050: Skiff Lake
+            1051: Slope
+            1052: Smith Crossing
+            1053: Smithfield
+            1054: Smith's Corner
+            1055: Smiths Creek
+            1056: Smithtown
+            1057: Snider Mountain
+            1058: Somerville
+            1059: Sormany
+            1060: South Branch
+            1061: South Branch
+            1062: South Canaan
+            1063: South Esk
+            1064: South Nelson
+            1065: South Oromocto Lake
+            1066: South Tetagouche
+            1067: Southampton
+            1068: Southfield
+            1069: Spednic Lake
+            1070: Speerville
+            1071: Springdale
+            1072: Springfield
+            1073: Springfield
+            1074: Squaw Cap
+            1075: St Croix
+            1076: St David Ridge
+            1077: St George
+            1078: St. Almo
+            1079: St. Andrews
+            1080: St. Margarets
+            1081: St. Martins
+            1082: St. Martins North
+            1083: St. Stephen
+            1084: St. Thomas
+            1085: Stanley
+            1086: St-Antoine Nord
+            1087: Staples Settlement
+            1088: Steeves Mountain
+            1089: Steeves Settlement
+            1090: St-Hilaire
+            1091: Stickney
+            1092: Stilesville
+            1093: St-Jean-Baptiste
+            1094: Stonehaven
+            1095: Stoney Creek
+            1096: Storeytown
+            1097: Strathadam
+            1098: Stuart Town
+            1099: Stymiest
+            1100: Sugarloaf Provincial Park
+            1101: Summerfield
+            1102: Summerfield
+            1103: Summerville
+            1104: Sunny Corner
+            1105: Sunnyside Beach
+            1106: Sussex
+            1107: Sussex Corner
+            1108: Sussex East
+            1109: Sussex South
+            1110: Swan Creek
+            1111: Swan Creek
+            1112: Sypher Cove
+            1113: Tabusintac
+            1114: Tabusintac Indian Reserve
+            1115: Targettville
+            1116: Taxis River
+            1117: Tay Creek
+            1118: Tay Falls
+            1119: Taylor Village
+            1120: Taymouth
+            1121: Teeds Mills
+            1122: Temperance Vale
+            1123: Temple
+            1124: Tetagouche Falls
+            1125: The Glades
+            1126: Three Brooks
+            1127: Three Tree Creek
+            1128: Tide Head
+            1129: Tilley
+            1130: Tilley Road
+            1131: Timber River
+            1132: Tinker
+            1133: Titusville
+            1134: Tobique First Nation
+            1135: Tobique Narrows
+            1136: Tower Hill
+            1137: Tracadie Beach
+            1138: Tracadie Military Area
+            1139: Tracadie-Sheila
+            1140: Tracey Mills
+            1141: Tracy
+            1142: Tracyville
+            1143: Tremblay
+            1144: Trois-Ruisseaux
+            1145: Trout Brook
+            1146: Trudel
+            1147: Turtle Creek
+            1148: Two Brooks
+            1149: Tynemouth Creek
+            1150: Union Corner
+            1151: Upham
+            1152: Upper Blackville
+            1153: Upper Brighton
+            1154: Upper Cape
+            1155: Upper Caverhill
+            1156: Upper Coverdale
+            1157: Upper Derby
+            1158: Upper Dorchester
+            1159: Upper Gagetown
+            1160: Upper Golden Grove
+            1161: Upper Golden Grove
+            1162: Upper Hainesville
+            1163: Upper Hampstead
+            1164: Upper Kent
+            1165: Upper Keswick
+            1166: Upper Kingsclear
+            1167: Upper Kintore
+            1168: Upper Knoxford
+            1169: Upper Letang
+            1170: Upper Loch Lomond
+            1171: Upper Mills
+            1172: Upper Queensbury
+            1173: Upper Rexton
+            1174: Upper Rockport
+            1175: Upper Sackville
+            1176: Upper Salmon Creek
+            1177: Upper Salmon Creek
+            1178: Upper Tracy
+            1179: Upper Woodstock
+            1180: Upperton
+            1181: Upsalquitch
+            1182: Utopia
+            1183: Val-Comeau
+            1184: Val-Comeau
+            1185: Val-d'Amour
+            1186: Val-Doucet
+            1187: Valley Road
+            1188: Verret
+            1189: Vespra
+            1190: Victoria Corner
+            1191: Village Blanchard
+            1192: Village-des-Poirier
+            1193: Village-Saint-Laurent
+            1194: Vinegar Hill
+            1195: Waasis
+            1196: Wakefield
+            1197: Walker Settlement
+            1198: Wapske
+            1199: Ward Settlement
+            1200: Wards Creek
+            1201: Warwick Settlement
+            1202: Waterborough
+            1203: Waterford
+            1204: Waterside
+            1205: Waterville
+            1206: Waterville
+            1207: Waweig
+            1208: Wayerton
+            1209: Weaver
+            1210: Weaver Siding
+            1211: Weldon
+            1212: Welsford
+            1213: Welsford
+            1214: Welshpool
+            1215: West Branch
+            1216: West Florenceville
+            1217: West Quaco
+            1218: West River
+            1219: Westcock
+            1220: Weston
+            1221: Wheaton Settlement
+            1222: White Head Island
+            1223: White Rapids
+            1224: Whites Brook
+            1225: Whites Cove
+            1226: Whites Mountain
+            1227: Whitney
+            1228: Wickham
+            1229: Wicklow
+            1230: Wiggins Mill
+            1231: Williamsburg
+            1232: Williamstown
+            1233: Williamstown
+            1234: Willow Grove
+            1235: Wilmot
+            1236: Wilsons Beach
+            1237: Windsor
+            1238: Wirral
+            1239: Wirral
+            1240: Wirral
+            1241: Wood Point
+            1242: Woodlands
+            1243: Woodmans Point
+            1244: Woodside
+            1245: Woodstock
+            1246: Woodstock First Nation
+            1247: Wuhrs Beach
+            1248: Wyers Brook
+            1249: Yoho
+            1250: Youngs Cove
+            1251: Zealand
+            1252: Zionville
+            1253: Cape Enrage
+            1254: Rogersville
+            1255: Cherryvale
+            1256: Belyeas Cove
+    r_placenam:
+      fields: SPN_R_Place_Name
+      functions: *placename
+    l_stname_c:
+      fields: [SPN_L_Directional_Prefix, SPN_L_Street_Type_Prefix, SPN_L_Street_Name_Article, SPN_L_Street_Name_Body, SPN_L_Street_Type_Suffix, SPN_L_Directional_Suffix]
+      functions: &stname_c
+        - function: map_values
+          iterate_cols: [2]
+          lookup: &starticle_lookup
+            0: None
+            1: la
+            2: le
+            3: l'
+            4: de
+            5: de la
+            6: de l'
+            7: du
+            8: des
+            9: à la
+            10: à
+            11: chez
+            12: les
+            13: au
+            14: aux
+            15: d'
+            16: à l'
+            17: the
+            18: of the
+            19: by the
+        - function: map_values
+          iterate_cols: [1, 4]
+          lookup: &strty_lookup
+            1: Acres
+            2: Acres
+            3: Allée
+            4: Alley
+            5: Autoroute
+            6: Avenue
+            7: Avenue
+            8: Baie
+            9: Bay
+            10: Boucle
+            11: Boulevard
+            12: Bluff
+            13: Bocage
+            14: By-pass
+            15: Bretelle
+            16: Bois
+            17: Boulevard
+            18: Carre
+            19: Cercle
+            20: Centre
+            21: Centre
+            22: Carrefour
+            23: Chemin
+            24: Circuit
+            25: Croissant
+            26: Circle
+            27: Couloir
+            28: Campus
+            29: Campus
+            30: Concession
+            31: Concession
+            32: Cour
+            33: Crossroads
+            34: Cap
+            35: Cape
+            36: Crescent
+            37: Crête
+            38: Chaussée
+            39: Close
+            40: Circuit
+            41: Court
+            42: Cul-de-sac
+            43: Causeway
+            44: Croix
+            45: Cross
+            46: Dead End
+            47: Débarquement
+            48: Dale
+            49: Drive
+            50: Downs
+            51: Entrance
+            52: Entrée
+            53: Esplanade
+            54: Étang
+            55: Exit
+            56: Evergreen
+            57: Extension
+            58: Extension
+            59: Falaise
+            60: Gardens
+            61: Green
+            62: Gardens
+            63: Grove
+            64: Harbour
+            65: Hill
+            66: Heights
+            67: Hollow
+            68: Highway
+            69: Île
+            70: Island
+            71: Jardin
+            72: Landing
+            73: Ligne
+            74: Lien
+            75: Line
+            76: Link
+            77: Lane
+            78: Loop
+            79: Lawn
+            80: Manoir
+            81: Manor
+            82: Montée
+            83: Parade
+            84: Parade
+            85: Parc
+            86: Pond
+            87: Place
+            88: Place
+            89: Pente
+            90: Point
+            91: Point
+            92: Port
+            93: Park
+            94: Promenade
+            95: Pass
+            96: Passage
+            97: Plateau
+            98: Plateau
+            99: Parkway
+            100: Quai
+            101: Quay
+            102: Roundabout
+            103: Road
+            104: Rang
+            105: Ridge
+            106: Ruelle
+            107: Rond Point
+            108: Rise
+            109: Route
+            110: Rue
+            111: Row
+            112: Roadway
+            113: Sentier
+            114: Square
+            115: Sortie
+            116: Street
+            117: Terrasse
+            118: Trail
+            119: Turnpike
+            120: Terrace
+            121: Turn
+            122: Virage
+            123: Vallée
+            124: Voie
+            125: Vue
+            126: View
+            127: Woods
+            128: Wharf
+            129: Walk
+            130: Way
+            131: Expressway
+            132: Ramp
+            133: Plaza
+            134: Westway
+            135: Glen
+            136: Path
+            137: Crossing
+            138: Cercle
+            139: Chase
+            140: Contournement
+            141: Côte
+            142: Diversion
+            143: Échangeur
+            144: Gate
+            145: Impasse
+            146: Ligne
+            147: Rampe
+            148: Rangée
+            149: Route de plaisance
+            150: Route sur élevée
+            151: Side
+            152: Sideroad
+            153: Strip
+            154: Throughway
+            155: Took
+            156: Village
+            157: Voie oust
+            158: Voie rapide
+            159: Autoroute à péage
+        - function: concatenate
+          columns: [dirprefix, strtypre, starticle, namebody, strtysuf, dirsuffix]
+          separator: " "
+    r_stname_c:
+      fields: [SPN_R_Directional_Prefix, SPN_R_Street_Type_Prefix, SPN_L_Street_Name_Article, SPN_R_Street_Name_Body, SPN_R_Street_Type_Suffix, SPN_R_Directional_Suffix]
+      functions: *stname_c
+    pavsurf: Paved_Road_Surface_Type
+    pavstatus: Pavement_Status
+    roadjuris: Jurisdiction
+    roadsegid:
+    rtename1en: Route_Name_English_1
+    rtename2en: Route_Name_English_2
+    rtename3en: Route_Name_English_3
+    rtename4en: Route_Name_English_4
+    rtename1fr: Route_Name_French_1
+    rtename2fr: Route_Name_French_2
+    rtename3fr: Route_Name_French_3
+    rtename4fr: Route_Name_French_4
+    rtnumber1: Route_Number_1
+    rtnumber2: Route_Number_2
+    rtnumber3: Route_Number_3
+    rtnumber4: Route_Number_4
+    rtnumber5: Route_Number_5
+    speed: Speed_Restrictions_Both
+    strunameen: Structure_Name_English
+    strunamefr: Structure_Name_French
+    structid:
+    structtype: Structure_Type
+    trafficdir: Direction_Of_Traffic_Flow
+    unpavsurf: Unpaved_Road_Surface_Type
+  strplaname:
+    acqtech: Element_Acquisition_Technique
+    metacover:
+    credate: Element_Creation_Date
+    datasetnam: New Brunswick
+    accuracy: *accuracy
+    provider: *provider
+    revdate: Element_Revision_Date
+    specvers: 2.0
+    dirprefix: [SPN_L_Directional_Prefix, SPN_R_Directional_Prefix]
+    dirsuffix: [SPN_L_Directional_Suffix, SPN_R_Directional_Suffix]
+    muniquad: [SPN_L_Muni_Quadrant, SPN_R_Muni_Quadrant]
+    nid: uuid
+    placename:
+      fields: [SPN_L_Place_Name, SPN_R_Place_Name]
+      process_separately: True
+      functions: *placename
+    placetype:
+      fields: [SPN_L_Place_Type, SPN_R_Place_Type]
+      process_separately: True
+      functions:
+        - function: map_values
+          lookup:
+            1: Unknown
+            2: CV
+            3: CM
+            4: COM
+            5: TP
+            6: CU
+            7: DM
+            8: HAM
+            9: ID
+            10: IGD
+            11: LGD
+            12: LOT
+            13: MD
+            14: NH
+            15: NV
+            16: P
+            17: P
+            18: IRI
+            19: RM
+            20: RV
+            21: S-É
+            22: SA
+            23: SC
+            24: M
+            25: SÉ
+            26: SNO
+            27: SNO
+            28: SV
+            29: TV
+            30: TP
+            31: IRI
+            32: NO
+            33: CV
+            34: VC
+            35: VK
+            36: VL
+            37: NV
+            38: CY
+            39: RCR
+            40: CC
+            41: M
+            42: SM
+            43: MRM
+            44: TI
+            45: VN
+            46: RG
+            47: RDA
+            48: IM
+            49: NL
+            50: NVL
+            51: TL
+            52: CN
+    province: [SPN_L_Province, SPN_R_Province]
+    starticle:
+      fields: [SPN_L_Street_Name_Article, SPN_R_Street_Name_Article]
+      process_separately: True
+      functions:
+        - function: map_values
+          lookup: *starticle_lookup
+    namebody: [SPN_L_Street_Name_Body, SPN_R_Street_Name_Body]
+    strtypre:
+      fields: [SPN_L_Street_Type_Prefix, SPN_R_Street_Type_Prefix]
+      process_separately: True
+      functions: &strty
+        - function: map_values
+          lookup: *strty_lookup
+    strtysuf:
+      fields: [SPN_L_Street_Type_Suffix, SPN_R_Street_Type_Suffix]
+      process_separately: True
+      functions: *strty

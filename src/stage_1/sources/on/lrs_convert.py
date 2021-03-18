@@ -2,22 +2,20 @@ import click
 import geopandas as gpd
 import logging
 import numpy as np
-import os
 import pandas as pd
 import shapely
-import sqlite3
 import sys
 import uuid
 from collections import Counter
 from collections.abc import Sequence
 from itertools import chain
-from operator import attrgetter, itemgetter
-from osgeo import ogr, osr
+from operator import itemgetter
+from pathlib import Path
 from shapely.geometry import LineString, MultiLineString
-from tqdm import tqdm
 from typing import List, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], "../../../"))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[3]))
 import helpers
 
 
@@ -33,12 +31,12 @@ logger.addHandler(handler)
 class ORN:
     """Class to convert Ontario ORN data from Linear Reference System (LRS) to GeoPackage."""
 
-    def __init__(self, src: str, dst: str) -> None:
+    def __init__(self, src: Union[Path, str], dst: Union[Path, str]) -> None:
         """
         Initializes the LRS conversion class.
 
-        :param str src: source path.
-        :param str dst: destination path.
+        :param Union[Path, str] src: source path.
+        :param Union[Path, str] dst: destination path.
         """
 
         self.nrn_datasets = dict()
@@ -56,17 +54,17 @@ class ORN:
         self.address_dataset = "orn_address_info"
 
         # Validate src.
-        self.src = os.path.abspath(src)
-        if os.path.splitext(self.src)[-1] != ".gdb":
+        self.src = Path(src).resolve()
+        if self.src.suffix != ".gdb":
             logger.exception(f"Invalid src input: {src}. Must be a File GeoDatabase.")
             sys.exit(1)
 
         # Validate dst.
-        self.dst = os.path.abspath(dst)
-        if os.path.splitext(self.dst)[-1] != ".gpkg":
+        self.dst = Path(dst).resolve()
+        if self.dst.suffix != ".gpkg":
             logger.exception(f"Invalid dst input: {dst}. Must be a GeoPackage.")
             sys.exit(1)
-        if os.path.exists(self.dst):
+        if self.dst.exists():
             logger.exception(f"Invalid dst input: {dst}. File already exists.")
 
     def assemble_nrn_datasets(self) -> None:
@@ -488,14 +486,14 @@ class ORN:
 
         logger.info("Configuring structures.")
 
-        def update_geoms(geom: LineString, ranges: List[tuple, ...]) -> Union[None, List[LineString, ...]]:
+        def update_geoms(geom: LineString, ranges: List[tuple]) -> Union[None, List[LineString]]:
             """
             Splits the LineString into smaller LineStrings by removing the given ranges (event measurements) from the
             geometry.
 
             :param LineString geom: LineString.
-            :param List[tuple, ...] ranges: nested list of event measurements.
-            :return Union[None, List[LineString, ...]]: None or a list of LineStrings, segmented from the original
+            :param List[tuple] ranges: nested list of event measurements.
+            :return Union[None, List[LineString]]: None or a list of LineStrings, segmented from the original
                 LineString.
             """
 
@@ -602,87 +600,6 @@ class ORN:
                 else:
                     del self.source_datasets[name]
 
-    def export_gpkg(self) -> None:
-        """Exports the NRN datasets to a GeoPackage."""
-
-        logger.info(f"Exporting datasets to GeoPackage: {self.dst}.")
-
-        try:
-
-            logger.info(f"Creating data source: {self.dst}.")
-
-            # Create GeoPackage.
-            driver = ogr.GetDriverByName("GPKG")
-            gpkg = driver.CreateDataSource(self.dst)
-
-            # Iterate dataframes.
-            for name, df in self.nrn_datasets.items():
-
-                logger.info(f"Layer {name}: creating layer.")
-
-                # Configure layer shape type and spatial reference.
-                if isinstance(df, gpd.GeoDataFrame):
-
-                    srs = osr.SpatialReference()
-                    srs.ImportFromEPSG(df.crs.to_epsg())
-
-                    if len(df.geom_type.unique()) > 1:
-                        raise ValueError(f"Multiple geometry types detected for dataframe {name}: "
-                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
-                    elif df.geom_type[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                        shape_type = attrgetter(f"wkb{df.geom_type[0]}")(ogr)
-                    else:
-                        raise ValueError(f"Invalid geometry type(s) for dataframe {name}: "
-                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
-                else:
-                    shape_type = ogr.wkbNone
-                    srs = None
-
-                # Create layer.
-                layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
-
-                logger.info(f"Layer {name}: configuring schema.")
-
-                # Configure layer schema (field definitions).
-                ogr_field_map = {"f": ogr.OFTReal, "i": ogr.OFTInteger, "O": ogr.OFTString}
-
-                for field_name, dtype in df.dtypes.items():
-                    if field_name != "geometry":
-                        field_defn = ogr.FieldDefn(field_name, ogr_field_map[dtype.kind])
-                        layer.CreateField(field_defn)
-
-                # Write layer.
-                layer.StartTransaction()
-
-                for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {name}: writing to file"):
-
-                    # Instantiate feature.
-                    feature = ogr.Feature(layer.GetLayerDefn())
-
-                    # Set feature properties.
-                    properties = feat._asdict()
-                    for prop in set(properties) - {"geometry"}:
-                        field_index = feature.GetFieldIndex(prop)
-                        feature.SetField(field_index, properties[prop])
-
-                    # Set feature geometry, if required.
-                    if srs:
-                        geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
-                        feature.SetGeometry(geom)
-
-                    # Create feature.
-                    layer.CreateFeature(feature)
-
-                    # Clear pointer for next iteration.
-                    feature = None
-
-                layer.CommitTransaction()
-
-        except (Exception, KeyError, ValueError, sqlite3.Error) as e:
-            logger.exception(f"Error raised when writing to GeoPackage: {self.dst}.")
-            logger.exception(e)
-            sys.exit(1)
-
     def map_unrecognized_values(self) -> None:
         """Maps unrecognized attribute values to presumed NRN equivalents."""
 
@@ -716,36 +633,12 @@ class ORN:
             "strtypre":
                 {
                     "Bypass": "By-pass",
-                    "Concession Road": "Concession",
-                    "Corner": "Corners",
-                    "County Road": "Road",
-                    "Crossroad": "Crossroads",
-                    "Cul De Sac": "Cul-de-sac",
-                    "Fire Route": "Route",
-                    "Garden": "Gardens",
-                    "Height": "Heights",
-                    "Hills": "Hill",
-                    "Isle": "Island",
-                    "Lanes": "Lane",
-                    "Pointe": "Point",
-                    "Regional Road": "Road"
+                    "Cul De Sac": "Cul-de-sac"
                 },
             "strtysuf":
                 {
                     "Bypass": "By-pass",
-                    "Concession Road": "Concession",
-                    "Corner": "Corners",
-                    "County Road": "Road",
-                    "Crossroad": "Crossroads",
-                    "Cul De Sac": "Cul-de-sac",
-                    "Fire Route": "Route",
-                    "Garden": "Gardens",
-                    "Height": "Heights",
-                    "Hills": "Hill",
-                    "Isle": "Island",
-                    "Lanes": "Lane",
-                    "Pointe": "Point",
-                    "Regional Road": "Road"
+                    "Cul De Sac": "Cul-de-sac"
                 },
             "tollpttype":
                 {
@@ -838,11 +731,11 @@ class ORN:
         Exception: address dataset will keep the longest event for both "Left" and "Right" paritized instances.
         """
 
-        def configure_address_structure(structures: List[str, ...]) -> str:
+        def configure_address_structure(structures: List[str]) -> str:
             """
             Configures the address structure given an iterable of structure values.
 
-            :param List[str, ...] structures: list of structure values.
+            :param List[str] structures: list of structure values.
             :return str: structure value.
             """
 
@@ -940,19 +833,20 @@ class ORN:
         self.reduce_events()
         self.assemble_nrn_datasets()
         self.map_unrecognized_values()
-        self.export_gpkg()
+        helpers.export(self.nrn_datasets, self.dst)
 
 
 @click.command()
 @click.argument("src", type=click.Path(exists=True))
-@click.option("--dst", type=click.Path(exists=False), default=os.path.abspath("../../../../data/raw/on/orn.gpkg"),
+@click.option("--dst", type=click.Path(exists=False), default=filepath.parents[4] / "data/raw/on/orn.gpkg",
               show_default=True)
-def main(src: str, dst: str = os.path.abspath("../../../../data/raw/on/orn.gpkg")) -> None:
+def main(src: Union[Path, str], dst: Union[Path, str] = filepath.parents[4] / "data/raw/on/orn.gpkg") -> None:
     """
     Executes the ORN class.
 
-    :param str src: source path.
-    :param str dst: destination path, default = '../../../../data/raw/on/orn.gpkg'.
+    :param Union[Path, str] src: source path.
+    :param Union[Path, str] dst: destination path,
+        default = Path(__file__).resolve().parents[4] / 'data/raw/on/orn.gpkg'.
     """
 
     try:

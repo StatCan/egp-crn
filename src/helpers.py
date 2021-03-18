@@ -4,13 +4,11 @@ import geopandas as gpd
 import logging
 import networkx as nx
 import numpy as np
-import os
 import pandas as pd
 import random
 import re
 import requests
 import sqlite3
-import subprocess
 import sys
 import time
 import yaml
@@ -18,9 +16,11 @@ from collections import defaultdict
 from copy import deepcopy
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
+from pathlib import Path
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
 from tqdm import tqdm
+from tqdm.auto import trange
 from typing import Any, Dict, List, Tuple, Union
 
 
@@ -28,19 +28,25 @@ logger = logging.getLogger()
 ogr.UseExceptions()
 
 
+# Define universally accessible variables.
+filepath = Path(__file__).resolve()
+distribution_format_path = filepath.parent / "distribution_format.yaml"
+field_domains_path = {lang: filepath.parent / f"field_domains_{lang}.yaml" for lang in ("en", "fr")}
+
+
 class TempHandlerSwap:
     """Temporarily swaps all Logger StreamHandlers with a FileHandler."""
 
-    def __init__(self, class_logger: logging.Logger, log_path: str) -> None:
+    def __init__(self, class_logger: logging.Logger, log_path: Union[Path, str]) -> None:
         """
         Initializes the TempHandlerSwap contextmanager class.
 
         :param logging.Logger class_logger: Logger.
-        :param str log_path: path where the FileHandler will write logs to.
+        :param Union[Path, str] log_path: path where the FileHandler will write logs to.
         """
 
         self.logger = class_logger
-        self.log_path = log_path
+        self.log_path = Path(log_path).resolve()
 
         # Store stream handlers.
         self.stream_handlers = [h for h in self.logger.handlers if isinstance(h, logging.StreamHandler)]
@@ -155,8 +161,8 @@ def compile_default_values(lang: str = "en") -> dict:
     :return dict: dictionary of default values for each attribute of each NRN dataset.
     """
 
-    dft_vals = load_yaml(os.path.abspath(f"../field_domains_{lang}.yaml"))["default"]
-    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    dft_vals = load_yaml(field_domains_path[lang])["default"]
+    dist_format = load_yaml(distribution_format_path)
     defaults = dict()
 
     try:
@@ -187,7 +193,7 @@ def compile_domains(mapped_lang: str = "en") -> dict:
     keys:
     1) 'values': all English and French values and keys flattened into a single list.
     2) 'lookup': a lookup dictionary mapping each English and French value and key to the value of the given map
-    language.
+    language. Integer keys and their float-equivalents are both added to accommodate incorrectly casted data.
 
     :param str mapped_lang: output language: 'en', 'fr'.
     :return dict: dictionary of domain values and lookup dictionary for each attribute of each NRN dataset.
@@ -197,7 +203,7 @@ def compile_domains(mapped_lang: str = "en") -> dict:
     domains = defaultdict(dict)
 
     # Load domain yamls.
-    domain_yamls = {lang: load_yaml(f"../field_domains_{lang}.yaml") for lang in ("en", "fr")}
+    domain_yamls = {lang: load_yaml(field_domains_path[lang]) for lang in ("en", "fr")}
 
     # Iterate tables and fields with domains.
     for table in domain_yamls["en"]["tables"]:
@@ -242,7 +248,7 @@ def compile_domains(mapped_lang: str = "en") -> dict:
                     raise TypeError
 
             except (AttributeError, KeyError, TypeError, ValueError):
-                yaml_paths = ", ".join(os.path.abspath(f"../field_domains_{lang}.yaml") for lang in ("en", "fr"))
+                yaml_paths = ", ".join(str(field_domains_path[lang]) for lang in ("en", "fr"))
                 logger.exception(f"Unable to compile domains from config yamls: {yaml_paths}. Invalid schema "
                                  f"definition for table: {table}, field: {field}.")
                 sys.exit(1)
@@ -258,7 +264,7 @@ def compile_dtypes(length: bool = False) -> dict:
     :return dict: dictionary of dtypes and, optionally, length for each attribute of each NRN dataset.
     """
 
-    dist_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    dist_format = load_yaml(distribution_format_path)
     dtypes = dict()
 
     try:
@@ -308,112 +314,196 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         return gdf.copy(deep=True)
 
 
-def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: str,
-                export_schemas: Union[None, str] = None) -> None:
+def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_path: Union[Path, str],
+           driver: str = "GPKG", type_schemas: Union[None, dict, Path, str] = None,
+           export_schemas: Union[None, dict, Path, str] = None, merge_schemas: bool = False,
+           nln_map: Union[Dict[str, str], None] = None, keep_uuid: bool = True,
+           outer_pbar: Union[tqdm, trange, None] = None, epsg: Union[None, str] = None,
+           geom_type: Union[Dict[str, str], None] = None) -> None:
     """
-    Exports one or more (Geo)DataFrames as GeoPackage layers.
-    Optionally accepts an export schemas yaml path which will override the default distribution format column names.
+    Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
     :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
-    :param str output_path: GeoPackage output path.
-    :param Union[None, str] export_schemas: optional dictionary mapping of field names for each field in each of the
-        provided datasets.
+    :param Union[Path, str] output_path: output path.
+    :param str driver: OGR driver short name, default 'GPKG'.
+    :param Union[None, dict, Path, str] type_schemas: optional dictionary mapping of field types and widths for each
+        provided dataset. Can also be a Path or str path to a pre-existing yaml. Expected dictionary format:
+        {
+            <dataset_name>:
+                spatial: <bool>
+                fields:
+                    <field_name>: [<field_type>, <field_length>]
+                    ...
+                ...
+        }
+    :param Union[None, dict, Path, str] export_schemas: optional dictionary mapping of field names for each provided
+        dataset. Can also be a Path or str path to a pre-existing yaml. Expected dictionary format:
+        {
+            conform:
+                <dataset_name>:
+                    fields:
+                        <field_name>: <new_field_name>
+                        ...
+                ...
+        }
+    :param bool merge_schemas: optional flag to merge type and export schemas such that attributes from any dataset can
+        exist on each provided dataset, default False.
+    :param Union[Dict[str], None] nln_map: optional dictionary mapping of new layer names.
+    :param bool keep_uuid: optional flag to preserve the uuid column, default True.
+    :param Union[tqdm, trange, None] outer_pbar: optional pre-existing tqdm progress bar.
+    :param Union[None, int] epsg: optional EPSG code used as the output CRS.
+    :param Union[Dict[str, str], None] geom_type: optional dictionary mapping of Shapely geometry types used as the
+        output geometry for the provided datasets. Must be one of 'Point', 'MultiPoint', 'LineString',
+        'MultiLineString'.
     """
-
-    output_path = os.path.abspath(output_path)
-    logger.info(f"Exporting dataframe(s) to GeoPackage: {output_path}.")
 
     try:
 
-        logger.info(f"Creating / opening data source: {output_path}.")
+        # Validate / create driver.
+        if driver not in {"ESRI Shapefile", "GML", "GPKG", "KML"}:
+            raise ValueError("Invalid OGR driver, must be one of: ESRI Shapefile, GML, GPKG, KML.")
+        driver = ogr.GetDriverByName(driver)
 
-        # Create / open GeoPackage.
-        driver = ogr.GetDriverByName("GPKG")
-        if os.path.exists(output_path):
-            gpkg = driver.Open(output_path, update=1)
+        # Create directory structure and data source (only create source for layer-based drivers).
+        output_path = Path(output_path).resolve()
+
+        if output_path.suffix:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            if output_path.exists():
+                source = driver.Open(str(output_path), update=1)
+            else:
+                source = driver.CreateDataSource(str(output_path))
         else:
-            gpkg = driver.CreateDataSource(output_path)
+            output_path.mkdir(parents=True, exist_ok=True)
+            source = None
 
-        # Compile schemas.
-        schemas = load_yaml(os.path.abspath("../distribution_format.yaml"))
-        if export_schemas:
-            export_schemas = load_yaml(export_schemas)["conform"]
+        # Compile type schemas.
+        if isinstance(type_schemas, (dict, Path, str)):
+            if isinstance(type_schemas, (Path, str)):
+                if Path(type_schemas).exists():
+                    type_schemas = load_yaml(type_schemas)
+                else:
+                    raise ValueError(f"Invalid type schemas: {type_schemas}.")
+        else:
+            type_schemas = load_yaml(distribution_format_path)
+
+        # Compile export schemas (filter datasets and fields within the existing type schemas and dataframe columns).
+        if isinstance(export_schemas, (dict, Path, str)):
+            if isinstance(export_schemas, (Path, str)):
+                if Path(export_schemas).exists():
+                    export_schemas, load_yaml(export_schemas)
+                else:
+                    raise ValueError(f"Invalid export schemas: {export_schemas}.")
+            export_schemas = export_schemas["conform"]
         else:
             export_schemas = defaultdict(dict)
-            for table in schemas:
-                export_schemas[table]["fields"] = {field: field for field in schemas[table]["fields"]}
+            for table, df in dataframes.items():
+                export_schemas[table]["fields"] = {field: field for field in type_schemas[table]["fields"]}
+
+        # Conditionally merge schemas.
+        if merge_schemas:
+            type_schemas_merged, export_schemas_merged = defaultdict(dict), defaultdict(dict)
+            for table in dataframes:
+                type_schemas_merged["fields"] |= type_schemas[table]["fields"]
+                export_schemas_merged["fields"] |= export_schemas[table]["fields"]
+
+            # Update schemas with merged results.
+            type_schemas = {table: type_schemas_merged for table in type_schemas}
+            export_schemas = {table: export_schemas_merged for table in export_schemas}
 
         # Iterate dataframes.
-        for table_name, df in dataframes.items():
-
-            logger.info(f"Layer {table_name}: creating layer.")
+        for table, df in dataframes.items():
 
             # Configure layer shape type and spatial reference.
-            if isinstance(df, gpd.GeoDataFrame):
+            spatial = type_schemas[table]["spatial"]
+            if spatial:
 
+                # Configure spatial reference.
                 srs = osr.SpatialReference()
-                srs.ImportFromEPSG(df.crs.to_epsg())
-
-                if len(df.geom_type.unique()) > 1:
-                    raise ValueError(f"Multiple geometry types detected for dataframe {table_name}: "
-                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
-                elif df.geom_type.iloc[0] in {"Point", "MultiPoint", "LineString", "MultiLineString"}:
-                    shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
+                if isinstance(epsg, int):
+                    srs.ImportFromEPSG(epsg)
                 else:
-                    raise ValueError(f"Invalid geometry type(s) for dataframe {table_name}: "
-                                     f"{', '.join(map(str, df.geom_type.unique()))}.")
+                    srs.ImportFromEPSG(df.crs.to_epsg())
+
+                # Configure shape type.
+                if isinstance(geom_type, dict):
+                    try:
+                        shape_type = attrgetter(f"wkb{geom_type[table]}")(ogr)
+                    except KeyError:
+                        raise KeyError(f"Invalid geom_type mapping: {geom_type}.")
+                else:
+                    if len(df.geom_type.unique()) > 1:
+                        raise ValueError(f"Multiple geometry types detected for dataframe {table}: "
+                                         f"{', '.join(map(str, df.geom_type.unique()))}.")
+                    else:
+                        shape_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
+
             else:
                 shape_type = ogr.wkbNone
                 srs = None
 
-            # Create layer.
-            layer = gpkg.CreateLayer(name=table_name, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
-
-            logger.info(f"Layer {table_name}: configuring schema.")
+            # Create source (non-layer-based drivers only) and layer.
+            nln = str(nln_map[table]) if nln_map else table
+            if driver.name == "GPKG":
+                layer = source.CreateLayer(name=nln, srs=srs, geom_type=shape_type, options=["OVERWRITE=YES"])
+            elif output_path.suffix:
+                layer = source.CreateLayer(name=nln, srs=srs, geom_type=shape_type)
+            else:
+                source = driver.CreateDataSource(str(output_path / nln))
+                layer = source.CreateLayer(name=Path(nln).stem, srs=srs, geom_type=shape_type)
 
             # Configure layer schema (field definitions).
             ogr_field_map = {"float": ogr.OFTReal, "int": ogr.OFTInteger, "str": ogr.OFTString}
 
-            for field_name, mapped_field_name in export_schemas[table_name]["fields"].items():
-                field_type, field_width = schemas[table_name]["fields"][field_name]
+            # Filter type and export schemas.
+            type_schema = {field: specs for field, specs in type_schemas[table]["fields"].items() if field in df}
+            valid_fields = set(type_schema).intersection(set(df.columns))
+            export_schema = {field: map_field for field, map_field in export_schemas[table]["fields"].items()
+                             if field in valid_fields}
+
+            # Conditionally add uuid to schemas.
+            if keep_uuid and "uuid" in df.columns:
+                type_schema["uuid"] = ["str", 32]
+                export_schema["uuid"] = "uuid"
+
+            # Set field definitions from schemas.
+            for field_name, mapped_field_name in export_schema.items():
+                field_type, field_width = type_schema[field_name]
                 field_defn = ogr.FieldDefn(mapped_field_name, ogr_field_map[field_type])
                 field_defn.SetWidth(field_width)
                 layer.CreateField(field_defn)
 
+            # Remove invalid columns and reorder dataframe to match export schema.
+            if spatial:
+                df = df[[*export_schema, "geometry"]].copy(deep=True)
+            else:
+                df = df[[*export_schema]].copy(deep=True)
+
             # Map dataframe column names (does nothing if already mapped).
-            df.rename(columns=export_schemas[table_name]["fields"], inplace=True)
-
-            # Add uuid field to schema, if available.
-            if "uuid" in df.columns:
-                field_defn = ogr.FieldDefn("uuid", ogr.OFTString)
-                field_defn.SetWidth(32)
-                layer.CreateField(field_defn)
-
-            # Filter invalid columns from dataframe.
-            invalid_cols = set(df.columns) - {*export_schemas[table_name]["fields"].values(), "uuid", "geometry"}
-            if invalid_cols:
-                logger.warning(f"Layer {table_name}: extraneous columns detected and will not be written to output: "
-                               f"{', '.join(map(str, invalid_cols))}.")
+            df.rename(columns=export_schema, inplace=True)
 
             # Write layer.
             layer.StartTransaction()
 
-            for feat in tqdm(df.itertuples(index=False), total=len(df), desc=f"Layer {table_name}: writing to file"):
+            for feat in tqdm(df.itertuples(index=False), total=len(df),
+                             desc=f"Writing to file={source.GetName()}, layer={table}",
+                             bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}", leave=not bool(outer_pbar)):
 
                 # Instantiate feature.
                 feature = ogr.Feature(layer.GetLayerDefn())
 
-                # Set feature properties.
+                # Compile feature properties.
                 properties = feat._asdict()
-                for prop in set(properties) - invalid_cols - {"geometry"}:
-                    field_index = feature.GetFieldIndex(prop)
-                    feature.SetField(field_index, properties[prop])
 
                 # Set feature geometry, if spatial.
-                if srs:
-                    geom = ogr.CreateGeometryFromWkb(properties["geometry"].wkb)
+                if spatial:
+                    geom = ogr.CreateGeometryFromWkb(properties.pop("geometry").wkb)
                     feature.SetGeometry(geom)
+
+                # Iterate and set feature properties (attributes).
+                for field_index, prop in enumerate(properties.items()):
+                    feature.SetField(field_index, prop[-1])
 
                 # Create feature.
                 layer.CreateFeature(feature)
@@ -423,8 +513,16 @@ def export_gpkg(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], ou
 
             layer.CommitTransaction()
 
+            # Update outer progress bar.
+            if outer_pbar:
+                outer_pbar.update(1)
+
+    except FileExistsError as e:
+        logger.exception(f"Invalid output directory - already exists.")
+        logger.exception(e)
+        sys.exit(1)
     except (Exception, KeyError, ValueError, sqlite3.Error) as e:
-        logger.exception(f"Error raised when writing to GeoPackage: {output_path}.")
+        logger.exception(f"Error raised when writing output: {output_path}.")
         logger.exception(e)
         sys.exit(1)
 
@@ -556,12 +654,12 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
-def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]] = None) -> \
+def load_gpkg(gpkg_path: Union[Path, str], find: bool = False, layers: Union[None, List[str]] = None) -> \
         Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
     """
     Compiles a dictionary of NRN dataset names and associated (Geo)DataFrame from GeoPackage layers.
 
-    :param str gpkg_path: path to the GeoPackage.
+    :param Union[Path, str] gpkg_path: path to the GeoPackage.
     :param bool find: searches for NRN datasets in the GeoPackage based on non-exact matches with the expected dataset
         names, default False.
     :param Union[None, List[str]] layers: layer name or list of layer names to return instead of all NRN datasets.
@@ -569,10 +667,13 @@ def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]]
         (Geo)DataFrames.
     """
 
-    dframes = dict()
-    distribution_format = load_yaml(os.path.abspath("../distribution_format.yaml"))
+    logger.info(f"Loading GeoPackage: {gpkg_path}.")
 
-    if os.path.exists(gpkg_path):
+    dframes = dict()
+    distribution_format = load_yaml(distribution_format_path)
+    gpkg_path = Path(gpkg_path).resolve()
+
+    if gpkg_path.exists():
 
         # Filter layers to load.
         if layers:
@@ -650,13 +751,15 @@ def load_gpkg(gpkg_path: str, find: bool = False, layers: Union[None, List[str]]
     return dframes
 
 
-def load_yaml(path: str) -> Any:
+def load_yaml(path: Union[Path, str]) -> Any:
     """
     Loads the content of a YAML file as a Python object.
 
-    :param str path: path to the YAML file.
+    :param Union[Path, str] path: path to the YAML file.
     :return Any: Python object consisting of the YAML content.
     """
+
+    path = Path(path).resolve()
 
     with open(path, "r", encoding="utf8") as f:
 
@@ -706,45 +809,6 @@ def nx_to_gdf(g: nx.Graph, nodes: bool = True, edges: bool = True) -> \
         return gdf_nodes
     else:
         return gdf_edges
-
-
-def ogr2ogr(expression: dict, log: Union[None, str] = None, max_attempts: int = 5) -> None:
-    """
-    Executes an ogr2ogr subprocess. Input expression must be a dictionary of ogr2ogr parameters.
-
-    :param dict expression: dictionary of ogr2ogr parameters.
-    :param Union[None, str] log: None or a message to log prior to executing the ogr2ogr subprocess.
-    :param int max_attempts: maximum attempts to execute the ogr2ogr subprocess.
-    """
-
-    # Write log.
-    if log:
-        logger.info(log)
-
-    # Format ogr2ogr command.
-    expression = f"ogr2ogr {' '.join(map(str, expression.values()))}"
-
-    # Execute ogr2ogr.
-    attempt = 1
-    while attempt <= max_attempts:
-
-        try:
-
-            # Run subprocess.
-            subprocess.run(expression, shell=True, check=True)
-            break
-
-        except subprocess.CalledProcessError as e:
-
-            if attempt == max_attempts:
-                logger.exception("Unable to transform data source.")
-                logger.exception(f"ogr2ogr error: {e}")
-                logger.warning("Maximum attempts reached. Exiting program.")
-                sys.exit(1)
-            else:
-                logger.warning(f"Attempt {attempt} of {max_attempts} failed. Retrying.")
-                attempt += 1
-                continue
 
 
 def reproject_gdf(gdf: Union[gpd.GeoDataFrame, gpd.GeoSeries], epsg_source: int, epsg_target: int) -> \
@@ -801,6 +865,30 @@ def reproject_gdf(gdf: Union[gpd.GeoDataFrame, gpd.GeoSeries], epsg_source: int,
         return gdf["geometry"]
     else:
         return gdf
+
+
+def rm_tree(path: Path) -> None:
+    """
+    Recursively removes a directory and all of its contents.
+
+    :param Path path: path to the directory to be removed.
+    """
+
+    if path.exists():
+
+        # Recursively remove directory contents.
+        for child in path.iterdir():
+            if child.is_file():
+                child.unlink()
+            else:
+                rm_tree(child)
+
+        # Remove original directory.
+        path.rmdir()
+
+    else:
+        logger.exception(f"Path does not exist: \"{path}\".")
+        sys.exit(1)
 
 
 def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataFrame:

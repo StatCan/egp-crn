@@ -3,7 +3,6 @@ import fiona
 import geopandas as gpd
 import logging
 import numpy as np
-import os
 import pandas as pd
 import requests
 import sys
@@ -12,11 +11,13 @@ from collections import Counter
 from datetime import datetime
 from itertools import chain
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from scipy.spatial import cKDTree
 from shapely.geometry import box, Point, Polygon, MultiPolygon, GeometryCollection
 from typing import Dict, List, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
@@ -44,8 +45,8 @@ class Stage:
         self.boundary = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
-        if not os.path.exists(self.data_path):
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
+        if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
@@ -53,6 +54,9 @@ class Stage:
         self.defaults = helpers.compile_default_values(lang="en")["junction"]
         self.dtypes = helpers.compile_dtypes()["junction"]
         self.domains = helpers.compile_domains(mapped_lang="en")["junction"]
+
+        # Load data.
+        self.dframes = helpers.load_gpkg(self.data_path, layers=["ferryseg", "roadseg"])
 
     def apply_domains(self) -> None:
         """Applies domain restrictions to each column in the target (Geo)DataFrames."""
@@ -87,7 +91,7 @@ class Stage:
         table = field = None
 
         # Load yaml.
-        self.target_attributes = helpers.load_yaml(os.path.abspath("../distribution_format.yaml"))
+        self.target_attributes = helpers.load_yaml(filepath.parents[1] / "distribution_format.yaml")
 
         # Remove field length from dtype attribute.
         logger.info("Configuring target attributes.")
@@ -162,14 +166,6 @@ class Stage:
 
         return final_result
 
-    def export_gpkg(self) -> None:
-        """Exports the junction GeoDataFrame as GeoPackage layer."""
-
-        logger.info("Exporting junctions dataframe to GeoPackage layer.")
-
-        # Export junctions dataframe to GeoPackage layer.
-        helpers.export_gpkg({"junction": self.dframes["junction"]}, self.data_path)
-
     def gen_attributes(self) -> None:
         """Generate the remaining attributes for the output junction dataset."""
 
@@ -221,6 +217,7 @@ class Stage:
             for attribute in attributes:
                 attribute_uuid = attributes_uuid[attribute]
                 default = self.defaults[attribute]
+                connected_attribute = None
 
                 # Attribute: accuracy.
                 if attribute == "accuracy":
@@ -372,7 +369,7 @@ class Stage:
 
         # Download administrative boundaries.
         logger.info("Downloading administrative boundary file.")
-        source = helpers.load_yaml("../downloads.yaml")["provincial_boundaries"]
+        source = helpers.load_yaml(filepath.parents[1] / "downloads.yaml")["provincial_boundaries"]
         download_url, source_crs = itemgetter("url", "crs")(source)
 
         try:
@@ -397,24 +394,16 @@ class Stage:
             logger.exception(e)
             sys.exit(1)
 
-    def load_gpkg(self) -> None:
-        """Loads input GeoPackage layers into (Geo)DataFrames."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path, layers=["ferryseg", "roadseg"])
-
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.load_gpkg()
         self.load_boundaries()
         self.compile_target_attributes()
         self.gen_target_dataframe()
         self.gen_junctions()
         self.gen_attributes()
         self.apply_domains()
-        self.export_gpkg()
+        helpers.export({"junction": self.dframes["junction"]}, self.data_path)
 
 
 @click.command()

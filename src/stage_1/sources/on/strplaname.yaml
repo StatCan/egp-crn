@@ -6,12 +6,13 @@ coverage:
     country: Canada
     subdivision: Ontario
   website: https://data.ontario.ca/dataset/ontario-road-network-road-net-element
+  update_frequency: weekly
 license:
   url: https://www.ontario.ca/page/open-government-licence-ontario
   text: Open Government License - Ontario
 language: en
 data:
-  filename: orn.gpkg
+  filename: 2020/orn.gpkg
   layer: strplaname
   driver: GPKG
   crs: "EPSG:4269"

@@ -27,7 +27,7 @@ logger.addHandler(handler)
 
 
 class LRS:
-    """Class to convert Yukon data from Linear Reference System (LRS) to GeoPackage."""
+    """Class to convert ORN data from Linear Reference System (LRS) to GeoPackage."""
 
     def __init__(self, src: Union[Path, str], dst: Union[Path, str]) -> None:
         """
@@ -847,15 +847,15 @@ class LRS:
 
 @click.command()
 @click.argument("src", type=click.Path(exists=True))
-@click.option("--dst", type=click.Path(exists=False), default=filepath.parents[4] / "data/raw/yt/yt.gpkg",
+@click.option("--dst", type=click.Path(exists=False), default=filepath.parents[4] / "data/raw/on/on.gpkg",
               show_default=True)
-def main(src: Union[Path, str], dst: Union[Path, str] = filepath.parents[4] / "data/raw/yt/yt.gpkg") -> None:
+def main(src: Union[Path, str], dst: Union[Path, str] = filepath.parents[4] / "data/raw/on/on.gpkg") -> None:
     """
     Executes the LRS class.
 
     :param Union[Path, str] src: source path.
     :param Union[Path, str] dst: destination path,
-        default = Path(__file__).resolve().parents[4] / 'data/raw/yt/yt.gpkg'.
+        default = Path(__file__).resolve().parents[4] / 'data/raw/on/on.gpkg'.
     """
 
     try:

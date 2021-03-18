@@ -1,9 +1,10 @@
 import click
 import logging
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 from validation_functions import Validator
 
@@ -35,38 +36,28 @@ class Stage:
         self.Validator = None
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
-        if not os.path.exists(self.data_path):
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
+        if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = os.path.abspath(f"../../data/interim/{self.source}_validation_errors.log")
+        self.output_path = filepath.parents[2] / f"data/interim/{self.source}_validation_errors.log"
 
         # Conditionally clear output namespace.
-        if os.path.exists(self.output_path):
+        if self.output_path.exists():
             logger.warning("Output namespace already occupied.")
 
             if self.remove:
-                logger.warning("Parameter remove=True: Removing conflicting files.")
-                logger.info(f"Removing conflicting file: \"{self.output_path}\".")
-
-                try:
-                    os.remove(self.output_path)
-                except OSError as e:
-                    logger.exception(f"Unable to remove file: \"{self.output_path}\".")
-                    logger.exception(e)
-                    sys.exit(1)
+                logger.warning(f"Parameter remove=True: Removing conflicting file: \"{self.output_path}\".")
+                self.output_path.unlink()
 
             else:
-                logger.exception(
-                    "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
-                    "remove=True (-r) or manually clear the output namespace.")
+                logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                                 "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
-        # Load and classify data.
-        logger.info("Loading Geopackage layers.")
-
+        # Load data.
         self.dframes = helpers.load_gpkg(self.data_path)
 
     def log_errors(self) -> None:

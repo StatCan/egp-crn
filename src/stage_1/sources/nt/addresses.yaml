@@ -5,14 +5,17 @@ coverage:
     alpha2: CA-NT
     country: Canada
     subdivision: Northwest Territories
-  website: https://batch.openaddresses.io/data
+  website:
+    processed: https://batch.openaddresses.io/data
+    original: http://opendata.yellowknife.ca/home/details/92407f76-6c52-449a-a4c3-01fbdc3b30ff
+  update_frequency: monthly
 license:
   City of Yellowknife:
     url: https://www.yellowknife.ca/en/discovering-yellowknife/resources/geomatic_services/City_of_Yellowknife_Open_Data_LIcence__Terms_of_Use.pdf
     text: City of Yellowknife Open Data License & Terms of Use
 language: en
 data:
-  filename: OpenAddresses/addresses.geojson
+  filename: 2020/addresses.geojson
   layer:
   driver: GeoJSON
   crs: "EPSG:3857"

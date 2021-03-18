@@ -3,7 +3,6 @@ import geopandas as gpd
 import logging
 import networkx as nx
 import numpy as np
-import os
 import pandas as pd
 import shapely.ops
 import string
@@ -12,11 +11,12 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from itertools import chain, compress, groupby, permutations, tee
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from scipy.spatial import cKDTree
 from shapely.geometry import Point
 from typing import Dict, List, Tuple, Union
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 
@@ -443,7 +443,7 @@ class Validator:
         """
 
         errors = defaultdict(list)
-        df = self.dframes[name]
+        df = self.dframes_m[name]
 
         # Keep only required fields.
         series = df["geometry"]
@@ -516,8 +516,7 @@ class Validator:
             if len(coord_pairs_dup_grouped):
                 for uuid_group, pairs in coord_pairs_dup_grouped.iteritems():
                     vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
-                    errors[3].append(f"Overlap identified for uuids: {vals}; number of overlapping segments: "
-                                     f"{len(pairs)}.")
+                    errors[3].append(f"{len(pairs)} overlapping segments identified between uuids: {vals}.")
 
         # Compile error properties.
         for code, vals in errors.items():
@@ -1002,10 +1001,13 @@ class Validator:
         results = uuids_proxi - uuids_exclude
         results = results.loc[results.map(len) > 0]
 
+        # Explode result groups and filter duplicates.
+        results = results.map(list).explode()
+        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+
         # Compile error properties.
-        for source_uuid, target_uuids in results.iteritems():
-            target_uuids = ", ".join(map(lambda val: f"'{val}'", target_uuids))
-            errors[1].append(f"uuid '{source_uuid}' is too close to uuid(s): {target_uuids}.")
+        for source_uuid, target_uuid in sorted(results_filtered):
+            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
 
         return errors
 
@@ -1167,10 +1169,13 @@ class Validator:
         results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(pts_idx_uuid_lookup))
         results = results.map(lambda vals: set(vals) if isinstance(vals, tuple) else {vals})
 
+        # Explode result groups and filter duplicates.
+        results = results.map(list).explode()
+        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+
         # Compile error properties.
-        for source_uuid, target_uuids in results.iteritems():
-            target_uuids = ", ".join(map(lambda val: f"'{val}'", target_uuids))
-            errors[1].append(f"uuid '{source_uuid}' is too close to uuid(s): {target_uuids}.")
+        for source_uuid, target_uuid in sorted(results_filtered):
+            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
 
         return errors
 
@@ -1501,7 +1506,7 @@ class Validator:
         segments_graph = helpers.gdf_to_nx(segments, keep_attributes=True, endpoints_only=False)
 
         # Configure subgraphs.
-        sub_g = pd.Series(nx.connected_component_subgraphs(segments_graph))
+        sub_g = pd.Series(list(map(segments_graph.subgraph, nx.connected_components(segments_graph))))
 
         # Validation 3.
         default = defaults["structid"]

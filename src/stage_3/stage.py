@@ -4,19 +4,19 @@ import logging
 import math
 import networkx as nx
 import numpy as np
-import os
 import pandas as pd
-import pathlib
 import string
 import sys
 import uuid
 from itertools import chain, compress
 from operator import attrgetter, itemgetter
+from pathlib import Path
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import linemerge, split
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+filepath = Path(__file__).resolve()
+sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
@@ -46,39 +46,26 @@ class Stage:
         self.remove = remove
 
         # Configure and validate input data path.
-        self.data_path = os.path.abspath(f"../../data/interim/{self.source}.gpkg")
-        if not os.path.exists(self.data_path):
+        self.data_path = filepath.parents[2] / f"data/interim/{self.source}.gpkg"
+        if not self.data_path.exists():
             logger.exception(f"Input data not found: \"{self.data_path}\".")
             sys.exit(1)
 
         # Configure output path.
-        self.output_path = os.path.abspath(f"../../data/processed/{self.source}/{self.source}_change_logs")
+        self.output_path = filepath.parents[2] / f"data/processed/{self.source}/{self.source}_change_logs"
 
         # Conditionally clear output namespace.
-        if os.path.exists(self.output_path):
-            namespace = set(map(lambda f: os.path.join(self.output_path, f), os.listdir(self.output_path)))
+        if self.output_path.exists():
+            logger.warning("Output namespace already occupied.")
 
-            if len(namespace):
-                logger.warning("Output namespace already occupied.")
+            if self.remove:
+                logger.warning("Parameter remove=True: Removing directory.")
+                helpers.rm_tree(self.output_path)
 
-                if self.remove:
-                    logger.warning("Parameter remove=True: Removing conflicting files.")
-
-                    for f in namespace:
-                        logger.info(f"Removing conflicting file: \"{f}\".")
-
-                        try:
-                            os.remove(f)
-                        except OSError as e:
-                            logger.exception(f"Unable to remove file: \"{f}\".")
-                            logger.exception(e)
-                            sys.exit(1)
-
-                else:
-                    logger.exception(
-                        "Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
-                        "remove=True (-r) or manually clear the output namespace.")
-                    sys.exit(1)
+            else:
+                logger.exception("Parameter remove=False: Unable to proceed while output namespace is occupied. Set "
+                                 "remove=True (-r) or manually clear the output namespace.")
+                sys.exit(1)
 
         # Compile match fields (fields which must be equal across records).
         self.match_fields = ["r_stname_c"]
@@ -89,32 +76,28 @@ class Stage:
         # Load default field values.
         self.defaults = helpers.compile_default_values()["roadseg"]
 
+        # Load data - current and previous vintage.
+        self.dframes = helpers.load_gpkg(self.data_path)
+        self.dframes_old = helpers.load_gpkg(self.data_path.parent / f"{self.source}_old.gpkg", find=True)
+
     def export_change_logs(self) -> None:
         """Exports the dataset differences as logs - based on nids."""
 
         logger.info(f"Writing change logs to: \"{self.output_path}\".")
 
         # Create change logs directory.
-        pathlib.Path(self.output_path).mkdir(parents=True, exist_ok=True)
+        Path(self.output_path).mkdir(parents=True, exist_ok=True)
 
         # Iterate tables and change types.
         for table in self.change_logs:
             for change, log in self.change_logs[table].items():
 
                 # Configure log path.
-                log_path = os.path.join(self.output_path, f"{self.source}_{table}_{change}.log")
+                log_path = self.output_path / f"{self.source}_{table}_{change}.log"
 
                 # Write log.
                 with helpers.TempHandlerSwap(logger, log_path):
                     logger.info(log)
-
-    def export_gpkg(self) -> None:
-        """Exports the (Geo)DataFrames as GeoPackage layers."""
-
-        logger.info("Exporting dataframes to GeoPackage layers.")
-
-        # Export target dataframes to GeoPackage layers.
-        helpers.export_gpkg(self.dframes, self.data_path)
 
     def gen_and_recover_structids(self) -> None:
         """Recovers structids from the previous NRN vintage or generates new ones."""
@@ -139,9 +122,9 @@ class Stage:
         if len(roadseg):
 
             # Group contiguous structures.
-            # Process: compile network x subgraphs, assign a structid to each list of subgraph uuids.
-            subgraphs = nx.connected_component_subgraphs(
-                helpers.gdf_to_nx(roadseg, keep_attributes=True, endpoints_only=True))
+            # Process: compile networkx subgraphs, assign a structid to each list of subgraph uuids.
+            graph = helpers.gdf_to_nx(roadseg, keep_attributes=True, endpoints_only=True)
+            subgraphs = map(graph.subgraph, nx.connected_components(graph))
             structids = dict()
 
             for subgraph in subgraphs:
@@ -215,17 +198,6 @@ class Stage:
                   (series.map(lambda val: not set(str(val)).issubset(hexdigits))))
 
         return flags
-
-    def load_gpkg(self) -> None:
-        """Loads input GeoPackage layers into (Geo)DataFrames."""
-
-        logger.info("Loading Geopackage layers.")
-
-        self.dframes = helpers.load_gpkg(self.data_path)
-
-        logger.info("Loading Geopackage layers - previous vintage.")
-
-        self.dframes_old = helpers.load_gpkg(f"../../data/interim/{self.source}_old.gpkg", find=True)
 
     def recover_and_classify_nids(self) -> None:
         """
@@ -513,18 +485,20 @@ class Stage:
         self.dframes["roadseg"].loc[self.roadseg.index, "nid"] = self.roadseg["nid"].copy(deep=True)
 
         # Separate modified from confirmed nid groups.
-        # Restore match fields.
-        roadseg_confirmed_new = classified_nids["confirmed"]\
-            .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid").drop_duplicates(keep="first")
-        roadseg_confirmed_old = classified_nids["confirmed"]\
+        # Process: for each of the current and old dataframes, compile the first instance of the NID, then compare the
+        # equality of the match fields between the current and old dataframes to determine if a record was modified.
+        confirmed_new = classified_nids["confirmed"]\
+            .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid")\
+            .drop_duplicates(keep="first")
+        confirmed_old = classified_nids["confirmed"]\
             .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
             .drop_duplicates(keep="first")
 
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
-        flags = (roadseg_confirmed_new[self.match_fields] == roadseg_confirmed_old[self.match_fields]).all(axis=1)
-        classified_nids["modified"] = classified_nids["confirmed"].loc[flags.values, "nid"].to_list()
-        classified_nids["confirmed"] = classified_nids["confirmed"].loc[~flags.values, "nid"].to_list()
+        flags = (confirmed_new[self.match_fields].values == confirmed_old[self.match_fields].values).all(axis=1)
+        classified_nids["modified"] = classified_nids["confirmed"].loc[~flags, "nid"].to_list()
+        classified_nids["confirmed"] = classified_nids["confirmed"].loc[flags, "nid"].to_list()
 
         # Store nid classifications as change logs.
         self.change_logs["roadseg"] = {
@@ -600,7 +574,6 @@ class Stage:
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.load_gpkg()
         self.roadseg_gen_full()
         self.roadseg_gen_nids()
         self.roadseg_recover_and_classify_nids()
@@ -608,7 +581,7 @@ class Stage:
         self.recover_and_classify_nids()
         self.gen_and_recover_structids()
         self.export_change_logs()
-        self.export_gpkg()
+        helpers.export(self.dframes, self.data_path)
 
 
 @click.command()
