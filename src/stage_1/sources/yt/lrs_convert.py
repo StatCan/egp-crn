@@ -48,6 +48,8 @@ class LRS:
             "measurement_field": "measure",
             "ids": ["004097", "004307", "004349"]
         }
+        self.point_datasets = {}
+        self.point_event_measurement_field = None
 
         # Dataset import specifications.
         self.schema = {
@@ -435,9 +437,11 @@ class LRS:
         # Assemble base - geometry connection.
         logger.info(f"Assembling base - geometry connection: {self.base_dataset} - {self.geometry_dataset}.")
 
-        # Assemble datasets.
-        base = gpd.GeoDataFrame(self.src_datasets[self.base_dataset].merge(
-            self.src_datasets[self.geometry_dataset], how="left", on=self.get_con_id_field(self.geometry_dataset)))
+        # Assemble datasets if they are not the same.
+        base = self.src_datasets[self.base_dataset].copy(deep=True)
+        if self.base_dataset != self.geometry_dataset:
+            base = gpd.GeoDataFrame(base.merge(self.src_datasets[self.geometry_dataset], how="left",
+                                               on=self.get_con_id_field(self.geometry_dataset)))
 
         # Explode geometries to singlepart.
         base = helpers.explode_geometry(base)
@@ -728,8 +732,8 @@ class LRS:
             logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {name}, based on ID "
                         f"field: {con_id_field}.")
 
-            # Flag many-to-one linkages between base and geometry datasets.
-            if name == self.geometry_dataset:
+            # Flag many-to-one linkages between base and geometry datasets, if they are not the same.
+            if (name == self.geometry_dataset) and (self.base_dataset != self.geometry_dataset):
 
                 # Compile and flag many-to-one linkages.
                 base = self.src_datasets[self.base_dataset]

@@ -39,76 +39,107 @@ class LRS:
 
         self.nrn_datasets = dict()
         self.src_datasets = dict()
-        self.base_dataset = "tdylrs_centerline_sequence"
-        self.geometry_dataset = "tdylrs_centerline"
-        self.event_measurement_fields = {"from": "fromkm", "to": "tokm"}
-        self.calibrations = {
-            "dataset": "tdylrs_calibration_point",
-            "id_field": "routeid",
-            "measurement_field": "measure",
-            "ids": ["004097", "004307", "004349"]
-        }
+        self.base_dataset = "orn_road_net_element"
+        self.geometry_dataset = "orn_road_net_element"
+        self.event_measurement_fields = {"from": "from_measure", "to": "to_measure"}
+        self.point_datasets = {"orn_blocked_passage", "orn_toll_point"}
+        self.point_event_measurement_field = "at_measure"
 
         # Dataset import specifications.
         self.schema = {
-            "br_bridge_ln": {
-                "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "bridge_name"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "bridge_name"]
-            },
-            "sm_structure": {
-                "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "surface_code"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "surface_code"]
-            },
-            "tdylrs_calibration_point": {
-                "fields": ["routeid", "fromdate", "todate", "networkid", "measure", "geometry"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1",
-                "output_fields": None
-            },
-            "tdylrs_centerline": {
-                "fields": ["centerlineid", "geometry"],
+            "orn_address_info": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "first_house_number",
+                           "last_house_number", "house_number_structure", "street_side", "effective_datetime"],
                 "query": None,
-                "output_fields": None
+                "output_fields": ["first_house_number", "last_house_number", "house_number_structure",
+                                  "effective_datetime"]
             },
-            "tdylrs_centerline_sequence": {
-                "fields": ["routeid", "fromdate", "todate", "networkid", "centerlineid"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999') & networkid==1",
-                "output_fields": ["fromdate"]
+            "orn_blocked_passage": {
+                "fields": ["orn_road_net_element_id", "at_measure", "blocked_passage_type", "agency_name",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["blocked_passage_type", "agency_name", "effective_datetime", "geometry"]
             },
-            "tdylrs_primary_rte": {
-                "fields": ["fromdate", "todate", "routeid", "planimetric_accuracy", "acquisition_technique_dv",
-                           "acquired_by_dv", "acquisition_date"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "planimetric_accuracy", "acquisition_technique_dv", "acquired_by_dv",
-                                  "acquisition_date"]
+            "orn_jurisdiction": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["jurisdiction", "effective_datetime"]
             },
-            "td_lane_configuration": {
-                "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "lane_configuration"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "lane_configuration"]
+            "orn_number_of_lanes": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "number_of_lanes",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["number_of_lanes", "effective_datetime"]
             },
-            "td_number_of_lanes": {
-                "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "number_of_lanes"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "number_of_lanes"]
+            "orn_official_street_name": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "full_street_name",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["full_street_name", "effective_datetime"]
             },
-            "td_road_administration": {
-                "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "administration"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "administration"]
+            "orn_road_class": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "road_class", "effective_datetime"],
+                "query": None,
+                "output_fields": ["road_class", "effective_datetime"]
             },
-            "td_road_type": {
-                "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "road_type"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "road_type"]
+            "orn_road_net_element": {
+                "fields": ["ogf_id", "road_absolute_accuracy", "direction_of_traffic_flow", "exit_number",
+                           "road_element_type", "acquisition_technique", "creation_date", "revision_date", "geometry"],
+                "query": "road_element_type != 'VIRTUAL ROAD'",
+                "output_fields": ["road_absolute_accuracy", "direction_of_traffic_flow", "exit_number",
+                                  "road_element_type", "acquisition_technique", "creation_date", "revision_date",
+                                  "geometry"]
             },
-            "td_street_name": {
-                "fields": ["routeid", "fromdate", "todate", "fromkm", "tokm", "street_direction_prefix",
-                           "street_type_prefix", "street_name", "street_type_suffix", "street_direction_suffix"],
-                "query": "todate.isna() & ~fromdate.astype('str').str.startswith('9999')",
-                "output_fields": ["fromdate", "street_direction_prefix", "street_type_prefix", "street_name",
-                                  "street_type_suffix", "street_direction_suffix"]
+            "orn_road_net_element_source": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "agency_name",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["agency_name", "effective_datetime"]
+            },
+            "orn_road_surface": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "pavement_status", "surface_type",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["pavement_status", "surface_type", "effective_datetime"]
+            },
+            "orn_route_name": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "route_name_english",
+                           "route_name_french", "effective_datetime"],
+                "query": None,
+                "output_fields": ["route_name_english", "route_name_french", "effective_datetime"]
+            },
+            "orn_route_number": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "route_number",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["route_number", "effective_datetime"]
+            },
+            "orn_speed_limit": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "speed_limit",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["speed_limit", "effective_datetime"]
+            },
+            "orn_street_name_parsed": {
+                "fields": ["full_street_name", "directional_prefix", "street_type_prefix", "street_name_body",
+                           "street_type_suffix", "directional_suffix", "effective_datetime"],
+                "query": None,
+                "output_fields": ["directional_prefix", "street_type_prefix", "street_name_body", "street_type_suffix",
+                                  "directional_suffix", "effective_datetime"]
+            },
+            "orn_structure": {
+                "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "structure_type",
+                           "structure_name_english", "structure_name_french", "effective_datetime"],
+                "query": None,
+                "output_fields": ["structure_type", "structure_name_english", "structure_name_french",
+                                  "effective_datetime"]
+            },
+            "orn_toll_point": {
+                "fields": ["orn_road_net_element_id", "at_measure", "toll_point_type", "agency_name",
+                           "effective_datetime"],
+                "query": None,
+                "output_fields": ["toll_point_type", "agency_name", "effective_datetime", "geometry"]
             }
         }
 
@@ -116,31 +147,48 @@ class LRS:
         self.structure = {
             "base": self.base_dataset,
             "connections": {
-                "centerlineid": ["tdylrs_centerline"],
-                "routeid": ["br_bridge_ln", "sm_structure", "tdylrs_calibration_point", "tdylrs_primary_rte",
-                            "td_lane_configuration", "td_number_of_lanes", "td_road_administration", "td_road_type",
-                            "td_street_name"]
+                "orn_road_net_element_id": ["orn_address_info", "orn_blocked_passage", "orn_jurisdiction",
+                                            "orn_number_of_lanes", "orn_official_street_name", "orn_road_class",
+                                            "orn_road_net_element_source", "orn_road_surface", "orn_route_name",
+                                            "orn_route_number", "orn_speed_limit", "orn_structure", "orn_toll_point"],
+                "full_street_name": ["orn_street_name_parsed"]
             }
         }
 
         # Input dataset columns to be renamed upon import.
         self.rename = {
-            "acquired_by_dv": "provider",
-            "acquisition_date": "credate",
-            "acquisition_technique_dv": "acqtech",
-            "administration": "roadjuris",
-            "bridge_name": "strunameen",
-            "fromdate": "revdate",
-            "lane_configuration": "trafficdir",
+            "acquisition_technique": "acqtech",
+            "agency_name": "provider",
+            "blocked_passage_type": "blkpassty",
+            "creation_date": "credate",
+            "direction_of_traffic_flow": "trafficdir",
+            "directional_prefix": "dirprefix",
+            "directional_suffix": "dirsuffix",
+            "effective_datetime": "revdate",
+            "exit_number": "exitnbr",
+            "first_house_number": "hnumf",
+            "full_street_name": "stname_c",
+            "house_number_structure": "hnumstr",
+            "jurisdiction": "roadjuris",
+            "last_house_number": "hnuml",
             "number_of_lanes": "nbrlanes",
-            "planimetric_accuracy": "accuracy",
-            "road_type": "roadclass",
-            "street_direction_prefix": "dirprefix",
-            "street_direction_suffix": "dirsuffix",
-            "street_name": "namebody",
+            "ogf_id": "orn_road_net_element_id",
+            "pavement_status": "pavstatus",
+            "revision_date": "revdate",
+            "road_absolute_accuracy": "accuracy",
+            "road_class": "roadclass",
+            "route_name_english": "rtename1en",
+            "route_name_french": "rtename1fr",
+            "route_number": "rtnumber1",
+            "speed_limit": "speed",
+            "street_name_body": "namebody",
             "street_type_prefix": "strtypre",
             "street_type_suffix": "strtysuf",
-            "surface_code": "pavstatus"
+            "structure_name_english": "strunameen",
+            "structure_name_french": "strunamefr",
+            "structure_type": "structtype",
+            "surface_type": "pavsurf",
+            "toll_point_type": "tollpttype"
         }
 
         # Validate src.
@@ -435,9 +483,11 @@ class LRS:
         # Assemble base - geometry connection.
         logger.info(f"Assembling base - geometry connection: {self.base_dataset} - {self.geometry_dataset}.")
 
-        # Assemble datasets.
-        base = gpd.GeoDataFrame(self.src_datasets[self.base_dataset].merge(
-            self.src_datasets[self.geometry_dataset], how="left", on=self.get_con_id_field(self.geometry_dataset)))
+        # Assemble datasets if they are not the same.
+        base = self.src_datasets[self.base_dataset].copy(deep=True)
+        if self.base_dataset != self.geometry_dataset:
+            base = gpd.GeoDataFrame(base.merge(self.src_datasets[self.geometry_dataset], how="left",
+                                               on=self.get_con_id_field(self.geometry_dataset)))
 
         # Explode geometries to singlepart.
         base = helpers.explode_geometry(base)
@@ -728,8 +778,8 @@ class LRS:
             logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {name}, based on ID "
                         f"field: {con_id_field}.")
 
-            # Flag many-to-one linkages between base and geometry datasets.
-            if name == self.geometry_dataset:
+            # Flag many-to-one linkages between base and geometry datasets, if they are not the same.
+            if (name == self.geometry_dataset) and (self.base_dataset != self.geometry_dataset):
 
                 # Compile and flag many-to-one linkages.
                 base = self.src_datasets[self.base_dataset]
