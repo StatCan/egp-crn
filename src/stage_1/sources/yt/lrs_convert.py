@@ -196,7 +196,7 @@ class LRS:
 
                 # Compile required attributes with updated names. Add a suffix to columns already in base dataset.
                 # Note: Underscore suffixes are applied to conflicting field names. For certain fields, such as dates,
-                # it may be useful to kept multiple instances.
+                # it may be useful to keep multiple instances.
                 cols_keep = list()
                 for col in self.schema[name]["output_fields"]:
                     col = self.rename[col]
