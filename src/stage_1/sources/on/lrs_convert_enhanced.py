@@ -62,7 +62,7 @@ class LRS:
             "orn_jurisdiction": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
                            "effective_datetime"],
-                "query": None,
+                "query": "street_side != 'Left'",
                 "output_fields": ["jurisdiction", "effective_datetime"]
             },
             "orn_number_of_lanes": {
@@ -198,12 +198,95 @@ class LRS:
 
         # Define composite datasets (datasets to be split into multiple datasets).
         self.composite_datasets = {
+            "orn_address_info": {
+                    "successive_queries": False,
+                    "new_datasets": [
+                        {
+                            "query": "street_side != 'Right'",
+                            "dataset_name": "orn_address_info_left",
+                            "rename_fields": {"hnumf": "l_hnumf", "hnuml": "l_hnuml", "hnumstr": "l_hnumstr"},
+                            "output_fields": ["l_hnumf", "l_hnuml", "l_hnumstr", "effective_datetime"]
+                        },
+                        {
+                            "query": "street_side != 'Left'",
+                            "dataset_name": "orn_address_info_right",
+                            "rename_fields": {"hnumf": "r_hnumf", "hnuml": "r_hnuml", "hnumstr": "r_hnumstr"},
+                            "output_fields": ["r_hnumf", "r_hnuml", "r_hnumstr", "effective_datetime"]
+                        }
+                    ]
+            },
             "orn_route_name": {
-                "rtenameen": ["rtename1en", "rtename2en", "rtename3en", "rtename4en"],
-                "rtenamefr": ["rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr"]
+                "successive_queries": True,
+                "new_datasets": [
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_name_1",
+                        "rename_fields": {"rtenameen": "rtename1en"},
+                        "output_fields": ["rtename1en", "effective_datetime"]
+                    },
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_name_2",
+                        "rename_fields": {"rtenameen": "rtename2en"},
+                        "output_fields": ["rtename2en", "effective_datetime"]
+                    },
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_name_3",
+                        "rename_fields": {"rtenameen": "rtename3en"},
+                        "output_fields": ["rtename3en", "effective_datetime"]
+                    },
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_name_4",
+                        "rename_fields": {"rtenameen": "rtename4en"},
+                        "output_fields": ["rtename4en", "effective_datetime"]
+                    }
+                ]
             },
             "orn_route_number": {
-                "rtnumber": ["rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"]
+                "successive_queries": True,
+                "new_datasets": [
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_number_1",
+                        "rename_fields": {"rtnumber": "rtnumber1"},
+                        "output_fields": ["rtnumber1", "effective_datetime"]
+                    },
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_number_2",
+                        "rename_fields": {"rtnumber": "rtnumber2"},
+                        "output_fields": ["rtnumber2", "effective_datetime"]
+                    },
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_number_3",
+                        "rename_fields": {"rtnumber": "rtnumber3"},
+                        "output_fields": ["rtnumber3", "effective_datetime"]
+                    },
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_number_4",
+                        "rename_fields": {"rtnumber": "rtnumber4"},
+                        "output_fields": ["rtnumber4", "effective_datetime"]
+                    },
+                    {
+                        "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
+                                 "(~orn_road_net_element_id.duplicated(keep='first'))",
+                        "dataset_name": "orn_route_number_5",
+                        "rename_fields": {"rtnumber": "rtnumber5"},
+                        "output_fields": ["rtnumber5", "effective_datetime"]
+                    }
+                ]
             }
         }
 
@@ -747,53 +830,40 @@ class LRS:
         logger.info("Separating composite datasets.")
 
         # Iterate composite datasets.
-        for df_name in self.composite_datasets:
+        for composite_name in self.composite_datasets:
+            composite_df = self.src_datasets[composite_name]
+            con_id_field = self.get_con_id_field(composite_name)
 
-            # Compile dataframe and connection field.
-            df = self.src_datasets[df_name]
-            con_id_field = self.get_con_id_field(df_name)
+            # Iterate composite new datasets.
+            for new_dataset in self.composite_datasets[composite_name]["new_datasets"]:
+                dataset_name = new_dataset["dataset_name"]
 
-            # Group dataframe measurement fields.
-            grouped_from = helpers.groupby_to_list(df, con_id_field, "from")
-            grouped_to = helpers.groupby_to_list(df, con_id_field, "to")
+                logger.info(f"Separating records from composite dataset: \"{composite_name}\" into new dataset: "
+                            f"\"{dataset_name}\".")
 
-            # Iterate composite fields.
-            for field, output_fields in self.composite_datasets[df_name].items():
+                # Create new dataset via dataframe query and rename specified fields.
+                new_df = composite_df.query(new_dataset["query"]).rename(columns=new_dataset["rename_fields"])
 
-                # Group dataframe composite field.
-                grouped_field = helpers.groupby_to_list(df, con_id_field, field)
+                # Log new record count.
+                logger.info(f"New dataset: \"{dataset_name}\" contains {len(new_df)} of the original "
+                            f"{len(composite_df)} composite dataset records.")
 
-                # Enumerate output fields and use the index to subset dataframe records and nested values.
-                for index, output_field in enumerate(output_fields):
+                # Store new dataset and add to class variables: schema, structure, and rename.
+                # Note: updating these class variables avoids having to implement specific logic purely to handle
+                # composite new datasets.
+                self.src_datasets[dataset_name] = new_df.copy(deep=True)
+                self.schema[dataset_name] = {"output_fields": new_dataset["output_fields"]}
+                self.structure["connections"][con_id_field].append(dataset_name)
+                self.rename |= new_dataset["rename_fields"]
 
-                    new_df_name = f"{df_name}_{index + 1}"
-                    logger.info(f"Separating composite dataset: {df_name} into dataset: {new_df_name} based on: "
-                                f"field={field}, index={index}.")
+                # Overwrite composite dataframe with new dataframe if queries are to be applied successively.
+                if self.composite_datasets[composite_name]["successive_queries"]:
+                    composite_df = new_df.copy(deep=True)
 
-                    # Flag records where amount of duplicates = index + 1.
-                    flag = grouped_field.map(len) > index
-                    if sum(flag):
-
-                        # Compile new subset dataframe with index values.
-                        new_df = pd.DataFrame({
-                            con_id_field: grouped_field.loc[flag].index,
-                            output_field: grouped_field.loc[flag].map(itemgetter(index)),
-                            "from": grouped_from.loc[flag].map(itemgetter(index)),
-                            "to": grouped_to.loc[flag].map(itemgetter(index))
-                        })
-
-                        # Add new dataset to structure, schema, and source dataset dictionaries.
-                        self.structure["connections"][con_id_field].append(new_df_name)
-                        self.schema[new_df_name] = {"output_fields": [output_field]}
-                        self.src_datasets[new_df_name] = new_df.copy(deep=True)
-
-            # Remove original composite dataset from structure, schema, and source dataset dictionaries.
-            logger.info(f"Removing composite dataset: {df_name}.")
-
-            self.structure["connections"][con_id_field] = [
-                name for name in self.structure["connections"][con_id_field] if name != df_name]
-            del self.schema[df_name]
-            del self.src_datasets[df_name]
+            # Remove original composite dataset and remove from class variables: schema and structure.
+            del self.src_datasets[composite_name]
+            del self.schema[composite_name]
+            self.structure["connections"][con_id_field].remove(composite_name)
 
     def execute(self) -> None:
         """Executes class functionality."""
