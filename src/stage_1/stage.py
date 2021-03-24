@@ -698,8 +698,9 @@ class Stage:
                 # Cast multi-type geometries.
                 df = helpers.explode_geometry(df)
 
-                # Reproject to EPSG:4617.
-                df = helpers.reproject_gdf(df, int(source_yaml["data"]["crs"].split(":")[-1]), 4617)
+                # Explicitly assign CRS and reproject to EPSG:4617.
+                df.crs = source_yaml["data"]["crs"]
+                df = df.to_crs("EPSG:4617")
 
                 # Force coordinates to 2D.
                 df = helpers.flatten_coordinates(df)
@@ -786,7 +787,7 @@ class Stage:
                         df = helpers.explode_geometry(df)
 
                         # Reproject to EPSG:4617.
-                        df = helpers.reproject_gdf(df, df.crs.to_epsg(), 4617)
+                        df = df.to_crs("EPSG:4617")
 
                         # Force coordinates to 2D.
                         df = helpers.flatten_coordinates(df)

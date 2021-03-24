@@ -13,7 +13,6 @@ import sys
 import time
 import yaml
 from collections import defaultdict
-from copy import deepcopy
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from pathlib import Path
@@ -809,62 +808,6 @@ def nx_to_gdf(g: nx.Graph, nodes: bool = True, edges: bool = True) -> \
         return gdf_nodes
     else:
         return gdf_edges
-
-
-def reproject_gdf(gdf: Union[gpd.GeoDataFrame, gpd.GeoSeries], epsg_source: int, epsg_target: int) -> \
-        Union[gpd.GeoDataFrame, gpd.GeoSeries]:
-    """
-    Transforms a GeoDataFrame or GeoSeries between EPSG CRSs.
-
-    :param Union[gpd.GeoDataFrame, gpd.GeoSeries] gdf: GeoDataFrame or GeoSeries.
-    :param int epsg_source: input EPSG code.
-    :param int epsg_target: output EPSG code.
-    :return Union[gpd.GeoDataFrame, gpd.GeoSeries]: reprojected GeoDataFrame or GeoSeries.
-    """
-
-    logger.info(f"Reprojecting geometry from EPSG:{epsg_source} to EPSG:{epsg_target}.")
-
-    series_flag = isinstance(gdf, gpd.GeoSeries)
-
-    # Return empty dataframe.
-    if not len(gdf):
-        return gdf
-
-    # Deep copy dataframe to avoid reprojecting original.
-    # Explicitly copy crs property since it is excluded from default copy method.
-    gdf = gpd.GeoDataFrame(gdf.copy(deep=True), crs=deepcopy(gdf.crs))
-
-    # Define transformation.
-    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
-    prj_source.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-    prj_target.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-    prj_source.ImportFromEPSG(epsg_source)
-    prj_target.ImportFromEPSG(epsg_target)
-    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
-
-    # Transform Records.
-    # Process: pass reversed xy coordinates to proj transformer, load result as shapely geometry.
-    if len(gdf.geom_type.unique()) > 1:
-        raise Exception("Multiple geometry types detected for dataframe.")
-
-    elif gdf.geom_type.iloc[0] == "LineString":
-        gdf["geometry"] = gdf["geometry"].map(
-            lambda geom: LineString(prj_transformer.TransformPoints(list(zip(*geom.coords.xy)))))
-
-    elif gdf.geom_type.iloc[0] == "Point":
-        gdf["geometry"] = gdf["geometry"].map(
-            lambda geom: Point(prj_transformer.TransformPoint(*list(zip(*geom.coords.xy))[0])))
-
-    else:
-        raise Exception("Geometry type not supported for EPSG transformation.")
-
-    # Update crs attribute.
-    gdf.crs = f"epsg:{epsg_target}"
-
-    if series_flag:
-        return gdf["geometry"]
-    else:
-        return gdf
 
 
 def rm_tree(path: Path) -> None:

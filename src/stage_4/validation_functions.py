@@ -75,7 +75,7 @@ class Validator:
                 if epsg == 3348:
                     self.dframes_m[name] = df.copy(deep=True)
                 else:
-                    self.dframes_m[name] = helpers.reproject_gdf(df, epsg, 3348).copy(deep=True)
+                    self.dframes_m[name] = df.to_crs("EPSG:3348").copy(deep=True)
 
         # Define validation parameters.
         # Note: List validations in order if execution order matters.
