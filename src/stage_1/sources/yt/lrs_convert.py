@@ -702,8 +702,8 @@ class LRS:
             df.rename(columns=self.rename, inplace=True)
 
             # Convert tabular dataframes.
-            if "geometry" not in df.columns:
-                df = pd.DataFrame(df)
+            if not df.geom_type.iloc[0]:
+                df = pd.DataFrame(df[df.columns.difference(["geometry"])])
 
             # Store results.
             self.src_datasets[layer] = df.copy(deep=True)

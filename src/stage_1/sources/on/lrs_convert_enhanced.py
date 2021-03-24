@@ -41,7 +41,7 @@ class LRS:
         self.base_dataset = "orn_road_net_element"
         self.geometry_dataset = "orn_road_net_element"
         self.event_measurement_fields = {"from": "from_measure", "to": "to_measure"}
-        self.point_datasets = {"orn_blocked_passage", "orn_toll_point"}
+        self.point_datasets = {"blkpassage": "orn_blocked_passage", "tollpoint": "orn_toll_point"}
         self.point_event_measurement_field = "at_measure"
 
         # Dataset import specifications.
@@ -728,8 +728,8 @@ class LRS:
             df.rename(columns=self.rename, inplace=True)
 
             # Convert tabular dataframes.
-            if "geometry" not in df.columns:
-                df = pd.DataFrame(df)
+            if not df.geom_type.iloc[0]:
+                df = pd.DataFrame(df[df.columns.difference(["geometry"])])
 
             # Store results.
             self.src_datasets[layer] = df.copy(deep=True)
@@ -796,6 +796,30 @@ class LRS:
                 self.src_datasets[name] = df_valid.copy(deep=True)
             else:
                 del self.src_datasets[name]
+
+    def create_point_datasets(self) -> None:
+        """Create point datasets from the base geometry dataset and point measurement values."""
+
+        logger.info("Creating point datasets.")
+
+        # Compile roadseg dataset.
+        base = self.nrn_datasets["roadseg"]
+
+        # Iterate source datasets to be converted into points.
+        for nrn_dataset, point_dataset in self.point_datasets.items():
+            point_df = self.src_datasets[point_dataset]
+
+            # Identify connection field.
+            con_id_field = self.get_con_id_field(point_dataset)
+
+            # Merge point and base dataframes and interpolate Point object.
+            merge = point_df.merge(base[[con_id_field, "geometry"]], how="left", on=con_id_field)
+            geometry = merge[[self.point_event_measurement_field, "geometry"]].apply(
+                lambda row: row[1].interpolate(row[0]), axis=1)
+
+            # Store point dataset as a GeoDataFrame.
+            self.nrn_datasets[nrn_dataset] = gpd.GeoDataFrame(
+                point_df, geometry=geometry, crs=base.crs).copy(deep=True)
 
     def export_gpkg(self) -> None:
         """Exports the NRN datasets to a GeoPackage."""
@@ -876,6 +900,7 @@ class LRS:
         self.clean_event_measurements()
         self.assemble_segmented_network()
         self.assemble_network_attribution()
+        self.create_point_datasets()
         self.export_gpkg()
 
 
