@@ -756,7 +756,7 @@ class LRS:
         for table, df in self.nrn_datasets.items():
 
             geom_types = set(df.geom_type)
-            if geom_types.issubset({"Point", "MultiPoint"}) or geom_types.issubset({"LineString", "MultiLineString"}):
+            if any(geom_type in geom_types for geom_type in {"MultiPoint", "MultiLineString"}):
                 self.nrn_datasets[table] = helpers.explode_geometry(df).copy(deep=True)
 
         # Export to GeoPackage.

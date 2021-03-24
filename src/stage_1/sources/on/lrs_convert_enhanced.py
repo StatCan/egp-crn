@@ -454,6 +454,40 @@ class LRS:
     def assemble_segmented_network(self) -> None:
         """Assembles a segmented road network from the breakpoints (event measurements) of the source datasets."""
 
+        def convert_to_individual_utm_zones(df: gpd.GeoDataFrame) -> pd.DataFrame:
+            """
+            Returns a DataFrame with each geometry reprojected to the corresponding UTM zone of its centroid. To allow
+            multiple CRS, a DataFrame must be used instead of a GeoDataFrame.
+
+            :param gpd.GeoDataFrame df: GeoDataFrame.
+            :return pd.DataFrame: DataFrame with individually reprojected geometries.
+            """
+
+            def latlon_to_utm_epsg(lat: float, lon: float) -> int:
+                """
+                Returns the EPSG code for the UTM zone associated with the given latitude and longitude.
+                :param float lat: latitude.
+                :param float lon: longitude.
+                :return int: EPSG code.
+                """
+
+                return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
+
+            # Explicitly assign CRS to original GeoDataFrame.
+            df.set_crs(f"EPSG:{df.crs.to_epsg()}", allow_override=True, inplace=True)
+
+            # Configure UTM EPSG codes.
+            df["epsg"] = df["geometry"].map(
+                lambda g: latlon_to_utm_epsg(*list(map(itemgetter(0), g.centroid.xy))[::-1]))
+
+            # Separate and reproject GeoDataFrames according to EPSG, store results as DataFrames.
+            reprojected_dfs = list()
+            for epsg in set(df["epsg"]):
+                reprojected_dfs.append(pd.DataFrame(df.loc[df["epsg"] == epsg].to_crs(f"EPSG:{epsg}").copy(deep=True)))
+
+            # Concatenate reprojected DataFrames.
+            return pd.concat(reprojected_dfs).copy(deep=True)
+
         def merge_breakpoints_endpoints(breakpts: List[Union[float, int]], geom: Union[LineString, MultiLineString]) \
                 -> List[Union[float, int]]:
             """
@@ -597,6 +631,11 @@ class LRS:
         args = base[["breakpts", "geometry"]].apply(list, axis=1)
         base["breakpts"] = args.map(lambda vals: merge_breakpoints_endpoints(*vals))
 
+        # Convert base dataset to DataFrame with individual geometries reprojected to the corresponding UTM zone.
+        logger.info("Reprojecting individual geometries to UTM zones.")
+
+        base = convert_to_individual_utm_zones(base)
+
         # Split record geometries on breakpoints.
         logger.info(f"Splitting records on geometry breakpoints.")
 
@@ -734,30 +773,6 @@ class LRS:
             # Store results.
             self.src_datasets[layer] = df.copy(deep=True)
 
-    def configure_geometry_epsgs(self) -> None:
-        """
-        Configures the official EPSG code for the UTM zone of each geometry based on the location of its centroid.
-        Resulting codes are assigned to a new DataFrame column.
-        Input geometries are assumed to be in a Geographic Coordinate System (using lat / lon).
-        """
-
-        logger.info(f"Configuring UTM zone EPSG codes for each geometry.")
-
-        def latlon_to_utm_epsg(lat: float, lon: float) -> int:
-            """
-            Returns the official EPSG code for the detected UTM Zone of the given lat / lon.
-
-            :param float lat: latitude.
-            :param float lon: longitude.
-            :return int: EPSG code.
-            """
-
-            return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
-
-        # Configure EPSG codes for geometry dataset.
-        self.src_datasets[self.geometry_dataset]["epsg"] = self.src_datasets[self.geometry_dataset]["geometry"].map(
-            lambda g: latlon_to_utm_epsg(*list(map(itemgetter(0), g.centroid.xy))[::-1]))
-
     def configure_valid_records(self) -> None:
         """
         Filters records to only those which link to the base dataset, non-matching datasets are removed.
@@ -813,13 +828,12 @@ class LRS:
             con_id_field = self.get_con_id_field(point_dataset)
 
             # Merge point and base dataframes and interpolate Point object.
-            merge = point_df.merge(base[[con_id_field, "geometry"]], how="left", on=con_id_field)
-            geometry = merge[[self.point_event_measurement_field, "geometry"]].apply(
+            point_df = point_df.merge(base[[con_id_field, "epsg", "geometry"]], how="left", on=con_id_field)
+            point_df["geometry"] = point_df[[self.point_event_measurement_field, "geometry"]].apply(
                 lambda row: row[1].interpolate(row[0]), axis=1)
 
-            # Store point dataset as a GeoDataFrame.
-            self.nrn_datasets[nrn_dataset] = gpd.GeoDataFrame(
-                point_df, geometry=geometry, crs=base.crs).copy(deep=True)
+            # Store point dataset as a DataFrame.
+            self.nrn_datasets[nrn_dataset] = point_df.copy(deep=True)
 
     def export_gpkg(self) -> None:
         """Exports the NRN datasets to a GeoPackage."""
@@ -830,7 +844,7 @@ class LRS:
         for table, df in self.nrn_datasets.items():
 
             geom_types = set(df.geom_type)
-            if geom_types.issubset({"Point", "MultiPoint"}) or geom_types.issubset({"LineString", "MultiLineString"}):
+            if any(geom_type in geom_types for geom_type in {"MultiPoint", "MultiLineString"}):
                 self.nrn_datasets[table] = helpers.explode_geometry(df).copy(deep=True)
 
         # Export to GeoPackage.
@@ -889,6 +903,26 @@ class LRS:
             del self.schema[composite_name]
             self.structure["connections"][con_id_field].remove(composite_name)
 
+    def standardize_projections(self):
+        """Standardizes multi-CRS DataFrames to a GeoDataFrame with NRN standard projection EPSG:4617."""
+
+        logger.info("Standardizing dataset projections.")
+
+        # Iterate NRN datasets.
+        for table, df in self.nrn_datasets.items():
+            if {"epsg", "geometry"}.issubset(set(df.columns)):
+
+                logger.info(f"Standardizing dataset projection for: \"{table}\".")
+
+                # Separate records by CRS and reproject to EPSG:4617.
+                dfs = list()
+                for epsg in set(df["epsg"]):
+                    df_epsg = gpd.GeoDataFrame(df.loc[df["epsg"] == epsg]).set_crs(f"EPSG:{epsg}", allow_override=True)
+                    dfs.append(df_epsg.to_crs("EPSG:4617").copy(deep=True))
+
+                # Store concatenated results as a GeoDataFrame.
+                self.nrn_datasets[table] = gpd.GeoDataFrame(pd.concat(dfs), crs="EPSG:4617").copy(deep=True)
+
     def execute(self) -> None:
         """Executes class functionality."""
 
@@ -896,11 +930,11 @@ class LRS:
         self.assemble_non_base_linkages()
         self.separate_composite_datasets()
         self.configure_valid_records()
-        self.configure_geometry_epsgs()
         self.clean_event_measurements()
         self.assemble_segmented_network()
         self.assemble_network_attribution()
         self.create_point_datasets()
+        self.standardize_projections()
         self.export_gpkg()
 
 

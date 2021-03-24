@@ -699,7 +699,7 @@ class Stage:
                 df = helpers.explode_geometry(df)
 
                 # Explicitly assign CRS and reproject to EPSG:4617.
-                df.crs = source_yaml["data"]["crs"]
+                df.set_crs(source_yaml["data"]["crs"], allow_override=True, inplace=True)
                 df = df.to_crs("EPSG:4617")
 
                 # Force coordinates to 2D.
