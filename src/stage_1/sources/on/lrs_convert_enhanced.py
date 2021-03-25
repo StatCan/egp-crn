@@ -331,9 +331,10 @@ class LRS:
         # Convert breakpoints to pandas intervals.
         base["interval"] = base["breakpts"].map(lambda vals: pd.Interval(*vals))
 
-        # Iterate source datasets that are connected to the base dataset and have columns to be keep on output.
+        # Iterate source datasets that are connected to the base dataset and have columns to be keep on output,
+        # excluding point datasets.
         for con_id_field, names in self.structure["connections"].items():
-            for name in [n for n in names if self.schema[n]["output_fields"]]:
+            for name in [n for n in names if self.schema[n]["output_fields"] and n not in self.point_datasets]:
 
                 logger.info(f"Assembling attributes from dataset: {name}.")
 
@@ -438,15 +439,16 @@ class LRS:
             base = self.src_datasets[base_name]
 
             # Iterate linked datasets.
-            for con_id_field, linked_name in self.structure_non_base[base_name].items():
+            for con_id_field, linked_names in self.structure_non_base[base_name].items():
+                for linked_name in linked_names:
 
-                logger.info(f"Assembling dataset linkage: {base_name} - {linked_name}")
+                    logger.info(f"Assembling dataset linkage: {base_name} - {linked_name}")
 
-                # Merge datasets.
-                base = base.merge(self.src_datasets[linked_name], how="left", on=con_id_field)
+                    # Merge datasets.
+                    base = base.merge(self.src_datasets[linked_name], how="left", on=con_id_field)
 
-                # Remove linked dataset.
-                del self.src_datasets[linked_name]
+                    # Remove linked dataset.
+                    del self.src_datasets[linked_name]
 
             # Store merged results.
             self.src_datasets[base_name] = base.copy(deep=True)
@@ -571,7 +573,18 @@ class LRS:
                         if abs(breakpts[-1] - geom.project(nodes_keep[-1])) > 1:
                             nodes_keep = [*nodes_keep, geom.interpolate(breakpts[-1])]
 
-                return LineString(nodes_keep)
+                    # If only 1 point remains, prepend and append breakpoints to list with remaining node.
+                    if len(nodes_keep) == 1:
+                        nodes_keep = [geom.interpolate(breakpts[0]), *nodes_keep, geom.interpolate(breakpts[-1])]
+
+                # TODO: REMOVE AFTER TESTING
+                try:
+                    return LineString(nodes_keep)
+                except:
+                    print(f"nodes_keep: {[pt.wkt for pt in nodes_keep]}")
+                    print(f"breakpts: {breakpts}")
+                    print(f"geom: {geom.wkt}")
+                    sys.exit(1)
 
         logger.info("Assembling segmented network.")
 
@@ -615,6 +628,11 @@ class LRS:
         # Remove extraneous columns.
         base.drop(columns=breakpt_cols, inplace=True)
 
+        # Convert base dataset to DataFrame with individual geometries reprojected to the corresponding UTM zone.
+        logger.info("Reprojecting individual geometries to UTM zones.")
+
+        base = convert_to_individual_utm_zones(base)
+
         # Filter breakpoints which are too close together.
         logger.info(f"Filtering breakpoints which are too close together.")
 
@@ -630,11 +648,6 @@ class LRS:
 
         args = base[["breakpts", "geometry"]].apply(list, axis=1)
         base["breakpts"] = args.map(lambda vals: merge_breakpoints_endpoints(*vals))
-
-        # Convert base dataset to DataFrame with individual geometries reprojected to the corresponding UTM zone.
-        logger.info("Reprojecting individual geometries to UTM zones.")
-
-        base = convert_to_individual_utm_zones(base)
 
         # Split record geometries on breakpoints.
         logger.info(f"Splitting records on geometry breakpoints.")
@@ -767,7 +780,7 @@ class LRS:
             df.rename(columns=self.rename, inplace=True)
 
             # Convert tabular dataframes.
-            if not df.geom_type.iloc[0]:
+            if ("geometry" not in df.columns) or (not df["geometry"].iloc[0]):
                 df = pd.DataFrame(df[df.columns.difference(["geometry"])])
 
             # Store results.

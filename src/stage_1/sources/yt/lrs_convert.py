@@ -702,7 +702,7 @@ class LRS:
             df.rename(columns=self.rename, inplace=True)
 
             # Convert tabular dataframes.
-            if not df.geom_type.iloc[0]:
+            if ("geometry" not in df.columns) or (not df["geometry"].iloc[0]):
                 df = pd.DataFrame(df[df.columns.difference(["geometry"])])
 
             # Store results.
