@@ -41,7 +41,7 @@ class LRS:
         self.base_dataset = "orn_road_net_element"
         self.geometry_dataset = "orn_road_net_element"
         self.event_measurement_fields = {"from": "from_measure", "to": "to_measure"}
-        self.point_datasets = {"blkpassage": "orn_blocked_passage", "tollpoint": "orn_toll_point"}
+        self.point_datasets = {"orn_blocked_passage": "blkpassage", "orn_toll_point": "tollpoint"}
         self.point_event_measurement_field = "at_measure"
 
         # Dataset import specifications.
@@ -577,14 +577,7 @@ class LRS:
                     if len(nodes_keep) == 1:
                         nodes_keep = [geom.interpolate(breakpts[0]), *nodes_keep, geom.interpolate(breakpts[-1])]
 
-                # TODO: REMOVE AFTER TESTING
-                try:
-                    return LineString(nodes_keep)
-                except:
-                    print(f"nodes_keep: {[pt.wkt for pt in nodes_keep]}")
-                    print(f"breakpts: {breakpts}")
-                    print(f"geom: {geom.wkt}")
-                    sys.exit(1)
+                return LineString(nodes_keep)
 
         logger.info("Assembling segmented network.")
 
@@ -834,7 +827,7 @@ class LRS:
         base = self.nrn_datasets["roadseg"]
 
         # Iterate source datasets to be converted into points.
-        for nrn_dataset, point_dataset in self.point_datasets.items():
+        for point_dataset, nrn_dataset in self.point_datasets.items():
             point_df = self.src_datasets[point_dataset]
 
             # Identify connection field.
