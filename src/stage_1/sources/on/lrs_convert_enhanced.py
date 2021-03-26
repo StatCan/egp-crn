@@ -45,104 +45,102 @@ class LRS:
         self.point_event_measurement_field = "at_measure"
 
         # Dataset import specifications.
+        # Note: output fields must use the renamed field names.
         self.schema = {
             "orn_address_info": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "first_house_number",
                            "last_house_number", "house_number_structure", "street_side", "effective_datetime"],
                 "query": None,
-                "output_fields": ["first_house_number", "last_house_number", "house_number_structure",
-                                  "effective_datetime"]
+                "output_fields": ["hnumf", "hnuml", "hnumstr", "revdate"]
             },
             "orn_blocked_passage": {
                 "fields": ["orn_road_net_element_id", "at_measure", "blocked_passage_type", "agency_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["blocked_passage_type", "agency_name", "effective_datetime", "geometry"]
+                "output_fields": ["blkpassty", "provider", "revdate", "geometry"]
             },
             "orn_jurisdiction": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
                            "effective_datetime"],
                 "query": "street_side != 'Left'",
-                "output_fields": ["jurisdiction", "effective_datetime"]
+                "output_fields": ["roadjuris", "revdate"]
             },
             "orn_number_of_lanes": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "number_of_lanes",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["number_of_lanes", "effective_datetime"]
+                "output_fields": ["nbrlanes", "revdate"]
             },
             "orn_official_street_name": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "full_street_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["full_street_name", "effective_datetime"]
+                "output_fields": ["stname_c", "revdate"]
             },
             "orn_road_class": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "road_class", "effective_datetime"],
                 "query": None,
-                "output_fields": ["road_class", "effective_datetime"]
+                "output_fields": ["roadclass", "revdate"]
             },
             "orn_road_net_element": {
                 "fields": ["ogf_id", "road_absolute_accuracy", "direction_of_traffic_flow", "exit_number",
                            "road_element_type", "acquisition_technique", "creation_date", "revision_date", "geometry"],
                 "query": "road_element_type != 'VIRTUAL ROAD'",
-                "output_fields": ["road_absolute_accuracy", "direction_of_traffic_flow", "exit_number",
-                                  "road_element_type", "acquisition_technique", "creation_date", "revision_date",
-                                  "geometry"]
+                "output_fields": ["accuracy", "trafficdir", "exitnbr", "road_element_type", "acqtech", "credate",
+                                  "revdate", "geometry"]
             },
             "orn_road_net_element_source": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "agency_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["agency_name", "effective_datetime"]
+                "output_fields": ["provider", "revdate"]
             },
             "orn_road_surface": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "pavement_status", "surface_type",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["pavement_status", "surface_type", "effective_datetime"]
+                "output_fields": ["pavstatus", "pavsurf", "revdate"]
             },
             "orn_route_name": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "route_name_english",
                            "route_name_french", "effective_datetime"],
                 "query": None,
-                "output_fields": ["route_name_english", "route_name_french", "effective_datetime"]
+                "output_fields": ["rtenameen", "rtenamefr", "revdate"]
             },
             "orn_route_number": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "route_number",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["route_number", "effective_datetime"]
+                "output_fields": ["rtnumber", "revdate"]
             },
             "orn_speed_limit": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "speed_limit",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["speed_limit", "effective_datetime"]
+                "output_fields": ["speed", "revdate"]
             },
             "orn_street_name_parsed": {
                 "fields": ["full_street_name", "directional_prefix", "street_type_prefix", "street_name_body",
                            "street_type_suffix", "directional_suffix", "effective_datetime"],
                 "query": None,
-                "output_fields": ["directional_prefix", "street_type_prefix", "street_name_body", "street_type_suffix",
-                                  "directional_suffix", "effective_datetime"]
+                "output_fields": ["dirprefix", "strtypre", "namebody", "strtysuf", "dirsuffix", "revdate"]
             },
             "orn_structure": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "structure_type",
                            "structure_name_english", "structure_name_french", "effective_datetime"],
                 "query": None,
-                "output_fields": ["structure_type", "structure_name_english", "structure_name_french",
-                                  "effective_datetime"]
+                "output_fields": ["structtype", "strunameen", "strunamefr", "revdate"]
             },
             "orn_toll_point": {
                 "fields": ["orn_road_net_element_id", "at_measure", "toll_point_type", "agency_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["toll_point_type", "agency_name", "effective_datetime", "geometry"]
+                "output_fields": ["tollpttype", "provider", "revdate", "geometry"]
             }
         }
 
         # Connections between datasets to the main (base) dataset.
+        # Note: connection fields must use the renamed field names.
         self.structure = {
             "base": self.base_dataset,
             "connections": {
@@ -154,6 +152,7 @@ class LRS:
         }
 
         # Connections between non-main (base) datasets.
+        # Note: connection fields must use the renamed field names.
         self.structure_non_base = {
             "orn_official_street_name": {
                 "stname_c": ["orn_street_name_parsed"]
@@ -197,6 +196,7 @@ class LRS:
         }
 
         # Define composite datasets (datasets to be split into multiple datasets).
+        # Note: output fields must use the renamed field names.
         self.composite_datasets = {
             "orn_address_info": {
                     "successive_queries": False,
@@ -205,13 +205,13 @@ class LRS:
                             "query": "street_side != 'Right'",
                             "dataset_name": "orn_address_info_left",
                             "rename_fields": {"hnumf": "l_hnumf", "hnuml": "l_hnuml", "hnumstr": "l_hnumstr"},
-                            "output_fields": ["l_hnumf", "l_hnuml", "l_hnumstr", "effective_datetime"]
+                            "output_fields": ["l_hnumf", "l_hnuml", "l_hnumstr", "revdate"]
                         },
                         {
                             "query": "street_side != 'Left'",
                             "dataset_name": "orn_address_info_right",
                             "rename_fields": {"hnumf": "r_hnumf", "hnuml": "r_hnuml", "hnumstr": "r_hnumstr"},
-                            "output_fields": ["r_hnumf", "r_hnuml", "r_hnumstr", "effective_datetime"]
+                            "output_fields": ["r_hnumf", "r_hnuml", "r_hnumstr", "revdate"]
                         }
                     ]
             },
@@ -223,28 +223,28 @@ class LRS:
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_1",
                         "rename_fields": {"rtenameen": "rtename1en"},
-                        "output_fields": ["rtename1en", "effective_datetime"]
+                        "output_fields": ["rtename1en", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_2",
                         "rename_fields": {"rtenameen": "rtename2en"},
-                        "output_fields": ["rtename2en", "effective_datetime"]
+                        "output_fields": ["rtename2en", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_3",
                         "rename_fields": {"rtenameen": "rtename3en"},
-                        "output_fields": ["rtename3en", "effective_datetime"]
+                        "output_fields": ["rtename3en", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_4",
                         "rename_fields": {"rtenameen": "rtename4en"},
-                        "output_fields": ["rtename4en", "effective_datetime"]
+                        "output_fields": ["rtename4en", "revdate"]
                     }
                 ]
             },
@@ -256,35 +256,35 @@ class LRS:
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_number_1",
                         "rename_fields": {"rtnumber": "rtnumber1"},
-                        "output_fields": ["rtnumber1", "effective_datetime"]
+                        "output_fields": ["rtnumber1", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_number_2",
                         "rename_fields": {"rtnumber": "rtnumber2"},
-                        "output_fields": ["rtnumber2", "effective_datetime"]
+                        "output_fields": ["rtnumber2", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_number_3",
                         "rename_fields": {"rtnumber": "rtnumber3"},
-                        "output_fields": ["rtnumber3", "effective_datetime"]
+                        "output_fields": ["rtnumber3", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_number_4",
                         "rename_fields": {"rtnumber": "rtnumber4"},
-                        "output_fields": ["rtnumber4", "effective_datetime"]
+                        "output_fields": ["rtnumber4", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_number_5",
                         "rename_fields": {"rtnumber": "rtnumber5"},
-                        "output_fields": ["rtnumber5", "effective_datetime"]
+                        "output_fields": ["rtnumber5", "revdate"]
                     }
                 ]
             }
@@ -345,14 +345,19 @@ class LRS:
                 # it may be useful to keep multiple instances.
                 cols_keep = list()
                 for col in self.schema[name]["output_fields"]:
-                    col = self.rename[col]
-                    while col in base.columns:
+                    col_orig = col
+                    while col in base.columns or col in df.columns:
                         col += "_"
-                        df.rename(columns={col[:-1]: col}, inplace=True)
+                    df.rename(columns={col_orig: col}, inplace=True)
                     cols_keep.append(col)
 
                     # Add new column to base dataset.
                     base[col] = None
+                # TODO: remove testing block
+                print(base)
+                print(base.columns)
+                print(df)
+                print(cols_keep)
 
                 # Handle singular (non-segmented) matches.
                 # Flag base records and filter attributes dataframe to relevant records.
@@ -422,8 +427,8 @@ class LRS:
                 base[field] = base[cols].apply(lambda row: params["func"]([v for v in row if not pd.isna(v)]), axis=1)
 
         # Remove excess fields (keep all defined output fields plus geometry, drop everything else).
-        cols_keep = set(map(lambda col: self.rename[col], chain.from_iterable(
-            props["output_fields"] for props in self.schema.values() if props["output_fields"]))).union({"geometry"})
+        cols_keep = set(chain.from_iterable(props["output_fields"] for props in self.schema.values() if
+                                            props["output_fields"])).union({"geometry"})
         base.drop(columns=set(base.columns)-cols_keep, inplace=True)
 
         # Store result.
@@ -440,15 +445,28 @@ class LRS:
 
             # Iterate linked datasets.
             for con_id_field, linked_names in self.structure_non_base[base_name].items():
-                for linked_name in linked_names:
+                for linked_index, linked_name in enumerate(linked_names):
 
                     logger.info(f"Assembling dataset linkage: {base_name} - {linked_name}")
 
                     # Merge datasets.
-                    base = base.merge(self.src_datasets[linked_name], how="left", on=con_id_field)
+                    suff = "_" * (linked_index + 1)
+                    base = base.merge(self.src_datasets[linked_name], how="left", on=con_id_field, suffixes=("", suff))
+
+                    # Iterate modified output fields.
+                    for field_index, field in enumerate(self.schema[linked_name]["output_fields"]):
+                        field = f"{field}{suff}"
+                        if field in base.columns:
+
+                            # Replace output field with suffixed name.
+                            self.schema[linked_name]["output_fields"][field_index] = field
+
+                    # Merge output fields.
+                    self.schema[base_name]["output_fields"].extend(self.schema[linked_name]["output_fields"])
 
                     # Remove linked dataset.
                     del self.src_datasets[linked_name]
+                    del self.schema[linked_name]
 
             # Store merged results.
             self.src_datasets[base_name] = base.copy(deep=True)
@@ -892,13 +910,12 @@ class LRS:
                 logger.info(f"New dataset: \"{dataset_name}\" contains {len(new_df)} of the original "
                             f"{len(composite_df)} composite dataset records.")
 
-                # Store new dataset and add to class variables: schema, structure, and rename.
+                # Store new dataset and add to class variables: schema and structure.
                 # Note: updating these class variables avoids having to implement specific logic purely to handle
                 # composite new datasets.
                 self.src_datasets[dataset_name] = new_df.copy(deep=True)
                 self.schema[dataset_name] = {"output_fields": new_dataset["output_fields"]}
                 self.structure["connections"][con_id_field].append(dataset_name)
-                self.rename |= new_dataset["rename_fields"]
 
                 # Overwrite composite dataframe with new dataframe if queries are to be applied successively.
                 if self.composite_datasets[composite_name]["successive_queries"]:
