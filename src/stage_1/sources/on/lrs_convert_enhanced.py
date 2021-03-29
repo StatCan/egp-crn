@@ -222,29 +222,29 @@ class LRS:
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_1",
-                        "rename_fields": {"rtenameen": "rtename1en"},
-                        "output_fields": ["rtename1en", "revdate"]
+                        "rename_fields": {"rtenameen": "rtename1en", "rtenamefr": "rtename1fr"},
+                        "output_fields": ["rtename1en", "rtename1fr", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_2",
-                        "rename_fields": {"rtenameen": "rtename2en"},
-                        "output_fields": ["rtename2en", "revdate"]
+                        "rename_fields": {"rtenameen": "rtename2en", "rtenamefr": "rtename2fr"},
+                        "output_fields": ["rtename2en", "rtename2fr", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_3",
-                        "rename_fields": {"rtenameen": "rtename3en"},
-                        "output_fields": ["rtename3en", "revdate"]
+                        "rename_fields": {"rtenameen": "rtename3en", "rtenamefr": "rtename3fr"},
+                        "output_fields": ["rtename3en", "rtename3fr", "revdate"]
                     },
                     {
                         "query": "(~orn_road_net_element_id.duplicated(keep=False)) or "
                                  "(~orn_road_net_element_id.duplicated(keep='first'))",
                         "dataset_name": "orn_route_name_4",
-                        "rename_fields": {"rtenameen": "rtename4en"},
-                        "output_fields": ["rtename4en", "revdate"]
+                        "rename_fields": {"rtenameen": "rtename4en", "rtenamefr": "rtename4fr"},
+                        "output_fields": ["rtename4en", "rtename4fr", "revdate"]
                     }
                 ]
             },
@@ -346,8 +346,10 @@ class LRS:
                 cols_keep = list()
                 for col in self.schema[name]["output_fields"]:
                     col_orig = col
-                    while col in base.columns or col in df.columns:
+                    while col in base.columns:
                         col += "_"
+                        while col in df.columns:
+                            col += "_"
                     df.rename(columns={col_orig: col}, inplace=True)
                     cols_keep.append(col)
 
@@ -895,6 +897,7 @@ class LRS:
         for composite_name in self.composite_datasets:
             composite_df = self.src_datasets[composite_name]
             con_id_field = self.get_con_id_field(composite_name)
+            count = len(composite_df)
 
             # Iterate composite new datasets.
             for new_dataset in self.composite_datasets[composite_name]["new_datasets"]:
@@ -903,17 +906,17 @@ class LRS:
                 logger.info(f"Separating records from composite dataset: \"{composite_name}\" into new dataset: "
                             f"\"{dataset_name}\".")
 
-                # Create new dataset via dataframe query and rename specified fields.
-                new_df = composite_df.query(new_dataset["query"]).rename(columns=new_dataset["rename_fields"])
+                # Create new dataset via dataframe query.
+                new_df = composite_df.query(new_dataset["query"])
 
                 # Log new record count.
-                logger.info(f"New dataset: \"{dataset_name}\" contains {len(new_df)} of the original "
-                            f"{len(composite_df)} composite dataset records.")
+                logger.info(f"New dataset: \"{dataset_name}\" contains {len(new_df)} / {count} composite dataset "
+                            f"records.")
 
-                # Store new dataset and add to class variables: schema and structure.
+                # Store new dataset with renamed fields and add to class variables: schema and structure.
                 # Note: updating these class variables avoids having to implement specific logic purely to handle
                 # composite new datasets.
-                self.src_datasets[dataset_name] = new_df.copy(deep=True)
+                self.src_datasets[dataset_name] = new_df.rename(columns=new_dataset["rename_fields"]).copy(deep=True)
                 self.schema[dataset_name] = {"output_fields": new_dataset["output_fields"]}
                 self.structure["connections"][con_id_field].append(dataset_name)
 
