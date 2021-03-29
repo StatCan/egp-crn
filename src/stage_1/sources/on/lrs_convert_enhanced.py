@@ -355,11 +355,6 @@ class LRS:
 
                     # Add new column to base dataset.
                     base[col] = None
-                # TODO: remove testing block
-                print(base)
-                print(base.columns)
-                print(df)
-                print(cols_keep)
 
                 # Handle singular (non-segmented) matches.
                 # Flag base records and filter attributes dataframe to relevant records.
@@ -426,7 +421,8 @@ class LRS:
                 logger.info(f"Resolving conflicting attributes for: {field}.")
 
                 # Resolve conflicts into a single attribute.
-                base[field] = base[cols].apply(lambda row: params["func"]([v for v in row if not pd.isna(v)]), axis=1)
+                base[field] = base[cols].apply(lambda row: tuple(filter(lambda v: not pd.isna(v), row)), axis=1)
+                base[field] = base[field].map(lambda vals: params["func"](vals) if len(vals) else None)
 
         # Remove excess fields (keep all defined output fields plus geometry, drop everything else).
         cols_keep = set(chain.from_iterable(props["output_fields"] for props in self.schema.values() if
