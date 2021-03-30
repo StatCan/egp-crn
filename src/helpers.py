@@ -406,6 +406,8 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
             for table in dataframes:
                 type_schemas_merged["fields"] |= type_schemas[table]["fields"]
                 export_schemas_merged["fields"] |= export_schemas[table]["fields"]
+            if any(type_schemas[table]["spatial"] for table in dataframes):
+                type_schemas_merged["spatial"] = True
 
             # Update schemas with merged results.
             type_schemas = {table: type_schemas_merged for table in type_schemas}
