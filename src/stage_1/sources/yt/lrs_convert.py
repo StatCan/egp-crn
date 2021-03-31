@@ -145,6 +145,9 @@ class LRS:
             "surface_code": "pavstatus"
         }
 
+        # Define queries to separate final (NRN) datasets.
+        self.final_dataset_separations = {}
+
         # Validate src.
         self.src = Path(src).resolve()
         if self.src.suffix != ".gdb":
@@ -774,6 +777,24 @@ class LRS:
             if name in df_names:
                 return con_field
 
+    def separate_final_datasets(self):
+        """Separates the final NRN datasets into multiple NRN datasets based on queries."""
+
+        logger.info(f"Separating final NRN datasets.")
+
+        # Iterate NRN datasets to be separated.
+        for nrn_dataset, new_datasets in self.final_dataset_separations.items():
+            logger.info(f"Separating NRN dataset: \"{nrn_dataset}\".")
+            nrn_df = self.nrn_datasets[nrn_dataset]
+
+            # Iterate new dataset parameters and store resulting dataframe.
+            for new_dataset in new_datasets:
+                name, query = itemgetter("dataset_name", "query")(new_dataset)
+                self.nrn_datasets[name] = nrn_df.query(query).copy(deep=True)
+
+                logger.info(f"Separated {len(self.nrn_datasets[name])} records from \"{nrn_dataset}\" to create NRN "
+                            f"dataset \"{name}\".")
+
     def split_at_intersections(self) -> None:
         """
         Splits geometries at nodes, excluding start and endpoints, which are shared by one or more other geometries.
@@ -846,6 +867,7 @@ class LRS:
         self.assemble_segmented_network()
         self.assemble_network_attribution()
         self.split_at_intersections()
+        self.separate_final_datasets()
         self.export_gpkg()
 
 

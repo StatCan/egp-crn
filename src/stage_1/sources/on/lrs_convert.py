@@ -290,6 +290,20 @@ class LRS:
             }
         }
 
+        # Define queries to separate final (NRN) datasets.
+        self.final_dataset_separations = {
+            "roadseg": [
+                {
+                    "dataset_name": "ferryseg",
+                    "query": "road_element_type == 'FERRY CONNECTION'"
+                },
+                {
+                    "dataset_name": "roadseg",
+                    "query": "road_element_type == 'ROAD ELEMENT'"
+                }
+            ]
+        }
+
         # Validate src.
         self.src = Path(src).resolve()
         if self.src.suffix != ".gdb":
@@ -933,6 +947,24 @@ class LRS:
             del self.schema[composite_name]
             self.structure["connections"][con_id_field].remove(composite_name)
 
+    def separate_final_datasets(self):
+        """Separates the final NRN datasets into multiple NRN datasets based on queries."""
+
+        logger.info(f"Separating final NRN datasets.")
+
+        # Iterate NRN datasets to be separated.
+        for nrn_dataset, new_datasets in self.final_dataset_separations.items():
+            logger.info(f"Separating NRN dataset: \"{nrn_dataset}\".")
+            nrn_df = self.nrn_datasets[nrn_dataset]
+
+            # Iterate new dataset parameters and store resulting dataframe.
+            for new_dataset in new_datasets:
+                name, query = itemgetter("dataset_name", "query")(new_dataset)
+                self.nrn_datasets[name] = nrn_df.query(query).copy(deep=True)
+
+                logger.info(f"Separated {len(self.nrn_datasets[name])} records from \"{nrn_dataset}\" to create NRN "
+                            f"dataset \"{name}\".")
+
     def standardize_projections(self):
         """Standardizes multi-CRS DataFrames to a GeoDataFrame with NRN standard projection EPSG:4617."""
 
@@ -965,6 +997,7 @@ class LRS:
         self.assemble_network_attribution()
         self.create_point_datasets()
         self.standardize_projections()
+        self.separate_final_datasets()
         self.export_gpkg()
 
 
