@@ -3,7 +3,7 @@ NRN Field Mapping Specifications
 ********************************
 
 .. contents::
-   :depth: 3
+   :depth: 4
 
 Abbreviations
 =============
@@ -33,23 +33,23 @@ Directory
 * The root directory for all field mapping YAMLs is: `nrn-rrn/src/stage_1/sources`.
 * Each YAML file must exist within a subdirectory of the root using the provincial / territorial abbreviations:
 
-============  =========================
-Abbreviation  Province / Territory
-============  =========================
-ab            Alberta
-bc            British Columbia
-mb            Manitoba
-nb            New Brunswick
-nl            Newfoundland and Labrador
-ns            Nova Scotia
-nt            Northwest Territories
-nu            Nunavut
-on            Ontario
-pe            Prince Edward Island
-qc            Quebec
-sk            Saskatchewan
-yt            Yukon
-============  =========================
+    ============  ====================
+    Abbreviation  Province / Territory
+    ============  ====================
+    ab            Alberta
+    bc            British Columbia
+    mb            Manitoba
+    nb            New Brunswick
+    nl            Newfoundland and Labrador
+    ns            Nova Scotia
+    nt            Northwest Territories
+    nu            Nunavut
+    on            Ontario
+    pe            Prince Edward Island
+    qc            Quebec
+    sk            Saskatchewan
+    yt            Yukon
+    ============  ====================
 
 Files
 -----
@@ -64,25 +64,25 @@ Examples
 
 **Generic:**
 
-```
-src:
-  stage_1:
-    sources:
-      province / territory:
-        source_dataset.yaml
-        ...
-```
+.. code-block:: yaml
+
+  src:
+    stage_1:
+      sources:
+        province / territory:
+          source_dataset.yaml
+          ...
 
 **Specific:**
 
-```
-src:
-  stage_1:
-    sources:
-      nb:
-        geonb_nbrn-rrnb_ferry-traversier.yaml
-        geonb_nbrn-rrnb_road-route.yaml
-```
+.. code-block:: yaml
+
+  src:
+    stage_1:
+      sources:
+        nb:
+          geonb_nbrn-rrnb_ferry-traversier.yaml
+          geonb_nbrn-rrnb_road-route.yaml
 
 YAML Content
 ============
@@ -98,39 +98,39 @@ Structure
 
 **Generic:**
 
-```
-coverage:
-  country:
-  province:
-  ISO3166:
-    alpha2:
+.. code-block:: yaml
+
+  coverage:
     country:
-    subdivision:
-  website:
-  update_frequency:
-license:
-  url:
-  text:
-language:
-```
+    province:
+    ISO3166:
+      alpha2:
+      country:
+      subdivision:
+    website:
+    update_frequency:
+  license:
+    url:
+    text:
+  language:
 
 **Specific:**
 
-```
-coverage:
-  country: ca
-  province: nb
-  ISO3166:
-    alpha2: CA-NB
-    country: Canada
-    subdivision: New Brunswick
-  website: https://geonb-t.snb.ca/downloads/nbrn/geonb_nbrn-rrnb_orig.zip
-  update_frequency: weekly
-license:
-  url: http://geonb.snb.ca/documents/license/geonb-odl_en.pdf
-  text: GeoNB Open Data Licence
-language: en
-```
+.. code-block:: yaml
+
+  coverage:
+    country: ca
+    province: nb
+    ISO3166:
+      alpha2: CA-NB
+      country: Canada
+      subdivision: New Brunswick
+    website: https://geonb-t.snb.ca/downloads/nbrn/geonb_nbrn-rrnb_orig.zip
+    update_frequency: weekly
+  license:
+    url: http://geonb.snb.ca/documents/license/geonb-odl_en.pdf
+    text: GeoNB Open Data Licence
+  language: en
 
 Source
 ------
@@ -142,27 +142,27 @@ Structure
 
 **Generic:**
 
-```
-data:
-  filename:
-  layer:
-  driver:
-  crs:
-  spatial:
-  query:
-```
+.. code-block:: yaml
+
+  data:
+    filename:
+    layer:
+    driver:
+    crs:
+    spatial:
+    query:
 
 **Specific:**
 
-```
-data:
-  filename: 2021/geonb_nbrn-rrnb.gdb
-  layer: Road_Segment_Entity
-  driver: OpenFileGDB
-  crs: "EPSG:2953"
-  spatial: True
-  query: "Functional_Road_Class != 425"
-```
+.. code-block:: yaml
+
+  data:
+    filename: 2021/geonb_nbrn-rrnb.gdb
+    layer: Road_Segment_Entity
+    driver: OpenFileGDB
+    crs: "EPSG:2953"
+    spatial: True
+    query: "Functional_Road_Class != 425"
 
 Field Mapping
 -------------
@@ -174,45 +174,45 @@ Structure
 
 **Generic:**
 
-```
-conform:
-  nrn_dataset:
-    nrn_dataset_field:
+.. code-block:: yaml
+
+  conform:
+    nrn_dataset:
+      nrn_dataset_field:
+      ...
     ...
-  ...
-```
 
 **Specific:**
 
-```
-conform:
-  addrange:
-    acqtech: Element_Acquisition_Technique
-    metacover:
-    credate: Element_Creation_Date
-    datasetnam: New Brunswick
-    accuracy: &accuracy
-      fields: Element_Planimetric_Accuracy
-      functions:
-        - function: map_values
-          lookup:
-            401: 1
-            402: 3
-            403: 5
-            404: 10
-            405: 15
-            406: 20
-            407: 25
+.. code-block:: yaml
+
+  conform:
+    addrange:
+      acqtech: Element_Acquisition_Technique
+      metacover:
+      credate: Element_Creation_Date
+      datasetnam: New Brunswick
+      accuracy: &accuracy
+        fields: Element_Planimetric_Accuracy
+        functions:
+          - function: map_values
+            lookup:
+              401: 1
+              402: 3
+              403: 5
+              404: 10
+              405: 15
+              406: 20
+              407: 25
+      ...
+    roadseg:
+      acqtech: Element_Acquisition_Technique
+      metacover:
+      credate: Element_Creation_Date
+      datasetnam: New Brunswick
+      accuracy: *accuracy
+      ...
     ...
-  roadseg:
-    acqtech: Element_Acquisition_Technique
-    metacover:
-    credate: Element_Creation_Date
-    datasetnam: New Brunswick
-    accuracy: *accuracy
-    ...
-  ...
-```
 
 Field Mapping Details
 =====================
@@ -227,9 +227,9 @@ No source field maps to the NRN field.
 
 **Example:**
 
-```
-accuracy:
-```
+.. code-block:: yaml
+
+  accuracy:
 
 Literal
 ^^^^^^^
@@ -238,9 +238,9 @@ A literal value maps to the NRN field.
 
 **Example:**
 
-```
-accuracy: 10
-```
+.. code-block:: yaml
+
+  accuracy: 10
 
 Direct
 ^^^^^^
@@ -249,9 +249,9 @@ A source field directly maps to the NRN field.
 
 **Example:**
 
-```
-accuracy: Element_Planimetric_Accuracy
-```
+.. code-block:: yaml
+
+  accuracy: Element_Planimetric_Accuracy
 
 Function
 ^^^^^^^^
@@ -264,47 +264,47 @@ Example
 
 **Generic:**
 
-```
-nrn_field:
-  fields: source_field or [source_field] or [source_field, source_field, ...]
-  functions:
-    - function: function_name
-      parameter:
-      ...
-    - ...
-```
+.. code-block:: yaml
+
+  nrn_field:
+    fields: source_field or [source_field] or [source_field, source_field, ...]
+    functions:
+      - function: function_name
+        parameter:
+        ...
+      - ...
 
 **Specific 1:**
 
-```
-accuracy: &accuracy
-  fields: Element_Planimetric_Accuracy
-  functions:
-    - function: map_values
-      lookup:
-        401: 1
-        402: 3
-        403: 5
-        404: 10
-        405: 15
-        406: 20
-        407: 25
-```
+.. code-block:: yaml
+
+  accuracy: &accuracy
+    fields: Element_Planimetric_Accuracy
+    functions:
+      - function: map_values
+        lookup:
+          401: 1
+          402: 3
+          403: 5
+          404: 10
+          405: 15
+          406: 20
+          407: 25
 
 **Specific 2:**
 
-```
-accuracy: &accuracy
-  fields: First_House_Number_Left
-  functions:
-    - function: regex_sub
-      pattern: "-"
-      repl: ""
-    - function: regex_find
-      pattern: "(^\\d+)"
-      match_index: 0
-      group_index: 0
-```
+.. code-block:: yaml
+
+  accuracy: &accuracy
+    fields: First_House_Number_Left
+    functions:
+      - function: regex_sub
+        pattern: "-"
+        repl: ""
+      - function: regex_find
+        pattern: "(^\\d+)"
+        match_index: 0
+        group_index: 0
 
 Function Field Mapping - Additional Details
 -------------------------------------------
@@ -333,29 +333,29 @@ mapping functions together or separately.
 
 **Example (process_separately=True):**
 
-```
-placename:
-  fields: [SPN_L_Place_Name, SPN_R_Place_Name]
-  process_separately: True
-  functions:
-    - function: map_values
-      lookup:
-        1: Aboujagane
-        2: Acadie Siding
-        3: Acadieville
-        ...
-```
+.. code-block:: yaml
+
+  placename:
+    fields: [SPN_L_Place_Name, SPN_R_Place_Name]
+    process_separately: True
+    functions:
+      - function: map_values
+        lookup:
+          1: Aboujagane
+          2: Acadie Siding
+          3: Acadieville
+          ...
 
 **Example (process_separately=False):**
 
-```
-l_stname_c:
-  fields: [L_Directional_Prefix, L_Type_Prefix, L_Article, L_Name_Body, L_Type_Suffix, L_Directional_Suffix]
-  functions:
-  - function: concatenate
-    columns: [dirprefix, strtypre, starticle, namebody, strtysuf, dirsuffix]
-    separator: " "
-```
+.. code-block:: yaml
+
+  l_stname_c:
+    fields: [L_Directional_Prefix, L_Type_Prefix, L_Article, L_Name_Body, L_Type_Suffix, L_Directional_Suffix]
+    functions:
+    - function: concatenate
+      columns: [dirprefix, strtypre, starticle, namebody, strtysuf, dirsuffix]
+      separator: " "
 
 Iterate Columns
 """""""""""""""
@@ -367,21 +367,21 @@ Series. Values at those indexes not defined by `iterate_cols` will retain their 
 
 **Example:**
 
-```
-l_stname_c:
-  fields: [L_Directional_Prefix, L_Type_Prefix, L_Article, L_Name_Body, L_Type_Suffix, L_Directional_Suffix]
-  functions:
-  - function: map_values
-    iterate_cols: [0, 5]
-    lookup:
-      1: North
-      2: South
-      3: East
-      4: West
-  - function: concatenate
-    columns: [dirprefix, strtypre, starticle, namebody, strtysuf, dirsuffix]
-    separator: " "
-```
+.. code-block:: yaml
+
+  l_stname_c:
+    fields: [L_Directional_Prefix, L_Type_Prefix, L_Article, L_Name_Body, L_Type_Suffix, L_Directional_Suffix]
+    functions:
+    - function: map_values
+      iterate_cols: [0, 5]
+      lookup:
+        1: North
+        2: South
+        3: East
+        4: West
+    - function: concatenate
+      columns: [dirprefix, strtypre, starticle, namebody, strtysuf, dirsuffix]
+      separator: " "
 
 Field Domains
 """""""""""""
@@ -393,27 +393,27 @@ Regular expressions can be validated using this resource: `regular expressions 1
 
 **Example:**
 
-```
-dirprefix:
-  fields: strtypre
-  functions:
-  - function: regex_find
-    pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
-    match_index: 0
-    group_index: 0
-```
+.. code-block:: yaml
+
+  dirprefix:
+    fields: strtypre
+    functions:
+    - function: regex_find
+      pattern: "\\b(domain_strplaname_dirprefix)\\b(?!$)"
+      match_index: 0
+      group_index: 0
 
 The above field mapping definition would be converted to the following due to the field domains keyword:
 
-```
-dirprefix:
-  fields: strtypre
-  functions:
-  - function: regex_find
-    pattern: "\\b(None|North|Nord|South|Sud|East|Est|West|Ouest|Northwest|Nord-ouest|Northeast|Nord-est|Southwest|Sud-ouest|Southeast|Sud-est|Central|Centre)\\b(?!$)"
-    match_index: 0
-    group_index: 0
-```
+.. code-block:: yaml
+
+  dirprefix:
+    fields: strtypre
+    functions:
+    - function: regex_find
+      pattern: "\\b(None|North|Nord|South|Sud|East|Est|West|Ouest|Northwest|Nord-ouest|Northeast|Nord-est|Southwest|Sud-ouest|Southeast|Sud-est|Central|Centre)\\b(?!$)"
+      match_index: 0
+      group_index: 0
 
 Missing table linkages
 ======================
