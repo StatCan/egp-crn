@@ -391,7 +391,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         if isinstance(export_schemas, (dict, Path, str)):
             if isinstance(export_schemas, (Path, str)):
                 if Path(export_schemas).exists():
-                    export_schemas, load_yaml(export_schemas)
+                    export_schemas = load_yaml(export_schemas)
                 else:
                     raise ValueError(f"Invalid export schemas: {export_schemas}.")
             export_schemas = export_schemas["conform"]
