@@ -571,7 +571,7 @@ class Stage:
                     filepath.parents[1] / "downloads.yaml")["previous_nrn_vintage"][self.source]
 
                 # Get raw content stream from download url.
-                download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)
+                download = helpers.get_url(download_url, stream=True, timeout=30, verify=True)
 
                 # Copy download content to file.
                 with open(self.nrn_old_path["zip"], "wb") as f:

@@ -375,10 +375,10 @@ class Stage:
         try:
 
             # Get raw content stream from download url.
-            download = helpers.get_url(download_url, stream=True, timeout=30, verify=False).content
+            download = helpers.get_url(download_url, stream=True, timeout=30, verify=True).content
 
             # Load bytes collection into geodataframe.
-            with fiona.BytesCollection(bytes(download)) as f:
+            with fiona.BytesCollection(download) as f:
                 self.boundary = gpd.GeoDataFrame.from_features(f, crs=source_crs)
 
             # Filter boundaries.

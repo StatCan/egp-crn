@@ -613,8 +613,16 @@ def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
         # Get url response.
         response = requests.get(url, **kwargs)
 
+    except requests.exceptions.SSLError as e:
+        logger.warning("Invalid or missing SSL certificate for the provided URL. Retrying without SSL verification...")
+        logger.exception(e)
+
+        # Retry without SSL verification.
+        kwargs["verify"] = False
+        return get_url(url, attempt+1, **kwargs)
+
     except (TimeoutError, requests.exceptions.RequestException, requests.exceptions.ConnectionError) as e:
-        logger.warning("Failed to get url response. Retrying with backoff...")
+        logger.warning("Failed to get URL response. Retrying with backoff...")
         logger.exception(e)
 
         # Retry with exponential backoff.
