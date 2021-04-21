@@ -9,6 +9,7 @@ from collections import Counter
 from datetime import datetime
 from operator import attrgetter, itemgetter
 from pathlib import Path
+from tqdm import tqdm
 from tqdm.auto import trange
 from typing import Union
 
@@ -318,17 +319,13 @@ class Stage:
             "fr": {table: df.copy(deep=True) for table, df in self.dframes.items()}
         }
 
-        # Apply French translations to field values.
-        table = None
-        field = None
+        # Iterate dataframes and fields.
+        for table, df in self.dframes["fr"].items():
+            fields = set(df.columns) - {"uuid", "geometry"}
+            for field in tqdm(fields, total=len(fields), desc=f"Applying French translations for table: {table}.",
+                              bar_format=self.bar_format):
 
-        try:
-
-            # Iterate dataframes and fields.
-            for table, df in self.dframes["fr"].items():
-                for field in set(df.columns) - {"uuid", "geometry"}:
-
-                    logger.info(f"Applying French translations for table: {table}, field: {field}.")
+                try:
 
                     series = df[field].copy(deep=True)
 
@@ -344,9 +341,9 @@ class Stage:
                     # Store results to dataframe.
                     self.dframes["fr"][table][field] = series.copy(deep=True)
 
-        except (AttributeError, KeyError, ValueError):
-            logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
-            sys.exit(1)
+                except (AttributeError, KeyError, ValueError):
+                    logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
+                    sys.exit(1)
 
     def zip_data(self) -> None:
         """Compresses and zips all export data directories."""
