@@ -25,7 +25,7 @@ from segment_addresses import Segmentor
 
 
 # Set logger.
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
@@ -125,7 +125,7 @@ class Stage:
             except (TypeError, ValueError):
                 return default
 
-        logging.info("Applying field domains.")
+        logger.info("Applying field domains.")
         table = None
         field = None
 

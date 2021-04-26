@@ -10,12 +10,16 @@ from validation_functions import Validator
 
 
 # Set logger.
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
 logger.addHandler(handler)
+
+# Create logger for validation errors.
+logger_validations = logging.getLogger("validations")
+logger_validations.setLevel(logging.WARNING)
 
 
 class Stage:
@@ -65,12 +69,16 @@ class Stage:
 
         logger.info("Writing error logs.")
 
-        with helpers.TempHandlerSwap(logger, self.output_path):
+        # Add File Handler to validation logger.
+        f_handler = logging.FileHandler(self.output_path)
+        f_handler.setLevel(logging.WARNING)
+        f_handler.setFormatter(logger.handlers[0].formatter)
+        logger_validations.addHandler(f_handler)
 
-            # Iterate and log errors.
-            for heading, errors in sorted(self.Validator.errors.items()):
-                errors = "\n".join(map(str, errors))
-                logger.warning(f"{heading}\n{errors}\n")
+        # Iterate and log errors.
+        for heading, errors in sorted(self.Validator.errors.items()):
+            errors = "\n".join(map(str, errors))
+            logger_validations.warning(f"{heading}\n{errors}\n")
 
     def validations(self) -> None:
         """Applies a set of validations to one or more NRN datasets."""

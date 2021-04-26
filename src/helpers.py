@@ -23,61 +23,23 @@ from tqdm.auto import trange
 from typing import Any, Dict, List, Tuple, Union
 
 
-logger = logging.getLogger()
+# Set logger.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+logger.addHandler(handler)
+
+
+# Enable ogr exceptions.
 ogr.UseExceptions()
 
 
-# Define universally accessible variables.
+# Define globally accessible variables.
 filepath = Path(__file__).resolve()
 distribution_format_path = filepath.parent / "distribution_format.yaml"
 field_domains_path = {lang: filepath.parent / f"field_domains_{lang}.yaml" for lang in ("en", "fr")}
-
-
-class TempHandlerSwap:
-    """Temporarily swaps all Logger StreamHandlers with a FileHandler."""
-
-    def __init__(self, class_logger: logging.Logger, log_path: Union[Path, str]) -> None:
-        """
-        Initializes the TempHandlerSwap contextmanager class.
-
-        :param logging.Logger class_logger: Logger.
-        :param Union[Path, str] log_path: path where the FileHandler will write logs to.
-        """
-
-        self.logger = class_logger
-        self.log_path = Path(log_path).resolve()
-
-        # Store stream handlers.
-        self.stream_handlers = [h for h in self.logger.handlers if isinstance(h, logging.StreamHandler)]
-
-        # Define file handler.
-        self.file_handler = logging.FileHandler(self.log_path)
-        self.file_handler.setLevel(logging.INFO)
-        self.file_handler.setFormatter(self.logger.handlers[0].formatter)
-
-    def __enter__(self) -> None:
-        """Removes all StreamHandlers and adds a FileHandler."""
-
-        logger.info(f"Temporarily redirecting stream logging to file: {self.log_path}.")
-
-        for handler in self.stream_handlers:
-            self.logger.removeHandler(handler)
-        self.logger.addHandler(self.file_handler)
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """
-        Removes the FileHandler and restores the original StreamHandlers.
-
-        :param Any exc_type: required parameter for __exit__.
-        :param Any exc_val: required parameter for __exit__.
-        :param Any exc_tb: required parameter for __exit__.
-        """
-
-        for handler in self.stream_handlers:
-            self.logger.addHandler(handler)
-        self.logger.removeHandler(self.file_handler)
-
-        logger.info("File logging complete; reverted logging to stream.")
 
 
 class Timer:
@@ -596,12 +558,13 @@ def gdf_to_nx(gdf: gpd.GeoDataFrame, keep_attributes: bool = True, endpoints_onl
     return g
 
 
-def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
+def get_url(url: str, attempt: int = 1, max_attempts = 10, **kwargs: dict) -> requests.Response:
     """
     Fetches a response from a url, using exponential backoff for failed attempts.
 
     :param str url: string url.
     :param int attempt: current count of attempts to get a response from the url.
+    :param int max_attempts: maximum amount of attempts to get a response from the url.
     :param dict \*\*kwargs: keyword arguments passed to :func:`~requests.get`.
     :return requests.Response: response from the url.
     """
@@ -611,7 +574,10 @@ def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
     try:
 
         # Get url response.
-        response = requests.get(url, **kwargs)
+        if attempt < max_attempts:
+            response = requests.get(url, **kwargs)
+        else:
+            logger.warning(f"Maximum attempts reached ({max_attempts}). Unable to get URL response.")
 
     except requests.exceptions.SSLError as e:
         logger.warning("Invalid or missing SSL certificate for the provided URL. Retrying without SSL verification...")
@@ -621,12 +587,12 @@ def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
         kwargs["verify"] = False
         return get_url(url, attempt+1, **kwargs)
 
-    except (TimeoutError, requests.exceptions.RequestException, requests.exceptions.ConnectionError) as e:
-        logger.warning("Failed to get URL response. Retrying with backoff...")
-        logger.exception(e)
-
+    except (TimeoutError, requests.exceptions.ConnectionError, requests.exceptions.RequestException) as e:
         # Retry with exponential backoff.
-        time.sleep(2**attempt + random.random()*0.01)
+        backoff = 2 ** attempt + random.random() * 0.01
+        logger.warning(f"URL request failed. Backing off for {round(backoff, 2)} seconds before retrying.")
+        logger.exception(e)
+        time.sleep(backoff)
         return get_url(url, attempt+1, **kwargs)
 
     return response

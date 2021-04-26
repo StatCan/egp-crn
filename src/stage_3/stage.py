@@ -21,12 +21,16 @@ import helpers
 
 
 # Set logger.
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
 logger.addHandler(handler)
+
+# Create logger for change logs.
+logger_change_logs = logging.getLogger("change_logs")
+logger_change_logs.setLevel(logging.INFO)
 
 
 class Stage:
@@ -95,9 +99,18 @@ class Stage:
                 # Configure log path.
                 log_path = self.output_path / f"{self.source}_{table}_{change}.log"
 
+                # Drop pre-existing File Handler.
+                for f_handler in logger_change_logs.handlers:
+                    logger_change_logs.removeHandler(f_handler)
+
+                # Add File Handler with new log path.
+                f_handler = logging.FileHandler(log_path)
+                f_handler.setLevel(logging.INFO)
+                f_handler.setFormatter(logger.handlers[0].formatter)
+                logger_change_logs.addHandler(f_handler)
+
                 # Write log.
-                with helpers.TempHandlerSwap(logger, log_path):
-                    logger.info(log)
+                logger_change_logs.info(log)
 
     def gen_and_recover_structids(self) -> None:
         """Recovers structids from the previous NRN vintage or generates new ones."""

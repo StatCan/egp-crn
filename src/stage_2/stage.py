@@ -22,7 +22,7 @@ import helpers
 
 
 # Set logger.
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
@@ -61,7 +61,7 @@ class Stage:
     def apply_domains(self) -> None:
         """Applies domain restrictions to each column in the target (Geo)DataFrames."""
 
-        logging.info("Applying field domains.")
+        logger.info("Applying field domains.")
         field = None
 
         try:
