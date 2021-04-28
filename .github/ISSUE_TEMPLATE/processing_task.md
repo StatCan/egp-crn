@@ -9,6 +9,7 @@ assignees: ''
 
 **Description of tasks**
 Process <source> <year> data for release as an NRN product.
+- [ ] update field mapping yaml(s)
 - [ ] process <source> <year> data
 - [ ] update release notes and sphinx documentation
 - [ ] copy data to server

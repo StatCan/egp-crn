@@ -6,10 +6,10 @@ import re
 import sys
 import zipfile
 from collections import Counter
-from copy import deepcopy
 from datetime import datetime
 from operator import attrgetter, itemgetter
 from pathlib import Path
+from tqdm import tqdm
 from tqdm.auto import trange
 from typing import Union
 
@@ -19,7 +19,7 @@ import helpers
 
 
 # Set logger.
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
@@ -158,18 +158,14 @@ class Stage:
 
             logger.info(f"Defining KML groups for language: {lang}.")
 
-            # Determine language-specific field names.
-            l_placenam, r_placenam = itemgetter("l_placenam", "r_placenam")(
-                self.distribution_formats[lang]["kml"]["conform"]["roadseg"]["fields"])
-
             # Retrieve source dataframe.
-            df = self.dframes["kml"][lang]["roadseg"].copy(deep=True)
+            df = self.dframes[lang]["roadseg"].copy(deep=True)
 
             # Compile placenames.
             if placenames is None:
 
                 # Compile placenames.
-                placenames = pd.Series([*df[l_placenam], *df.loc[df[l_placenam] != df[r_placenam], r_placenam]])
+                placenames = pd.Series([*df["l_placenam"], *df.loc[df["l_placenam"] != df["r_placenam"], "r_placenam"]])
 
                 # Flag limit-exceeding placenames.
                 placenames_exceeded = {name for name, count in Counter(placenames).items() if count > kml_limit}
@@ -177,17 +173,18 @@ class Stage:
                 # Compile unique placename values.
                 placenames = set(placenames)
 
-            # Swap English-French default placename value.
+            # Swap English-French default placename value, only if the value is present.
             else:
                 default_add = self.defaults["fr"]["roadseg"]["l_placenam"]
                 default_rm = self.defaults["en"]["roadseg"]["l_placenam"]
-                placenames = {*placenames - {default_rm}, default_add}
+                if default_rm in placenames:
+                    placenames = {*placenames_exceeded - {default_rm}, default_add}
                 if default_rm in placenames_exceeded:
                     placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
             # Compile export parameters.
-            # name: placenames as valid file names.
-            # query: placenames pandas query.
+            # name: placename as a valid file name.
+            # query: pandas query for all records with the placename.
             names = list()
             queries = list()
 
@@ -197,7 +194,7 @@ class Stage:
                 if placename in placenames_exceeded:
 
                     # Compile indexes of placename records.
-                    indexes = df.query(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"").index
+                    indexes = df.query(f"l_placenam==\"{placename}\" or r_placenam==\"{placename}\"").index
                     for index, indexes_range in enumerate(np.array_split(indexes, (len(indexes) // kml_limit) + 1)):
 
                         # Configure export parameters.
@@ -208,7 +205,7 @@ class Stage:
 
                     # Configure export parameters.
                     names.append(re.sub(r"[\W_]+", "_", placename))
-                    queries.append(f"{l_placenam}==\"{placename}\" or {r_placenam}==\"{placename}\"")
+                    queries.append(f"l_placenam==\"{placename}\" or r_placenam==\"{placename}\"")
 
             # Store results.
             self.kml_groups[lang] = pd.DataFrame({"name": names, "query": queries})
@@ -219,16 +216,22 @@ class Stage:
         logger.info("Exporting output data.")
 
         # Configure export progress bar.
-        file_count = sum(len(self.dframes[frmt][lang]) * (1 if frmt != "kml" else len(self.kml_groups[lang]))
-                         for frmt in self.dframes for lang in self.dframes[frmt])
+        file_count = 0
+        for lang, dfs in self.dframes.items():
+            for frmt in self.formats:
+                count = len(set(dfs).intersection(set(self.distribution_formats[lang][frmt]["conform"])))
+                file_count += (len(self.kml_groups[lang]) * count) if frmt == "kml" else count
         export_progress = trange(file_count, desc="Exporting data", bar_format=self.bar_format)
 
         # Iterate export formats and languages.
-        for frmt in self.dframes:
-            for lang, dframes in self.dframes[frmt].items():
+        for lang, dfs in self.dframes.items():
+            for frmt in self.formats:
 
                 # Retrieve export specifications.
                 export_specs = self.distribution_formats[lang][frmt]
+
+                # Filter required dataframes.
+                dframes = {name: df.copy(deep=True) for name, df in dfs.items() if name in export_specs["conform"]}
 
                 # Configure export directory.
                 export_dir, export_file = itemgetter("dir", "file")(export_specs["data"])
@@ -316,17 +319,13 @@ class Stage:
             "fr": {table: df.copy(deep=True) for table, df in self.dframes.items()}
         }
 
-        # Apply French translations to field values.
-        table = None
-        field = None
+        # Iterate dataframes and fields.
+        for table, df in self.dframes["fr"].items():
+            fields = set(df.columns) - {"uuid", "geometry"}
+            for field in tqdm(fields, total=len(fields), desc=f"Applying French translations for table: {table}.",
+                              bar_format=self.bar_format):
 
-        try:
-
-            # Iterate dataframes and fields.
-            for table, df in self.dframes["fr"].items():
-                for field in set(df.columns) - {"uuid", "geometry"}:
-
-                    logger.info(f"Applying French translations for table: {table}, field: {field}.")
+                try:
 
                     series = df[field].copy(deep=True)
 
@@ -342,54 +341,9 @@ class Stage:
                     # Store results to dataframe.
                     self.dframes["fr"][table][field] = series.copy(deep=True)
 
-        except (AttributeError, KeyError, ValueError):
-            logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
-            sys.exit(1)
-
-    def gen_output_schemas(self) -> None:
-        """Generate the output schema required for each NRN dataset and each output format."""
-
-        logger.info("Generating output schemas.")
-        frmt, lang, table = None, None, None
-
-        # Reconfigure dataframes dict to hold all formats and languages.
-        dframes = {frmt: {"en": dict(), "fr": dict()} for frmt in self.formats}
-
-        try:
-
-            # Iterate formats and languages.
-            for frmt in dframes:
-                for lang in dframes[frmt]:
-
-                    # Retrieve schemas.
-                    schemas = self.distribution_formats[lang][frmt]["conform"]
-
-                    # Iterate tables.
-                    for table in [t for t in schemas if t in self.dframes[lang]]:
-
-                        logger.info(f"Generating output schema for format: {frmt}, language: {lang}, table: {table}.")
-
-                        # Conform dataframe to output schema.
-
-                        # Retrieve dataframe.
-                        df = self.dframes[lang][table].copy(deep=True)
-
-                        # Drop non-required columns.
-                        drop_columns = df.columns.difference([*schemas[table]["fields"], "geometry"])
-                        df.drop(columns=drop_columns, inplace=True)
-
-                        # Map column names.
-                        df.rename(columns=schemas[table]["fields"], inplace=True)
-
-                        # Store results.
-                        dframes[frmt][lang][table] = df.copy(deep=True)
-
-            # Store result.
-            self.dframes = deepcopy(dframes)
-
-        except (AttributeError, KeyError, ValueError):
-            logger.exception(f"Unable to apply output schema for format: {frmt}, language: {lang}, table: {table}.")
-            sys.exit(1)
+                except (AttributeError, KeyError, ValueError):
+                    logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
+                    sys.exit(1)
 
     def zip_data(self) -> None:
         """Compresses and zips all export data directories."""
@@ -439,7 +393,6 @@ class Stage:
 
         self.configure_release_version()
         self.gen_french_dataframes()
-        self.gen_output_schemas()
         self.define_kml_groups()
         self.export_data()
         self.zip_data()

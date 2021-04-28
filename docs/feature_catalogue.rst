@@ -1169,7 +1169,7 @@ Without Designation (Municipality) / Sans désignation (Municipalité)
 ====================================================================  ==========
 
 Province
-------------
+^^^^^^^^
 
 Province or Territory covered by the dataset.
 

@@ -25,7 +25,7 @@ from segment_addresses import Segmentor
 
 
 # Set logger.
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
@@ -125,7 +125,7 @@ class Stage:
             except (TypeError, ValueError):
                 return default
 
-        logging.info("Applying field domains.")
+        logger.info("Applying field domains.")
         table = None
         field = None
 
@@ -571,7 +571,7 @@ class Stage:
                     filepath.parents[1] / "downloads.yaml")["previous_nrn_vintage"][self.source]
 
                 # Get raw content stream from download url.
-                download = helpers.get_url(download_url, stream=True, timeout=30, verify=False)
+                download = helpers.get_url(download_url, stream=True, timeout=30, verify=True)
 
                 # Copy download content to file.
                 with open(self.nrn_old_path["zip"], "wb") as f:
@@ -698,8 +698,9 @@ class Stage:
                 # Cast multi-type geometries.
                 df = helpers.explode_geometry(df)
 
-                # Reproject to EPSG:4617.
-                df = helpers.reproject_gdf(df, int(source_yaml["data"]["crs"].split(":")[-1]), 4617)
+                # Explicitly assign CRS and reproject to EPSG:4617.
+                df.set_crs(source_yaml["data"]["crs"], allow_override=True, inplace=True)
+                df = df.to_crs("EPSG:4617")
 
                 # Force coordinates to 2D.
                 df = helpers.flatten_coordinates(df)
@@ -786,7 +787,7 @@ class Stage:
                         df = helpers.explode_geometry(df)
 
                         # Reproject to EPSG:4617.
-                        df = helpers.reproject_gdf(df, df.crs.to_epsg(), 4617)
+                        df = df.to_crs("EPSG:4617")
 
                         # Force coordinates to 2D.
                         df = helpers.flatten_coordinates(df)

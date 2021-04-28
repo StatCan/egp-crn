@@ -18,7 +18,7 @@ import helpers
 
 
 # Set logger.
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
@@ -48,6 +48,8 @@ class LRS:
             "measurement_field": "measure",
             "ids": ["004097", "004307", "004349"]
         }
+        self.point_datasets = {}
+        self.point_event_measurement_field = None
 
         # Dataset import specifications.
         self.schema = {
@@ -143,6 +145,9 @@ class LRS:
             "surface_code": "pavstatus"
         }
 
+        # Define queries to separate final (NRN) datasets.
+        self.final_dataset_separations = {}
+
         # Validate src.
         self.src = Path(src).resolve()
         if self.src.suffix != ".gdb":
@@ -194,7 +199,7 @@ class LRS:
 
                 # Compile required attributes with updated names. Add a suffix to columns already in base dataset.
                 # Note: Underscore suffixes are applied to conflicting field names. For certain fields, such as dates,
-                # it may be useful to kept multiple instances.
+                # it may be useful to keep multiple instances.
                 cols_keep = list()
                 for col in self.schema[name]["output_fields"]:
                     col = self.rename[col]
@@ -435,9 +440,11 @@ class LRS:
         # Assemble base - geometry connection.
         logger.info(f"Assembling base - geometry connection: {self.base_dataset} - {self.geometry_dataset}.")
 
-        # Assemble datasets.
-        base = gpd.GeoDataFrame(self.src_datasets[self.base_dataset].merge(
-            self.src_datasets[self.geometry_dataset], how="left", on=self.get_con_id_field(self.geometry_dataset)))
+        # Assemble datasets if they are not the same.
+        base = self.src_datasets[self.base_dataset].copy(deep=True)
+        if self.base_dataset != self.geometry_dataset:
+            base = gpd.GeoDataFrame(base.merge(self.src_datasets[self.geometry_dataset], how="left",
+                                               on=self.get_con_id_field(self.geometry_dataset)))
 
         # Explode geometries to singlepart.
         base = helpers.explode_geometry(base)
@@ -698,8 +705,8 @@ class LRS:
             df.rename(columns=self.rename, inplace=True)
 
             # Convert tabular dataframes.
-            if "geometry" not in df.columns:
-                df = pd.DataFrame(df)
+            if ("geometry" not in df.columns) or (not df["geometry"].iloc[0]):
+                df = pd.DataFrame(df[df.columns.difference(["geometry"])])
 
             # Store results.
             self.src_datasets[layer] = df.copy(deep=True)
@@ -728,8 +735,8 @@ class LRS:
             logger.info(f"Dropped {len(df) - len(df_valid)} of {len(df)} records for dataset: {name}, based on ID "
                         f"field: {con_id_field}.")
 
-            # Flag many-to-one linkages between base and geometry datasets.
-            if name == self.geometry_dataset:
+            # Flag many-to-one linkages between base and geometry datasets, if they are not the same.
+            if (name == self.geometry_dataset) and (self.base_dataset != self.geometry_dataset):
 
                 # Compile and flag many-to-one linkages.
                 base = self.src_datasets[self.base_dataset]
@@ -752,7 +759,7 @@ class LRS:
         for table, df in self.nrn_datasets.items():
 
             geom_types = set(df.geom_type)
-            if geom_types.issubset({"Point", "MultiPoint"}) or geom_types.issubset({"LineString", "MultiLineString"}):
+            if any(geom_type in geom_types for geom_type in {"MultiPoint", "MultiLineString"}):
                 self.nrn_datasets[table] = helpers.explode_geometry(df).copy(deep=True)
 
         # Export to GeoPackage.
@@ -769,6 +776,24 @@ class LRS:
         for con_field, df_names in self.structure["connections"].items():
             if name in df_names:
                 return con_field
+
+    def separate_final_datasets(self):
+        """Separates the final NRN datasets into multiple NRN datasets based on queries."""
+
+        logger.info(f"Separating final NRN datasets.")
+
+        # Iterate NRN datasets to be separated.
+        for nrn_dataset, new_datasets in self.final_dataset_separations.items():
+            logger.info(f"Separating NRN dataset: \"{nrn_dataset}\".")
+            nrn_df = self.nrn_datasets[nrn_dataset]
+
+            # Iterate new dataset parameters and store resulting dataframe.
+            for new_dataset in new_datasets:
+                name, query = itemgetter("dataset_name", "query")(new_dataset)
+                self.nrn_datasets[name] = nrn_df.query(query).copy(deep=True)
+
+                logger.info(f"Separated {len(self.nrn_datasets[name])} records from \"{nrn_dataset}\" to create NRN "
+                            f"dataset \"{name}\".")
 
     def split_at_intersections(self) -> None:
         """
@@ -842,6 +867,7 @@ class LRS:
         self.assemble_segmented_network()
         self.assemble_network_attribution()
         self.split_at_intersections()
+        self.separate_final_datasets()
         self.export_gpkg()
 
 

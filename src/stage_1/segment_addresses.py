@@ -17,7 +17,13 @@ sys.path.insert(1, str(filepath.parents[1]))
 import helpers
 
 
-logger = logging.getLogger()
+# Set logger.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+logger.addHandler(handler)
 
 
 class Segmentor:

@@ -13,7 +13,6 @@ import sys
 import time
 import yaml
 from collections import defaultdict
-from copy import deepcopy
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from pathlib import Path
@@ -24,61 +23,23 @@ from tqdm.auto import trange
 from typing import Any, Dict, List, Tuple, Union
 
 
-logger = logging.getLogger()
+# Set logger.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+logger.addHandler(handler)
+
+
+# Enable ogr exceptions.
 ogr.UseExceptions()
 
 
-# Define universally accessible variables.
+# Define globally accessible variables.
 filepath = Path(__file__).resolve()
 distribution_format_path = filepath.parent / "distribution_format.yaml"
 field_domains_path = {lang: filepath.parent / f"field_domains_{lang}.yaml" for lang in ("en", "fr")}
-
-
-class TempHandlerSwap:
-    """Temporarily swaps all Logger StreamHandlers with a FileHandler."""
-
-    def __init__(self, class_logger: logging.Logger, log_path: Union[Path, str]) -> None:
-        """
-        Initializes the TempHandlerSwap contextmanager class.
-
-        :param logging.Logger class_logger: Logger.
-        :param Union[Path, str] log_path: path where the FileHandler will write logs to.
-        """
-
-        self.logger = class_logger
-        self.log_path = Path(log_path).resolve()
-
-        # Store stream handlers.
-        self.stream_handlers = [h for h in self.logger.handlers if isinstance(h, logging.StreamHandler)]
-
-        # Define file handler.
-        self.file_handler = logging.FileHandler(self.log_path)
-        self.file_handler.setLevel(logging.INFO)
-        self.file_handler.setFormatter(self.logger.handlers[0].formatter)
-
-    def __enter__(self) -> None:
-        """Removes all StreamHandlers and adds a FileHandler."""
-
-        logger.info(f"Temporarily redirecting stream logging to file: {self.log_path}.")
-
-        for handler in self.stream_handlers:
-            self.logger.removeHandler(handler)
-        self.logger.addHandler(self.file_handler)
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """
-        Removes the FileHandler and restores the original StreamHandlers.
-
-        :param Any exc_type: required parameter for __exit__.
-        :param Any exc_val: required parameter for __exit__.
-        :param Any exc_tb: required parameter for __exit__.
-        """
-
-        for handler in self.stream_handlers:
-            self.logger.addHandler(handler)
-        self.logger.removeHandler(self.file_handler)
-
-        logger.info("File logging complete; reverted logging to stream.")
 
 
 class Timer:
@@ -392,7 +353,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         if isinstance(export_schemas, (dict, Path, str)):
             if isinstance(export_schemas, (Path, str)):
                 if Path(export_schemas).exists():
-                    export_schemas, load_yaml(export_schemas)
+                    export_schemas = load_yaml(export_schemas)
                 else:
                     raise ValueError(f"Invalid export schemas: {export_schemas}.")
             export_schemas = export_schemas["conform"]
@@ -407,6 +368,8 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
             for table in dataframes:
                 type_schemas_merged["fields"] |= type_schemas[table]["fields"]
                 export_schemas_merged["fields"] |= export_schemas[table]["fields"]
+            if any(type_schemas[table]["spatial"] for table in dataframes):
+                type_schemas_merged["spatial"] = True
 
             # Update schemas with merged results.
             type_schemas = {table: type_schemas_merged for table in type_schemas}
@@ -595,12 +558,13 @@ def gdf_to_nx(gdf: gpd.GeoDataFrame, keep_attributes: bool = True, endpoints_onl
     return g
 
 
-def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
+def get_url(url: str, attempt: int = 1, max_attempts = 10, **kwargs: dict) -> requests.Response:
     """
     Fetches a response from a url, using exponential backoff for failed attempts.
 
     :param str url: string url.
     :param int attempt: current count of attempts to get a response from the url.
+    :param int max_attempts: maximum amount of attempts to get a response from the url.
     :param dict \*\*kwargs: keyword arguments passed to :func:`~requests.get`.
     :return requests.Response: response from the url.
     """
@@ -610,14 +574,25 @@ def get_url(url: str, attempt: int = 1, **kwargs: dict) -> requests.Response:
     try:
 
         # Get url response.
-        response = requests.get(url, **kwargs)
+        if attempt < max_attempts:
+            response = requests.get(url, **kwargs)
+        else:
+            logger.warning(f"Maximum attempts reached ({max_attempts}). Unable to get URL response.")
 
-    except (TimeoutError, requests.exceptions.RequestException, requests.exceptions.ConnectionError) as e:
-        logger.warning("Failed to get url response. Retrying with backoff...")
+    except requests.exceptions.SSLError as e:
+        logger.warning("Invalid or missing SSL certificate for the provided URL. Retrying without SSL verification...")
         logger.exception(e)
 
+        # Retry without SSL verification.
+        kwargs["verify"] = False
+        return get_url(url, attempt+1, **kwargs)
+
+    except (TimeoutError, requests.exceptions.ConnectionError, requests.exceptions.RequestException) as e:
         # Retry with exponential backoff.
-        time.sleep(2**attempt + random.random()*0.01)
+        backoff = 2 ** attempt + random.random() * 0.01
+        logger.warning(f"URL request failed. Backing off for {round(backoff, 2)} seconds before retrying.")
+        logger.exception(e)
+        time.sleep(backoff)
         return get_url(url, attempt+1, **kwargs)
 
     return response
@@ -809,62 +784,6 @@ def nx_to_gdf(g: nx.Graph, nodes: bool = True, edges: bool = True) -> \
         return gdf_nodes
     else:
         return gdf_edges
-
-
-def reproject_gdf(gdf: Union[gpd.GeoDataFrame, gpd.GeoSeries], epsg_source: int, epsg_target: int) -> \
-        Union[gpd.GeoDataFrame, gpd.GeoSeries]:
-    """
-    Transforms a GeoDataFrame or GeoSeries between EPSG CRSs.
-
-    :param Union[gpd.GeoDataFrame, gpd.GeoSeries] gdf: GeoDataFrame or GeoSeries.
-    :param int epsg_source: input EPSG code.
-    :param int epsg_target: output EPSG code.
-    :return Union[gpd.GeoDataFrame, gpd.GeoSeries]: reprojected GeoDataFrame or GeoSeries.
-    """
-
-    logger.info(f"Reprojecting geometry from EPSG:{epsg_source} to EPSG:{epsg_target}.")
-
-    series_flag = isinstance(gdf, gpd.GeoSeries)
-
-    # Return empty dataframe.
-    if not len(gdf):
-        return gdf
-
-    # Deep copy dataframe to avoid reprojecting original.
-    # Explicitly copy crs property since it is excluded from default copy method.
-    gdf = gpd.GeoDataFrame(gdf.copy(deep=True), crs=deepcopy(gdf.crs))
-
-    # Define transformation.
-    prj_source, prj_target = osr.SpatialReference(), osr.SpatialReference()
-    prj_source.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-    prj_target.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-    prj_source.ImportFromEPSG(epsg_source)
-    prj_target.ImportFromEPSG(epsg_target)
-    prj_transformer = osr.CoordinateTransformation(prj_source, prj_target)
-
-    # Transform Records.
-    # Process: pass reversed xy coordinates to proj transformer, load result as shapely geometry.
-    if len(gdf.geom_type.unique()) > 1:
-        raise Exception("Multiple geometry types detected for dataframe.")
-
-    elif gdf.geom_type.iloc[0] == "LineString":
-        gdf["geometry"] = gdf["geometry"].map(
-            lambda geom: LineString(prj_transformer.TransformPoints(list(zip(*geom.coords.xy)))))
-
-    elif gdf.geom_type.iloc[0] == "Point":
-        gdf["geometry"] = gdf["geometry"].map(
-            lambda geom: Point(prj_transformer.TransformPoint(*list(zip(*geom.coords.xy))[0])))
-
-    else:
-        raise Exception("Geometry type not supported for EPSG transformation.")
-
-    # Update crs attribute.
-    gdf.crs = f"epsg:{epsg_target}"
-
-    if series_flag:
-        return gdf["geometry"]
-    else:
-        return gdf
 
 
 def rm_tree(path: Path) -> None:

@@ -20,7 +20,13 @@ sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
 
-logger = logging.getLogger()
+# Set logger.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S"))
+logger.addHandler(handler)
 
 
 def ordered_pairs(coords: Tuple[tuple, ...]) -> List[Tuple[tuple, tuple]]:
@@ -75,7 +81,7 @@ class Validator:
                 if epsg == 3348:
                     self.dframes_m[name] = df.copy(deep=True)
                 else:
-                    self.dframes_m[name] = helpers.reproject_gdf(df, epsg, 3348).copy(deep=True)
+                    self.dframes_m[name] = df.to_crs("EPSG:3348").copy(deep=True)
 
         # Define validation parameters.
         # Note: List validations in order if execution order matters.
