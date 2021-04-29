@@ -75,7 +75,7 @@ class LRS:
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "full_street_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["stname_c", "revdate"]
+                "output_fields": ["r_stname_c", "revdate"]
             },
             "orn_road_class": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "road_class", "effective_datetime"],
@@ -155,7 +155,7 @@ class LRS:
         # Note: connection fields must use the renamed field names.
         self.structure_non_base = {
             "orn_official_street_name": {
-                "stname_c": ["orn_street_name_parsed"]
+                "r_stname_c": ["orn_street_name_parsed"]
             }
         }
 
@@ -171,7 +171,7 @@ class LRS:
             "effective_datetime": "revdate",
             "exit_number": "exitnbr",
             "first_house_number": "hnumf",
-            "full_street_name": "stname_c",
+            "full_street_name": "r_stname_c",
             "house_number_structure": "hnumstr",
             "jurisdiction": "roadjuris",
             "last_house_number": "hnuml",
@@ -983,7 +983,8 @@ class LRS:
                     dfs.append(df_epsg.to_crs("EPSG:4617").copy(deep=True))
 
                 # Store concatenated results as a GeoDataFrame.
-                self.nrn_datasets[table] = gpd.GeoDataFrame(pd.concat(dfs), crs="EPSG:4617").copy(deep=True)
+                self.nrn_datasets[table] = gpd.GeoDataFrame(
+                    pd.concat(dfs), crs="EPSG:4617").drop(columns=["epsg"]).copy(deep=True)
 
     def execute(self) -> None:
         """Executes class functionality."""

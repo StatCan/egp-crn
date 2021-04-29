@@ -12,10 +12,10 @@ license:
   text: Open Government License - Ontario
 language: en
 data:
-  filename: 2020/orn.gpkg
+  filename: 2021/orn.gpkg
   layer: ferryseg
   driver: GPKG
-  crs: "EPSG:4269"
+  crs: "EPSG:4617"
   spatial: True
   query:
 conform:

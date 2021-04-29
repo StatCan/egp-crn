@@ -12,13 +12,45 @@ license:
   text: Open Government License - Ontario
 language: en
 data:
-  filename: 2020/orn.gpkg
+  filename: 2021/orn.gpkg
   layer: roadseg
   driver: GPKG
-  crs: "EPSG:4269"
+  crs: "EPSG:4617"
   spatial: True
   query:
 conform:
+  addrange:
+    acqtech: acqtech
+    metacover:
+    credate: credate
+    datasetnam: "Ontario"
+    accuracy: accuracy
+    provider:
+    revdate: revdate
+    specvers: 2.0
+    l_altnanid: l_altnanid
+    r_altnanid: r_altnanid
+    l_digdirfg:
+    r_digdirfg:
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    l_hnumsuff:
+    r_hnumsuff:
+    l_hnumtypf:
+    r_hnumtypf:
+    l_hnumstr: l_hnumstr
+    r_hnumstr: r_hnumstr
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    l_hnumsufl:
+    r_hnumsufl:
+    l_hnumtypl:
+    r_hnumtypl:
+    nid: nid
+    l_offnanid: l_offnanid
+    r_offnanid: r_offnanid
+    l_rfsysind:
+    r_rfsysind:
   roadseg:
     acqtech: acqtech
     metacover:
@@ -68,3 +100,36 @@ conform:
     structtype: structtype
     trafficdir: trafficdir
     unpavsurf: unpavsurf
+  strplaname:
+    acqtech: acqtech
+    metacover:
+    credate: credate
+    datasetnam: "Ontario"
+    accuracy: accuracy
+    provider:
+    revdate: revdate
+    specvers: 2.0
+    dirprefix: dirprefix
+    dirsuffix: dirsuffix
+    muniquad:
+    nid: nid
+    placename: placename
+    placetype:
+    province: "Ontario"
+    starticle:
+      fields: namebody
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+    namebody:
+      fields: namebody
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+    strtypre: strtypre
+    strtysuf: strtysuf

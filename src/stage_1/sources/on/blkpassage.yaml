@@ -12,22 +12,22 @@ license:
   text: Open Government License - Ontario
 language: en
 data:
-  filename: 2020/orn.gpkg
+  filename: 2021/orn.gpkg
   layer: blkpassage
   driver: GPKG
-  crs: "EPSG:4269"
+  crs: "EPSG:4617"
   spatial: True
   query:
 conform:
   blkpassage:
-    acqtech: acqtech
+    acqtech:
     metacover:
-    credate: credate
-    datasetnam: "Ontario"
-    accuracy: accuracy
-    provider:
+    credate:
+    datasetnam: Ontario
+    accuracy:
+    provider: provider
     revdate: revdate
     specvers: 2.0
     blkpassty: blkpassty
-    nid: nid
-    roadnid: roadnid
+    nid:
+    roadnid:
