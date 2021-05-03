@@ -23,15 +23,15 @@ conform:
     acqtech: acqtech
     metacover:
     credate: credate
-    datasetnam: "Ontario"
+    datasetnam: Ontario
     accuracy: accuracy
-    provider:
+    provider: provider
     revdate: revdate
     specvers: 2.0
     closing:
     ferrysegid:
-    roadclass:
-    nid: nid
+    roadclass: roadclass
+    nid:
     rtename1en: rtename1en
     rtename2en: rtename2en
     rtename3en: rtename3en

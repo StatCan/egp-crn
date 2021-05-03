@@ -20,14 +20,20 @@ data:
   query:
 conform:
   blkpassage:
-    acqtech:
+    acqtech: acqtech
     metacover:
     credate:
     datasetnam: Ontario
-    accuracy:
+    accuracy: accuracy
     provider: provider
     revdate: revdate
     specvers: 2.0
-    blkpassty: blkpassty
+    blkpassty:
+      fields: blkpassty
+      functions:
+        - function: map_values
+          lookup:
+            Permanent: Permanently Fixed
+            Removable: Removable
     nid:
     roadnid:

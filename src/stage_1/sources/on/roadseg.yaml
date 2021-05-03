@@ -23,13 +23,13 @@ conform:
     acqtech: acqtech
     metacover:
     credate: credate
-    datasetnam: "Ontario"
+    datasetnam: Ontario
     accuracy: accuracy
-    provider:
+    provider: provider
     revdate: revdate
     specvers: 2.0
-    l_altnanid: l_altnanid
-    r_altnanid: r_altnanid
+    l_altnanid:
+    r_altnanid:
     l_digdirfg:
     r_digdirfg:
     l_hnumf: l_hnumf
@@ -46,23 +46,23 @@ conform:
     r_hnumsufl:
     l_hnumtypl:
     r_hnumtypl:
-    nid: nid
-    l_offnanid: l_offnanid
-    r_offnanid: r_offnanid
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
     l_rfsysind:
     r_rfsysind:
   roadseg:
     acqtech: acqtech
     metacover:
     credate: credate
-    datasetnam: "Ontario"
+    datasetnam: Ontario
     accuracy: accuracy
-    provider:
+    provider: provider
     revdate: revdate
     specvers: 2.0
     l_adddirfg:
     r_adddirfg:
-    adrangenid: adrangenid
+    adrangenid: uuid
     closing:
     exitnbr: exitnbr
     l_hnumf: l_hnumf
@@ -70,11 +70,11 @@ conform:
     roadclass: roadclass
     l_hnuml: l_hnuml
     r_hnuml: r_hnuml
-    nid: nid
+    nid:
     nbrlanes: nbrlanes
-    l_placenam: l_placenam
-    r_placenam: r_placenam
-    l_stname_c: l_stname_c
+    l_placenam: roadjuris
+    r_placenam: roadjuris
+    l_stname_c: r_stname_c
     r_stname_c: r_stname_c
     pavsurf: pavsurf
     pavstatus: pavstatus
@@ -99,23 +99,23 @@ conform:
     structid:
     structtype: structtype
     trafficdir: trafficdir
-    unpavsurf: unpavsurf
+    unpavsurf: pavsurf
   strplaname:
     acqtech: acqtech
     metacover:
     credate: credate
-    datasetnam: "Ontario"
+    datasetnam: Ontario
     accuracy: accuracy
-    provider:
+    provider: provider
     revdate: revdate
     specvers: 2.0
     dirprefix: dirprefix
     dirsuffix: dirsuffix
     muniquad:
-    nid: nid
-    placename: placename
-    placetype:
-    province: "Ontario"
+    nid: uuid
+    placename: roadjuris
+    placetype: #TODO
+    province: Ontario
     starticle:
       fields: namebody
       functions:
