@@ -57,7 +57,8 @@ class LRS:
                 "fields": ["orn_road_net_element_id", "at_measure", "blocked_passage_type", "agency_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["blkpassty", "provider", "revdate", "geometry"]
+                "output_fields": ["blkpassty", "provider", "revdate", "geometry"],
+                "base_output_fields": ["accuracy", "acqtech"]
             },
             "orn_jurisdiction": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
@@ -135,7 +136,8 @@ class LRS:
                 "fields": ["orn_road_net_element_id", "at_measure", "toll_point_type", "agency_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["tollpttype", "provider", "revdate", "geometry"]
+                "output_fields": ["tollpttype", "provider", "revdate", "geometry"],
+                "base_output_fields": ["accuracy", "acqtech"]
             }
         }
 
@@ -869,8 +871,13 @@ class LRS:
             # Identify connection field.
             con_id_field = self.get_con_id_field(point_dataset)
 
+            # Configure required fields from base.
+            base_fields = [con_id_field, "epsg", "geometry"]
+            if "base_output_fields" in self.schema[point_dataset]:
+                base_fields.extend(self.schema[point_dataset]["base_output_fields"])
+
             # Merge point and base dataframes and interpolate Point object.
-            point_df = point_df.merge(base[[con_id_field, "epsg", "geometry"]], how="left", on=con_id_field)
+            point_df = point_df.merge(base[base_fields], how="left", on=con_id_field)
             point_df["geometry"] = point_df[[self.point_event_measurement_field, "geometry"]].apply(
                 lambda row: row[1].interpolate(row[0]), axis=1)
 
@@ -882,12 +889,17 @@ class LRS:
 
         logger.info("Exporting datasets to GeoPackage.")
 
-        # Conditionally explode geometries.
+        # Iterate datasets.
         for table, df in self.nrn_datasets.items():
 
+            # Conditionally explode geometries.
             geom_types = set(df.geom_type)
             if any(geom_type in geom_types for geom_type in {"MultiPoint", "MultiLineString"}):
                 self.nrn_datasets[table] = helpers.explode_geometry(df).copy(deep=True)
+
+            # Reformat date fields.
+            for col in {"credate", "revdate"}.intersection(set(df.columns)):
+                df[col] = df[col].map(pd.to_datetime).dt.strftime("%Y%m%d")
 
         # Export to GeoPackage.
         helpers.export(self.nrn_datasets, self.dst, merge_schemas=True)
