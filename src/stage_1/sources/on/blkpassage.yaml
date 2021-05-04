@@ -25,7 +25,27 @@ conform:
     credate:
     datasetnam: Ontario
     accuracy: accuracy
-    provider: provider
+    provider:
+      fields: provider
+      functions:
+        - function: query_assign
+          columns: provider
+          lookup:
+            ? provider.str.lower().str.contains('city of |county of | county|district municipality of |district of |
+              municipality of |town of |township of |united counties of |village of ', na=False, regex=True)
+            : value: Municipal
+              type: string
+            ? provider.str.lower().isin(['ministry of natural resources and forestry', 'ministry of transportation',
+              'ontario ministry of health', 'ontario provincial police', 'ontario road network'])
+            : value: Provincial
+              type: string
+            provider.str.lower().isin(['elections and statistics canada', 'nrcan']):
+              value: Federal
+              type: string
+            provider.str.lower() == 'waabnoong bemjiwang association of first nations':
+              value: Other
+              type: string
+          engine: python
     revdate: revdate
     specvers: 2.0
     blkpassty:

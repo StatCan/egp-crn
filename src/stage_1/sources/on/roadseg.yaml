@@ -25,7 +25,27 @@ conform:
     credate: credate
     datasetnam: Ontario
     accuracy: accuracy
-    provider: provider
+    provider: &provider
+      fields: provider
+      functions:
+        - function: query_assign
+          columns: provider
+          lookup:
+            ? provider.str.lower().str.contains('city of |county of | county|district municipality of |district of |
+              municipality of |town of |township of |united counties of |village of ', na=False, regex=True)
+            : value: Municipal
+              type: string
+            ? provider.str.lower().isin(['ministry of natural resources and forestry', 'ministry of transportation',
+              'ontario ministry of health', 'ontario provincial police', 'ontario road network'])
+            : value: Provincial
+              type: string
+            provider.str.lower().isin(['elections and statistics canada', 'nrcan']):
+              value: Federal
+              type: string
+            provider.str.lower() == 'waabnoong bemjiwang association of first nations':
+              value: Other
+              type: string
+          engine: python
     revdate: revdate
     specvers: 2.0
     l_altnanid:
@@ -57,7 +77,7 @@ conform:
     credate: credate
     datasetnam: Ontario
     accuracy: accuracy
-    provider: provider
+    provider: *provider
     revdate: revdate
     specvers: 2.0
     l_adddirfg:
@@ -67,13 +87,46 @@ conform:
     exitnbr: exitnbr
     l_hnumf: l_hnumf
     r_hnumf: r_hnumf
-    roadclass: roadclass
+    roadclass:
+      fields: roadclass
+      functions:
+        - function: query_assign
+          columns: roadclass
+          lookup:
+            roadclass.str.lower() == 'service':
+              value: Service Lane
+              type: string
+            roadclass.str.lower() != 'service':
+              value: roadclass
+              type: column
+          engine: python
     l_hnuml: l_hnuml
     r_hnuml: r_hnuml
     nid:
     nbrlanes: nbrlanes
-    l_placenam: roadjuris
-    r_placenam: roadjuris
+    l_placenam: &placename
+      fields: [roadjuris, provider]
+      functions:
+        - function: query_assign
+          columns: [placename, provider]
+          lookup:
+            ? placename.str.lower().isin(['407 etr', 'local roads board', 'ministry of natural resources and forestry',
+              'ministry of transportation', 'niagara parks commission', 'ontario parks', 'private']) and
+              provider.str.lower().str.contains('city of |county of | county|district municipality of |district of |
+              municipality of |town of |township of |united counties of |village of ', na=False, regex=True)
+            : value: provider
+              type: column
+            placename.str.lower() == 'corporation of the municipality of mississippi mills':
+              value: Municipality of Mississippi Mills
+              type: string
+            placename.str.lower() == 'greater toronto airport authority':
+              value: City of Mississauga
+              type: string
+            placename.str.lower() == 'the corporation of the municipality of east ferris':
+              value: Municipality of East Ferris
+              type: string
+          engine: python
+    r_placenam: *placename
     l_stname_c: r_stname_c
     r_stname_c: r_stname_c
     pavsurf: pavsurf
@@ -106,15 +159,25 @@ conform:
     credate: credate
     datasetnam: Ontario
     accuracy: accuracy
-    provider: provider
+    provider: *provider
     revdate: revdate
     specvers: 2.0
-    dirprefix: dirprefix
-    dirsuffix: dirsuffix
+    dirprefix:
+      fields: dirprefix
+      functions: &street_dir
+        - function: map_values
+          lookup:
+            North East: Northeast
+            North West: Northwest
+            South East: Southeast
+            South West: Southwest
+    dirsuffix:
+      fields: dirsuffix
+      functions: *street_dir
     muniquad:
     nid: uuid
-    placename: roadjuris
-    placetype: #TODO
+    placename: *placename
+    placetype:
     province: Ontario
     starticle:
       fields: namebody
@@ -131,5 +194,53 @@ conform:
           match_index: 0
           group_index: 0
           strip_result: True
-    strtypre: strtypre
-    strtysuf: strtysuf
+    strtypre:
+      fields: strtypre
+      functions: &street_type
+        #TODO
+        Arm
+        Baseline
+        Bourne
+        Branch
+        Bridge
+        Burn
+        Bypass
+        Camp
+        Chart
+        Club
+        Copse
+        Creek
+        Crest
+        Cul De Sac
+        Curve
+        Cut
+        Fairway
+        Gateway
+        Greenway
+        Inamo
+        Inlet
+        Junction
+        Keep
+        Lake
+        Lakes
+        Lakeway
+        Market
+        Millway
+        Outlook
+        Oval
+        Overpass
+        Pier
+        River
+        Service
+        Shore
+        Shores
+        Sideline
+        Spur
+        Surf
+        Track
+        Valley
+        Walkway
+        Wold
+    strtysuf:
+      fields: strtysuf
+      functions: *street_type
