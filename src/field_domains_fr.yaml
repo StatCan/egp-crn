@@ -602,6 +602,49 @@ tables:
       223: Voie rapide
       224: Vue
       225: Westway
+      226: Arm
+      227: Baseline
+      228: Bourne
+      229: Branch
+      230: Bridge
+      231: Burn
+      232: Bypass
+      233: Camp
+      234: Chart
+      235: Club
+      236: Copse
+      237: Creek
+      238: Crest
+      239: Cul De Sac
+      240: Curve
+      241: Cut
+      242: Fairway
+      243: Gateway
+      244: Greenway
+      245: Inamo
+      246: Inlet
+      247: Junction
+      248: Keep
+      249: Lake
+      250: Lakes
+      251: Lakeway
+      252: Market
+      253: Millway
+      254: Outlook
+      255: Oval
+      256: Overpass
+      257: Pier
+      258: River
+      259: Service
+      260: Shore
+      261: Shores
+      262: Sideline
+      263: Spur
+      264: Surf
+      265: Track
+      266: Valley
+      267: Walkway
+      268: Wold
     strtysuf: *strtypre
   tollpoint:
     acqtech: *acqtech

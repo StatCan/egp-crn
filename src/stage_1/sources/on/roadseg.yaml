@@ -194,53 +194,5 @@ conform:
           match_index: 0
           group_index: 0
           strip_result: True
-    strtypre:
-      fields: strtypre
-      functions: &street_type
-        #TODO
-        Arm
-        Baseline
-        Bourne
-        Branch
-        Bridge
-        Burn
-        Bypass
-        Camp
-        Chart
-        Club
-        Copse
-        Creek
-        Crest
-        Cul De Sac
-        Curve
-        Cut
-        Fairway
-        Gateway
-        Greenway
-        Inamo
-        Inlet
-        Junction
-        Keep
-        Lake
-        Lakes
-        Lakeway
-        Market
-        Millway
-        Outlook
-        Oval
-        Overpass
-        Pier
-        River
-        Service
-        Shore
-        Shores
-        Sideline
-        Spur
-        Surf
-        Track
-        Valley
-        Walkway
-        Wold
-    strtysuf:
-      fields: strtysuf
-      functions: *street_type
+    strtypre: strtypre
+    strtysuf: strtysuf

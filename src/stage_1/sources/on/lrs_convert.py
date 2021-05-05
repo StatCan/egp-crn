@@ -201,21 +201,21 @@ class LRS:
         # Note: output fields must use the renamed field names.
         self.composite_datasets = {
             "orn_address_info": {
-                    "successive_queries": False,
-                    "new_datasets": [
-                        {
-                            "query": "street_side != 'Right'",
-                            "dataset_name": "orn_address_info_left",
-                            "rename_fields": {"hnumf": "l_hnumf", "hnuml": "l_hnuml", "hnumstr": "l_hnumstr"},
-                            "output_fields": ["l_hnumf", "l_hnuml", "l_hnumstr", "revdate"]
-                        },
-                        {
-                            "query": "street_side != 'Left'",
-                            "dataset_name": "orn_address_info_right",
-                            "rename_fields": {"hnumf": "r_hnumf", "hnuml": "r_hnuml", "hnumstr": "r_hnumstr"},
-                            "output_fields": ["r_hnumf", "r_hnuml", "r_hnumstr", "revdate"]
-                        }
-                    ]
+                "successive_queries": False,
+                "new_datasets": [
+                    {
+                        "query": "street_side != 'Right'",
+                        "dataset_name": "orn_address_info_left",
+                        "rename_fields": {"hnumf": "l_hnumf", "hnuml": "l_hnuml", "hnumstr": "l_hnumstr"},
+                        "output_fields": ["l_hnumf", "l_hnuml", "l_hnumstr", "revdate"]
+                    },
+                    {
+                        "query": "street_side != 'Left'",
+                        "dataset_name": "orn_address_info_right",
+                        "rename_fields": {"hnumf": "r_hnumf", "hnuml": "r_hnuml", "hnumstr": "r_hnumstr"},
+                        "output_fields": ["r_hnumf", "r_hnuml", "r_hnumstr", "revdate"]
+                    }
+                ]
             },
             "orn_route_name": {
                 "successive_queries": True,
@@ -929,13 +929,16 @@ class LRS:
 
             # Iterate composite new datasets.
             for new_dataset in self.composite_datasets[composite_name]["new_datasets"]:
-                dataset_name = new_dataset["dataset_name"]
+
+                # Compile new dataset properties.
+                dataset_name, query, rename_fields, output_fields = itemgetter(
+                    "dataset_name", "query", "rename_fields", "output_fields")(new_dataset)
 
                 logger.info(f"Separating records from composite dataset: \"{composite_name}\" into new dataset: "
                             f"\"{dataset_name}\".")
 
                 # Create new dataset via dataframe query.
-                new_df = composite_df.query(new_dataset["query"])
+                new_df = composite_df.query(query)
 
                 # Log new record count.
                 logger.info(f"New dataset: \"{dataset_name}\" contains {len(new_df)} / {count} composite dataset "
@@ -944,13 +947,13 @@ class LRS:
                 # Store new dataset with renamed fields and add to class variables: schema and structure.
                 # Note: updating these class variables avoids having to implement specific logic purely to handle
                 # composite new datasets.
-                self.src_datasets[dataset_name] = new_df.rename(columns=new_dataset["rename_fields"]).copy(deep=True)
-                self.schema[dataset_name] = {"output_fields": new_dataset["output_fields"]}
+                self.src_datasets[dataset_name] = new_df.rename(columns=rename_fields).copy(deep=True)
+                self.schema[dataset_name] = {"output_fields": output_fields}
                 self.structure["connections"][con_id_field].append(dataset_name)
 
-                # Overwrite composite dataframe with new dataframe if queries are to be applied successively.
+                # Filter composite dataframe to all remaining records, if queries are to be applied successively.
                 if self.composite_datasets[composite_name]["successive_queries"]:
-                    composite_df = new_df.copy(deep=True)
+                    composite_df = composite_df.query(f"~({query})").copy(deep=True)
 
             # Remove original composite dataset and remove from class variables: schema, point datasets, and structure.
             del self.src_datasets[composite_name]
