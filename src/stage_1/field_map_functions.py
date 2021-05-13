@@ -157,8 +157,9 @@ def map_values(series: pd.Series, lookup: dict, case_sensitive: bool = False) ->
         return series.map(lookup).fillna(series)
 
     else:
-        lookup = {str(k).lower(): v for k, v in lookup.items()}
-        return series.map(lambda val: str(val).lower()).map(lookup).fillna(series)
+        lookup = {str(k).lower() if not isinstance(k, (float, int)) else k: v for k, v in lookup.items()}
+        return series.map(
+            lambda val: str(val).lower() if not isinstance(val, (float, int)) else val).map(lookup).fillna(series)
 
 
 def query_assign(df: Union[pd.DataFrame, pd.Series], columns: List[str], lookup: dict, engine: str = "python",
