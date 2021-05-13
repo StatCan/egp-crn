@@ -26,15 +26,25 @@ logger.addHandler(handler)
 domains = helpers.compile_domains(mapped_lang="en")
 
 
-def apply_domain(**kwargs: dict) -> pd.Series:
+def apply_domain(series: pd.Series, table: str, field: str, **kwargs: dict) -> pd.Series:
     """
     Calls :func:`~helpers.apply_domain` to allow it's usage as a field mapping function.
 
+    :param pd.Series series: Series.
+    :param str table: the NRN dataset containing the domain values.
+    :param str field: the NRN field containing the domain values.
     :param dict \*\*kwargs: keyword arguments passed to :func:`~helpers.apply_domain`.
     :return pd.Series: Series with enforced field domain.
     """
 
-    return helpers.apply_domain(**kwargs)
+    # Retrieve domain dict.
+    try:
+        kwargs["domain"] = deepcopy(domains[table][field]["lookup"])
+    except KeyError:
+        logger.exception(f"Domain table: \"{table}\" and / or field: \"{field}\" does not exist.")
+        sys.exit(1)
+
+    return helpers.apply_domain(series, **kwargs)
 
 
 def concatenate(df: Union[pd.DataFrame, pd.Series], columns: List[str], separator: str = " ") -> pd.Series:
