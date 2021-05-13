@@ -136,6 +136,8 @@ conform:
       functions: &placename
         - function: map_values
           lookup:
+            -1: Unknown
+            0: Unknown
             1: Aboujagane
             2: Acadie Siding
             3: Acadieville

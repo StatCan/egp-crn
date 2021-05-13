@@ -168,8 +168,8 @@ strplaname:
     province:   [str, 25]
     starticle:  [str, 7]
     namebody:   [str, 50]
-    strtypre:   [str, 16]
-    strtysuf:   [str, 16]
+    strtypre:   [str, 18]
+    strtysuf:   [str, 18]
 tollpoint:
   spatial: True
   fields:

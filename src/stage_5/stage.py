@@ -166,7 +166,7 @@ class Stage:
                 default_add = self.defaults["fr"]["roadseg"]["l_placenam"]
                 default_rm = self.defaults["en"]["roadseg"]["l_placenam"]
                 if default_rm in placenames:
-                    placenames = {*placenames_exceeded - {default_rm}, default_add}
+                    placenames = {*placenames - {default_rm}, default_add}
                 if default_rm in placenames_exceeded:
                     placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
@@ -412,10 +412,8 @@ class Stage:
         # Update completion rates.
 
         # Iterate dataframe and column names.
-        for df_name in data:
-            df = self.dframes["en"][df_name].copy(deep=True)
-
-            for col in data[df_name]:
+        for table, df in self.dframes["en"].items():
+            for col in data[table]:
 
                 # Configure column completion rate.
                 # Note: Values between 0 and 1 are rounded to 1, values between 99 and 100 are rounded to 99.
@@ -426,11 +424,11 @@ class Stage:
                     completion_rate = 99
 
                 # Update column value for source.
-                data[df_name][col][self.source] = int(completion_rate)
+                data[table][col][self.source] = int(completion_rate)
 
                 # Update column average.
-                vals = itemgetter(*set(data[df_name][col]) - {"avg"})(data[df_name][col])
-                data[df_name][col]["avg"] = int(round(sum(map(int, vals)) / len(vals), 0))
+                vals = itemgetter(*set(data[table][col]) - {"avg"})(data[table][col])
+                data[table][col]["avg"] = int(round(sum(map(int, vals)) / len(vals), 0))
 
         # Write updated documents.
         write_documents(data, "completion_rates")
