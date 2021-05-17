@@ -9,11 +9,11 @@ import string
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
-from itertools import chain, compress, groupby, permutations, tee
+from itertools import chain, compress, groupby, permutations, product, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from scipy.spatial import cKDTree
-from shapely.geometry import Point
+from scipy.spatial.distance import euclidean
 from typing import Dict, List, Tuple, Union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -425,18 +425,27 @@ class Validator:
         # Filter coincident indexes from all indexes. Keep only non-empty results.
         proxi_idx_keep = proxi_idx_all - proxi_idx_exclude
         proxi_idx_keep = proxi_idx_keep.loc[proxi_idx_keep.map(len) > 0]
+        proxi_idx_keep = proxi_idx_keep.map(tuple).explode()
 
         # Generate a lookup dict for the index of each roadseg coordinate, mapped to the associated uuid.
         coords_idx_uuid_lookup = dict(zip(range(coords_count.sum()), np.repeat(roadseg.index.values, coords_count)))
 
         # Compile the uuid associated with resulting proximity point indexes for each deadend.
-        proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(coords_idx_uuid_lookup))
-        proxi_results = proxi_results.map(lambda uuids: set(uuids) if isinstance(uuids, tuple) else {uuids})
+        proxi_results = proxi_idx_keep.map(lambda idx: itemgetter(idx)(coords_idx_uuid_lookup))
 
-        # Compile error properties.
-        for source_uuid, target_uuids in proxi_results.iteritems():
-            target_uuids = ", ".join(map(lambda val: f"'{val}'", target_uuids))
-            errors[1].append(f"junction uuid '{source_uuid}' is too close to roadseg uuid(s): {target_uuids}.")
+        # Compile error properties: calculate min distance measurement between source and target geometries.
+        results = pd.Series(proxi_results.items()).map(
+            lambda idxs: (itemgetter(idxs[0])(deadends), tuple(itemgetter(idxs[1])(roadseg))))
+        distances = results.map(lambda pts: min(map(lambda target_pt: euclidean(pts[0], target_pt), pts[1]))).round(2)
+
+        # Compile and sort final results.
+        results = pd.DataFrame({"target": proxi_results.values, "distance": distances.values},
+                               index=proxi_results.index).sort_values(by="distance", ascending=True)
+
+        # Compile error properties: store results.
+        for vals in results.itertuples(index=True):
+            source, target, distance = attrgetter("Index", "target", "distance")(vals)
+            errors[1].append(f"junction uuid '{source}' is too close to roadseg uuid '{target}': {distance} meters.")
 
         return errors
 
@@ -803,14 +812,14 @@ class Validator:
     def line_internal_clustering(self, name: str) -> Dict[int, list]:
         """
         Validates the distance between adjacent coordinates of line segments.
-        Validation: line segments must have >= 1x10^(-4) (0.0001) meters distance between adjacent coordinates.
+        Validation: line segments must have >= 1x10^(-2) (0.01) meters distance between adjacent coordinates.
 
         :param str name: NRN dataset name.
         :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
-        min_distance = 0.0001
+        min_distance = 0.01
         series = self.dframes_m[name]["geometry"]
 
         # Extract coordinates from geometries.
@@ -827,7 +836,7 @@ class Validator:
             coord_pairs = coord_pairs.loc[coord_pairs.map(lambda pair: pair[0] != pair[1])]
 
             # Calculate distance between coordinate pairs.
-            coord_dist = coord_pairs.map(lambda pair: Point(pair[0]).distance(Point(pair[-1])))
+            coord_dist = coord_pairs.map(lambda pair: euclidean(pair[0], pair[-1]))
 
             # Flag invalid distances and create dataframe with invalid pairs and distances.
             flag = coord_dist < min_distance
@@ -836,9 +845,9 @@ class Validator:
             if len(invalid_df):
 
                 # Compile error properties.
-                for record in invalid_df.sort_values(by=["uuid", "distance"]).itertuples(index=True):
+                for record in invalid_df.sort_values(by=["uuid", "distance"], ascending=True).itertuples(index=True):
                     index, coords, distance = attrgetter("Index", "pair", "distance")(record)
-                    errors[1].append(f"uuid: '{index}' coordinates {coords[0]} and {coords[1]} are too close: "
+                    errors[1].append(f"uuid: '{index}', coordinates: {coords[0]} and {coords[1]}, are too close: "
                                      f"{distance} meters.")
 
         return errors
@@ -856,12 +865,12 @@ class Validator:
         series = self.dframes_m[name]["geometry"]
 
         # Validation: ensure line segments are >= 5 meters in length.
-        errors[1] = series.loc[series.length < min_length].index.values
+        flag = series.length < min_length
 
         # Compile error properties.
-        for code, vals in errors.items():
-            if len(vals):
-                errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
+        if sum(flag):
+            for index, val in series.loc[flag].length.round(2).sort_values(ascending=True).iteritems():
+                errors[1].append(f"uuid: '{index}' is too short: {val} meters.")
 
         return errors
 
@@ -1004,16 +1013,25 @@ class Validator:
             lambda points: set(itemgetter(*chain(*tree.query_ball_point(points, r=prox_limit)))(pts_idx_uuid_lookup)))
 
         # Remove connected uuids from each set of uuids, keep non-empty results.
-        results = uuids_proxi - uuids_exclude
-        results = results.loc[results.map(len) > 0]
+        proxi_results = uuids_proxi - uuids_exclude
+        proxi_results = proxi_results.loc[proxi_results.map(len) > 0]
+        proxi_results = proxi_results.map(list).explode()
 
-        # Explode result groups and filter duplicates.
-        results = results.map(list).explode()
-        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+        # Reduce duplicated result pairs.
+        results = pd.Series(tuple(set(map(lambda vals: tuple(sorted(vals)), proxi_results.items()))))
 
-        # Compile error properties.
-        for source_uuid, target_uuid in sorted(results_filtered):
-            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
+        # Compile error properties: calculate min distance measurement between source and target geometries.
+        distances = results.map(lambda idxs: tuple(product(itemgetter(idxs[0])(pts), itemgetter(idxs[1])(pts)))).map(
+            lambda pts: min(map(lambda pair: euclidean(*pair), pts))).round(2)
+
+        # Compile error properties: compile and sort final results.
+        results = pd.DataFrame({"target": results.map(itemgetter(1)).values, "distance": distances.values},
+                               index=results.map(itemgetter(0)).values).sort_values(by="distance", ascending=True)
+
+        # Compile error properties: store results.
+        for vals in results.itertuples(index=True):
+            source, target, distance = attrgetter("Index", "target", "distance")(vals)
+            errors[1].append(f"uuids: '{source}', '{target}' are too close: {distance} meters.")
 
         return errors
 
@@ -1169,19 +1187,26 @@ class Validator:
         # Compile and filter coincident index from each set of indexes for each point, keep non-empty results.
         proxi_idx_exclude = pd.Series(range(len(pts)), index=pts.index).map(lambda index: {index})
         proxi_idx_keep = proxi_idx_all - proxi_idx_exclude.loc[proxi_idx_all.index]
+        proxi_idx_keep = proxi_idx_keep.map(tuple).explode()
 
         # Compile uuids associated with each index.
         pts_idx_uuid_lookup = {index: uid for index, uid in enumerate(pts.index)}
-        results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(pts_idx_uuid_lookup))
-        results = results.map(lambda vals: set(vals) if isinstance(vals, tuple) else {vals})
+        results = proxi_idx_keep.map(lambda idx: itemgetter(idx)(pts_idx_uuid_lookup))
 
-        # Explode result groups and filter duplicates.
-        results = results.map(list).explode()
-        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+        # Reduce duplicated result pairs.
+        results = pd.Series(tuple(set(map(lambda vals: tuple(sorted(vals)), results.items()))))
 
-        # Compile error properties.
-        for source_uuid, target_uuid in sorted(results_filtered):
-            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
+        # Compile error properties: calculate min distance measurement between source and target geometries.
+        distances = results.map(lambda idxs: euclidean(*itemgetter(*idxs)(pts))).round(2)
+
+        # Compile error properties: compile and sort final results.
+        results = pd.DataFrame({"target": results.map(itemgetter(1)).values, "distance": distances.values},
+                               index=results.map(itemgetter(0)).values).sort_values(by="distance", ascending=True)
+
+        # Compile error properties: store results.
+        for vals in results.itertuples(index=True):
+            source, target, distance = attrgetter("Index", "target", "distance")(vals)
+            errors[1].append(f"uuids: '{source}', '{target}' are too close: {distance} meters.")
 
         return errors
 
