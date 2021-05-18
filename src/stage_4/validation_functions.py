@@ -9,7 +9,7 @@ import string
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
-from itertools import chain, compress, groupby, permutations, product, tee
+from itertools import chain, combinations, compress, groupby, product, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from scipy.spatial import cKDTree
@@ -883,6 +883,22 @@ class Validator:
         :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
+        # Define function to calculate the angular degrees between two intersecting lines.
+        def get_angle(ref_pt: tuple, pt1: tuple, pt2: tuple) -> bool:
+            """
+            Validates the angle formed by the 2 points and reference point.
+
+            :param tuple ref_pt: coordinate tuple of the reference point.
+            :param tuple pt1: coordinate tuple
+            :param tuple pt2: coordinate tuple
+            :return bool: boolean validation of the angle formed by the 2 points and 1 reference point.
+            """
+
+            angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
+            angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
+
+            return round(abs(angle_1 - angle_2), 2)
+
         errors = defaultdict(list)
         merging_angle = 5
         series = self.dframes_m[name]["geometry"]
@@ -903,13 +919,9 @@ class Validator:
         # Proceed only if duplicated points exist.
         if len(pts_df):
 
-            # Group uuids according to coordinates.
-            uuids_grouped = helpers.groupby_to_list(pts_df, "coords", "uuid")
-
-            # Explode grouped uuids. Maintain index point as both index and column.
-            uuids_grouped_exploded = uuids_grouped.explode()
-            uuids_grouped_exploded = pd.DataFrame({"coords": uuids_grouped_exploded.index,
-                                                   "uuid": uuids_grouped_exploded}).reset_index(drop=True)
+            # Group uuids according to coordinates. Explode and convert to DataFrame, keeping index as column.
+            grouped_pt_uuid = helpers.groupby_to_list(pts_df, "coords", "uuid")
+            uuid_pt_df = grouped_pt_uuid.explode().reset_index(drop=False).rename(columns={"index": "pt", 0: "uuid"})
 
             # Compile endpoint-neighbouring points.
             # Process: Flag uuids according to duplication status within their group. For unique uuids, configure the
@@ -917,64 +929,45 @@ class Validator:
             # (which represent self-loops), the first duplicate takes the second point, the second duplicate takes the
             # second-last point - thereby avoiding the same neighbour being taken twice for self-loop intersections.
             dup_flags = {
-                "dup_none": uuids_grouped_exploded.loc[
-                    ~uuids_grouped_exploded.duplicated(keep=False), ["uuid", "coords"]],
-                "dup_first": uuids_grouped_exploded.loc[
-                    uuids_grouped_exploded.duplicated(keep="first"), "uuid"],
-                "dup_last": uuids_grouped_exploded.loc[
-                    uuids_grouped_exploded.duplicated(keep="last"), "uuid"]
+                "dup_none": uuid_pt_df.loc[~uuid_pt_df.duplicated(keep=False), ["uuid", "pt"]],
+                "dup_first": uuid_pt_df.loc[uuid_pt_df.duplicated(keep="first"), "uuid"],
+                "dup_last": uuid_pt_df.loc[uuid_pt_df.duplicated(keep="last"), "uuid"]
             }
             dup_results = {
                 "dup_none": np.vectorize(
                     lambda uid, pt:
-                    uuid_nbr_lookup[uid][1] if uuid_nbr_lookup[uid][0] == pt else uuid_nbr_lookup[uid][-2],
-                    otypes=[tuple])(dup_flags["dup_none"]["uuid"], dup_flags["dup_none"]["coords"]),
+                    itemgetter({True: 1, False: -2}[uuid_nbr_lookup[uid][0] == pt])(uuid_nbr_lookup[uid]),
+                    otypes=[tuple])(dup_flags["dup_none"]["uuid"], dup_flags["dup_none"]["pt"]),
                 "dup_first": dup_flags["dup_first"].map(lambda uid: uuid_nbr_lookup[uid][1]).values,
                 "dup_last": dup_flags["dup_last"].map(lambda uid: uuid_nbr_lookup[uid][-2]).values
             }
 
-            uuids_grouped_exploded["pt"] = None
-            uuids_grouped_exploded.loc[dup_flags["dup_none"].index, "pt"] = dup_results["dup_none"]
-            uuids_grouped_exploded.loc[dup_flags["dup_first"].index, "pt"] = dup_results["dup_first"]
-            uuids_grouped_exploded.loc[dup_flags["dup_last"].index, "pt"] = dup_results["dup_last"]
+            uuid_pt_df["pt_nbr"] = None
+            uuid_pt_df.loc[dup_flags["dup_none"].index, "pt_nbr"] = dup_results["dup_none"]
+            uuid_pt_df.loc[dup_flags["dup_first"].index, "pt_nbr"] = dup_results["dup_first"]
+            uuid_pt_df.loc[dup_flags["dup_last"].index, "pt_nbr"] = dup_results["dup_last"]
 
-            # Aggregate exploded groups.
-            pts_grouped = helpers.groupby_to_list(uuids_grouped_exploded, "coords", "pt")
+            # Aggregate groups of points and associated neighbours.
+            grouped_pt_nbrs = helpers.groupby_to_list(uuid_pt_df, "pt", "pt_nbr")
 
-            # Compile the permutations of points for each point group.
-            pts_grouped = pts_grouped.map(lambda pts: set(map(tuple, map(sorted, permutations(pts, r=2)))))
+            # Configure all point-neighbour and point-uuid combinations.
+            combos_pt_nbrs = grouped_pt_nbrs.map(lambda vals: combinations(vals, r=2)).map(tuple).explode()
+            combos_pt_uuid = grouped_pt_uuid.map(lambda vals: combinations(vals, r=2)).map(tuple).explode()
 
-            # Define function to calculate and return validity of angular degrees between two intersecting lines.
-            def get_invalid_angle(pt1: tuple, pt2: tuple, ref_pt: tuple) -> bool:
-                """
-                Validates the angle formed by the 2 points and reference point.
+            # Prepend reference point to neighbour point tuples, add uuid combinations as index.
+            combos = pd.Series(
+                np.vectorize(lambda pt, nbrs: (pt, *nbrs), otypes=[tuple])(combos_pt_nbrs.index, combos_pt_nbrs),
+                index=combos_pt_uuid.values)
 
-                :param tuple pt1: coordinate tuple
-                :param tuple pt2: coordinate tuple
-                :param tuple ref_pt: coordinate tuple of the reference point.
-                :return bool: boolean validation of the angle formed by the 2 points and 1 reference point.
-                """
-
-                angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
-                angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
-
-                return abs(angle_1 - angle_2) < merging_angle
-
-            # Calculate the angular degree between each reference point and each of their point permutations.
-            # Return True if any angles are invalid.
-            flags = np.vectorize(
-                lambda pt_groups, pt_ref:
-                any(filter(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
-                pts_grouped, pts_grouped.index)
-
-            # Compile the uuid groups as errors.
-            flag_uuid_groups = uuids_grouped.loc[flags].values
+            # Calculate the merging angle (in degrees) between each set of points. Filter to invalid records.
+            angles = combos.map(lambda pts: get_angle(*pts))
+            results = angles.loc[angles < merging_angle]
 
             # Compile error properties.
-            if len(flag_uuid_groups):
-                for uuid_group in flag_uuid_groups:
-                    vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
-                    errors[1].append(f"Invalid merging angle exists at intersection of uuids: {vals}.")
+            if len(results):
+                for uuids, angle in results.sort_values(ascending=True).iteritems():
+                    line1, line2 = itemgetter(0, 1)(uuids)
+                    errors[1].append(f"uuids: '{line1}', '{line2}' merge at too small an angle: {angle} degrees.")
 
         return errors
 
