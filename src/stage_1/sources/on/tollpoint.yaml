@@ -12,22 +12,49 @@ license:
   text: Open Government License - Ontario
 language: en
 data:
-  filename: 2020/orn.gpkg
+  filename: 2021/orn.gpkg
   layer: tollpoint
   driver: GPKG
-  crs: "EPSG:4269"
+  crs: "EPSG:4617"
   spatial: True
   query:
 conform:
   tollpoint:
     acqtech: acqtech
     metacover:
-    credate: credate
-    datasetnam: "Ontario"
+    credate:
+    datasetnam: Ontario
     accuracy: accuracy
     provider:
+      fields: provider
+      functions:
+        - function: query_assign
+          columns: provider
+          lookup:
+            ? provider.str.lower().str.contains('city of |county of | county|district municipality of |district of |
+              municipality of |town of |township of |united counties of |village of ', na=False, regex=True)
+            : value: Municipal
+              type: string
+            ? provider.str.lower().isin(['ministry of natural resources and forestry', 'ministry of transportation',
+              'ontario ministry of health', 'ontario provincial police', 'ontario road network'])
+            : value: Provincial
+              type: string
+            provider.str.lower().isin(['elections and statistics canada', 'nrcan']):
+              value: Federal
+              type: string
+            provider.str.lower() == 'waabnoong bemjiwang association of first nations':
+              value: Other
+              type: string
+          engine: python
     revdate: revdate
     specvers: 2.0
-    nid: nid
-    roadnid: roadnid
-    tollpttype: tollpttype
+    nid:
+    roadnid:
+    tollpttype:
+      fields: tollpttype
+      functions:
+        - function: map_values
+          lookup:
+            Hybrid: Hybrid
+            Physical: Physical Toll Booth
+            Virtual: Virtual Toll Booth

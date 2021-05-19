@@ -294,7 +294,7 @@ class Stage:
             try:
 
                 # Iterate nested columns.
-                if "iterate_cols" in func and isinstance(series.iloc[0], list):
+                if "iterate_cols" in func and isinstance(series.iloc[0], (np.ndarray, list)):
 
                     # Unpack nested Series as DataFrame and iterate required columns.
                     df = pd.DataFrame(series.tolist(), index=series.index)

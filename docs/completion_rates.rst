@@ -12,244 +12,248 @@ Current completion rates
 
 Information on the latest dataset completion rates.
 
+.. note::
+    | Values between 0% and 1%, exclusively, are rounded up to 1%.
+    | Values between 99% and 100%, exclusively, are rounded down to 99%.
+
 Address Range (addrange)
 ------------------------
 
-================================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-      \                                                      Completion Rates (%)
---------------------------------  ---------------------------------------------------------------------------
-Attribute                         AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-================================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Acquisition Technique             ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Coverage                          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Creation Date                     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name                      ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Planimetric Accuracy              ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Provider                          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date                     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version                  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Alternate Street Name NID Left    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Alternate Street Name NID Right   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Digitizing Direction Flag Left    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Digitizing Direction Flag Right   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Left           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Right          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Suffix Left    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Suffix Right   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Type Left      ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Type Right     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-House Number Structure Left       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-House Number Structure Right      ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Left            ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Right           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Suffix Left     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Suffix Right    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Type Left       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Type Right      ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID                               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Official Street Name NID Left     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Official Street Name NID Right    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Reference System Indicator Left   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Reference System Indicator Right  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-================================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+================================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                                Completion Rates (%)
+--------------------------------  -----------------------------------------------------------------------------------
+Attribute                           AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+================================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Acquisition Technique                0     0     0   100     0     0   100    88   100   100     0    99    99     53
+Coverage                             0     0     0     0     0     0     0    88     0   100     0    99     0     22
+Creation Date                        0     0     0    99     0     0   100    88   100   100     0    99     1     45
+Dataset Name                         0     0     0   100     0     0   100   100   100   100     0   100   100     54
+Planimetric Accuracy                 0     0     0     0     0     0   100     0   100   100     0    99     1     31
+Provider                             0     0     0     1     0     0   100   100     0   100     0    99     1     31
+Revision Date                        0     0     0   100     0     0     0   100   100   100     0    99    98     46
+Standard Version                     0     0     0     0     0     0   100   100     0   100     0   100   100     38
+Alternate Street Name NID Left       0     0     0     0     0     0     0     0   100     0     0     0     0      8
+Alternate Street Name NID Right      0     0     0     0     0     0     0     0   100     0     0     0     0      8
+Digitizing Direction Flag Left       0     0     0    99     0     0     6   100     0    53     0     0    28     22
+Digitizing Direction Flag Right      0     0     0    99     0     0     6   100     0    54     0     0    27     22
+First House Number Left              0     0     0   100     0     0     6   100    99    53     0     0    28     30
+First House Number Right             0     0     0   100     0     0     6   100   100    54     0     0    27     30
+First House Number Suffix Left       0     0     0    99     0     0     1   100     0     0     0     0     1     15
+First House Number Suffix Right      0     0     0    99     0     0     1   100     0     0     0     0     1     15
+First House Number Type Left         0     0     0   100     0     0     6   100     0    53     0     0    28     22
+First House Number Type Right        0     0     0   100     0     0     6   100     0    54     0     0    27     22
+House Number Structure Left          0     0     0   100     0     0     6   100    98    53     0     0    28     30
+House Number Structure Right         0     0     0   100     0     0     6   100    98    54     0     0    27     30
+Last House Number Left               0     0     0   100     0     0     6   100   100    53     0     0    28     30
+Last House Number Right              0     0     0   100     0     0     6   100   100    54     0     0    27     30
+Last House Number Suffix Left        0     0     0    99     0     0     1   100     0     0     0     0     1     15
+Last House Number Suffix Right       0     0     0    99     0     0     1   100     0     0     0     0     1     15
+Last House Number Type Left          0     0     0   100     0     0     6   100     0    53     0     0    28     22
+Last House Number Type Right         0     0     0   100     0     0     6   100     0    54     0     0    27     22
+NID                                  0     0     0   100     0     0   100   100   100   100     0   100   100     54
+Official Street Name NID Left        0     0     0   100     0     0   100   100   100   100     0   100   100     54
+Official Street Name NID Right       0     0     0   100     0     0   100   100   100   100     0   100   100     54
+Reference System Indicator Left      0     0     0   100     0     0   100    95     0   100     0     0     0     30
+Reference System Indicator Right     0     0     0   100     0     0   100    95     0   100     0     0     0     30
+================================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
 
 Alternate Name Link (altnamlink)
 --------------------------------
 
-================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-\                                            Completion Rates (%)
-----------------  ---------------------------------------------------------------------------
-Attribute         AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Creation Date     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name      ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Street Name NID   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                Completion Rates (%)
+----------------  -----------------------------------------------------------------------------------
+Attribute           AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Creation Date        0     0     0     0     0     0     0     0     0     0     0     0     0      0
+Dataset Name         0     0     0     0     0     0     0     0     0     0     0     0     0      0
+NID                  0     0     0     0     0     0     0     0     0     0     0     0     0      0
+Revision Date        0     0     0     0     0     0     0     0     0     0     0     0     0      0
+Standard Version     0     0     0     0     0     0     0     0     0     0     0     0     0      0
+Street Name NID      0     0     0     0     0     0     0     0     0     0     0     0     0      0
+================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
 
 Blocked Passage (blkpassage)
 ----------------------------
 
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-\                                                 Completion Rates (%)
----------------------  ---------------------------------------------------------------------------
-Attribute              AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Acquisition Technique  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Coverage               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Creation Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Planimetric Accuracy   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Provider               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Blocked Passage Type   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID                    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Road Element NID       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                     Completion Rates (%)
+---------------------  -----------------------------------------------------------------------------------
+Attribute                AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Acquisition Technique   100   100   100     0   100   100   100     0   100   100     0    99   100     77
+Coverage                100   100   100     0   100   100   100     0     0   100     0    99   100     69
+Creation Date           100   100   100     0   100   100   100     0   100   100     0   100   100     77
+Dataset Name            100   100   100     0   100   100   100     0   100   100     0    99   100     77
+Planimetric Accuracy    100   100   100     0   100   100   100     0   100   100     0    99   100     77
+Provider                100   100   100     0   100   100   100     0     0   100     0    99   100     69
+Revision Date           100   100   100     0   100   100   100     0   100   100     0    99   100     77
+Standard Version        100   100   100     0   100   100   100     0     0   100     0   100   100     69
+Blocked Passage Type    100     0   100     0    99   100   100     0   100   100     0    99   100     69
+NID                     100   100   100     0   100   100   100     0   100   100     0   100   100     77
+Road Element NID        100   100   100     0   100   100   100     0   100   100     0   100   100     77
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
 
 Ferry Segment (ferryseg)
 ------------------------
 
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-\                                                 Completion Rates (%)
----------------------  ---------------------------------------------------------------------------
-Attribute              AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Acquisition Technique  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Coverage               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Creation Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Planimetric Accuracy   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Provider               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Closing Period         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Ferry Segment ID       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Functional Road Class  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID                    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 1   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 2   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 3   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 4   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 1    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 2    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 3    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 4    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 1         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 2         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 3         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 4         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 5         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                     Completion Rates (%)
+---------------------  -----------------------------------------------------------------------------------
+Attribute                AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Acquisition Technique   100   100   100   100   100   100   100     0   100   100   100   100   100     92
+Coverage                100   100   100     0   100   100     0     0     0   100   100   100   100     69
+Creation Date           100   100   100   100   100   100    25     0   100   100   100   100   100     87
+Dataset Name            100   100   100   100   100   100   100     0   100   100   100   100   100     92
+Planimetric Accuracy    100   100   100     0   100   100    25     0   100   100   100   100   100     79
+Provider                100   100   100     0   100   100   100     0     0   100   100   100   100     77
+Revision Date           100   100   100   100   100   100     0     0   100   100   100   100   100     85
+Standard Version        100   100   100     0   100   100   100     0     0   100   100   100   100     77
+Closing Period            0     0     0   100     0     0   100     0     0   100     0     0     0     23
+Ferry Segment ID        100   100   100   100   100   100   100     0   100   100   100   100   100     92
+Functional Road Class   100   100   100     0   100   100   100     0     0   100   100   100   100     77
+NID                     100   100   100   100   100   100   100     0   100   100   100   100   100     92
+Route Name English 1    100   100   100   100   100   100   100     0   100   100   100   100   100     92
+Route Name English 2    100   100   100   100   100   100   100     0   100   100   100     0   100     85
+Route Name English 3    100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Name English 4    100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Name French 1     100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Name French 2     100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Name French 3     100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Name French 4     100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Number 1          100   100   100   100   100   100   100     0   100   100   100     0   100     85
+Route Number 2          100   100   100   100   100   100   100     0   100   100   100     0   100     85
+Route Number 3          100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Number 4          100   100   100   100   100   100     0     0   100   100   100     0   100     77
+Route Number 5          100   100   100   100   100   100     0     0   100   100   100     0   100     77
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
 
 Junction (junction)
 -------------------
 
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-\                                                 Completion Rates (%)
----------------------  ---------------------------------------------------------------------------
-Attribute              AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Acquisition Technique  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Coverage               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Creation Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Planimetric Accuracy   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Provider               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Exit Number            ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Junction Type          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID                    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                     Completion Rates (%)
+---------------------  -----------------------------------------------------------------------------------
+Attribute                AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Acquisition Technique   100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Coverage                100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Creation Date           100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Dataset Name            100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Planimetric Accuracy    100   100   100     0   100   100    84     0   100   100   100    99     1     76
+Provider                100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Revision Date           100   100   100     0   100   100     0     0     0     0   100     0     0     46
+Standard Version        100   100   100     0   100   100     0     0     0     0   100   100     0     54
+Exit Number             100   100   100     3   100   100     0     0     1     0   100     1     0     47
+Junction Type           100   100   100   100   100   100   100   100   100   100   100   100   100    100
+NID                     100   100   100   100   100   100   100   100   100   100   100   100   100    100
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
 
 Road Segment (roadseg)
 ----------------------
 
-=============================================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-\                                                                         Completion Rates (%)
----------------------------------------------  ---------------------------------------------------------------------------
-Attribute                                      AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-=============================================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Acquisition Technique                          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Coverage                                       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Creation Date                                  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name                                   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Planimetric Accuracy                           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Provider                                       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date                                  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version                               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Address Range Digitizing Direction Flag Left   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Address Range Digitizing Direction Flag Right  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Address Range NID                              ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Closing Period                                 ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Exit Number                                    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Left                        ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-First House Number Right                       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Functional Road Class                          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Left                         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Last House Number Right                        ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID                                            ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Number of Lanes                                ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Official Place Name Left                       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Official Place Name Right                      ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Official Street Name Concatenated Left         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Official Street Name Concatenated Right        ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Paved Road Surface Type                        ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Pavement Status                                ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Road Jurisdiction                              ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Road Segment ID                                ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 1                           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 2                           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 3                           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name English 4                           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 1                            ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 2                            ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 3                            ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Name French 4                            ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 1                                 ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 2                                 ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 3                                 ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 4                                 ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Route Number 5                                 ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Speed Restriction                              ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Structure Name English                         ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Structure Name French                          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Structure ID                                   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Structure Type                                 ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Traffic Direction                              ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Unpaved Road Surface Type                      ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-=============================================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+=============================================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                                             Completion Rates (%)
+---------------------------------------------  -----------------------------------------------------------------------------------
+Attribute                                        AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+=============================================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Acquisition Technique                           100   100   100   100   100   100   100    88   100   100   100    99    99     99
+Coverage                                        100   100   100     0   100   100     0    88     0   100   100    99     0     68
+Creation Date                                   100   100   100    99   100   100    84    88   100   100   100    99     1     90
+Dataset Name                                    100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Planimetric Accuracy                            100   100   100     0   100   100    87     0   100   100   100    99     1     76
+Provider                                        100   100   100     1   100   100    99   100     0   100   100    99     1     77
+Revision Date                                   100   100   100   100   100   100     0   100   100   100   100    99    98     92
+Standard Version                                100   100   100     0   100   100   100   100     0   100   100   100   100     85
+Address Range Digitizing Direction Flag Left    100   100   100    99   100   100     6   100     0    53   100     0    28     68
+Address Range Digitizing Direction Flag Right   100   100   100    99   100   100     6   100     0    54   100     0    27     68
+Address Range NID                               100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Closing Period                                    0     1     0     1     0    28     2     0     0    82     1     0     1      9
+Exit Number                                     100   100   100    99   100   100     0     0   100     0   100     1     0     62
+First House Number Left                          90   100    65   100    99    73     6   100   100    53    98   100    28     78
+First House Number Right                         90   100    65   100    99    73     6   100   100    54    98   100    27     78
+Functional Road Class                           100   100   100    64   100   100    99    83   100   100   100    99    97     96
+Last House Number Left                           90   100    65   100    99    73     6   100   100    53    98   100    28     78
+Last House Number Right                          90   100    65   100    99    73     6   100   100    54    98   100    27     78
+NID                                             100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Number of Lanes                                 100   100   100    99   100   100    76    81   100   100   100    99    98     96
+Official Place Name Left                        100   100   100    99   100    73    87   100    85    99    96    99   100     95
+Official Place Name Right                       100   100   100    99   100    73    87   100    85    99    96    99   100     95
+Official Street Name Concatenated Left          100   100   100    99   100    73    39   100    85    96    96    28    77     84
+Official Street Name Concatenated Right         100   100   100    99   100    73    39   100    85    96    96    28    77     84
+Paved Road Surface Type                          58    16    46    99    31    48   100    93    23   100    15    69   100     61
+Pavement Status                                 100   100   100    99   100   100   100    93   100   100   100    99   100     99
+Road Jurisdiction                                99   100     0     0     0    72     0    54   100   100     0     0    85     47
+Road Segment ID                                 100   100   100   100   100   100   100   100   100   100   100   100   100    100
+Route Name English 1                            100   100   100   100   100   100    15     0   100     3   100     1    27     65
+Route Name English 2                            100   100   100   100   100   100    12     0   100     0   100     1     1     63
+Route Name English 3                            100   100   100   100   100   100     1     0   100     0   100     1     0     62
+Route Name English 4                            100   100   100   100   100   100     0     0   100     0   100     1     0     62
+Route Name French 1                             100   100   100   100   100   100     0     0   100     3   100     1    27     64
+Route Name French 2                             100   100   100   100   100   100     0     0   100     0   100     1     1     62
+Route Name French 3                             100   100   100   100   100   100     0     0   100     0   100     1     0     62
+Route Name French 4                             100   100   100   100   100   100     0     0   100     0   100     1     0     62
+Route Number 1                                  100   100   100    99   100   100    11     0   100    36   100     9   100     73
+Route Number 2                                  100   100   100   100   100   100    11     0   100     1   100     1   100     70
+Route Number 3                                  100   100   100   100   100   100     1     0   100     1   100     1     0     62
+Route Number 4                                  100   100   100   100   100   100     0     0   100     0   100     1     0     62
+Route Number 5                                  100   100   100   100   100   100     0     0   100     0   100     1     0     62
+Speed Restriction                                 1     0     0    56     0     0     0    96   100    79     0    99     0     33
+Structure Name English                           98    98    97    99   100   100     1     0   100     1   100     1     1     61
+Structure Name French                            98    98    97    96   100   100     0     0   100     1   100     1     0     61
+Structure ID                                    100   100   100     3   100   100   100   100   100   100   100     1   100     85
+Structure Type                                  100   100   100   100   100   100     1   100   100   100   100    99     1     85
+Traffic Direction                                61   100     0    99     0    99     0    88   100   100     0     0    95     57
+Unpaved Road Surface Type                        78    83    53    99    73    51    72    93    76    99    83    99    88     81
+=============================================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
 
 Street and Place Names (strplaname)
 -----------------------------------
 
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-\                                                 Completion Rates (%)
----------------------  ---------------------------------------------------------------------------
-Attribute              AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Acquisition Technique  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Coverage               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Creation Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Planimetric Accuracy   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Provider               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Directional Prefix     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Directional Suffix     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Municipal Quadrant     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID                    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Place Name             ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Place Type             ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Province               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Street Name Article    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Street Name Body       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Street Type Prefix     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Street Type Suffix     ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                     Completion Rates (%)
+---------------------  -----------------------------------------------------------------------------------
+Attribute                AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Acquisition Technique     0     0     0   100     0     0   100    68   100   100     0    99    98     51
+Coverage                  0     0     0     0     0     0     0    68     0   100     0    99     0     21
+Creation Date             0     0     0    99     0     0    88    68   100   100     0    99     1     43
+Dataset Name              0     0     0   100     0     0   100   100   100   100     0   100   100     54
+Planimetric Accuracy      0     0     0     0     0     0    91     0   100   100     0    99     1     30
+Provider                  0     0     0     1     0     0    99   100     0   100     0    99     2     31
+Revision Date             0     0     0   100     0     0     0   100   100   100     0    99    95     46
+Standard Version          0     0     0     0     0     0   100   100     0   100     0   100   100     38
+Directional Prefix        0     0     0    99     0     0     0   100   100   100     0     1   100     38
+Directional Suffix        0     0     0   100     0     0     1   100   100   100     0    10   100     39
+Municipal Quadrant        0     0     0   100     0     0     0   100     0     0     0     0     0     15
+NID                       0     0     0   100     0     0   100   100   100   100     0   100   100     54
+Place Name                0     0     0    99     0     0    84   100   100    99     0    99   100     52
+Place Type                0     0     0     0     0     0    77   100     0     0     0     0    73     19
+Province                  0     0     0    99     0     0   100   100   100   100     0   100   100     54
+Street Name Article       0     0     0     0     0     0     1   100     1     0     0     1     0      8
+Street Name Body          0     0     0   100     0     0    92   100    99    96     0    73    95     50
+Street Type Prefix        0     0     0    99     0     0     1   100    99     4     0    17   100     32
+Street Type Suffix        0     0     0    97     0     0    81   100    99    91     0    55   100     48
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
 
 Toll Point (tollpoint)
 ----------------------
 
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-\                                                 Completion Rates (%)
----------------------  ---------------------------------------------------------------------------
-Attribute              AB   BC   MB   NB   NL   NS   NT   NU   ON   PE   QC   SK   YT   Agg.  Avg.
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
-Acquisition Technique  ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Coverage               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Creation Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Dataset Name           ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Planimetric Accuracy   ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Provider               ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Revision Date          ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Standard Version       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-NID                    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Road Element NID       ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-Toll Point Type        ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?    ?     ?
-=====================  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  ====  ====
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+\                                                     Completion Rates (%)
+---------------------  -----------------------------------------------------------------------------------
+Attribute                AB    BC    MB    NB    NL    NS    NT    NU    ON    PE    QC    SK    YT    Avg
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====
+Acquisition Technique   100   100   100     0     0   100     0     0   100   100     0   100     0     54
+Coverage                100   100   100     0     0   100     0     0     0   100     0   100     0     46
+Creation Date           100   100   100     0     0   100     0     0   100   100     0   100     0     54
+Dataset Name            100   100   100     0     0   100     0     0   100   100     0   100     0     54
+Planimetric Accuracy    100   100   100     0     0   100     0     0   100   100     0   100     0     54
+Provider                100   100   100     0     0   100     0     0     0   100     0   100     0     46
+Revision Date           100   100   100     0     0   100     0     0   100   100     0   100     0     54
+Standard Version        100   100   100     0     0   100     0     0     0   100     0   100     0     46
+NID                     100   100   100     0     0   100     0     0   100   100     0   100     0     54
+Road Element NID        100   100   100     0     0   100     0     0   100   100     0   100     0     54
+Toll Point Type         100   100   100     0     0   100     0     0   100   100     0   100     0     54
+=====================  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  ====  =====

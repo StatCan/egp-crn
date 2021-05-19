@@ -9,11 +9,11 @@ import string
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
-from itertools import chain, compress, groupby, permutations, tee
+from itertools import chain, combinations, compress, groupby, product, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from scipy.spatial import cKDTree
-from shapely.geometry import Point
+from scipy.spatial.distance import euclidean
 from typing import Dict, List, Tuple, Union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -425,18 +425,27 @@ class Validator:
         # Filter coincident indexes from all indexes. Keep only non-empty results.
         proxi_idx_keep = proxi_idx_all - proxi_idx_exclude
         proxi_idx_keep = proxi_idx_keep.loc[proxi_idx_keep.map(len) > 0]
+        proxi_idx_keep = proxi_idx_keep.map(tuple).explode()
 
         # Generate a lookup dict for the index of each roadseg coordinate, mapped to the associated uuid.
         coords_idx_uuid_lookup = dict(zip(range(coords_count.sum()), np.repeat(roadseg.index.values, coords_count)))
 
         # Compile the uuid associated with resulting proximity point indexes for each deadend.
-        proxi_results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(coords_idx_uuid_lookup))
-        proxi_results = proxi_results.map(lambda uuids: set(uuids) if isinstance(uuids, tuple) else {uuids})
+        proxi_results = proxi_idx_keep.map(lambda idx: itemgetter(idx)(coords_idx_uuid_lookup))
 
-        # Compile error properties.
-        for source_uuid, target_uuids in proxi_results.iteritems():
-            target_uuids = ", ".join(map(lambda val: f"'{val}'", target_uuids))
-            errors[1].append(f"junction uuid '{source_uuid}' is too close to roadseg uuid(s): {target_uuids}.")
+        # Compile error properties: calculate min distance measurement between source and target geometries.
+        results = pd.Series(proxi_results.items()).map(
+            lambda idxs: (itemgetter(idxs[0])(deadends), tuple(itemgetter(idxs[1])(roadseg))))
+        distances = results.map(lambda pts: min(map(lambda target_pt: euclidean(pts[0], target_pt), pts[1]))).round(2)
+
+        # Compile and sort final results.
+        results = pd.DataFrame({"target": proxi_results.values, "distance": distances.values},
+                               index=proxi_results.index).sort_values(by="distance", ascending=True)
+
+        # Compile error properties: store results.
+        for vals in results.itertuples(index=True):
+            source, target, distance = attrgetter("Index", "target", "distance")(vals)
+            errors[1].append(f"junction uuid '{source}' is too close to roadseg uuid '{target}': {distance} meters.")
 
         return errors
 
@@ -803,14 +812,14 @@ class Validator:
     def line_internal_clustering(self, name: str) -> Dict[int, list]:
         """
         Validates the distance between adjacent coordinates of line segments.
-        Validation: line segments must have >= 1x10^(-4) (0.0001) meters distance between adjacent coordinates.
+        Validation: line segments must have >= 1x10^(-2) (0.01) meters distance between adjacent coordinates.
 
         :param str name: NRN dataset name.
         :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
 
         errors = defaultdict(list)
-        min_distance = 0.0001
+        min_distance = 0.01
         series = self.dframes_m[name]["geometry"]
 
         # Extract coordinates from geometries.
@@ -827,7 +836,7 @@ class Validator:
             coord_pairs = coord_pairs.loc[coord_pairs.map(lambda pair: pair[0] != pair[1])]
 
             # Calculate distance between coordinate pairs.
-            coord_dist = coord_pairs.map(lambda pair: Point(pair[0]).distance(Point(pair[-1])))
+            coord_dist = coord_pairs.map(lambda pair: euclidean(pair[0], pair[-1]))
 
             # Flag invalid distances and create dataframe with invalid pairs and distances.
             flag = coord_dist < min_distance
@@ -836,9 +845,9 @@ class Validator:
             if len(invalid_df):
 
                 # Compile error properties.
-                for record in invalid_df.sort_values(by=["uuid", "distance"]).itertuples(index=True):
+                for record in invalid_df.sort_values(by=["uuid", "distance"], ascending=True).itertuples(index=True):
                     index, coords, distance = attrgetter("Index", "pair", "distance")(record)
-                    errors[1].append(f"uuid: '{index}' coordinates {coords[0]} and {coords[1]} are too close: "
+                    errors[1].append(f"uuid: '{index}', coordinates: {coords[0]} and {coords[1]}, are too close: "
                                      f"{distance} meters.")
 
         return errors
@@ -856,12 +865,12 @@ class Validator:
         series = self.dframes_m[name]["geometry"]
 
         # Validation: ensure line segments are >= 5 meters in length.
-        errors[1] = series.loc[series.length < min_length].index.values
+        flag = series.length < min_length
 
         # Compile error properties.
-        for code, vals in errors.items():
-            if len(vals):
-                errors[code] = list(map(lambda val: f"uuid: '{val}'", vals))
+        if sum(flag):
+            for index, val in series.loc[flag].length.round(2).sort_values(ascending=True).iteritems():
+                errors[1].append(f"uuid: '{index}' is too short: {val} meters.")
 
         return errors
 
@@ -873,6 +882,22 @@ class Validator:
         :param str name: NRN dataset name.
         :return Dict[int, list]: dictionary of validation codes and associated lists of error messages.
         """
+
+        # Define function to calculate the angular degrees between two intersecting lines.
+        def get_angle(ref_pt: tuple, pt1: tuple, pt2: tuple) -> bool:
+            """
+            Validates the angle formed by the 2 points and reference point.
+
+            :param tuple ref_pt: coordinate tuple of the reference point.
+            :param tuple pt1: coordinate tuple
+            :param tuple pt2: coordinate tuple
+            :return bool: boolean validation of the angle formed by the 2 points and 1 reference point.
+            """
+
+            angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
+            angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
+
+            return round(abs(angle_1 - angle_2), 2)
 
         errors = defaultdict(list)
         merging_angle = 5
@@ -894,13 +919,9 @@ class Validator:
         # Proceed only if duplicated points exist.
         if len(pts_df):
 
-            # Group uuids according to coordinates.
-            uuids_grouped = helpers.groupby_to_list(pts_df, "coords", "uuid")
-
-            # Explode grouped uuids. Maintain index point as both index and column.
-            uuids_grouped_exploded = uuids_grouped.explode()
-            uuids_grouped_exploded = pd.DataFrame({"coords": uuids_grouped_exploded.index,
-                                                   "uuid": uuids_grouped_exploded}).reset_index(drop=True)
+            # Group uuids according to coordinates. Explode and convert to DataFrame, keeping index as column.
+            grouped_pt_uuid = helpers.groupby_to_list(pts_df, "coords", "uuid")
+            uuid_pt_df = grouped_pt_uuid.explode().reset_index(drop=False).rename(columns={"index": "pt", 0: "uuid"})
 
             # Compile endpoint-neighbouring points.
             # Process: Flag uuids according to duplication status within their group. For unique uuids, configure the
@@ -908,64 +929,45 @@ class Validator:
             # (which represent self-loops), the first duplicate takes the second point, the second duplicate takes the
             # second-last point - thereby avoiding the same neighbour being taken twice for self-loop intersections.
             dup_flags = {
-                "dup_none": uuids_grouped_exploded.loc[
-                    ~uuids_grouped_exploded.duplicated(keep=False), ["uuid", "coords"]],
-                "dup_first": uuids_grouped_exploded.loc[
-                    uuids_grouped_exploded.duplicated(keep="first"), "uuid"],
-                "dup_last": uuids_grouped_exploded.loc[
-                    uuids_grouped_exploded.duplicated(keep="last"), "uuid"]
+                "dup_none": uuid_pt_df.loc[~uuid_pt_df.duplicated(keep=False), ["uuid", "pt"]],
+                "dup_first": uuid_pt_df.loc[uuid_pt_df.duplicated(keep="first"), "uuid"],
+                "dup_last": uuid_pt_df.loc[uuid_pt_df.duplicated(keep="last"), "uuid"]
             }
             dup_results = {
                 "dup_none": np.vectorize(
                     lambda uid, pt:
-                    uuid_nbr_lookup[uid][1] if uuid_nbr_lookup[uid][0] == pt else uuid_nbr_lookup[uid][-2],
-                    otypes=[tuple])(dup_flags["dup_none"]["uuid"], dup_flags["dup_none"]["coords"]),
+                    itemgetter({True: 1, False: -2}[uuid_nbr_lookup[uid][0] == pt])(uuid_nbr_lookup[uid]),
+                    otypes=[tuple])(dup_flags["dup_none"]["uuid"], dup_flags["dup_none"]["pt"]),
                 "dup_first": dup_flags["dup_first"].map(lambda uid: uuid_nbr_lookup[uid][1]).values,
                 "dup_last": dup_flags["dup_last"].map(lambda uid: uuid_nbr_lookup[uid][-2]).values
             }
 
-            uuids_grouped_exploded["pt"] = None
-            uuids_grouped_exploded.loc[dup_flags["dup_none"].index, "pt"] = dup_results["dup_none"]
-            uuids_grouped_exploded.loc[dup_flags["dup_first"].index, "pt"] = dup_results["dup_first"]
-            uuids_grouped_exploded.loc[dup_flags["dup_last"].index, "pt"] = dup_results["dup_last"]
+            uuid_pt_df["pt_nbr"] = None
+            uuid_pt_df.loc[dup_flags["dup_none"].index, "pt_nbr"] = dup_results["dup_none"]
+            uuid_pt_df.loc[dup_flags["dup_first"].index, "pt_nbr"] = dup_results["dup_first"]
+            uuid_pt_df.loc[dup_flags["dup_last"].index, "pt_nbr"] = dup_results["dup_last"]
 
-            # Aggregate exploded groups.
-            pts_grouped = helpers.groupby_to_list(uuids_grouped_exploded, "coords", "pt")
+            # Aggregate groups of points and associated neighbours.
+            grouped_pt_nbrs = helpers.groupby_to_list(uuid_pt_df, "pt", "pt_nbr")
 
-            # Compile the permutations of points for each point group.
-            pts_grouped = pts_grouped.map(lambda pts: set(map(tuple, map(sorted, permutations(pts, r=2)))))
+            # Configure all point-neighbour and point-uuid combinations.
+            combos_pt_nbrs = grouped_pt_nbrs.map(lambda vals: combinations(vals, r=2)).map(tuple).explode()
+            combos_pt_uuid = grouped_pt_uuid.map(lambda vals: combinations(vals, r=2)).map(tuple).explode()
 
-            # Define function to calculate and return validity of angular degrees between two intersecting lines.
-            def get_invalid_angle(pt1: tuple, pt2: tuple, ref_pt: tuple) -> bool:
-                """
-                Validates the angle formed by the 2 points and reference point.
+            # Prepend reference point to neighbour point tuples, add uuid combinations as index.
+            combos = pd.Series(
+                np.vectorize(lambda pt, nbrs: (pt, *nbrs), otypes=[tuple])(combos_pt_nbrs.index, combos_pt_nbrs),
+                index=combos_pt_uuid.values)
 
-                :param tuple pt1: coordinate tuple
-                :param tuple pt2: coordinate tuple
-                :param tuple ref_pt: coordinate tuple of the reference point.
-                :return bool: boolean validation of the angle formed by the 2 points and 1 reference point.
-                """
-
-                angle_1 = np.angle(complex(*(np.array(pt1) - np.array(ref_pt))), deg=True)
-                angle_2 = np.angle(complex(*(np.array(pt2) - np.array(ref_pt))), deg=True)
-
-                return abs(angle_1 - angle_2) < merging_angle
-
-            # Calculate the angular degree between each reference point and each of their point permutations.
-            # Return True if any angles are invalid.
-            flags = np.vectorize(
-                lambda pt_groups, pt_ref:
-                any(filter(lambda pts: get_invalid_angle(pts[0], pts[1], pt_ref), pt_groups)))(
-                pts_grouped, pts_grouped.index)
-
-            # Compile the uuid groups as errors.
-            flag_uuid_groups = uuids_grouped.loc[flags].values
+            # Calculate the merging angle (in degrees) between each set of points. Filter to invalid records.
+            angles = combos.map(lambda pts: get_angle(*pts))
+            results = angles.loc[angles < merging_angle]
 
             # Compile error properties.
-            if len(flag_uuid_groups):
-                for uuid_group in flag_uuid_groups:
-                    vals = ", ".join(map(lambda val: f"'{val}'", uuid_group))
-                    errors[1].append(f"Invalid merging angle exists at intersection of uuids: {vals}.")
+            if len(results):
+                for uuids, angle in results.sort_values(ascending=True).iteritems():
+                    line1, line2 = itemgetter(0, 1)(uuids)
+                    errors[1].append(f"uuids: '{line1}', '{line2}' merge at too small an angle: {angle} degrees.")
 
         return errors
 
@@ -1004,16 +1006,25 @@ class Validator:
             lambda points: set(itemgetter(*chain(*tree.query_ball_point(points, r=prox_limit)))(pts_idx_uuid_lookup)))
 
         # Remove connected uuids from each set of uuids, keep non-empty results.
-        results = uuids_proxi - uuids_exclude
-        results = results.loc[results.map(len) > 0]
+        proxi_results = uuids_proxi - uuids_exclude
+        proxi_results = proxi_results.loc[proxi_results.map(len) > 0]
+        proxi_results = proxi_results.map(list).explode()
 
-        # Explode result groups and filter duplicates.
-        results = results.map(list).explode()
-        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+        # Reduce duplicated result pairs.
+        results = pd.Series(tuple(set(map(lambda vals: tuple(sorted(vals)), proxi_results.items()))))
 
-        # Compile error properties.
-        for source_uuid, target_uuid in sorted(results_filtered):
-            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
+        # Compile error properties: calculate min distance measurement between source and target geometries.
+        distances = results.map(lambda idxs: tuple(product(itemgetter(idxs[0])(pts), itemgetter(idxs[1])(pts)))).map(
+            lambda pts: min(map(lambda pair: euclidean(*pair), pts))).round(2)
+
+        # Compile error properties: compile and sort final results.
+        results = pd.DataFrame({"target": results.map(itemgetter(1)).values, "distance": distances.values},
+                               index=results.map(itemgetter(0)).values).sort_values(by="distance", ascending=True)
+
+        # Compile error properties: store results.
+        for vals in results.itertuples(index=True):
+            source, target, distance = attrgetter("Index", "target", "distance")(vals)
+            errors[1].append(f"uuids: '{source}', '{target}' are too close: {distance} meters.")
 
         return errors
 
@@ -1169,19 +1180,26 @@ class Validator:
         # Compile and filter coincident index from each set of indexes for each point, keep non-empty results.
         proxi_idx_exclude = pd.Series(range(len(pts)), index=pts.index).map(lambda index: {index})
         proxi_idx_keep = proxi_idx_all - proxi_idx_exclude.loc[proxi_idx_all.index]
+        proxi_idx_keep = proxi_idx_keep.map(tuple).explode()
 
         # Compile uuids associated with each index.
         pts_idx_uuid_lookup = {index: uid for index, uid in enumerate(pts.index)}
-        results = proxi_idx_keep.map(lambda indexes: itemgetter(*indexes)(pts_idx_uuid_lookup))
-        results = results.map(lambda vals: set(vals) if isinstance(vals, tuple) else {vals})
+        results = proxi_idx_keep.map(lambda idx: itemgetter(idx)(pts_idx_uuid_lookup))
 
-        # Explode result groups and filter duplicates.
-        results = results.map(list).explode()
-        results_filtered = set(map(lambda pair: tuple(sorted(pair)), results.items()))
+        # Reduce duplicated result pairs.
+        results = pd.Series(tuple(set(map(lambda vals: tuple(sorted(vals)), results.items()))))
 
-        # Compile error properties.
-        for source_uuid, target_uuid in sorted(results_filtered):
-            errors[1].append(f"Features are too close, uuids: '{source_uuid}', '{target_uuid}'.")
+        # Compile error properties: calculate min distance measurement between source and target geometries.
+        distances = results.map(lambda idxs: euclidean(*itemgetter(*idxs)(pts))).round(2)
+
+        # Compile error properties: compile and sort final results.
+        results = pd.DataFrame({"target": results.map(itemgetter(1)).values, "distance": distances.values},
+                               index=results.map(itemgetter(0)).values).sort_values(by="distance", ascending=True)
+
+        # Compile error properties: store results.
+        for vals in results.itertuples(index=True):
+            source, target, distance = attrgetter("Index", "target", "distance")(vals)
+            errors[1].append(f"uuids: '{source}', '{target}' are too close: {distance} meters.")
 
         return errors
 

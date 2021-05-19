@@ -57,7 +57,8 @@ class LRS:
                 "fields": ["orn_road_net_element_id", "at_measure", "blocked_passage_type", "agency_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["blkpassty", "provider", "revdate", "geometry"]
+                "output_fields": ["blkpassty", "provider", "revdate", "geometry"],
+                "base_output_fields": ["accuracy", "acqtech"]
             },
             "orn_jurisdiction": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "street_side", "jurisdiction",
@@ -75,7 +76,7 @@ class LRS:
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "full_street_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["stname_c", "revdate"]
+                "output_fields": ["r_stname_c", "revdate"]
             },
             "orn_road_class": {
                 "fields": ["orn_road_net_element_id", "from_measure", "to_measure", "road_class", "effective_datetime"],
@@ -135,7 +136,8 @@ class LRS:
                 "fields": ["orn_road_net_element_id", "at_measure", "toll_point_type", "agency_name",
                            "effective_datetime"],
                 "query": None,
-                "output_fields": ["tollpttype", "provider", "revdate", "geometry"]
+                "output_fields": ["tollpttype", "provider", "revdate", "geometry"],
+                "base_output_fields": ["accuracy", "acqtech"]
             }
         }
 
@@ -155,7 +157,7 @@ class LRS:
         # Note: connection fields must use the renamed field names.
         self.structure_non_base = {
             "orn_official_street_name": {
-                "stname_c": ["orn_street_name_parsed"]
+                "r_stname_c": ["orn_street_name_parsed"]
             }
         }
 
@@ -171,7 +173,7 @@ class LRS:
             "effective_datetime": "revdate",
             "exit_number": "exitnbr",
             "first_house_number": "hnumf",
-            "full_street_name": "stname_c",
+            "full_street_name": "r_stname_c",
             "house_number_structure": "hnumstr",
             "jurisdiction": "roadjuris",
             "last_house_number": "hnuml",
@@ -199,21 +201,21 @@ class LRS:
         # Note: output fields must use the renamed field names.
         self.composite_datasets = {
             "orn_address_info": {
-                    "successive_queries": False,
-                    "new_datasets": [
-                        {
-                            "query": "street_side != 'Right'",
-                            "dataset_name": "orn_address_info_left",
-                            "rename_fields": {"hnumf": "l_hnumf", "hnuml": "l_hnuml", "hnumstr": "l_hnumstr"},
-                            "output_fields": ["l_hnumf", "l_hnuml", "l_hnumstr", "revdate"]
-                        },
-                        {
-                            "query": "street_side != 'Left'",
-                            "dataset_name": "orn_address_info_right",
-                            "rename_fields": {"hnumf": "r_hnumf", "hnuml": "r_hnuml", "hnumstr": "r_hnumstr"},
-                            "output_fields": ["r_hnumf", "r_hnuml", "r_hnumstr", "revdate"]
-                        }
-                    ]
+                "successive_queries": False,
+                "new_datasets": [
+                    {
+                        "query": "street_side != 'Right'",
+                        "dataset_name": "orn_address_info_left",
+                        "rename_fields": {"hnumf": "l_hnumf", "hnuml": "l_hnuml", "hnumstr": "l_hnumstr"},
+                        "output_fields": ["l_hnumf", "l_hnuml", "l_hnumstr", "revdate"]
+                    },
+                    {
+                        "query": "street_side != 'Left'",
+                        "dataset_name": "orn_address_info_right",
+                        "rename_fields": {"hnumf": "r_hnumf", "hnuml": "r_hnuml", "hnumstr": "r_hnumstr"},
+                        "output_fields": ["r_hnumf", "r_hnuml", "r_hnumstr", "revdate"]
+                    }
+                ]
             },
             "orn_route_name": {
                 "successive_queries": True,
@@ -869,8 +871,13 @@ class LRS:
             # Identify connection field.
             con_id_field = self.get_con_id_field(point_dataset)
 
+            # Configure required fields from base.
+            base_fields = [con_id_field, "epsg", "geometry"]
+            if "base_output_fields" in self.schema[point_dataset]:
+                base_fields.extend(self.schema[point_dataset]["base_output_fields"])
+
             # Merge point and base dataframes and interpolate Point object.
-            point_df = point_df.merge(base[[con_id_field, "epsg", "geometry"]], how="left", on=con_id_field)
+            point_df = point_df.merge(base[base_fields], how="left", on=con_id_field)
             point_df["geometry"] = point_df[[self.point_event_measurement_field, "geometry"]].apply(
                 lambda row: row[1].interpolate(row[0]), axis=1)
 
@@ -882,12 +889,17 @@ class LRS:
 
         logger.info("Exporting datasets to GeoPackage.")
 
-        # Conditionally explode geometries.
+        # Iterate datasets.
         for table, df in self.nrn_datasets.items():
 
+            # Conditionally explode geometries.
             geom_types = set(df.geom_type)
             if any(geom_type in geom_types for geom_type in {"MultiPoint", "MultiLineString"}):
                 self.nrn_datasets[table] = helpers.explode_geometry(df).copy(deep=True)
+
+            # Reformat date fields.
+            for col in {"credate", "revdate"}.intersection(set(df.columns)):
+                df[col] = df[col].map(pd.to_datetime).dt.strftime("%Y%m%d")
 
         # Export to GeoPackage.
         helpers.export(self.nrn_datasets, self.dst, merge_schemas=True)
@@ -917,13 +929,16 @@ class LRS:
 
             # Iterate composite new datasets.
             for new_dataset in self.composite_datasets[composite_name]["new_datasets"]:
-                dataset_name = new_dataset["dataset_name"]
+
+                # Compile new dataset properties.
+                dataset_name, query, rename_fields, output_fields = itemgetter(
+                    "dataset_name", "query", "rename_fields", "output_fields")(new_dataset)
 
                 logger.info(f"Separating records from composite dataset: \"{composite_name}\" into new dataset: "
                             f"\"{dataset_name}\".")
 
                 # Create new dataset via dataframe query.
-                new_df = composite_df.query(new_dataset["query"])
+                new_df = composite_df.query(query)
 
                 # Log new record count.
                 logger.info(f"New dataset: \"{dataset_name}\" contains {len(new_df)} / {count} composite dataset "
@@ -932,13 +947,13 @@ class LRS:
                 # Store new dataset with renamed fields and add to class variables: schema and structure.
                 # Note: updating these class variables avoids having to implement specific logic purely to handle
                 # composite new datasets.
-                self.src_datasets[dataset_name] = new_df.rename(columns=new_dataset["rename_fields"]).copy(deep=True)
-                self.schema[dataset_name] = {"output_fields": new_dataset["output_fields"]}
+                self.src_datasets[dataset_name] = new_df.rename(columns=rename_fields).copy(deep=True)
+                self.schema[dataset_name] = {"output_fields": output_fields}
                 self.structure["connections"][con_id_field].append(dataset_name)
 
-                # Overwrite composite dataframe with new dataframe if queries are to be applied successively.
+                # Filter composite dataframe to all remaining records, if queries are to be applied successively.
                 if self.composite_datasets[composite_name]["successive_queries"]:
-                    composite_df = new_df.copy(deep=True)
+                    composite_df = composite_df.query(f"~({query})").copy(deep=True)
 
             # Remove original composite dataset and remove from class variables: schema, point datasets, and structure.
             del self.src_datasets[composite_name]
@@ -983,7 +998,8 @@ class LRS:
                     dfs.append(df_epsg.to_crs("EPSG:4617").copy(deep=True))
 
                 # Store concatenated results as a GeoDataFrame.
-                self.nrn_datasets[table] = gpd.GeoDataFrame(pd.concat(dfs), crs="EPSG:4617").copy(deep=True)
+                self.nrn_datasets[table] = gpd.GeoDataFrame(
+                    pd.concat(dfs), crs="EPSG:4617").drop(columns=["epsg"]).copy(deep=True)
 
     def execute(self) -> None:
         """Executes class functionality."""

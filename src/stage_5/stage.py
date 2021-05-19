@@ -1,9 +1,11 @@
 import click
+import jinja2
 import logging
 import numpy as np
 import pandas as pd
 import re
 import sys
+import yaml
 import zipfile
 from collections import Counter
 from datetime import datetime
@@ -100,45 +102,31 @@ class Stage:
 
         logger.info("Configuring NRN release version.")
 
-        # Iterate release notes to extract the version number and release year for current source.
+        # Extract the version number and release year for current source from the release notes.
         release_year = None
-        release_notes = filepath.parents[2] / "docs/release_notes.rst"
+        release_notes_path = filepath.parent / "distribution_docs/release_notes.yaml"
+        release_notes = helpers.load_yaml(release_notes_path)
 
         try:
 
-            headers = ("Code", "Edition", "Release Date")
-            headers_rng = None
+            # Extract previous release version and date.
+            version, release_date = itemgetter("edition", "release_date")(release_notes[self.source])
 
-            for line in open(release_notes, "r"):
+            # Standardize raw variables.
+            self.major_version, self.minor_version = map(int, str(version).split("."))
+            release_year = int(str(release_date)[:4])
 
-                # Identify index range for data columns.
-                if all(line.find(header) >= 0 for header in headers):
-                    headers_rng = {header: (line.find(header), line.find(header) + len(header)) for header in headers}
-
-                # Identify data values for source.
-                if headers_rng:
-                    if line[headers_rng["Code"][0]: headers_rng["Code"][1]].strip(" ") == self.source.upper():
-                        version = line[headers_rng["Edition"][0]: headers_rng["Edition"][1]].split(".")
-                        self.major_version, self.minor_version = list(map(int, version))
-                        release_year = int(line[headers_rng["Release Date"][0]: headers_rng["Release Date"][1]][:4])
-                        break
+            # Configure new release version.
+            if release_year == datetime.now().year:
+                self.minor_version += 1
+            else:
+                self.major_version += 1
+                self.minor_version = 0
 
         except (IndexError, ValueError) as e:
             logger.exception(f"Unable to extract version number and / or release date from \"{release_notes}\".")
             logger.exception(e)
             sys.exit(1)
-
-        # Note: can't use 'not any' logic since 0 is an acceptable minor version value.
-        if any(val is None for val in [self.major_version, self.minor_version, release_year]):
-            logger.exception(f"Unable to extract version number and / or release date from \"{release_notes}\".")
-            sys.exit(1)
-
-        # Conditionally set major and minor version numbers.
-        if release_year == datetime.now().year:
-            self.minor_version += 1
-        else:
-            self.major_version += 1
-            self.minor_version = 0
 
         logger.info(f"Configured NRN release version: {self.major_version}.{self.minor_version}")
 
@@ -178,7 +166,7 @@ class Stage:
                 default_add = self.defaults["fr"]["roadseg"]["l_placenam"]
                 default_rm = self.defaults["en"]["roadseg"]["l_placenam"]
                 if default_rm in placenames:
-                    placenames = {*placenames_exceeded - {default_rm}, default_add}
+                    placenames = {*placenames - {default_rm}, default_add}
                 if default_rm in placenames_exceeded:
                     placenames_exceeded = {*placenames_exceeded - {default_rm}, default_add}
 
@@ -345,6 +333,106 @@ class Stage:
                     logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
                     sys.exit(1)
 
+    def update_distribution_docs(self) -> None:
+        """
+        Writes updated documentation to data/processed for:
+            - completion rates
+            - release notes
+        """
+
+        def write_documents(data: dict, filename: str) -> None:
+            """
+            Updates a document template with a dictionary and exports:
+                1) an rst file representing the updated template.
+                2) a yaml file containing the updated dictionary.
+
+            :param dict data: dictionary of values used to populate the document template.
+            :param str filename: basename of a document in ../distribution_docs to be updated.
+            """
+
+            # Configure source and destination paths.
+            src = filepath.parent / f"distribution_docs/{filename}.rst"
+            dst = self.output_path / filename
+
+            try:
+
+                # Load document as jinja template.
+                with open(src, "r") as doc:
+                    template = jinja2.Template(doc.read())
+
+                # Update template.
+                updated_doc = template.render(data)
+
+            except (jinja2.TemplateError, jinja2.TemplateAssertionError, jinja2.UndefinedError) as e:
+                logger.exception(f"Unable to render updated Jinja2.Template for: {src}.")
+                logger.exception(e)
+                sys.exit(1)
+
+            # Export updated document.
+            try:
+
+                # Write rst.
+                with open(dst.with_suffix(".rst"), "w") as doc:
+                    doc.write(updated_doc)
+
+                # Write yaml.
+                with open(dst.with_suffix(".yaml"), "w") as doc:
+                    yaml.dump(data, doc)
+
+            except (ValueError, yaml.YAMLError) as e:
+                logger.exception(f"Unable to write document: {dst}.")
+                logger.exception(e)
+                sys.exit(1)
+
+        # Update release notes.
+        logger.info(f"Updating documentation: release notes.")
+
+        # Compile previous data.
+        data = helpers.load_yaml(filepath.parent / "distribution_docs/release_notes.yaml")
+
+        # Update release notes - edition, release date, validity date.
+        data[self.source]["edition"] = f"{self.major_version}.{self.minor_version}"
+        data[self.source]["release_date"] = datetime.now().strftime("%Y-%m")
+        data[self.source]["validity_date"] = datetime.now().strftime("%Y-%m")
+
+        # Update release notes - number of kilometers.
+        # Note: EPSG:3348 used to get geometry lengths in meters.
+        kms = int(round(self.dframes["en"]["roadseg"].to_crs("EPSG:3348").length.sum() / 1000, 0))
+        data[self.source]["number_of_kilometers"] = f"{kms:,d}"
+
+        # Write updated documents.
+        write_documents(data, "release_notes")
+
+        # Update completion rates.
+        logger.info(f"Updating documentation: completion rates.")
+
+        # Compile previous data.
+        data = helpers.load_yaml(filepath.parent / "distribution_docs/completion_rates.yaml")
+
+        # Update completion rates.
+
+        # Iterate dataframe and column names.
+        for table, df in self.dframes["en"].items():
+            for col in data[table]:
+
+                # Configure column completion rate.
+                # Note: Values between 0 and 1 are rounded to 1, values between 99 and 100 are rounded to 99.
+                completion_rate = (len(df.loc[~df[col].isin({"Unknown", -1})]) / len(df)) * 100
+                if 0 < completion_rate < 1:
+                    completion_rate = 1
+                if 99 < completion_rate < 100:
+                    completion_rate = 99
+
+                # Update column value for source.
+                data[table][col][self.source] = int(completion_rate)
+
+                # Update column average.
+                vals = itemgetter(*set(data[table][col]) - {"avg"})(data[table][col])
+                data[table][col]["avg"] = int(round(sum(map(int, vals)) / len(vals), 0))
+
+        # Write updated documents.
+        write_documents(data, "completion_rates")
+
     def zip_data(self) -> None:
         """Compresses and zips all export data directories."""
 
@@ -396,6 +484,7 @@ class Stage:
         self.define_kml_groups()
         self.export_data()
         self.zip_data()
+        self.update_distribution_docs()
 
 
 @click.command()

@@ -12,37 +12,122 @@ license:
   text: Open Government License - Ontario
 language: en
 data:
-  filename: 2020/orn.gpkg
+  filename: 2021/orn.gpkg
   layer: roadseg
   driver: GPKG
-  crs: "EPSG:4269"
+  crs: "EPSG:4617"
   spatial: True
   query:
 conform:
+  addrange:
+    acqtech: acqtech
+    metacover:
+    credate: credate
+    datasetnam: Ontario
+    accuracy: accuracy
+    provider: &provider
+      fields: provider
+      functions:
+        - function: query_assign
+          columns: provider
+          lookup:
+            ? provider.str.lower().str.contains('city of |county of | county|district municipality of |district of |
+              municipality of |town of |township of |united counties of |village of ', na=False, regex=True)
+            : value: Municipal
+              type: string
+            ? provider.str.lower().isin(['ministry of natural resources and forestry', 'ministry of transportation',
+              'ontario ministry of health', 'ontario provincial police', 'ontario road network'])
+            : value: Provincial
+              type: string
+            provider.str.lower().isin(['elections and statistics canada', 'nrcan']):
+              value: Federal
+              type: string
+            provider.str.lower() == 'waabnoong bemjiwang association of first nations':
+              value: Other
+              type: string
+          engine: python
+    revdate: revdate
+    specvers: 2.0
+    l_altnanid:
+    r_altnanid:
+    l_digdirfg:
+    r_digdirfg:
+    l_hnumf: l_hnumf
+    r_hnumf: r_hnumf
+    l_hnumsuff:
+    r_hnumsuff:
+    l_hnumtypf:
+    r_hnumtypf:
+    l_hnumstr: l_hnumstr
+    r_hnumstr: r_hnumstr
+    l_hnuml: l_hnuml
+    r_hnuml: r_hnuml
+    l_hnumsufl:
+    r_hnumsufl:
+    l_hnumtypl:
+    r_hnumtypl:
+    nid: uuid
+    l_offnanid: uuid
+    r_offnanid: uuid
+    l_rfsysind:
+    r_rfsysind:
   roadseg:
     acqtech: acqtech
     metacover:
     credate: credate
-    datasetnam: "Ontario"
+    datasetnam: Ontario
     accuracy: accuracy
-    provider:
+    provider: *provider
     revdate: revdate
     specvers: 2.0
     l_adddirfg:
     r_adddirfg:
-    adrangenid: adrangenid
+    adrangenid: uuid
     closing:
     exitnbr: exitnbr
     l_hnumf: l_hnumf
     r_hnumf: r_hnumf
-    roadclass: roadclass
+    roadclass:
+      fields: roadclass
+      functions:
+        - function: query_assign
+          columns: roadclass
+          lookup:
+            roadclass.str.lower() == 'service':
+              value: Service Lane
+              type: string
+            roadclass.str.lower() != 'service':
+              value: roadclass
+              type: column
+          engine: python
     l_hnuml: l_hnuml
     r_hnuml: r_hnuml
-    nid: nid
+    nid:
     nbrlanes: nbrlanes
-    l_placenam: l_placenam
-    r_placenam: r_placenam
-    l_stname_c: l_stname_c
+    l_placenam: &placename
+      fields: [roadjuris, provider]
+      functions:
+        - function: query_assign
+          columns: [placename, provider]
+          lookup:
+            ? placename.str.lower().isin(['407 etr', 'local roads board', 'ministry of natural resources and forestry',
+              'ministry of transportation', 'niagara parks commission', 'ontario parks', 'private']) and
+              provider.str.lower().str.contains('city of |county of | county|district municipality of |district of |
+              municipality of |town of |township of |united counties of |village of ', na=False, regex=True)
+            : value: provider
+              type: column
+            placename.str.lower() == 'corporation of the municipality of mississippi mills':
+              value: Municipality of Mississippi Mills
+              type: string
+            placename.str.lower() == 'greater toronto airport authority':
+              value: City of Mississauga
+              type: string
+            placename.str.lower() == 'the corporation of the municipality of east ferris':
+              value: Municipality of East Ferris
+              type: string
+          engine: python
+    r_placenam: *placename
+    l_stname_c: r_stname_c
     r_stname_c: r_stname_c
     pavsurf: pavsurf
     pavstatus: pavstatus
@@ -67,4 +152,47 @@ conform:
     structid:
     structtype: structtype
     trafficdir: trafficdir
-    unpavsurf: unpavsurf
+    unpavsurf: pavsurf
+  strplaname:
+    acqtech: acqtech
+    metacover:
+    credate: credate
+    datasetnam: Ontario
+    accuracy: accuracy
+    provider: *provider
+    revdate: revdate
+    specvers: 2.0
+    dirprefix:
+      fields: dirprefix
+      functions: &street_dir
+        - function: map_values
+          lookup:
+            North East: Northeast
+            North West: Northwest
+            South East: Southeast
+            South West: Southwest
+    dirsuffix:
+      fields: dirsuffix
+      functions: *street_dir
+    muniquad:
+    nid: uuid
+    placename: *placename
+    placetype:
+    province: Ontario
+    starticle:
+      fields: namebody
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+    namebody:
+      fields: namebody
+      functions:
+        - function: regex_find
+          pattern: "\\b(domain_strplaname_starticle)\\b"
+          match_index: 0
+          group_index: 0
+          strip_result: True
+    strtypre: strtypre
+    strtysuf: strtysuf

@@ -279,14 +279,14 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
            driver: str = "GPKG", type_schemas: Union[None, dict, Path, str] = None,
            export_schemas: Union[None, dict, Path, str] = None, merge_schemas: bool = False,
            nln_map: Union[Dict[str, str], None] = None, keep_uuid: bool = True,
-           outer_pbar: Union[tqdm, trange, None] = None, epsg: Union[None, str] = None,
+           outer_pbar: Union[tqdm, trange, None] = None, epsg: Union[None, int] = None,
            geom_type: Union[Dict[str, str], None] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
     :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
-    :param Union[Path, str] output_path: output path.
+    :param Union[Path, str] output_path: output path (directory or file).
     :param str driver: OGR driver short name, default 'GPKG'.
     :param Union[None, dict, Path, str] type_schemas: optional dictionary mapping of field types and widths for each
         provided dataset. Can also be a Path or str path to a pre-existing yaml. Expected dictionary format:
@@ -359,13 +359,13 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
             export_schemas = export_schemas["conform"]
         else:
             export_schemas = defaultdict(dict)
-            for table, df in dataframes.items():
+            for table in type_schemas:
                 export_schemas[table]["fields"] = {field: field for field in type_schemas[table]["fields"]}
 
         # Conditionally merge schemas.
         if merge_schemas:
             type_schemas_merged, export_schemas_merged = defaultdict(dict), defaultdict(dict)
-            for table in dataframes:
+            for table in type_schemas:
                 type_schemas_merged["fields"] |= type_schemas[table]["fields"]
                 export_schemas_merged["fields"] |= export_schemas[table]["fields"]
             if any(type_schemas[table]["spatial"] for table in dataframes):
@@ -484,7 +484,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         logger.exception(f"Invalid output directory - already exists.")
         logger.exception(e)
         sys.exit(1)
-    except (Exception, KeyError, ValueError, sqlite3.Error) as e:
+    except (KeyError, ValueError, sqlite3.Error) as e:
         logger.exception(f"Error raised when writing output: {output_path}.")
         logger.exception(e)
         sys.exit(1)
@@ -500,19 +500,25 @@ def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
     logger.info("Flattening coordinates to 2-dimensions.")
 
-    # Flatten coordinates.
-    if len(gdf.geom_type.unique()) > 1:
-        raise Exception("Multiple geometry types detected for dataframe.")
+    try:
 
-    elif gdf.geom_type.iloc[0] == "LineString":
-        gdf["geometry"] = gdf["geometry"].map(
-            lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
+        # Flatten coordinates.
+        if len(gdf.geom_type.unique()) > 1:
+            raise TypeError("Multiple geometry types detected for dataframe.")
 
-    elif gdf.geom_type.iloc[0] == "Point":
-        gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
+        elif gdf.geom_type.iloc[0] == "LineString":
+            gdf["geometry"] = gdf["geometry"].map(
+                lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
 
-    else:
-        raise Exception("Geometry type not supported for coordinate flattening.")
+        elif gdf.geom_type.iloc[0] == "Point":
+            gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
+
+        else:
+            raise TypeError("Geometry type not supported for coordinate flattening.")
+
+    except TypeError as e:
+        logger.exception(e)
+        sys.exit(1)
 
     return gdf
 
@@ -708,8 +714,10 @@ def load_gpkg(gpkg_path: Union[Path, str], find: bool = False, layers: Union[Non
                 if "fid" in df.columns:
                     df.drop(columns=["fid"], inplace=True)
 
-                # Fill nulls with string "None".
-                df.fillna("None", inplace=True)
+                # Fill nulls with -1 (numeric fields) / "Unknown" (string fields).
+                values = {field: {"float": -1, "int": -1, "str": "Unknown"}[specs[0]] for field, specs in
+                          distribution_format[table_name]["fields"].items()}
+                df.fillna(value=values, inplace=True)
 
                 # Store result.
                 dframes[table_name] = df.copy(deep=True)
