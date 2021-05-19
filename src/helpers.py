@@ -279,14 +279,14 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
            driver: str = "GPKG", type_schemas: Union[None, dict, Path, str] = None,
            export_schemas: Union[None, dict, Path, str] = None, merge_schemas: bool = False,
            nln_map: Union[Dict[str, str], None] = None, keep_uuid: bool = True,
-           outer_pbar: Union[tqdm, trange, None] = None, epsg: Union[None, str] = None,
+           outer_pbar: Union[tqdm, trange, None] = None, epsg: Union[None, int] = None,
            geom_type: Union[Dict[str, str], None] = None) -> None:
     """
     Exports one or more (Geo)DataFrames as a specified OGR driver file / layer.
 
     :param Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]] dataframes: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
-    :param Union[Path, str] output_path: output path.
+    :param Union[Path, str] output_path: output path (directory or file).
     :param str driver: OGR driver short name, default 'GPKG'.
     :param Union[None, dict, Path, str] type_schemas: optional dictionary mapping of field types and widths for each
         provided dataset. Can also be a Path or str path to a pre-existing yaml. Expected dictionary format:
@@ -708,8 +708,10 @@ def load_gpkg(gpkg_path: Union[Path, str], find: bool = False, layers: Union[Non
                 if "fid" in df.columns:
                     df.drop(columns=["fid"], inplace=True)
 
-                # Fill nulls with string "None".
-                df.fillna("None", inplace=True)
+                # Fill nulls with -1 (numeric fields) / "Unknown" (string fields).
+                values = {field: {"float": -1, "int": -1, "str": "Unknown"}[specs[0]] for field, specs in
+                          distribution_format[table_name]["fields"].items()}
+                df.fillna(value=values, inplace=True)
 
                 # Store result.
                 dframes[table_name] = df.copy(deep=True)
