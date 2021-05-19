@@ -484,7 +484,7 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         logger.exception(f"Invalid output directory - already exists.")
         logger.exception(e)
         sys.exit(1)
-    except (Exception, KeyError, ValueError, sqlite3.Error) as e:
+    except (KeyError, ValueError, sqlite3.Error) as e:
         logger.exception(f"Error raised when writing output: {output_path}.")
         logger.exception(e)
         sys.exit(1)
@@ -500,19 +500,25 @@ def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
     logger.info("Flattening coordinates to 2-dimensions.")
 
-    # Flatten coordinates.
-    if len(gdf.geom_type.unique()) > 1:
-        raise Exception("Multiple geometry types detected for dataframe.")
+    try:
 
-    elif gdf.geom_type.iloc[0] == "LineString":
-        gdf["geometry"] = gdf["geometry"].map(
-            lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
+        # Flatten coordinates.
+        if len(gdf.geom_type.unique()) > 1:
+            raise TypeError("Multiple geometry types detected for dataframe.")
 
-    elif gdf.geom_type.iloc[0] == "Point":
-        gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
+        elif gdf.geom_type.iloc[0] == "LineString":
+            gdf["geometry"] = gdf["geometry"].map(
+                lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
 
-    else:
-        raise Exception("Geometry type not supported for coordinate flattening.")
+        elif gdf.geom_type.iloc[0] == "Point":
+            gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
+
+        else:
+            raise TypeError("Geometry type not supported for coordinate flattening.")
+
+    except TypeError as e:
+        logger.exception(e)
+        sys.exit(1)
 
     return gdf
 
