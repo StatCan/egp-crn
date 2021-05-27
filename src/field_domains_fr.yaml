@@ -284,10 +284,10 @@ tables:
     dirsuffix: *dirprefix
     muniquad:
       0: Aucun
-      1: South-West
-      2: South-East
-      3: North-East
-      4: North-West
+      1: Sud-ouest
+      2: Sud-est
+      3: Nord-east
+      4: Nord-ouest
     nid:
     placename:
     placetype:
