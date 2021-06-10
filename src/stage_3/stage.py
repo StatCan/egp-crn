@@ -241,7 +241,8 @@ class Stage:
                     df_old = self.dframes_old[table][["nid", "geometry"]].copy(deep=True)
 
                     # Merge current and old dataframes on geometry.
-                    merge = pd.merge(df_old, df, how="outer", on="geometry", suffixes=("_old", ""), indicator=True)
+                    merge = df.merge(df_old, how="outer", on="geometry", suffixes=("", "_old"), indicator=True)\
+                        .copy(deep=True)
 
                     # Classify nid groups as: added, retired, modified, confirmed.
                     classified_nids = {
@@ -254,7 +255,8 @@ class Stage:
                     # Recover old nids for confirmed and modified nid groups.
                     # Process: Filter merged dataframes to only those with matches on both, create a lookup dict between
                     # the new and old nids.
-                    recovery = merge.loc[merge["_merge"] == "both"].drop_duplicates(subset="nid", keep="first")
+                    recovery = merge.loc[merge["_merge"] == "both"].drop_duplicates(subset="nid", keep="first")\
+                        .copy(deep=True)
                     recovery.index = recovery["nid"]
 
                     # Filter invalid nids from old data.
@@ -368,8 +370,8 @@ class Stage:
         grouped["junction"] = grouped["junction"].map(lambda coords: list(coords.intersection(junction_pts)))
 
         # Separate groups with and without coincident junctions.
-        grouped_no_junction = grouped.loc[~grouped["junction"].map(lambda indexes: len(indexes) > 0)]
-        grouped_junction = grouped.loc[grouped["junction"].map(lambda indexes: len(indexes) > 0)]
+        grouped_no_junction = grouped.loc[~grouped["junction"].map(lambda indexes: len(indexes) > 0)].copy(deep=True)
+        grouped_junction = grouped.loc[grouped["junction"].map(lambda indexes: len(indexes) > 0)].copy(deep=True)
 
         # Convert coords to shapely points.
         grouped_junction["junction"] = grouped_junction["junction"].map(
@@ -502,16 +504,16 @@ class Stage:
         # equality of the match fields between the current and old dataframes to determine if a record was modified.
         confirmed_new = classified_nids["confirmed"]\
             .merge(roadseg[["nid", *self.match_fields]], how="left", on="nid")\
-            .drop_duplicates(keep="first")
+            .drop_duplicates(subset="nid", keep="first")
         confirmed_old = classified_nids["confirmed"]\
             .merge(roadseg_old[["nid", *self.match_fields]], how="left", left_on="nid_old", right_on="nid")\
-            .drop_duplicates(keep="first")
+            .drop_duplicates(subset="nid_x", keep="first")
 
         # Compare match fields to separate modified nid groups.
         # Update modified and confirmed nid classifications.
         flags = (confirmed_new[self.match_fields].values == confirmed_old[self.match_fields].values).all(axis=1)
-        classified_nids["modified"] = classified_nids["confirmed"].loc[~flags, "nid"].to_list()
-        classified_nids["confirmed"] = classified_nids["confirmed"].loc[flags, "nid"].to_list()
+        classified_nids["modified"] = confirmed_new.loc[~flags, "nid"].to_list()
+        classified_nids["confirmed"] = confirmed_new.loc[flags, "nid"].to_list()
 
         # Store nid classifications as change logs.
         self.change_logs["roadseg"] = {
