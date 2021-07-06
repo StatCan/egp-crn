@@ -645,6 +645,7 @@ tables:
       266: Valley
       267: Walkway
       268: Wold
+      269: Tili
     strtysuf: *strtypre
   tollpoint:
     acqtech: *acqtech
