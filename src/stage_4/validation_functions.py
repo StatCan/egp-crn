@@ -4,6 +4,7 @@ import logging
 import networkx as nx
 import numpy as np
 import pandas as pd
+import pyproj
 import shapely.ops
 import string
 import sys
@@ -14,6 +15,7 @@ from operator import attrgetter, itemgetter
 from pathlib import Path
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import euclidean
+from shapely.geometry import Point
 from typing import Dict, List, Tuple, Union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -82,6 +84,10 @@ class Validator:
                     self.dframes_m[name] = df.copy(deep=True)
                 else:
                     self.dframes_m[name] = df.to_crs("EPSG:3348").copy(deep=True)
+
+        # Define projection transformers, if required.
+        self.prj_3348_to_4617 = pyproj.Transformer.from_crs(pyproj.CRS("EPSG:3348"), pyproj.CRS("EPSG:4617"),
+                                                            always_xy=True).transform
 
         # Define validation parameters.
         # Note: List validations in order if execution order matters.
@@ -307,10 +313,15 @@ class Validator:
             """
 
             year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
+            try:
 
-            if not 1 <= day <= calendar.mdays[month]:
-                if not all([day == 29, month == 2, calendar.isleap(year)]):
-                    return False
+                if not 1 <= day <= calendar.mdays[month]:
+                    if not all([day == 29, month == 2, calendar.isleap(year)]):
+                        return False
+
+            # Captures exception raised by an invalid month value, which itself it handled by another validation.
+            except IndexError:
+                return False
 
             return True
 
@@ -847,6 +858,10 @@ class Validator:
                 # Compile error properties.
                 for record in invalid_df.sort_values(by=["uuid", "distance"], ascending=True).itertuples(index=True):
                     index, coords, distance = attrgetter("Index", "pair", "distance")(record)
+
+                    # Reproject coordinates back to NRN CRS.
+                    coords = [shapely.ops.transform(self.prj_3348_to_4617, Point(pt)).coords[0] for pt in coords]
+
                     errors[1].append(f"uuid: '{index}', coordinates: {coords[0]} and {coords[1]}, are too close: "
                                      f"{distance} meters.")
 
@@ -965,7 +980,7 @@ class Validator:
 
             # Compile error properties.
             if len(results):
-                for uuids, angle in results.sort_values(ascending=True).iteritems():
+                for uuids, angle in results.drop_duplicates().sort_values(ascending=True).iteritems():
                     line1, line2 = itemgetter(0, 1)(uuids)
                     errors[1].append(f"uuids: '{line1}', '{line2}' merge at too small an angle: {angle} degrees.")
 

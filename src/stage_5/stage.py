@@ -391,7 +391,7 @@ class Stage:
         data = helpers.load_yaml(filepath.parent / "distribution_docs/release_notes.yaml")
 
         # Update release notes - edition, release date, validity date.
-        data[self.source]["edition"] = f"{self.major_version}.{self.minor_version}"
+        data[self.source]["edition"] = float(f"{self.major_version}.{self.minor_version}")
         data[self.source]["release_date"] = datetime.now().strftime("%Y-%m")
         data[self.source]["validity_date"] = datetime.now().strftime("%Y-%m")
 

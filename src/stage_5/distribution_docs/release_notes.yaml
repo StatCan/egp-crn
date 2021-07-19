@@ -1,65 +1,65 @@
 ab:
   edition: 14.0
+  number_of_kilometers: 237,811
   release_date: 2017-05
   validity_date: 2017-02
-  number_of_kilometers: 237,811
 bc:
   edition: 14.0
+  number_of_kilometers: 93,961
   release_date: 2017-05
   validity_date: 2017-03
-  number_of_kilometers: 93,961
 mb:
   edition: 6.0
+  number_of_kilometers: 89,003
   release_date: 2013-04
   validity_date: 2012-04
-  number_of_kilometers: 89,003
 nb:
-  edition: 10.0
-  release_date: 2020-07
-  validity_date: 2020-05
-  number_of_kilometers: 35,710
+  edition: 11.0
+  number_of_kilometers: 35,743
+  release_date: 2021-06
+  validity_date: 2021-06
 nl:
   edition: 7.0
+  number_of_kilometers: 23,026
   release_date: 2013-04
   validity_date: 2012-09
-  number_of_kilometers: 23,026
-nt:
-  edition: 12.0
-  release_date: 2021-04
-  validity_date: 2020-07
-  number_of_kilometers: 7,752
 ns:
   edition: 13.0
+  number_of_kilometers: 50,266
   release_date: 2016-05
   validity_date: 2016-02
-  number_of_kilometers: 50,266
+nt:
+  edition: 12.0
+  number_of_kilometers: 7,752
+  release_date: 2021-04
+  validity_date: 2020-07
 nu:
   edition: 9.0
+  number_of_kilometers: 927
   release_date: 2021-04
   validity_date: 2020-10
-  number_of_kilometers: 927
-"on":
+'on':
   edition: 13.0
+  number_of_kilometers: 261,714
   release_date: 2020-12
   validity_date: 2020-08
-  number_of_kilometers: 261,714
 pe:
   edition: 20.0
+  number_of_kilometers: 6,988
   release_date: 2021-02
   validity_date: 2021-02
-  number_of_kilometers: 6,988
 qc:
   edition: 9.0
+  number_of_kilometers: 162,768
   release_date: 2016-08
   validity_date: 2016-02
-  number_of_kilometers: 162,768
 sk:
   edition: 11.0
+  number_of_kilometers: 251,860
   release_date: 2020-07
   validity_date: 2020-05
-  number_of_kilometers: 251,860
 yt:
   edition: 16.1
+  number_of_kilometers: 6,406
   release_date: 2021-04
   validity_date: 2020-12
-  number_of_kilometers: 6,406

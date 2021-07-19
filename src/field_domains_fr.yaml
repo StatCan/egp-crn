@@ -284,10 +284,10 @@ tables:
     dirsuffix: *dirprefix
     muniquad:
       0: Aucun
-      1: South-West
-      2: South-East
-      3: North-East
-      4: North-West
+      1: Sud-ouest
+      2: Sud-est
+      3: Nord-east
+      4: Nord-ouest
     nid:
     placename:
     placetype:
@@ -645,6 +645,9 @@ tables:
       266: Valley
       267: Walkway
       268: Wold
+      269: Tili
+      270: Nook
+      271: Drung
     strtysuf: *strtypre
   tollpoint:
     acqtech: *acqtech

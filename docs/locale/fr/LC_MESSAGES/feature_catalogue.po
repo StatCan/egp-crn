@@ -2355,19 +2355,19 @@ msgstr ""
 
 #: ../../feature_catalogue.rst:1085
 msgid "South-West"
-msgstr ""
+msgstr "Sud-ouest"
 
 #: ../../feature_catalogue.rst:1086
 msgid "South-East"
-msgstr ""
+msgstr "Sud-est"
 
 #: ../../feature_catalogue.rst:1087
 msgid "North-East"
-msgstr ""
+msgstr "Nord-est"
 
 #: ../../feature_catalogue.rst:1088
 msgid "North-West"
-msgstr ""
+msgstr "Nord-ouest"
 
 #: ../../feature_catalogue.rst:1102
 msgid "Place Name"
