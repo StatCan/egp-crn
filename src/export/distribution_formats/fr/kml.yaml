@@ -1,0 +1,16 @@
+data:
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_KML/RRN_<source>_<major_version>_<minor_version>_KML_fr
+  file: <name>.kmz
+  driver: KML
+conform:
+  roadseg:
+    name: SegmentRoutier
+    fields:
+      l_adddirfg: sensNumerisationAdresse_Gauche
+      r_adddirfg: sensNumerisationAdresse_Droite
+      nid:        idn
+      l_placenam: nomLieuOfficiel_Gauche
+      r_placenam: nomLieuOfficiel_Droite
+      l_stname_c: nomRueOfficielConcat_Gauche
+      r_stname_c: nomRueOfficielConcat_Droite
+      rtnumber1:  numeroRoute1

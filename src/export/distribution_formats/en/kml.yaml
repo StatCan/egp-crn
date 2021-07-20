@@ -1,0 +1,16 @@
+data:
+  dir: NRN_RRN_<source>_<major_version>_<minor_version>_KML/NRN_<source>_<major_version>_<minor_version>_KML_en
+  file: <name>.kmz
+  driver: KML
+conform:
+  roadseg:
+    name: RoadSegment
+    fields:
+      l_adddirfg: left_AddressDirectionFlag
+      r_adddirfg: right_AddressDirectionFlag
+      nid:        nid
+      l_placenam: left_OfficialPlaceName
+      r_placenam: right_OfficialPlaceName
+      l_stname_c: left_OfficialStreetNameConcat
+      r_stname_c: right_OfficialStreetNameConcat
+      rtnumber1:  routeNumber1
