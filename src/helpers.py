@@ -490,6 +490,19 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         sys.exit(1)
 
 
+def extract_nrn(url: str, source: str) -> Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
+    """
+    Extracts NRN database records for the source into (Geo)DataFrames.
+
+    :param str url: NRN database connection URL.
+    :param str source: abbreviation for the source province / territory.
+    :return Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]: dictionary of NRN dataset names and associated
+        (Geo)DataFrames.
+    """
+
+    # TODO
+
+
 def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Flattens the GeoDataFrame geometry coordinates to 2-dimensions.

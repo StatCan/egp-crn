@@ -44,6 +44,7 @@ class Stage:
         Initializes an NRN stage.
 
         :param str source: abbreviation for the source province / territory.
+        :param str url: PostgreSQL database connection URL.
         :param bool remove: removes pre-existing files within the data/processed directory for the specified source,
             excluding change logs, default False.
         """
@@ -268,6 +269,9 @@ class Stage:
         # Close progress bar.
         export_progress.close()
 
+    def extract_data(self) -> None:
+        """Extracts NRN database records for the source into (Geo)DataFrames."""
+
     def format_path(self, path: Union[Path, str, None]) -> Union[Path, str]:
         """
         Formats a path with class variables: source, major_version, minor_version.
@@ -330,6 +334,9 @@ class Stage:
                 except (AttributeError, KeyError, ValueError):
                     logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
                     sys.exit(1)
+
+    def transform_data(self) -> None:
+        """Transforms datasets from the NRN database schema into the NRN distribution format."""
 
     def update_distribution_docs(self) -> None:
         """
