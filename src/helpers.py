@@ -18,6 +18,7 @@ from osgeo import ogr, osr
 from pathlib import Path
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
+from sqlalchemy import create_engine, exc as sqlalchemy_exc
 from tqdm import tqdm
 from tqdm.auto import trange
 from typing import Any, Dict, List, Tuple, Union
@@ -500,7 +501,90 @@ def extract_nrn(url: str, source: str) -> Dict[str, Union[gpd.GeoDataFrame, pd.D
         (Geo)DataFrames.
     """
 
-    # TODO
+    # Configure code for source.
+    source_name = {"ab": "Alberta", "bc": "British Columbia", "mb": "Manitoba", "nb": "New Brunswick",
+                   "nl": "Newfoundland and Labrador", "ns": "Nova Scotia", "nt": "Northwest Territories",
+                   "nu": "Nunavut", "on": "Ontario", "pe": "Prince Edward Island", "qc": "Quebec", "sk": "Saskatchewan",
+                   "yt": "Yukon Territory"}[source]
+    source_code = {name: code for code, name in
+                   load_yaml(field_domains_path["en"])["tables"]["metadata"]["datasetnam"].items()}[source_name]
+
+    logger.info(f"Extracting NRN datasets for source: {source_name}.")
+
+    # Connect to database.
+    try:
+        con = create_engine(url)
+    except sqlalchemy_exc.SQLAlchemyError as e:
+        logger.exception(f"Unable to connect to NRN database.")
+        logger.exception(e)
+        sys.exit(1)
+
+    # Compile all NRN datasets as single GeoDataFrame.
+    query = f"""
+    SELECT nrn.*,
+           address_range_l.address_range_id AS addrange_l_nid,
+           address_range_l.acquisition_technique AS addrange_l_acqtech,
+           address_range_l.provider AS addrange_l_provider,
+           address_range_l.creation_date AS addrange_l_credate,
+           address_range_l.revision_date AS addrange_l_revdate,
+           address_range_l.first_house_number AS addrange_l_hnumf,
+           address_range_l.first_house_number_suffix AS addrange_l_hnumsuff,
+           address_range_l.first_house_number_type AS addrange_l_hnumtypf,
+           address_range_l.last_house_number AS addrange_l_hnuml,
+           address_range_l.last_house_number_suffix AS addrange_l_hnumsufl,
+           address_range_l.last_house_number_type AS addrange_l_hnumtypl,
+           address_range_l.house_number_structure AS addrange_l_hnumstr,
+           address_range_l.reference_system_indicator AS addrange_l_rfsysind,
+           address_range_r.address_range_id AS addrange_r_nid,
+           address_range_r.acquisition_technique AS addrange_r_acqtech,
+           address_range_r.provider AS addrange_r_provider,
+           address_range_r.creation_date AS addrange_r_credate,
+           address_range_r.revision_date AS addrange_r_revdate,
+           address_range_r.first_house_number AS addrange_r_hnumf,
+           address_range_r.first_house_number_suffix AS addrange_r_hnumsuff,
+           address_range_r.first_house_number_type AS addrange_r_hnumtypf,
+           address_range_r.last_house_number AS addrange_r_hnuml,
+           address_range_r.last_house_number_suffix AS addrange_r_hnumsufl,
+           address_range_r.last_house_number_type AS addrange_r_hnumtypl,
+           address_range_r.house_number_structure AS addrange_r_hnumstr,
+           address_range_r.reference_system_indicator AS addrange_r_rfsysind
+    FROM
+      (SELECT *
+       FROM
+         (SELECT segment.segment_id,
+                 segment.segment_id_left,
+                 segment.segment_id_right,
+                 segment.element_id AS nid,
+                 segment.acquisition_technique AS acqtech,
+                 segment.provider,
+                 segment.creation_date AS credate,
+                 segment.revision_date AS revdate,
+                 segment.segment_type,
+                 segment.geometry,
+                 place_name_l.place_name_id AS strplaname_l_nid,
+                 place_name_l.acquisition_technique AS strplaname_l_acqtech,
+                 place_name_l.provider AS strplaname_l_provider,
+                 place_name_l.creation_date AS strplaname_l_credate,
+                 place_name_l.revision_date AS strplaname_l_revdate,
+                 place_name_l.place_name AS strplaname_l_placename,
+                 place_name_l.place_type AS strplaname_l_placetype,
+                 place_name_l.province AS strplaname_l_province,
+                 place_name_r.place_name_id AS strplaname_r_nid,
+                 place_name_r.acquisition_technique AS strplaname_r_acqtech,
+                 place_name_r.provider AS strplaname_r_provider,
+                 place_name_r.creation_date AS strplaname_r_credate,
+                 place_name_r.revision_date AS strplaname_r_revdate,
+                 place_name_r.place_name AS strplaname_r_placename,
+                 place_name_r.place_type AS strplaname_r_placetype,
+                 place_name_r.province AS strplaname_r_province
+          FROM public.segment segment
+          LEFT JOIN public.place_name place_name_l ON segment.segment_id_left = place_name_l.segment_id
+          LEFT JOIN public.place_name place_name_r ON segment.segment_id_right = place_name_r.segment_id) segment_pr
+       WHERE segment_pr.strplaname_l_province = {source_code} OR segment_pr.strplaname_r_province = {source_code}) nrn
+    LEFT JOIN public.address_range address_range_l ON nrn.segment_id_left = address_range_l.segment_id
+    LEFT JOIN public.address_range address_range_r ON nrn.segment_id_right = address_range_r.segment_id
+    """
+    df = gpd.read_postgis(query, con, geom_col="geometry").copy(deep=True)
 
 
 def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
