@@ -50,6 +50,7 @@ class Stage:
         self.major_version = None
         self.minor_version = None
         self.dframes = dict()
+        self.dframes_raw = dict()
 
         # Configure output path.
         self.output_path = filepath.parents[2] / f"data/processed/{self.source}"
@@ -266,6 +267,8 @@ class Stage:
     def extract_data(self) -> None:
         """Extracts NRN database records for the source into (Geo)DataFrames."""
 
+        self.dframes_raw = helpers.extract_nrn(url=self.url, source=self.source)
+
     def format_path(self, path: Union[Path, str, None]) -> Union[Path, str]:
         """
         Formats a path with class variables: source, major_version, minor_version.
@@ -331,6 +334,10 @@ class Stage:
 
     def transform_data(self) -> None:
         """Transforms datasets from the NRN database schema into the NRN distribution format."""
+
+        logger.info(f"Transforming NRN datasets from database schema to NRN distribution format.")
+
+        #...
 
     def update_distribution_docs(self) -> None:
         """
@@ -477,7 +484,7 @@ class Stage:
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.extract_data() #TODO
+        self.extract_data()
         self.transform_data() #TODO
         self.configure_release_version()
         self.gen_french_dataframes()
