@@ -491,25 +491,17 @@ def export(dataframes: Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]], output_
         sys.exit(1)
 
 
-def extract_nrn(url: str, source: str) -> Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
+def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]:
     """
     Extracts NRN database records for the source into (Geo)DataFrames.
 
     :param str url: NRN database connection URL.
-    :param str source: abbreviation for the source province / territory.
+    :param int source_code: code for the source province / territory.
     :return Dict[str, Union[gpd.GeoDataFrame, pd.DataFrame]]: dictionary of NRN dataset names and associated
         (Geo)DataFrames.
     """
 
-    # Configure code for source.
-    source_name = {"ab": "Alberta", "bc": "British Columbia", "mb": "Manitoba", "nb": "New Brunswick",
-                   "nl": "Newfoundland and Labrador", "ns": "Nova Scotia", "nt": "Northwest Territories",
-                   "nu": "Nunavut", "on": "Ontario", "pe": "Prince Edward Island", "qc": "Quebec", "sk": "Saskatchewan",
-                   "yt": "Yukon Territory"}[source]
-    source_code = {name: code for code, name in
-                   load_yaml(field_domains_path["en"])["tables"]["metadata"]["datasetnam"].items()}[source_name]
-
-    logger.info(f"Extracting NRN datasets for source: {source_name}.")
+    logger.info(f"Extracting NRN datasets for source code: {source_code}.")
 
     # Connect to database.
     try:
@@ -524,7 +516,7 @@ def extract_nrn(url: str, source: str) -> Dict[str, Union[gpd.GeoDataFrame, pd.D
     #       Linkage datasets are joined with their corresponding datasets after being joined to the base dataset.
     #       Some parity linkages only use the right-side value since the NRN only supports one value for that attribute.
     queries = {
-        "nrn":
+        "roadseg":
             f"""
             -- Create temporary tables (subqueries to be reused).
             
@@ -636,11 +628,6 @@ def extract_nrn(url: str, source: str) -> Dict[str, Union[gpd.GeoDataFrame, pd.D
                    road_surface_type.road_surface_type AS road_surface_type,
                    structure_link.structure_id AS structid,
                    traffic_direction.traffic_direction AS trafficdir,
-                   address_range_l.address_range_id AS addrange_l_nid,
-                   address_range_l.acquisition_technique AS addrange_l_acqtech,
-                   address_range_l.provider AS addrange_l_provider,
-                   address_range_l.creation_date AS addrange_l_credate,
-                   address_range_l.revision_date AS addrange_l_revdate,
                    address_range_l.first_house_number AS addrange_l_hnumf,
                    address_range_l.first_house_number_suffix AS addrange_l_hnumsuff,
                    address_range_l.first_house_number_type AS addrange_l_hnumtypf,
@@ -649,11 +636,11 @@ def extract_nrn(url: str, source: str) -> Dict[str, Union[gpd.GeoDataFrame, pd.D
                    address_range_l.last_house_number_type AS addrange_l_hnumtypl,
                    address_range_l.house_number_structure AS addrange_l_hnumstr,
                    address_range_l.reference_system_indicator AS addrange_l_rfsysind,
-                   address_range_r.address_range_id AS addrange_r_nid,
-                   address_range_r.acquisition_technique AS addrange_r_acqtech,
-                   address_range_r.provider AS addrange_r_provider,
-                   address_range_r.creation_date AS addrange_r_credate,
-                   address_range_r.revision_date AS addrange_r_revdate,
+                   address_range_r.address_range_id AS addrange_nid,
+                   address_range_r.acquisition_technique AS addrange_acqtech,
+                   address_range_r.provider AS addrange_provider,
+                   address_range_r.creation_date AS addrange_credate,
+                   address_range_r.revision_date AS addrange_revdate,
                    address_range_r.first_house_number AS addrange_r_hnumf,
                    address_range_r.first_house_number_suffix AS addrange_r_hnumsuff,
                    address_range_r.first_house_number_type AS addrange_r_hnumtypf,

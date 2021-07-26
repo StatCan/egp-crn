@@ -11,7 +11,6 @@ from collections import Counter
 from datetime import datetime
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from sqlalchemy import create_engine
 from tqdm import tqdm
 from tqdm.auto import trange
 from typing import Union
@@ -79,7 +78,7 @@ class Stage:
 
         # Configure field defaults and domains.
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
-        self.domains = helpers.compile_domains(mapped_lang="fr")
+        self.domains = {lang: helpers.compile_domains(mapped_lang=lang) for lang in ("en", "fr")}
 
         # Configure export formats.
         distribution_formats_path = filepath.parent / "distribution_formats"
@@ -92,6 +91,13 @@ class Stage:
         # Define custom progress bar format.
         # Note: the only change from default is moving the percentage to the right end of the progress bar.
         self.bar_format = "{desc}: |{bar}| {percentage:3.0f}% {r_bar}"
+
+        # Configure source name and code.
+        self.source_name = {"ab": "Alberta", "bc": "British Columbia", "mb": "Manitoba", "nb": "New Brunswick",
+                            "nl": "Newfoundland and Labrador", "ns": "Nova Scotia", "nt": "Northwest Territories",
+                            "nu": "Nunavut", "on": "Ontario", "pe": "Prince Edward Island", "qc": "Quebec",
+                            "sk": "Saskatchewan", "yt": "Yukon Territory"}[source]
+        self.source_code = self.domains["en"]["metadata"]["datasetnam"]["lookup"][self.source_name]
 
     def configure_release_version(self) -> None:
         """Configures the major and minor release versions for the current NRN vintage."""
@@ -267,7 +273,7 @@ class Stage:
     def extract_data(self) -> None:
         """Extracts NRN database records for the source into (Geo)DataFrames."""
 
-        self.dframes_raw = helpers.extract_nrn(url=self.url, source=self.source)
+        self.dframes_raw = helpers.extract_nrn(url=self.url, source_code=self.source_code)
 
     def format_path(self, path: Union[Path, str, None]) -> Union[Path, str]:
         """
@@ -317,8 +323,8 @@ class Stage:
                     series = df[field].copy(deep=True)
 
                     # Translate domain values.
-                    if field in self.domains[table]:
-                        series = helpers.apply_domain(series, self.domains[table][field]["lookup"],
+                    if field in self.domains["fr"][table]:
+                        series = helpers.apply_domain(series, self.domains["fr"][table][field]["lookup"],
                                                       self.defaults["fr"][table][field])
 
                     # Translate default values and Nones.
@@ -337,7 +343,143 @@ class Stage:
 
         logger.info(f"Transforming NRN datasets from database schema to NRN distribution format.")
 
-        #...
+        # Configure derived and supplemental (not stored in database) attribution.
+        logger.info(f"Configuring derived and supplemental attribution.")
+
+        # Add supplemental metadata attribution (metadata attributes not stored in database).
+        for layer, df in self.dframes_raw.items():
+            df["metacover"] = self.defaults["en"][layer]["metacover"]
+            df["datasetnam"] = self.source_code
+            df["specvers"] = 2.0
+            self.dframes_raw[layer] = df.copy(deep=True)
+
+        # Add supplemental attribution - ferrysegid.
+        self.dframes_raw["roadseg"]["ferrysegid"] = None
+        flag = self.dframes_raw["roadseg"]["segment_type"] == 2
+        self.dframes_raw["roadseg"].loc[flag, "ferrysegid"] = range(1, len(self.dframes_raw["roadseg"].loc[flag]) + 1)
+
+        # Add supplemental attribution - roadsegid.
+        self.dframes_raw["roadseg"]["roadsegid"] = None
+        flag = self.dframes_raw["roadseg"]["segment_type"] == 1
+        self.dframes_raw["roadseg"].loc[flag, "roadsegid"] = range(1, len(self.dframes_raw["roadseg"].loc[flag]) + 1)
+
+        # Add supplemental attribution - Default and None values.
+        self.dframes_raw["roadseg"]["muniquad"] = self.defaults["en"]["strplaname"]["muniquad"]
+        self.dframes_raw["roadseg"]["l_altnanid"] = "None"
+        self.dframes_raw["roadseg"]["r_altnanid"] = "None"
+
+        # Add derived attribution - digdirfg.
+        df = self.dframes_raw["roadseg"].copy(deep=True)
+        for prefix in ("l", "r"):
+            field = f"{prefix}_digdirfg"
+            df[field] = self.defaults["en"]["addrange"][field]
+
+            # Value: Not Applicable.
+            flag_not_applicable = (df[f"{prefix}_hnumf"].isna()) | (df[f"{prefix}_hnumf"].isin({-1, 0})) | \
+                                  (df[f"{prefix}_hnuml"].isna()) | (df[f"{prefix}_hnuml"].isin({-1, 0})) | \
+                                  (df[f"{prefix}_hnumf"] == df[f"{prefix}_hnuml"])
+            df.loc[flag, field] = "Not Applicable"
+
+            # Values: Same Direction / Opposite Direction.
+            # TODO
+
+        # Concatenated route number attribution.
+        for i in range(1, 5 + 1):
+            flag = ~((self.dframes_raw["roadseg"][f"rtnumber{i}_alpha"] == "None") |
+                     (self.dframes_raw["roadseg"][f"rtnumber{i}_alpha"].isna()))
+            self.dframes_raw["roadseg"].loc[flag, f"rtnumber{i}"] = (
+                    self.dframes_raw["roadseg"].loc[flag, f"rtnumber{i}"].map(int).map(str) +
+                    self.dframes_raw["roadseg"].loc[flag, f"rtnumber{i}_alpha"].map(str)
+            ).copy(deep=True)
+
+        # Transform dataset: ferryseg.
+        if 2 in set(self.dframes_raw["roadseg"]["segment_type"]):
+            logger.info("Transforming dataset: ferryseg.")
+
+            # Extract records.
+            ferryseg = self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 2, [
+                "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers",
+                "closing", "ferrysegid", "roadclass", "nid", "rtename1en", "rtename2en", "rtename3en", "rtename4en",
+                "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr", "rtnumber1", "rtnumber2", "rtnumber3",
+                "rtnumber4", "rtnumber5", "geometry"]].copy(deep=True)
+            ferryseg.reset_index(drop=True, inplace=True)
+
+            # Store dataset.
+            self.dframes["ferryseg"] = ferryseg.copy(deep=True)
+
+        # Transform dataset: strplaname.
+        logger.info("Transforming dataset: strplaname.")
+
+        # Extract records.
+        strplaname = pd.DataFrame().append([
+            self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 1, [
+                "strplaname_l_acqtech", "metacover", "strplaname_l_credate", "datasetnam", "accuracy",
+                "strplaname_l_provider", "strplaname_l_revdate", "specvers", "strplaname_l_dirprefix",
+                "strplaname_l_dirsuffix", "muniquad", "segment_id_left", "strplaname_l_placename",
+                "strplaname_l_placetype", "strplaname_l_province", "strplaname_l_starticle", "strplaname_l_namebody",
+                "strplaname_l_strtypre", "strplaname_l_strtysuf"]
+            ].rename(columns={
+                "strplaname_l_acqtech": "acqtech", "strplaname_l_credate": "credate", 
+                "strplaname_l_provider": "provider", "strplaname_l_revdate": "revdate",
+                "strplaname_l_dirprefix": "dirprefix", "strplaname_l_dirsuffix": "dirsuffix", "segment_id_left": "nid", 
+                "strplaname_l_placename": "placename", "strplaname_l_placetype": "placetype", 
+                "strplaname_l_province": "province", "strplaname_l_starticle": "starticle", 
+                "strplaname_l_namebody": "namebody", "strplaname_l_strtypre": "strtypre", 
+                "strplaname_l_strtysuf": "strtysuf"}),
+            self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 1, [
+                "strplaname_r_acqtech", "metacover", "strplaname_r_credate", "datasetnam", "accuracy",
+                "strplaname_r_provider", "strplaname_r_revdate", "specvers", "strplaname_r_dirprefix",
+                "strplaname_r_dirsuffix", "muniquad", "segment_id_right", "strplaname_r_placename",
+                "strplaname_r_placetype", "strplaname_r_province", "strplaname_r_starticle", "strplaname_r_namebody",
+                "strplaname_r_strtypre", "strplaname_r_strtysuf"]
+            ].rename(columns={
+                "strplaname_r_acqtech": "acqtech", "strplaname_r_credate": "credate",
+                "strplaname_r_provider": "provider", "strplaname_r_revdate": "revdate",
+                "strplaname_r_dirprefix": "dirprefix", "strplaname_r_dirsuffix": "dirsuffix", "segment_id_right": "nid",
+                "strplaname_r_placename": "placename", "strplaname_r_placetype": "placetype",
+                "strplaname_r_province": "province", "strplaname_r_starticle": "starticle",
+                "strplaname_r_namebody": "namebody", "strplaname_r_strtypre": "strtypre",
+                "strplaname_r_strtysuf": "strtysuf"})]).copy(deep=True)
+        strplaname.reset_index(drop=True, inplace=True)
+
+        # Store dataset.
+        self.dframes["strplaname"] = strplaname.copy(deep=True)
+
+        # Transform dataset: addrange.
+        logger.info("Transforming dataset: addrange.")
+
+        # Extract records.
+        addrange = self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 1, [
+            "addrange_acqtech", "metacover", "addrange_credate", "datasetnam", "accuracy", "addrange_provider",
+            "addrange_revdate", "specvers", "addrange_l_hnumf", "addrange_r_hnumf", "addrange_l_hnumsuff",
+            "addrange_r_hnumsuff", "addrange_l_hnumtypf", "addrange_r_hnumtypf", "addrange_l_hnumstr",
+            "addrange_r_hnumstr", "addrange_l_hnuml", "addrange_r_hnuml", "addrange_l_hnumsufl", "addrange_r_hnumsufl",
+            "addrange_l_hnumtypl", "addrange_r_hnumtypl", "addrange_nid", "segment_id_left", "segment_id_right",
+            "addrange_l_rfsysind", "addrange_r_rfsysind"]
+        ].rename(columns={
+            "addrange_acqtech": "acqtech", "addrange_credate": "credate", "addrange_provider": "provider",
+            "addrange_revdate": "revdate", "addrange_l_hnumf": "l_hnumf", "addrange_r_hnumf": "r_hnumf",
+            "addrange_l_hnumsuff": "l_hnumsuff", "addrange_r_hnumsuff": "r_hnumsuff",
+            "addrange_l_hnumtypf": "l_hnumtypf", "addrange_r_hnumtypf": "r_hnumtypf", "addrange_l_hnumstr": "l_hnumstr",
+            "addrange_r_hnumstr": "r_hnumstr", "addrange_l_hnuml": "l_hnuml", "addrange_r_hnuml": "r_hnuml",
+            "addrange_l_hnumsufl": "l_hnumsufl", "addrange_r_hnumsufl": "r_hnumsufl",
+            "addrange_l_hnumtypl": "l_hnumtypl", "addrange_r_hnumtypl": "r_hnumtypl", "addrange_nid": "nid",
+            "segment_id_left": "l_offnanid", "segment_id_right": "r_offnanid", "addrange_l_rfsysind": "l_rfsysind",
+            "addrange_r_rfsysind": "r_rfsysind"}).copy(deep=True)
+        addrange.reset_index(drop=True, inplace=True)
+
+        # Apply domain restrictions to convert from codes to values and nulls to default values.
+        logger.info(f"Applying field domains.")
+
+        for table, df in self.dframes.items():
+            logger.info(f"Applying domain to table: {table}.")
+            for field, domain in self.domains["en"][table].items():
+
+                # Apply domain to series, store results.
+                self.dframes[table][field] = helpers.apply_domain(
+                    df[field], domain=domain["lookup"], default=self.defaults["en"][table][field]).copy(deep=True)
+
+                # TODO: Enforce dtypes.
 
     def update_distribution_docs(self) -> None:
         """
