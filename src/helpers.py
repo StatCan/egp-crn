@@ -21,7 +21,7 @@ from shapely.wkt import loads
 from sqlalchemy import create_engine, exc as sqlalchemy_exc
 from tqdm import tqdm
 from tqdm.auto import trange
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Type, Union
 
 
 # Set logger.
@@ -113,6 +113,28 @@ def apply_domain(series: pd.Series, domain: dict, default: Any) -> pd.Series:
         # Convert empty strings and null types to default.
         series.loc[(series.map(str).isin(["", "nan"])) | (series.isna())] = default
         return series
+
+
+def cast_dtype(val: Any, dtype: Type, default: Any) -> Any:
+    """
+    Casts the value to the given numpy dtype.
+    Returns the default parameter for invalid or Null values.
+
+    :param Any val: value.
+    :param Type dtype: numpy type object to be casted to.
+    :param Any default: value to be returned in case of error.
+    :return Any: casted or default value.
+    """
+
+    try:
+
+        if pd.isna(val) or val == "":
+            return default
+        else:
+            return itemgetter(0)(np.array([val]).astype(dtype))
+
+    except (TypeError, ValueError):
+        return default
 
 
 def compile_default_values(lang: str = "en") -> dict:
@@ -626,7 +648,10 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
                    exit_number.exit_number_alpha AS exitnbr_alpha,
                    functional_road_class.functional_road_class AS roadclass,
                    road_surface_type.road_surface_type AS road_surface_type,
-                   structure_link.structure_id AS structid,
+                   structure_source.structid,
+                   structure_source.structtype,
+                   structure_source.strunameen,
+                   structure_source.strunamefr,
                    traffic_direction.traffic_direction AS trafficdir,
                    address_range_l.first_house_number AS addrange_l_hnumf,
                    address_range_l.first_house_number_suffix AS addrange_l_hnumsuff,
@@ -719,11 +744,22 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
                   LEFT JOIN public.place_name place_name_r ON segment.segment_id_right = place_name_r.segment_id) segment_source
                WHERE segment_source.strplaname_l_province = {source_code} OR segment_source.strplaname_r_province = {source_code}) nrn
                
+            -- Join with all linked datasets.
             LEFT JOIN public.closing_period closing_period ON nrn.segment_id = closing_period.segment_id
             LEFT JOIN public.exit_number exit_number ON nrn.segment_id = exit_number.segment_id
             LEFT JOIN public.functional_road_class functional_road_class ON nrn.segment_id = functional_road_class.segment_id
             LEFT JOIN public.road_surface_type road_surface_type ON nrn.segment_id = road_surface_type.segment_id
-            LEFT JOIN public.structure_link structure_link ON nrn.segment_id = structure_link.segment_id
+            
+            LEFT JOIN
+              (SELECT structure_link.segment_id,
+                      structure_link.structure_id AS structid,
+                      structure.structure_type AS structtype,
+                      structure.structure_name_en AS strunameen,
+                      structure.structure_name_fr AS strunamefr
+               FROM public.structure_link
+               LEFT JOIN public.structure structure ON structure_link.structure_id = structure.structure_id) structure_source
+            ON nrn.segment_id = structure_source.segment_id
+            
             LEFT JOIN public.traffic_direction traffic_direction ON nrn.segment_id = traffic_direction.segment_id
             LEFT JOIN public.address_range address_range_l ON nrn.segment_id_left = address_range_l.segment_id
             LEFT JOIN public.address_range address_range_r ON nrn.segment_id_right = address_range_r.segment_id

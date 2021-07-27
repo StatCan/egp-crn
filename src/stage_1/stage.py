@@ -15,7 +15,7 @@ from copy import deepcopy
 from datetime import datetime
 from operator import itemgetter
 from pathlib import Path
-from typing import Any, List, Type, Union
+from typing import List, Union
 
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(filepath.parents[1]))
@@ -104,27 +104,6 @@ class Stage:
     def apply_domains(self) -> None:
         """Applies domain restrictions to each column in the target (Geo)DataFrames."""
 
-        def cast_dtype(val: Any, dtype: Type, default: Any) -> Any:
-            """
-            Casts the value to the given numpy dtype.
-            Returns the default parameter for invalid or Null values.
-
-            :param Any val: value.
-            :param Type dtype: numpy type object to be casted to.
-            :param Any default: value to be returned in case of error.
-            :return Any: casted or default value.
-            """
-
-            try:
-
-                if pd.isna(val) or val == "":
-                    return default
-                else:
-                    return itemgetter(0)(np.array([val]).astype(dtype))
-
-            except (TypeError, ValueError):
-                return default
-
         logger.info("Applying field domains.")
         table = None
         field = None
@@ -148,7 +127,8 @@ class Stage:
                     dtype_new = self.dtypes[table][field]
 
                     # Force adjust data type.
-                    series_new = series_new.map(lambda val: cast_dtype(val, dtype_new, self.defaults[table][field]))
+                    series_new = series_new.map(lambda val: helpers.cast_dtype(val, dtype=dtype_new,
+                                                                               default=self.defaults[table][field]))
 
                     # Store results to target dataframe.
                     self.target_gdframes[table][field] = series_new.copy(deep=True)
