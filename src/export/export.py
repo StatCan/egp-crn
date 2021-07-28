@@ -76,10 +76,9 @@ class Stage:
                                  "remove=True (-r) or manually clear the output namespace.")
                 sys.exit(1)
 
-        # Configure field defaults, domains, and dtypes.
+        # Configure field defaults and domains.
         self.defaults = {lang: helpers.compile_default_values(lang=lang) for lang in ("en", "fr")}
         self.domains = {lang: helpers.compile_domains(mapped_lang=lang) for lang in ("en", "fr")}
-        self.dtypes = helpers.compile_dtypes()
 
         # Configure export formats.
         distribution_formats_path = filepath.parent / "distribution_formats"
@@ -340,209 +339,6 @@ class Stage:
                     logger.exception(f"Unable to apply French translations for table: {table}, field: {field}.")
                     sys.exit(1)
 
-    def transform_data(self) -> None:
-        """Transforms datasets from the NRN database schema into the NRN distribution format."""
-
-        logger.info(f"Transforming NRN datasets from database schema to NRN distribution format.")
-
-        # Configure derived and supplemental (not stored in database) attribution.
-        logger.info(f"Configuring derived and supplemental attribution.")
-
-        # Add supplemental metadata attribution.
-        for layer, df in self.dframes_raw.items():
-            df["datasetnam"] = self.source_code
-            df["metacover"] = self.defaults["en"][layer]["metacover"]
-            df["specvers"] = 2.0
-            self.dframes_raw[layer] = df.copy(deep=True)
-
-        # Add supplemental attribution - roadsegid.
-        flag = self.dframes_raw["roadseg"]["segment_type"] == 1
-        self.dframes_raw["roadseg"].loc[flag, "roadsegid"] = range(1, len(self.dframes_raw["roadseg"].loc[flag]) + 1)
-
-        # Add supplemental attribution - ferrysegid.
-        flag = self.dframes_raw["roadseg"]["segment_type"] == 2
-        self.dframes_raw["roadseg"].loc[flag, "ferrysegid"] = range(1, len(self.dframes_raw["roadseg"].loc[flag]) + 1)
-
-        # Add supplemental attribution - Default and None values.
-        self.dframes_raw["roadseg"]["muniquad"] = self.defaults["en"]["strplaname"]["muniquad"]
-        self.dframes_raw["roadseg"]["addrange_l_altnanid"] = "None"
-        self.dframes_raw["roadseg"]["addrange_r_altnanid"] = "None"
-
-        # Add derived attribution - digdirfg.
-        df = self.dframes_raw["roadseg"].copy(deep=True)
-        for prefix in ("addrange_l", "addrange_r"):
-            field = f"{prefix}_digdirfg"
-            df[field] = self.defaults["en"]["addrange"][field]
-
-            # Value: Not Applicable.
-            flag_not_applicable = (df[f"{prefix}_hnumf"].isna()) | (df[f"{prefix}_hnumf"].isin({-1, 0})) | \
-                                  (df[f"{prefix}_hnuml"].isna()) | (df[f"{prefix}_hnuml"].isin({-1, 0})) | \
-                                  (df[f"{prefix}_hnumf"] == df[f"{prefix}_hnuml"])
-            df.loc[flag_not_applicable, field] = "Not Applicable"
-
-            # Values: Same Direction / Opposite Direction.
-            df.loc[~flag_not_applicable, field] = pd.Series(
-                df.loc[~flag_not_applicable, f"{prefix}_hnumf"] < df.loc[~flag_not_applicable, f"{prefix}_hnuml"])\
-                .map({True: "Same Direction", False: "Opposite Direction"})
-
-        # Store results.
-        self.dframes_raw["roadseg"] = df.copy(deep=True)
-
-        # Add derived attribution - pavstatus, pavsurf, unpavsurf.
-        self.dframes_raw["roadseg"][["pavstatus", "pavsurf", "unpavsurf"]] = \
-            self.dframes_raw["roadseg"]["road_surface_type"].map({
-                -1: [self.defaults["en"]["roadseg"][col] for col in ("pavstatus", "pavsurf", "unpavsurf")],
-                1: ["Paved", "Rigid", "None"],
-                2: ["Paved", "Flexible", "None"],
-                3: ["Paved", "Blocks", "None"],
-                4: ["Unpaved", "None", "Gravel"],
-                5: ["Unpaved", "None", "Dirt"],
-                6: ["Paved", self.defaults["en"]["roadseg"]["pavsurf"], "None"],
-                7: ["Unpaved", "None", self.defaults["en"]["roadseg"]["unpavsurf"]]
-            }).copy(deep=True)
-
-        # Resolve addrange.nid / adrangenid for segments without address linkages.
-        flag = self.dframes_raw["roadseg"]["addrange_nid"].isna()
-        self.dframes_raw["roadseg"].loc[flag, "addrange_nid"] = self.dframes_raw["roadseg"].loc[flag, "segment_id"]
-
-        # Concatenate exit number attribution.
-        flag = ~((self.dframes_raw["roadseg"]["exitnbr_alpha"] == "None") |
-                 (self.dframes_raw["roadseg"]["exitnbr_alpha"].isna()))
-        self.dframes_raw["roadseg"].loc[flag, "exitnbr"] = (
-                self.dframes_raw["roadseg"].loc[flag, "exitnbr"].map(int).map(str) +
-                self.dframes_raw["roadseg"].loc[flag, "exitnbr_alpha"].map(str)
-        ).copy(deep=True)
-
-        # Concatenate route number attribution.
-        for i in range(1, 5 + 1):
-            flag = ~((self.dframes_raw["roadseg"][f"rtnumber{i}_alpha"] == "None") |
-                     (self.dframes_raw["roadseg"][f"rtnumber{i}_alpha"].isna()))
-            self.dframes_raw["roadseg"].loc[flag, f"rtnumber{i}"] = (
-                    self.dframes_raw["roadseg"].loc[flag, f"rtnumber{i}"].map(int).map(str) +
-                    self.dframes_raw["roadseg"].loc[flag, f"rtnumber{i}_alpha"].map(str)
-            ).copy(deep=True)
-
-        # Transform dataset: ferryseg.
-        if 2 in set(self.dframes_raw["roadseg"]["segment_type"]):
-            logger.info("Transforming dataset: ferryseg.")
-
-            # Extract records.
-            ferryseg = self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 2, [
-                "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers",
-                "closing", "ferrysegid", "roadclass", "nid", "rtename1en", "rtename2en", "rtename3en", "rtename4en",
-                "rtename1fr", "rtename2fr", "rtename3fr", "rtename4fr", "rtnumber1", "rtnumber2", "rtnumber3",
-                "rtnumber4", "rtnumber5", "geometry"]].copy(deep=True)
-            ferryseg.reset_index(drop=True, inplace=True)
-
-            # Store dataset.
-            self.dframes["ferryseg"] = ferryseg.copy(deep=True)
-
-        # Transform dataset: roadseg.
-        logger.info("Transforming dataset: roadseg.")
-
-        # Extract records.
-        roadseg = self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 1, [
-            "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers",
-            "addrange_l_digdirfg", "addrange_r_digdirfg", "addrange_nid", "closing", "exitnbr", "addrange_l_hnumf",
-            "addrange_r_hnumf", "roadclass", "addrange_l_hnuml", "addrange_r_hnuml", "nid", "nbrlanes",
-            "strplaname_l_placename", "strplaname_r_placename", "l_stname_c", "r_stname_c", "pavsurf", "pavstatus",
-            "roadjuris", "roadsegid", "rtename1en", "rtename2en", "rtename3en", "rtename4en", "rtename1fr",
-            "rtename2fr", "rtename3fr", "rtename4fr", "rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5",
-            "speed", "strunameen", "strunamefr", "structid", "structtype", "trafficdir", "unpavsurf", "geometry"]
-        ].rename(columns={
-            "addrange_l_digdirfg": "l_adddirfg", "addrange_r_digdirfg": "r_adddirfg", "addrange_nid": "adrangenid",
-            "addrange_l_hnumf": "l_hnumf", "addrange_r_hnumf": "r_hnumf", "addrange_l_hnuml": "l_hnuml",
-            "addrange_r_hnuml": "r_hnuml", "strplaname_l_placename": "l_placenam",
-            "strplaname_r_placename": "r_placenam"}).copy(deep=True)
-        roadseg.reset_index(drop=True, inplace=True)
-
-        # Store dataset.
-        self.dframes["roadseg"] = roadseg.copy(deep=True)
-
-        # Transform dataset: strplaname.
-        logger.info("Transforming dataset: strplaname.")
-
-        # Extract records.
-        strplaname = pd.DataFrame().append([
-            self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 1, [
-                "strplaname_l_acqtech", "metacover", "strplaname_l_credate", "datasetnam", "accuracy",
-                "strplaname_l_provider", "strplaname_l_revdate", "specvers", "strplaname_l_dirprefix",
-                "strplaname_l_dirsuffix", "muniquad", "segment_id_left", "strplaname_l_placename",
-                "strplaname_l_placetype", "strplaname_l_province", "strplaname_l_starticle", "strplaname_l_namebody",
-                "strplaname_l_strtypre", "strplaname_l_strtysuf"]
-            ].rename(columns={
-                "strplaname_l_acqtech": "acqtech", "strplaname_l_credate": "credate", 
-                "strplaname_l_provider": "provider", "strplaname_l_revdate": "revdate",
-                "strplaname_l_dirprefix": "dirprefix", "strplaname_l_dirsuffix": "dirsuffix", "segment_id_left": "nid", 
-                "strplaname_l_placename": "placename", "strplaname_l_placetype": "placetype", 
-                "strplaname_l_province": "province", "strplaname_l_starticle": "starticle", 
-                "strplaname_l_namebody": "namebody", "strplaname_l_strtypre": "strtypre", 
-                "strplaname_l_strtysuf": "strtysuf"}),
-            self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 1, [
-                "strplaname_r_acqtech", "metacover", "strplaname_r_credate", "datasetnam", "accuracy",
-                "strplaname_r_provider", "strplaname_r_revdate", "specvers", "strplaname_r_dirprefix",
-                "strplaname_r_dirsuffix", "muniquad", "segment_id_right", "strplaname_r_placename",
-                "strplaname_r_placetype", "strplaname_r_province", "strplaname_r_starticle", "strplaname_r_namebody",
-                "strplaname_r_strtypre", "strplaname_r_strtysuf"]
-            ].rename(columns={
-                "strplaname_r_acqtech": "acqtech", "strplaname_r_credate": "credate",
-                "strplaname_r_provider": "provider", "strplaname_r_revdate": "revdate",
-                "strplaname_r_dirprefix": "dirprefix", "strplaname_r_dirsuffix": "dirsuffix", "segment_id_right": "nid",
-                "strplaname_r_placename": "placename", "strplaname_r_placetype": "placetype",
-                "strplaname_r_province": "province", "strplaname_r_starticle": "starticle",
-                "strplaname_r_namebody": "namebody", "strplaname_r_strtypre": "strtypre",
-                "strplaname_r_strtysuf": "strtysuf"})]).copy(deep=True)
-        strplaname.reset_index(drop=True, inplace=True)
-
-        # Store dataset.
-        self.dframes["strplaname"] = strplaname.copy(deep=True)
-
-        # Transform dataset: addrange.
-        logger.info("Transforming dataset: addrange.")
-
-        # Extract records.
-        addrange = self.dframes_raw["roadseg"].loc[self.dframes_raw["roadseg"]["segment_type"] == 1, [
-            "addrange_acqtech", "metacover", "addrange_credate", "datasetnam", "accuracy", "addrange_provider",
-            "addrange_revdate", "specvers", "addrange_l_altnanid", "addrange_r_altnanid", "addrange_l_digdirfg",
-            "addrange_r_digdirfg", "addrange_l_hnumf", "addrange_r_hnumf", "addrange_l_hnumsuff", "addrange_r_hnumsuff",
-            "addrange_l_hnumtypf", "addrange_r_hnumtypf", "addrange_l_hnumstr", "addrange_r_hnumstr",
-            "addrange_l_hnuml", "addrange_r_hnuml", "addrange_l_hnumsufl", "addrange_r_hnumsufl", "addrange_l_hnumtypl",
-            "addrange_r_hnumtypl", "addrange_nid", "segment_id_left", "segment_id_right", "addrange_l_rfsysind",
-            "addrange_r_rfsysind"]
-        ].rename(columns={
-            "addrange_acqtech": "acqtech", "addrange_credate": "credate", "addrange_provider": "provider",
-            "addrange_revdate": "revdate", "addrange_l_altnanid": "l_altnanid", "addrange_r_altnanid": "r_altnanid",
-            "addrange_l_digdirfg": "l_digdirfg", "addrange_r_digdirfg": "r_digdirfg", "addrange_l_hnumf": "l_hnumf",
-            "addrange_r_hnumf": "r_hnumf", "addrange_l_hnumsuff": "l_hnumsuff", "addrange_r_hnumsuff": "r_hnumsuff",
-            "addrange_l_hnumtypf": "l_hnumtypf", "addrange_r_hnumtypf": "r_hnumtypf", "addrange_l_hnumstr": "l_hnumstr",
-            "addrange_r_hnumstr": "r_hnumstr", "addrange_l_hnuml": "l_hnuml", "addrange_r_hnuml": "r_hnuml",
-            "addrange_l_hnumsufl": "l_hnumsufl", "addrange_r_hnumsufl": "r_hnumsufl",
-            "addrange_l_hnumtypl": "l_hnumtypl", "addrange_r_hnumtypl": "r_hnumtypl", "addrange_nid": "nid",
-            "segment_id_left": "l_offnanid", "segment_id_right": "r_offnanid", "addrange_l_rfsysind": "l_rfsysind",
-            "addrange_r_rfsysind": "r_rfsysind"}).copy(deep=True)
-        addrange.reset_index(drop=True, inplace=True)
-
-        # Store dataset.
-        self.dframes["addrange"] = addrange.copy(deep=True)
-
-        # Apply domain restrictions to convert from codes to values and nulls to default values.
-        logger.info(f"Applying field domains.")
-
-        for table, df in self.dframes.items():
-            logger.info(f"Applying domain to table: {table}.")
-            for field, domain in self.domains["en"][table].items():
-
-                # Apply domain to series.
-                series = helpers.apply_domain(df[field], domain=domain["lookup"],
-                                              default=self.defaults["en"][table][field])
-
-                # Force adjust data type.
-                series = series.map(lambda val: helpers.cast_dtype(val, dtype=self.dtypes[table][field],
-                                                                   default=self.defaults[table][field]))
-
-                # Store result.
-                self.dframes[table][field] = series.copy(deep=True)
-
     def update_distribution_docs(self) -> None:
         """
         Writes updated documentation to data/processed for:
@@ -689,7 +485,6 @@ class Stage:
         """Executes an NRN stage."""
 
         self.extract_data()
-        self.transform_data()
         self.configure_release_version()
         self.gen_french_dataframes()
         self.define_kml_groups()

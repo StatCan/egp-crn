@@ -11,6 +11,7 @@ import requests
 import sqlite3
 import sys
 import time
+import uuid
 import yaml
 from collections import defaultdict
 from operator import attrgetter, itemgetter
@@ -778,9 +779,12 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
             LEFT JOIN street_name street_name_l ON nrn.segment_id_left = street_name_l.segment_id
             LEFT JOIN street_name street_name_r ON nrn.segment_id_right = street_name_r.segment_id
             """,
+        # TODO
         "blkpassage":
             f"""
             """,
+        # TODO
+        # TODO: upload new nrn.sql and data model pdf to drive and github issue. Also backup new 7z files to drive.
         "tollpoint":
             f"""
             """
@@ -796,6 +800,211 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
         # Store non-empty datasets.
         if len(df):
             dfs[layer] = df.copy(deep=True)
+
+    # Configure derived and supplemental (not stored in database) attribution.
+    logger.info(f"Configuring derived and supplemental attribution.")
+
+    # Compile field defaults, domains, and dtypes.
+    defaults = compile_default_values(lang="en")
+    domains = compile_domains(mapped_lang="en")
+    dtypes = compile_dtypes()
+
+    # Apply universal attribution modifications (non-dataset specific).
+    for layer in dfs:
+
+        # Convert UUID columns to string.
+        for col in filter(lambda c: isinstance(dfs[layer][col].iloc[0], uuid.UUID), dfs[layer].columns):
+            dfs[layer][col] = dfs[layer][col].map(attrgetter("hex")).copy(deep=True)
+
+        # Add supplemental metadata attribution.
+        dfs[layer]["datasetnam"] = source_code
+        dfs[layer]["metacover"] = defaults[layer]["metacover"]
+        dfs[layer]["specvers"] = 2.0
+
+    # Add supplemental attribution - roadsegid.
+    flag = dfs["roadseg"]["segment_type"] == 1
+    dfs["roadseg"].loc[flag, "roadsegid"] = range(1, sum(flag) + 1)
+
+    # Add supplemental attribution - ferrysegid.
+    flag = dfs["roadseg"]["segment_type"] == 2
+    dfs["roadseg"].loc[flag, "ferrysegid"] = range(1, sum(flag) + 1)
+
+    # Add supplemental attribution - default and "None" values.
+    dfs["roadseg"]["muniquad"] = defaults["strplaname"]["muniquad"]
+    dfs["roadseg"]["addrange_l_altnanid"] = "None"
+    dfs["roadseg"]["addrange_r_altnanid"] = "None"
+
+    # Add derived attribution - digdirfg.
+    for prefix in ("addrange_l", "addrange_r"):
+        field = f"{prefix}_digdirfg"
+        dfs["roadseg"][field] = defaults["addrange"]["l_digdirfg"]
+
+        # Assign value: "Not Applicable".
+        flag_na = (dfs["roadseg"][f"{prefix}_hnumf"].isna()) | (dfs["roadseg"][f"{prefix}_hnumf"].isin({-1, 0})) | \
+                  (dfs["roadseg"][f"{prefix}_hnuml"].isna()) | (dfs["roadseg"][f"{prefix}_hnuml"].isin({-1, 0})) | \
+                  (dfs["roadseg"][f"{prefix}_hnumf"] == dfs["roadseg"][f"{prefix}_hnuml"])
+        dfs["roadseg"].loc[flag_na, field] = "Not Applicable"
+
+        # Assign values: "Same Direction" / "Opposite Direction".
+        dfs["roadseg"].loc[~flag_na, field] = pd.Series(
+            dfs["roadseg"].loc[~flag_na, f"{prefix}_hnumf"] < dfs["roadseg"].loc[~flag_na, f"{prefix}_hnuml"])\
+            .map({True: "Same Direction", False: "Opposite Direction"})\
+            .copy(deep=True)
+
+    # Add derived attribution - pavstatus, pavsurf, unpavsurf.
+    dfs["roadseg"][["pavstatus", "pavsurf", "unpavsurf"]] = dfs["roadseg"]["road_surface_type"].map({
+        -1: [defaults["roadseg"][col] for col in ("pavstatus", "pavsurf", "unpavsurf")],
+        1: ["Paved", "Rigid", "None"],
+        2: ["Paved", "Flexible", "None"],
+        3: ["Paved", "Blocks", "None"],
+        4: ["Unpaved", "None", "Gravel"],
+        5: ["Unpaved", "None", "Dirt"],
+        6: ["Paved", defaults["roadseg"]["pavsurf"], "None"],
+        7: ["Unpaved", "None", defaults["roadseg"]["unpavsurf"]]
+    }).copy(deep=True)
+
+    # Resolve addrange.nid for segments without address linkages.
+    flag = dfs["roadseg"]["addrange_nid"].isna()
+    dfs["roadseg"].loc[flag, "addrange_nid"] = dfs["roadseg"].loc[flag, "segment_id"]
+
+    # Resolve structid for "None" structtypes.
+    # Note: database assigns structids for "None" structtypes, but NRN output requires these records use "None".
+    dfs["roadseg"].loc[dfs["roadseg"]["structtype"] == 0, "structid"] = "None"
+
+    # Resolve route_numbers via concatenation.
+    flag = ~((dfs["roadseg"]["exitnbr_alpha"] == "None") | (dfs["roadseg"]["exitnbr_alpha"].isna()))
+    dfs["roadseg"].loc[flag, "exitnbr"] = pd.Series(
+        dfs["roadseg"].loc[flag, "exitnbr"].map(int).map(str) +
+        dfs["roadseg"].loc[flag, "exitnbr_alpha"].map(str)
+    ).copy(deep=True)
+
+    # Resolve route_numbers via concatenation.
+    for i in range(1, 5 + 1):
+        flag = ~((dfs["roadseg"][f"rtnumber{i}_alpha"] == "None") | (dfs["roadseg"][f"rtnumber{i}_alpha"].isna()))
+        dfs["roadseg"].loc[flag, f"rtnumber{i}"] = pd.Series(
+            dfs["roadseg"].loc[flag, f"rtnumber{i}"].map(int).map(str) +
+            dfs["roadseg"].loc[flag, f"rtnumber{i}_alpha"].map(str)
+        ).copy(deep=True)
+
+    # Separate individual datasets from extracted data.
+    logger.info("Separating individual datasets from extracted data.")
+
+    # Separate dataset: addrange.
+    logger.info("Separating dataset: addrange.")
+
+    # Separate records.
+    addrange = dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 1, [
+        "addrange_acqtech", "metacover", "addrange_credate", "datasetnam", "accuracy", "addrange_provider",
+        "addrange_revdate", "specvers", "addrange_l_altnanid", "addrange_r_altnanid", "addrange_l_digdirfg",
+        "addrange_r_digdirfg", "addrange_l_hnumf", "addrange_r_hnumf", "addrange_l_hnumsuff", "addrange_r_hnumsuff",
+        "addrange_l_hnumtypf", "addrange_r_hnumtypf", "addrange_l_hnumstr", "addrange_r_hnumstr", "addrange_l_hnuml",
+        "addrange_r_hnuml", "addrange_l_hnumsufl", "addrange_r_hnumsufl", "addrange_l_hnumtypl", "addrange_r_hnumtypl",
+        "addrange_nid", "segment_id_left", "segment_id_right", "addrange_l_rfsysind", "addrange_r_rfsysind"]
+    ].rename(columns={
+        "addrange_acqtech": "acqtech", "addrange_credate": "credate", "addrange_provider": "provider",
+        "addrange_revdate": "revdate", "addrange_l_altnanid": "l_altnanid", "addrange_r_altnanid": "r_altnanid",
+        "addrange_l_digdirfg": "l_digdirfg", "addrange_r_digdirfg": "r_digdirfg", "addrange_l_hnumf": "l_hnumf",
+        "addrange_r_hnumf": "r_hnumf", "addrange_l_hnumsuff": "l_hnumsuff", "addrange_r_hnumsuff": "r_hnumsuff",
+        "addrange_l_hnumtypf": "l_hnumtypf", "addrange_r_hnumtypf": "r_hnumtypf", "addrange_l_hnumstr": "l_hnumstr",
+        "addrange_r_hnumstr": "r_hnumstr", "addrange_l_hnuml": "l_hnuml", "addrange_r_hnuml": "r_hnuml",
+        "addrange_l_hnumsufl": "l_hnumsufl", "addrange_r_hnumsufl": "r_hnumsufl", "addrange_l_hnumtypl": "l_hnumtypl",
+        "addrange_r_hnumtypl": "r_hnumtypl", "addrange_nid": "nid", "segment_id_left": "l_offnanid",
+        "segment_id_right": "r_offnanid", "addrange_l_rfsysind": "l_rfsysind", "addrange_r_rfsysind": "r_rfsysind"}
+    ).copy(deep=True)
+    addrange.reset_index(drop=True, inplace=True)
+
+    # Store dataset.
+    dfs["addrange"] = addrange.copy(deep=True)
+
+    # Separate dataset: ferryseg.
+    if 2 in set(dfs["roadseg"]["segment_type"]):
+        logger.info("Separating dataset: ferryseg.")
+
+        # Separate records.
+        ferryseg = dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 2, [
+            "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers", "closing",
+            "ferrysegid", "roadclass", "nid", "rtename1en", "rtename2en", "rtename3en", "rtename4en", "rtename1fr",
+            "rtename2fr", "rtename3fr", "rtename4fr", "rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5",
+            "geometry"]].copy(deep=True)
+        ferryseg.reset_index(drop=True, inplace=True)
+
+        # Store dataset.
+        dfs["ferryseg"] = ferryseg.copy(deep=True)
+
+    # Separate dataset: strplaname.
+    logger.info("Separating dataset: strplaname.")
+
+    # Separate records.
+    strplaname = pd.DataFrame().append([
+        dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 1, [
+            "strplaname_l_acqtech", "metacover", "strplaname_l_credate", "datasetnam", "accuracy",
+            "strplaname_l_provider", "strplaname_l_revdate", "specvers", "strplaname_l_dirprefix",
+            "strplaname_l_dirsuffix", "muniquad", "segment_id_left", "strplaname_l_placename",
+            "strplaname_l_placetype", "strplaname_l_province", "strplaname_l_starticle", "strplaname_l_namebody",
+            "strplaname_l_strtypre", "strplaname_l_strtysuf"]
+        ].rename(columns={
+            "strplaname_l_acqtech": "acqtech", "strplaname_l_credate": "credate", "strplaname_l_provider": "provider",
+            "strplaname_l_revdate": "revdate", "strplaname_l_dirprefix": "dirprefix",
+            "strplaname_l_dirsuffix": "dirsuffix", "segment_id_left": "nid", "strplaname_l_placename": "placename",
+            "strplaname_l_placetype": "placetype", "strplaname_l_province": "province",
+            "strplaname_l_starticle": "starticle", "strplaname_l_namebody": "namebody",
+            "strplaname_l_strtypre": "strtypre", "strplaname_l_strtysuf": "strtysuf"}),
+        dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 1, [
+            "strplaname_r_acqtech", "metacover", "strplaname_r_credate", "datasetnam", "accuracy",
+            "strplaname_r_provider", "strplaname_r_revdate", "specvers", "strplaname_r_dirprefix",
+            "strplaname_r_dirsuffix", "muniquad", "segment_id_right", "strplaname_r_placename",
+            "strplaname_r_placetype", "strplaname_r_province", "strplaname_r_starticle", "strplaname_r_namebody",
+            "strplaname_r_strtypre", "strplaname_r_strtysuf"]
+        ].rename(columns={
+            "strplaname_r_acqtech": "acqtech", "strplaname_r_credate": "credate", "strplaname_r_provider": "provider",
+            "strplaname_r_revdate": "revdate", "strplaname_r_dirprefix": "dirprefix",
+            "strplaname_r_dirsuffix": "dirsuffix", "segment_id_right": "nid", "strplaname_r_placename": "placename",
+            "strplaname_r_placetype": "placetype", "strplaname_r_province": "province",
+            "strplaname_r_starticle": "starticle", "strplaname_r_namebody": "namebody",
+            "strplaname_r_strtypre": "strtypre", "strplaname_r_strtysuf": "strtysuf"})]).copy(deep=True)
+    strplaname.reset_index(drop=True, inplace=True)
+
+    # Store dataset.
+    dfs["strplaname"] = strplaname.copy(deep=True)
+
+    # Separate dataset: roadseg.
+    # Note: roadseg is intentionally separated last since several other datasets derived from it.
+    logger.info("Separating dataset: roadseg.")
+
+    # Separate records.
+    roadseg = dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 1, [
+        "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers",
+        "addrange_l_digdirfg", "addrange_r_digdirfg", "addrange_nid", "closing", "exitnbr", "addrange_l_hnumf",
+        "addrange_r_hnumf", "roadclass", "addrange_l_hnuml", "addrange_r_hnuml", "nid", "nbrlanes",
+        "strplaname_l_placename", "strplaname_r_placename", "l_stname_c", "r_stname_c", "pavsurf", "pavstatus",
+        "roadjuris", "roadsegid", "rtename1en", "rtename2en", "rtename3en", "rtename4en", "rtename1fr", "rtename2fr",
+        "rtename3fr", "rtename4fr", "rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5", "speed",
+        "strunameen", "strunamefr", "structid", "structtype", "trafficdir", "unpavsurf", "geometry"]
+    ].rename(columns={
+        "addrange_l_digdirfg": "l_adddirfg", "addrange_r_digdirfg": "r_adddirfg", "addrange_nid": "adrangenid",
+        "addrange_l_hnumf": "l_hnumf", "addrange_r_hnumf": "r_hnumf", "addrange_l_hnuml": "l_hnuml",
+        "addrange_r_hnuml": "r_hnuml", "strplaname_l_placename": "l_placenam", "strplaname_r_placename": "r_placenam"}
+    ).copy(deep=True)
+    roadseg.reset_index(drop=True, inplace=True)
+
+    # Store dataset.
+    dfs["roadseg"] = roadseg.copy(deep=True)
+
+    # Apply domain restrictions and cast dtypes.
+    logger.info("Applying field domains and enforcing dtypes.")
+
+    for table, df in dfs.items():
+        logger.info(f"Applying domains and enforcing dtypes for table: {table}.")
+        for field, domain in domains[table].items():
+
+            # Apply domain to series.
+            series = apply_domain(df[field], domain=domain["lookup"], default=defaults[table][field])
+
+            # Force adjust dtype.
+            series = series.map(lambda val: cast_dtype(val, dtype=dtypes[table][field], default=defaults[table][field]))
+
+            # Store result.
+            dfs[table][field] = series.copy(deep=True)
 
     return dfs
 
