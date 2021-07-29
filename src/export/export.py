@@ -49,7 +49,6 @@ class Stage:
         self.major_version = None
         self.minor_version = None
         self.dframes = dict()
-        self.dframes_raw = dict()
 
         # Configure output path.
         self.output_path = filepath.parents[2] / f"data/processed/{self.source}"
@@ -479,7 +478,8 @@ class Stage:
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.dframes_raw = helpers.extract_nrn(url=self.url, source_code=self.source_code)
+        self.dframes = helpers.extract_nrn(url=self.url, source_code=self.source_code)
+        # TODO: store junctions (avoid regenerating them for export).
         self.configure_release_version()
         self.gen_french_dataframes()
         self.define_kml_groups()
