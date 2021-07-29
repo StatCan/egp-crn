@@ -271,11 +271,6 @@ class Stage:
         # Close progress bar.
         export_progress.close()
 
-    def extract_data(self) -> None:
-        """Extracts NRN database records for the source into (Geo)DataFrames."""
-
-        self.dframes_raw = helpers.extract_nrn(url=self.url, source_code=self.source_code)
-
     def format_path(self, path: Union[Path, str, None]) -> Union[Path, str]:
         """
         Formats a path with class variables: source, major_version, minor_version.
@@ -484,7 +479,7 @@ class Stage:
     def execute(self) -> None:
         """Executes an NRN stage."""
 
-        self.extract_data()
+        self.dframes_raw = helpers.extract_nrn(url=self.url, source_code=self.source_code)
         self.configure_release_version()
         self.gen_french_dataframes()
         self.define_kml_groups()

@@ -784,13 +784,13 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
             f"""
             """,
         # TODO
-        # TODO: upload new nrn.sql and data model pdf to drive and github issue. Also backup new 7z files to drive.
         "tollpoint":
             f"""
             """
     }
 
     dfs = dict()
+    nrn = dict()
     for layer, query in queries.items():
         logger.info(f"Extracting NRN data for: {layer}.")
 
@@ -802,6 +802,8 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
             dfs[layer] = df.copy(deep=True)
 
     # Configure derived and supplemental (not stored in database) attribution.
+    # Notes: roadseg is guaranteed to be available from the queries, which explains why it is the only NRN dataset for
+    # which explicit existence checks are not performed.
     logger.info(f"Configuring derived and supplemental attribution.")
 
     # Compile field defaults, domains, and dtypes.
@@ -914,7 +916,7 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     addrange.reset_index(drop=True, inplace=True)
 
     # Store dataset.
-    dfs["addrange"] = addrange.copy(deep=True)
+    nrn["addrange"] = addrange.copy(deep=True)
 
     # Separate dataset: ferryseg.
     if 2 in set(dfs["roadseg"]["segment_type"]):
@@ -929,7 +931,29 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
         ferryseg.reset_index(drop=True, inplace=True)
 
         # Store dataset.
-        dfs["ferryseg"] = ferryseg.copy(deep=True)
+        nrn["ferryseg"] = ferryseg.copy(deep=True)
+
+    # Separate dataset: roadseg.
+    logger.info("Separating dataset: roadseg.")
+
+    # Separate records.
+    roadseg = dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 1, [
+        "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers",
+        "addrange_l_digdirfg", "addrange_r_digdirfg", "addrange_nid", "closing", "exitnbr", "addrange_l_hnumf",
+        "addrange_r_hnumf", "roadclass", "addrange_l_hnuml", "addrange_r_hnuml", "nid", "nbrlanes",
+        "strplaname_l_placename", "strplaname_r_placename", "l_stname_c", "r_stname_c", "pavsurf", "pavstatus",
+        "roadjuris", "roadsegid", "rtename1en", "rtename2en", "rtename3en", "rtename4en", "rtename1fr", "rtename2fr",
+        "rtename3fr", "rtename4fr", "rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5", "speed",
+        "strunameen", "strunamefr", "structid", "structtype", "trafficdir", "unpavsurf", "geometry"]
+    ].rename(columns={
+        "addrange_l_digdirfg": "l_adddirfg", "addrange_r_digdirfg": "r_adddirfg", "addrange_nid": "adrangenid",
+        "addrange_l_hnumf": "l_hnumf", "addrange_r_hnumf": "r_hnumf", "addrange_l_hnuml": "l_hnuml",
+        "addrange_r_hnuml": "r_hnuml", "strplaname_l_placename": "l_placenam", "strplaname_r_placename": "r_placenam"}
+    ).copy(deep=True)
+    roadseg.reset_index(drop=True, inplace=True)
+
+    # Store dataset.
+    nrn["roadseg"] = roadseg.copy(deep=True)
 
     # Separate dataset: strplaname.
     logger.info("Separating dataset: strplaname.")
@@ -965,35 +989,12 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     strplaname.reset_index(drop=True, inplace=True)
 
     # Store dataset.
-    dfs["strplaname"] = strplaname.copy(deep=True)
-
-    # Separate dataset: roadseg.
-    # Note: roadseg is intentionally separated last since several other datasets derived from it.
-    logger.info("Separating dataset: roadseg.")
-
-    # Separate records.
-    roadseg = dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 1, [
-        "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers",
-        "addrange_l_digdirfg", "addrange_r_digdirfg", "addrange_nid", "closing", "exitnbr", "addrange_l_hnumf",
-        "addrange_r_hnumf", "roadclass", "addrange_l_hnuml", "addrange_r_hnuml", "nid", "nbrlanes",
-        "strplaname_l_placename", "strplaname_r_placename", "l_stname_c", "r_stname_c", "pavsurf", "pavstatus",
-        "roadjuris", "roadsegid", "rtename1en", "rtename2en", "rtename3en", "rtename4en", "rtename1fr", "rtename2fr",
-        "rtename3fr", "rtename4fr", "rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5", "speed",
-        "strunameen", "strunamefr", "structid", "structtype", "trafficdir", "unpavsurf", "geometry"]
-    ].rename(columns={
-        "addrange_l_digdirfg": "l_adddirfg", "addrange_r_digdirfg": "r_adddirfg", "addrange_nid": "adrangenid",
-        "addrange_l_hnumf": "l_hnumf", "addrange_r_hnumf": "r_hnumf", "addrange_l_hnuml": "l_hnuml",
-        "addrange_r_hnuml": "r_hnuml", "strplaname_l_placename": "l_placenam", "strplaname_r_placename": "r_placenam"}
-    ).copy(deep=True)
-    roadseg.reset_index(drop=True, inplace=True)
-
-    # Store dataset.
-    dfs["roadseg"] = roadseg.copy(deep=True)
+    nrn["strplaname"] = strplaname.copy(deep=True)
 
     # Apply domain restrictions and cast dtypes.
     logger.info("Applying field domains and enforcing dtypes.")
 
-    for table, df in dfs.items():
+    for table, df in nrn.items():
         logger.info(f"Applying domains and enforcing dtypes for table: {table}.")
         for field, domain in domains[table].items():
 
@@ -1004,9 +1005,9 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
             series = series.map(lambda val: cast_dtype(val, dtype=dtypes[table][field], default=defaults[table][field]))
 
             # Store result.
-            dfs[table][field] = series.copy(deep=True)
+            nrn[table][field] = series.copy(deep=True)
 
-    return dfs
+    return nrn
 
 
 def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
