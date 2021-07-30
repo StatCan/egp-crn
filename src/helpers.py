@@ -574,8 +574,9 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     for layer in dfs:
 
         # Convert UUID columns to string.
-        for col in filter(lambda c: isinstance(dfs[layer][col].iloc[0], uuid.UUID), dfs[layer].columns):
-            dfs[layer][col] = dfs[layer][col].map(attrgetter("hex")).copy(deep=True)
+        for col in filter(lambda c: isinstance(dfs[layer][c].iloc[0], uuid.UUID), dfs[layer].columns):
+            dfs[layer][col] = dfs[layer][col].map(
+                lambda val: val.hex if isinstance(val, uuid.UUID) else val).copy(deep=True)
 
         # Add supplemental metadata attribution.
         dfs[layer]["datasetnam"] = source_code
@@ -613,7 +614,7 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
             .copy(deep=True)
 
     # Add derived attribution - pavstatus, pavsurf, unpavsurf.
-    dfs["roadseg"][["pavstatus", "pavsurf", "unpavsurf"]] = dfs["roadseg"]["road_surface_type"].map({
+    dfs["roadseg"][["pavstatus", "pavsurf", "unpavsurf"]] = dfs["roadseg"]["road_surface_type"].fillna(-1).map({
         -1: [defaults["roadseg"][col] for col in ("pavstatus", "pavsurf", "unpavsurf")],
         1: ["Paved", "Rigid", "None"],
         2: ["Paved", "Flexible", "None"],
@@ -622,7 +623,7 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
         5: ["Unpaved", "None", "Dirt"],
         6: ["Paved", defaults["roadseg"]["pavsurf"], "None"],
         7: ["Unpaved", "None", defaults["roadseg"]["unpavsurf"]]
-    }).copy(deep=True)
+    }).to_list()
 
     # Resolve addrange.nid for segments without address linkages.
     flag = dfs["roadseg"]["addrange_nid"].isna()
@@ -676,7 +677,7 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     addrange.reset_index(drop=True, inplace=True)
 
     # Store dataset.
-    nrn["addrange"] = addrange.copy(deep=True)
+    nrn["addrange"] = pd.DataFrame(addrange).copy(deep=True)
 
     # Separate dataset: ferryseg.
     if 2 in set(dfs["roadseg"]["segment_type"]):
@@ -749,7 +750,7 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     strplaname.reset_index(drop=True, inplace=True)
 
     # Store dataset.
-    nrn["strplaname"] = strplaname.copy(deep=True)
+    nrn["strplaname"] = pd.DataFrame(strplaname).copy(deep=True)
 
     # Store remaining datasets which don't require separation.
     for layer in set(dfs) - set(nrn):
@@ -765,8 +766,10 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
         logger.info(f"Applying domains and enforcing dtypes for table: {table}.")
         for field, domain in domains[table].items():
 
+            series = df[field].copy(deep=True)
+
             # Apply domain to series.
-            series = apply_domain(df[field], domain=domain["lookup"], default=defaults[table][field])
+            series = apply_domain(series, domain=domain["lookup"], default=defaults[table][field])
 
             # Force adjust dtype.
             series = series.map(lambda val: cast_dtype(val, dtype=dtypes[table][field], default=defaults[table][field]))
