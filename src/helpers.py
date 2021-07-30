@@ -21,6 +21,7 @@ from pathlib import Path
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
 from sqlalchemy import create_engine, exc as sqlalchemy_exc
+from sqlalchemy.engine.base import Engine
 from tqdm import tqdm
 from tqdm.auto import trange
 from typing import Any, Dict, List, Tuple, Type, Union
@@ -270,6 +271,25 @@ def compile_dtypes(length: bool = False) -> dict:
         sys.exit(1)
 
     return dtypes
+
+
+def create_db_engine(url: str) -> Engine:
+    """
+    :param str url: NRN database connection URL.
+    :return sqlalchemy.engine.base.Engine: SQLAlchemy database engine.
+    """
+
+    logger.info(f"Creating NRN database engine.")
+
+    # Create database engine.
+    try:
+        engine = create_engine(url)
+    except sqlalchemy_exc.SQLAlchemyError as e:
+        logger.exception(f"Unable to create engine for NRN database.")
+        logger.exception(e)
+        sys.exit(1)
+
+    return engine
 
 
 def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -528,12 +548,7 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     logger.info(f"Extracting NRN datasets for source code: {source_code}.")
 
     # Connect to database.
-    try:
-        con = create_engine(url)
-    except sqlalchemy_exc.SQLAlchemyError as e:
-        logger.exception(f"Unable to connect to NRN database.")
-        logger.exception(e)
-        sys.exit(1)
+    con = create_db_engine(url)
 
     # Load and execute database queries for NRN datasets.
     dfs = dict()
@@ -633,19 +648,19 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     # Note: database assigns structids for "None" structtypes, but NRN output requires these records use "None".
     dfs["roadseg"].loc[dfs["roadseg"]["structtype"] == 0, "structid"] = "None"
 
-    # Resolve route_numbers via concatenation.
-    flag = ~((dfs["roadseg"]["exitnbr_alpha"] == "None") | (dfs["roadseg"]["exitnbr_alpha"].isna()))
-    dfs["roadseg"].loc[flag, "exitnbr"] = pd.Series(
-        dfs["roadseg"].loc[flag, "exitnbr"].map(int).map(str) +
-        dfs["roadseg"].loc[flag, "exitnbr_alpha"].map(str)
-    ).copy(deep=True)
+    # Resolve exitnbr and rtnumber attributes via concatenation.
+    for field in ("exitnbr", "rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"):
 
-    # Resolve route_numbers via concatenation.
-    for i in range(1, 5 + 1):
-        flag = ~((dfs["roadseg"][f"rtnumber{i}_alpha"] == "None") | (dfs["roadseg"][f"rtnumber{i}_alpha"].isna()))
-        dfs["roadseg"].loc[flag, f"rtnumber{i}"] = pd.Series(
-            dfs["roadseg"].loc[flag, f"rtnumber{i}"].map(int).map(str) +
-            dfs["roadseg"].loc[flag, f"rtnumber{i}_alpha"].map(str)
+        # Convert floats to string integers.
+        # Note: pandas autocasts ints to floats if nulls exist in series.
+        flag_na = dfs["roadseg"][field].isna()
+        dfs["roadseg"].loc[~flag_na, field] = dfs["roadseg"].loc[~flag_na, field].map(int).map(str)
+
+        # Concatenate with suffix.
+        flag_suffix = ~((dfs["roadseg"][f"{field}_alpha"] == "None") | (dfs["roadseg"][f"{field}_alpha"].isna()))
+        dfs["roadseg"].loc[flag_suffix, field] = pd.Series(
+            dfs["roadseg"].loc[flag_suffix, field] +
+            dfs["roadseg"].loc[flag_suffix, f"{field}_alpha"].map(str)
         ).copy(deep=True)
 
     # Separate individual datasets from extracted data.
