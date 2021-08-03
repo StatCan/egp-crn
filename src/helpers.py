@@ -694,6 +694,18 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     # Store dataset.
     nrn["addrange"] = pd.DataFrame(addrange).copy(deep=True)
 
+    # Separate dataset: junction.
+    logger.info(f"Separating dataset: junction.")
+
+    # Separate records.
+    junction = dfs["junction"][[
+        "acqtech", "metacover", "credate", "datasetnam", "accuracy", "provider", "revdate", "specvers", "exitnbr",
+        "junctype", "nid", "geometry"]].copy(deep=True)
+    junction.reset_index(drop=True, inplace=True)
+
+    # Store dataset.
+    nrn["junction"] = junction.copy(deep=True)
+
     # Separate dataset: ferryseg.
     if 2 in set(dfs["roadseg"]["segment_type"]):
         logger.info("Separating dataset: ferryseg.")
