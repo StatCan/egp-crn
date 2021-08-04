@@ -1,5 +1,5 @@
 -- Compile all NRN attributes into a single table.
-SELECT junction_source.junction_id AS nid,
+SELECT REPLACE(junction_source.junction_id::text, '-', '') AS nid,
        acquisition_technique_lookup.value_en AS acqtech,
        junction_source.planimetric_accuracy AS accuracy,
        provider_lookup.value_en AS provider,
@@ -7,7 +7,10 @@ SELECT junction_source.junction_id AS nid,
        junction_source.revision_date AS revdate,
        junction_source.exit_number AS exitnbr,
        junction_type_lookup.value_en AS junctype,
-       junction_source.geometry
+       junction_source.geometry,
+       {{ source_code }} AS datasetnam,
+       {{ metacover }} AS metacover,
+       {{ specvers }} AS specvers
 FROM
 
   -- Subset records to the source province / territory.

@@ -1,13 +1,16 @@
 -- Compile all NRN attributes into a single table.
-SELECT toll_point.toll_point_id AS nid,
-       toll_point.segment_id AS roadnid,
+SELECT REPLACE(toll_point.toll_point_id::text, '-', '') AS nid,
+       REPLACE(toll_point.segment_id::text, '-', '') AS roadnid,
        toll_point_type_lookup.value_en AS tollpttype,
        acquisition_technique_lookup.value_en AS acqtech,
        toll_point.planimetric_accuracy AS accuracy,
        provider_lookup.value_en AS provider,
        toll_point.creation_date AS credate,
        toll_point.revision_date AS revdate,
-       toll_point.geometry
+       toll_point.geometry,
+       {{ source_code }} AS datasetnam,
+       {{ metacover }} AS metacover,
+       {{ specvers }} AS specvers
 FROM
 
   -- Subset records to the source province / territory.

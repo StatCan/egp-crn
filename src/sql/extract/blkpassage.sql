@@ -1,13 +1,16 @@
 -- Compile all NRN attributes into a single table.
-SELECT blocked_passage.blocked_passage_id AS nid,
-       blocked_passage.segment_id AS roadnid,
+SELECT REPLACE(blocked_passage.blocked_passage_id::text, '-', '') AS nid,
+       REPLACE(blocked_passage.segment_id::text, '-', '') AS roadnid,
        blocked_passage_type_lookup.value_en AS blkpassty,
        acquisition_technique_lookup.value_en AS acqtech,
        blocked_passage.planimetric_accuracy AS accuracy,
        provider_lookup.value_en AS provider,
        blocked_passage.creation_date AS credate,
        blocked_passage.revision_date AS revdate,
-       blocked_passage.geometry
+       blocked_passage.geometry,
+       {{ source_code }} AS datasetnam,
+       {{ metacover }} AS metacover,
+       {{ specvers }} AS specvers
 FROM
 
   -- Subset records to the source province / territory.

@@ -12,7 +12,6 @@ import requests
 import sqlite3
 import sys
 import time
-import uuid
 import yaml
 from collections import defaultdict
 from operator import attrgetter, itemgetter
@@ -550,6 +549,11 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     # Connect to database.
     con = create_db_engine(url)
 
+    # Compile field defaults, domains, and dtypes.
+    defaults = compile_default_values(lang="en")
+    domains = compile_domains(mapped_lang="en")
+    dtypes = compile_dtypes()
+
     # Load and execute database queries for NRN datasets.
     dfs = dict()
     for sql_file in (filepath.parent / "sql/extract").glob("*.sql"):
@@ -557,111 +561,29 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
 
         try:
 
+            # Resolve layer name.
+            layer = sql_file.stem
+
             # Load document as jinja template.
             with open(sql_file, "r") as doc:
                 template = jinja2.Template(doc.read())
 
             # Update template.
-            query = template.render(source_code=source_code)
+            query = template.render(source_code=source_code,
+                                    metacover=defaults[layer]["metacover"],
+                                    specvers=2.0,
+                                    muniquad=defaults["strplaname"]["muniquad"])
 
             # Execute query.
             df = gpd.read_postgis(query, con, geom_col="geometry")
 
             # Store non-empty dataset.
             if len(df):
-                dfs[sql_file.stem] = df.copy(deep=True)
+                dfs[layer] = df.copy(deep=True)
 
         except (jinja2.TemplateError, jinja2.TemplateAssertionError, jinja2.UndefinedError) as e:
             logger.exception(f"Unable to load SQL from: {sql_file}.")
             logger.exception(e)
-
-    # Configure derived and supplemental (not stored in database) attribution.
-    # Notes: roadseg is guaranteed to be available from the queries, which explains why it is the only NRN dataset for
-    # which explicit existence checks are not performed.
-    logger.info(f"Configuring derived and supplemental attribution.")
-
-    # Compile field defaults, domains, and dtypes.
-    defaults = compile_default_values(lang="en")
-    domains = compile_domains(mapped_lang="en")
-    dtypes = compile_dtypes()
-
-    # Apply universal attribution modifications (non-dataset specific).
-    for layer in dfs:
-
-        # Convert UUID columns to string.
-        for col in filter(lambda c: isinstance(dfs[layer][c].iloc[0], uuid.UUID), dfs[layer].columns):
-            dfs[layer][col] = dfs[layer][col].map(
-                lambda val: val.hex if isinstance(val, uuid.UUID) else val).copy(deep=True)
-
-        # Add supplemental metadata attribution.
-        dfs[layer]["datasetnam"] = source_code
-        dfs[layer]["metacover"] = defaults[layer]["metacover"]
-        dfs[layer]["specvers"] = 2.0
-
-    # Add supplemental attribution - roadsegid.
-    flag = dfs["roadseg"]["segment_type"] == 1
-    dfs["roadseg"].loc[flag, "roadsegid"] = range(1, sum(flag) + 1)
-
-    # Add supplemental attribution - ferrysegid.
-    flag = dfs["roadseg"]["segment_type"] == 2
-    dfs["roadseg"].loc[flag, "ferrysegid"] = range(1, sum(flag) + 1)
-
-    # Add supplemental attribution - default and "None" values.
-    dfs["roadseg"]["muniquad"] = defaults["strplaname"]["muniquad"]
-    dfs["roadseg"]["addrange_l_altnanid"] = "None"
-    dfs["roadseg"]["addrange_r_altnanid"] = "None"
-
-    # Add derived attribution - digdirfg.
-    for prefix in ("addrange_l", "addrange_r"):
-        field = f"{prefix}_digdirfg"
-        dfs["roadseg"][field] = defaults["addrange"]["l_digdirfg"]
-
-        # Assign value: "Not Applicable".
-        flag_na = (dfs["roadseg"][f"{prefix}_hnumf"].isna()) | (dfs["roadseg"][f"{prefix}_hnumf"].isin({-1, 0})) | \
-                  (dfs["roadseg"][f"{prefix}_hnuml"].isna()) | (dfs["roadseg"][f"{prefix}_hnuml"].isin({-1, 0})) | \
-                  (dfs["roadseg"][f"{prefix}_hnumf"] == dfs["roadseg"][f"{prefix}_hnuml"])
-        dfs["roadseg"].loc[flag_na, field] = "Not Applicable"
-
-        # Assign values: "Same Direction" / "Opposite Direction".
-        dfs["roadseg"].loc[~flag_na, field] = pd.Series(
-            dfs["roadseg"].loc[~flag_na, f"{prefix}_hnumf"] < dfs["roadseg"].loc[~flag_na, f"{prefix}_hnuml"])\
-            .map({True: "Same Direction", False: "Opposite Direction"})\
-            .copy(deep=True)
-
-    # Add derived attribution - pavstatus, pavsurf, unpavsurf.
-    dfs["roadseg"][["pavstatus", "pavsurf", "unpavsurf"]] = dfs["roadseg"]["road_surface_type"].fillna(-1).map({
-        -1: [defaults["roadseg"][col] for col in ("pavstatus", "pavsurf", "unpavsurf")],
-        1: ["Paved", "Rigid", "None"],
-        2: ["Paved", "Flexible", "None"],
-        3: ["Paved", "Blocks", "None"],
-        4: ["Unpaved", "None", "Gravel"],
-        5: ["Unpaved", "None", "Dirt"],
-        6: ["Paved", defaults["roadseg"]["pavsurf"], "None"],
-        7: ["Unpaved", "None", defaults["roadseg"]["unpavsurf"]]
-    }).to_list()
-
-    # Resolve addrange.nid for segments without address linkages.
-    flag = dfs["roadseg"]["addrange_nid"].isna()
-    dfs["roadseg"].loc[flag, "addrange_nid"] = dfs["roadseg"].loc[flag, "segment_id"]
-
-    # Resolve structid for "None" structtypes.
-    # Note: database assigns structids for "None" structtypes, but NRN output requires these records use "None".
-    dfs["roadseg"].loc[dfs["roadseg"]["structtype"] == 0, "structid"] = "None"
-
-    # Resolve exitnbr and rtnumber attributes via concatenation.
-    for field in ("exitnbr", "rtnumber1", "rtnumber2", "rtnumber3", "rtnumber4", "rtnumber5"):
-
-        # Convert floats to string integers.
-        # Note: pandas autocasts ints to floats if nulls exist in series.
-        flag_na = dfs["roadseg"][field].isna()
-        dfs["roadseg"].loc[~flag_na, field] = dfs["roadseg"].loc[~flag_na, field].map(int).map(str)
-
-        # Concatenate with suffix.
-        flag_suffix = ~((dfs["roadseg"][f"{field}_alpha"] == "None") | (dfs["roadseg"][f"{field}_alpha"].isna()))
-        dfs["roadseg"].loc[flag_suffix, field] = pd.Series(
-            dfs["roadseg"].loc[flag_suffix, field] +
-            dfs["roadseg"].loc[flag_suffix, f"{field}_alpha"].map(str)
-        ).copy(deep=True)
 
     # Separate individual datasets from extracted data.
     logger.info("Separating individual datasets from extracted data.")
@@ -673,21 +595,21 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
     # Separate records.
     addrange = dfs["roadseg"].loc[dfs["roadseg"]["segment_type"] == 1, [
         "addrange_acqtech", "metacover", "addrange_credate", "datasetnam", "accuracy", "addrange_provider",
-        "addrange_revdate", "specvers", "addrange_l_altnanid", "addrange_r_altnanid", "addrange_l_digdirfg",
-        "addrange_r_digdirfg", "addrange_l_hnumf", "addrange_r_hnumf", "addrange_l_hnumsuff", "addrange_r_hnumsuff",
-        "addrange_l_hnumtypf", "addrange_r_hnumtypf", "addrange_l_hnumstr", "addrange_r_hnumstr", "addrange_l_hnuml",
-        "addrange_r_hnuml", "addrange_l_hnumsufl", "addrange_r_hnumsufl", "addrange_l_hnumtypl", "addrange_r_hnumtypl",
-        "addrange_nid", "segment_id_left", "segment_id_right", "addrange_l_rfsysind", "addrange_r_rfsysind"]
+        "addrange_revdate", "specvers", "l_altnanid", "r_altnanid", "addrange_l_digdirfg", "addrange_r_digdirfg",
+        "addrange_l_hnumf", "addrange_r_hnumf", "addrange_l_hnumsuff", "addrange_r_hnumsuff", "addrange_l_hnumtypf",
+        "addrange_r_hnumtypf", "addrange_l_hnumstr", "addrange_r_hnumstr", "addrange_l_hnuml", "addrange_r_hnuml",
+        "addrange_l_hnumsufl", "addrange_r_hnumsufl", "addrange_l_hnumtypl", "addrange_r_hnumtypl", "addrange_nid",
+        "segment_id_left", "segment_id_right", "addrange_l_rfsysind", "addrange_r_rfsysind"]
     ].rename(columns={
         "addrange_acqtech": "acqtech", "addrange_credate": "credate", "addrange_provider": "provider",
-        "addrange_revdate": "revdate", "addrange_l_altnanid": "l_altnanid", "addrange_r_altnanid": "r_altnanid",
-        "addrange_l_digdirfg": "l_digdirfg", "addrange_r_digdirfg": "r_digdirfg", "addrange_l_hnumf": "l_hnumf",
-        "addrange_r_hnumf": "r_hnumf", "addrange_l_hnumsuff": "l_hnumsuff", "addrange_r_hnumsuff": "r_hnumsuff",
-        "addrange_l_hnumtypf": "l_hnumtypf", "addrange_r_hnumtypf": "r_hnumtypf", "addrange_l_hnumstr": "l_hnumstr",
-        "addrange_r_hnumstr": "r_hnumstr", "addrange_l_hnuml": "l_hnuml", "addrange_r_hnuml": "r_hnuml",
-        "addrange_l_hnumsufl": "l_hnumsufl", "addrange_r_hnumsufl": "r_hnumsufl", "addrange_l_hnumtypl": "l_hnumtypl",
-        "addrange_r_hnumtypl": "r_hnumtypl", "addrange_nid": "nid", "segment_id_left": "l_offnanid",
-        "segment_id_right": "r_offnanid", "addrange_l_rfsysind": "l_rfsysind", "addrange_r_rfsysind": "r_rfsysind"}
+        "addrange_revdate": "revdate", "addrange_l_digdirfg": "l_digdirfg", "addrange_r_digdirfg": "r_digdirfg",
+        "addrange_l_hnumf": "l_hnumf", "addrange_r_hnumf": "r_hnumf", "addrange_l_hnumsuff": "l_hnumsuff",
+        "addrange_r_hnumsuff": "r_hnumsuff", "addrange_l_hnumtypf": "l_hnumtypf", "addrange_r_hnumtypf": "r_hnumtypf",
+        "addrange_l_hnumstr": "l_hnumstr", "addrange_r_hnumstr": "r_hnumstr", "addrange_l_hnuml": "l_hnuml",
+        "addrange_r_hnuml": "r_hnuml", "addrange_l_hnumsufl": "l_hnumsufl", "addrange_r_hnumsufl": "r_hnumsufl",
+        "addrange_l_hnumtypl": "l_hnumtypl", "addrange_r_hnumtypl": "r_hnumtypl", "addrange_nid": "nid",
+        "segment_id_left": "l_offnanid", "segment_id_right": "r_offnanid", "addrange_l_rfsysind": "l_rfsysind",
+        "addrange_r_rfsysind": "r_rfsysind"}
     ).copy(deep=True)
     addrange.reset_index(drop=True, inplace=True)
 
