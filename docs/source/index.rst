@@ -14,6 +14,7 @@ National Road Network's documentation
    feature_catalogue
    change_management
    identification_rules
+   completion_rates
 
 
 Contact Information
