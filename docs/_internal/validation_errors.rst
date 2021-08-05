@@ -95,37 +95,32 @@ E004
 E00401
 ^^^^^^
 
-:Description: Attributes "credate" and "revdate" must be numeric.
-
-E00402
-^^^^^^
-
 :Description: Attributes "credate" and "revdate" must have lengths of 4, 6, or 8. Therefore, using zero-padded digits,
     dates can represent a year, year + month, or year + month + day.
 
-E00403
+E00402
 ^^^^^^
 
 :Description: Attributes "credate" and "revdate" must have a year (first 4 digits) between 1960 and the current year,
     inclusively.
 
-E00404
+E00403
 ^^^^^^
 
 :Description: Attributes "credate" and "revdate" must have a month (digits 5 and 6) between 01 and 12, inclusively.
 
-E00405
+E00404
 ^^^^^^
 
 :Description: Attributes "credate" and "revdate" must have a day (digits 7 and 8) between 01 and the monthly maximum,
     inclusively.
 
-E00406
+E00405
 ^^^^^^
 
 :Description: Attributes "credate" and "revdate" must be <= today.
 
-E00407
+E00406
 ^^^^^^
 
 :Description: Attribute "credate" must be <= attribute "revdate".

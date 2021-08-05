@@ -296,7 +296,7 @@ Attributes Common to All Entities Except Alternate Name Link
 +------------------------+----------------------+-----------------+-----------+
 | Coverage               | metadataCoverage     | METACOVER       | C(8)      |
 +------------------------+----------------------+-----------------+-----------+
-| Creation Date          | creationDate         | CREDATE         | C(8)      |
+| Creation Date          | creationDate         | CREDATE         | N(8,0)    |
 +------------------------+----------------------+-----------------+-----------+
 | Dataset Name           | datasetName          | DATASETNAME     | C(25)     |
 +------------------------+----------------------+-----------------+-----------+
@@ -304,7 +304,7 @@ Attributes Common to All Entities Except Alternate Name Link
 +------------------------+----------------------+-----------------+-----------+
 | Provider               | provider             | PROVIDER        | C(24)     |
 +------------------------+----------------------+-----------------+-----------+
-| Revision Date          | revisionDate         | REVDATE         | C(8)      |
+| Revision Date          | revisionDate         | REVDATE         | N(8,0)    |
 +------------------------+----------------------+-----------------+-----------+
 | Standard Version       | standardVersion      | SPECVERS        | C(10)     |
 +------------------------+----------------------+-----------------+-----------+
@@ -373,13 +373,13 @@ Alternate Name Link
 | Feature Catalogue      | GML Attribute        | Shape Attribute | Shape     |
 | Attribute Name         | Name                 | Name            | Data Type |
 +========================+======================+=================+===========+
-| Creation Date          | creationDate         | CREDATE         | C(8)      |
+| Creation Date          | creationDate         | CREDATE         | N(8,0)    |
 +------------------------+----------------------+-----------------+-----------+
 | Dataset Name           | datasetName          | DATASETNAM      | C(100)    |
 +------------------------+----------------------+-----------------+-----------+
 | NID                    | nid                  | NID             | C(32)     |
 +------------------------+----------------------+-----------------+-----------+
-| Revision Date          | revisionDate         | REVDATE         | C(8)      |
+| Revision Date          | revisionDate         | REVDATE         | N(8,0)    |
 +------------------------+----------------------+-----------------+-----------+
 | Standard Version       | standardVersion      | SPECVERS        | C(10)     |
 +------------------------+----------------------+-----------------+-----------+

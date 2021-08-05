@@ -304,15 +304,16 @@ class Validator:
         today = {"year": int(today[:4]), "month": int(today[4:6]), "day": int(today[6:8]), "full": int(today)}
 
         # Define functions.
-        def validate_day(date: str) -> bool:
+        def validate_day(date: int) -> bool:
             """
             Validate the day value in a date.
 
-            :param str date: string date in format YYYYMMDD.
+            :param int date: integer date in format YYYYMMDD.
             :return bool: boolean validation of the date.
             """
 
-            year, month, day = map(int, [date[:4], date[4:6], date[6:8]])
+            date_str = str(date)
+            year, month, day = map(int, [date_str[:4], date_str[4:6], date_str[6:8]])
             try:
 
                 if not 1 <= day <= calendar.mdays[month]:
@@ -333,13 +334,9 @@ class Validator:
 
             if len(s_filtered):
 
-                # Validation 1: date content must be numeric.
-                results = s_filtered.loc[~s_filtered.map(str.isnumeric)].index.values
+                # Validation 1: length must be 4, 6, or 8.
+                results = s_filtered.loc[s_filtered.map(lambda date: len(str(date)) not in {4, 6, 8})].index.values
                 errors[1].extend(results)
-
-                # Validation 2: length must be 4, 6, or 8.
-                results = s_filtered.loc[s_filtered.map(lambda date: len(date) not in {4, 6, 8})].index.values
-                errors[2].extend(results)
 
                 # Subset to valid records only for remaining validations.
                 invalid_indexes = list(set(chain.from_iterable(errors.values())))
@@ -348,36 +345,38 @@ class Validator:
                 if len(s_filtered2):
 
                     # Temporarily set missing month and day values to 01.
-                    series_mod = s_filtered2.loc[s_filtered2.map(lambda date: len(date) in {4, 6})]
+                    series_mod = s_filtered2.loc[s_filtered2.map(lambda date: len(str(date)) in {4, 6})]
                     if len(series_mod):
                         append_vals = {4: "0101", 6: "01"}
-                        s_filtered2.loc[series_mod.index] = series_mod.map(lambda date: date + append_vals[len(date)])
+                        s_filtered2.loc[series_mod.index] = series_mod.map(str).map(
+                            lambda date: date + append_vals[len(date)]).map(int)
                         df.loc[s_filtered2.index, col] = s_filtered2
 
-                    # Validation 3: valid date - year.
+                    # Validation 2: valid date - year.
                     results = s_filtered2.loc[~s_filtered2.map(
-                        lambda date: 1960 <= int(date[:4]) <= today["year"])].index.values
+                        lambda date: 1960 <= int(str(date)[:4]) <= today["year"])].index.values
+                    errors[2].extend(results)
+
+                    # Validation 3: valid date - month.
+                    results = s_filtered2.loc[~s_filtered2.map(
+                        lambda date: 1 <= int(str(date)[4:6]) <= 12)].index.values
                     errors[3].extend(results)
 
-                    # Validation 4: valid date - month.
-                    results = s_filtered2.loc[~s_filtered2.map(lambda date: 1 <= int(date[4:6]) <= 12)].index.values
+                    # Validation 4: valid date - day.
+                    results = s_filtered2.loc[~s_filtered2.map(validate_day)].index.values
                     errors[4].extend(results)
 
-                    # Validation 5: valid date - day.
-                    results = s_filtered2.loc[~s_filtered2.map(validate_day)].index.values
+                    # Validation 5: ensure date <= today.
+                    results = s_filtered2.loc[s_filtered2.map(lambda date: date > today["full"])].index.values
                     errors[5].extend(results)
 
-                    # Validation 6: ensure date <= today.
-                    results = s_filtered2.loc[s_filtered2.map(lambda date: int(date) > today["full"])].index.values
-                    errors[6].extend(results)
-
-        # Validation 7: ensure credate <= revdate.
+        # Validation 6: ensure credate <= revdate.
         df_filtered = df.loc[(df["credate"] != defaults["credate"]) &
                              (df["revdate"] != defaults["revdate"]) &
                              ~(df.index.isin(set(chain.from_iterable(itemgetter(1, 2)(errors)))))]
         if len(df_filtered):
-            results = df_filtered.loc[df_filtered["credate"].map(int) > df_filtered["revdate"].map(int)].index.values
-            errors[7].extend(results)
+            results = df_filtered.loc[df_filtered["credate"] > df_filtered["revdate"]].index.values
+            errors[6].extend(results)
 
         # Compile error properties.
         for code, vals in errors.items():

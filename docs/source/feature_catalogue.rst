@@ -200,11 +200,11 @@ Revision Date
 
 The date of data revision.
 
-:Domain: A date in the format YYYYMMDD or "Unknown". If the month or the day is unknown, corresponding characters
-    are left blank.
+:Domain: A date in the format YYYYMMDD or "-1" when the value is unknown. If the month or the day is unknown,
+    corresponding characters are left blank.
 
     Examples: 20060630, 200606, 2006.
-:Data Type: Character (8)
+:Data Type: Integer
 
 Standard Version
 ----------------
@@ -425,11 +425,11 @@ Creation Date
 
 The date of data creation.
 
-:Domain: A date in the format YYYYMMDD or "Unknown". If the month or the day is unknown, corresponding characters are
-    left blank.
+:Domain: A date in the format YYYYMMDD or "-1" when the value is unknown. If the month or the day is unknown,
+    corresponding characters are left blank.
 
     Examples: 20060630, 200606, 2006.
-:Data Type: Character (8)
+:Data Type: Integer
 
 Dataset Name
 ^^^^^^^^^^^^
