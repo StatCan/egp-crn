@@ -9,7 +9,7 @@
 ## Table of Contents
 
 - [Brief](#brief)
-- [Developments - NRNv3 (working title)](#developments---nrnv3--working-title-)
+- [Developments and Improvements](#developments-and-Improvements)
 - [Setup](#setup)
   * [Prerequisites](#prerequisites)
   * [Installation](#installation)
@@ -29,31 +29,28 @@ available on the open government data portal (https://open.canada.ca/en).
 
 The NRN content largely conforms to ISO 14825 (https://www.iso.org/standard/54610.html).
 
-## Developments - NRNv3 (working title)
+## Developments and Improvements
 
 Since the acquisition of the NRN by Statistics Canada from Natural Resources Canada in 2018, numerous modernization 
-initiatives have been conceived, facilitating significant redevelopment of the NRN. The following outlines the primary
-initiatives and developments impacting the NRN:
-
-* [X] Streamline NRN processing. Migrate away from the semi-automated and outdated processes of the inherited project.
-  * [X] Develop a fully automated data processing pipeline.
-  * [X] Develop a python-based project using exclusively open source tools.
-  * [X] Develop a simplified feedback look with data providers (process &#8594; fix errors &#8594; process).
-
-* [ ] NRN simplification. Simplify the NRN schema and output requirements.
-
-* [ ] NRN - NGD integration. Redevelop the NRN to facilitate the merging of the NRN and NGD road networks into a single 
-product.
-
-* [ ] GeoBase integration. Redevelop the NRN to facilitate integration between the NRN and other GeoBase projects 
-(National Address Register and National Building Layer).
-
-* [ ] Updated documentation following NRN simplification and integration tasks.
+initiatives have been conceived, facilitating a complete redevelopment of the NRN processing pipeline. The most 
+significant NRN developments include:
+- Completely open source and python-based processing pipeline.
+- Command-line interface (CLI) implementation with the ability for full and partial-automation (users can choose to run 
+the entire pipeline or just individual parts).
+- Simplified installation via conda virtual environment (no setup / configuration issues).
+- Streamlined documentation maintenance, including translations, via Sphinx and reStructuredText (.rst).
+- Integrated and flexible data harmonization: configuration YAMLs define builtin functions to standardize source data 
+into NRN format.
+- Compatibility with almost all file formats (all GDAL vector drivers), including Linear Reference Systems (LRS).
+- Optimized data validations: clear and informative error logging and a validation lookup document containing 
+standardized error codes and their detailed explanations.
+- Optimized data processing: the smallest dataset (Prince Edward Island) takes < 5 minutes; the largest dataset 
+(Ontario) takes < 1.5 hours.
 
 ## Setup
 
 The pipeline is divided into fives stages where each stage is implemented as a directly callable python module, executed 
-as a command line interface.
+as a command-line interface.
 
 ### Prerequisites
 

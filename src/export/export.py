@@ -479,7 +479,6 @@ class Stage:
         """Executes an NRN stage."""
 
         self.dframes = helpers.extract_nrn(url=self.url, source_code=self.source_code)
-        # TODO: store junctions (avoid regenerating them for export).
         self.configure_release_version()
         self.gen_french_dataframes()
         self.define_kml_groups()

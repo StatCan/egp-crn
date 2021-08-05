@@ -571,11 +571,11 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
             # Update template.
             query = template.render(
                 source_code=source_code,
-                metacover=f"'{defaults[layer]['metacover']}'" if isinstance(defaults[layer]["metacover"], str) else
-                defaults[layer]["metacover"],
+                metacover=f"'{defaults[layer]['metacover']}'" if
+                isinstance(defaults[layer]["metacover"], str) else defaults[layer]["metacover"],
                 specvers=2.0,
-                muniquad=f"'{defaults[layer]['muniquad']}'" if isinstance(defaults[layer]["muniquad"], str) else
-                defaults[layer]["muniquad"]
+                muniquad=f"'{defaults['strplaname']['muniquad']}'" if
+                isinstance(defaults['strplaname']["muniquad"], str) else defaults['strplaname']["muniquad"]
             )
 
             # Execute query.
