@@ -569,10 +569,14 @@ def extract_nrn(url: str, source_code: int) -> Dict[str, Union[gpd.GeoDataFrame,
                 template = jinja2.Template(doc.read())
 
             # Update template.
-            query = template.render(source_code=source_code,
-                                    metacover=defaults[layer]["metacover"],
-                                    specvers=2.0,
-                                    muniquad=defaults["strplaname"]["muniquad"])
+            query = template.render(
+                source_code=source_code,
+                metacover=f"'{defaults[layer]['metacover']}'" if isinstance(defaults[layer]["metacover"], str) else
+                defaults[layer]["metacover"],
+                specvers=2.0,
+                muniquad=f"'{defaults[layer]['muniquad']}'" if isinstance(defaults[layer]["muniquad"], str) else
+                defaults[layer]["muniquad"]
+            )
 
             # Execute query.
             df = gpd.read_postgis(query, con, geom_col="geometry")

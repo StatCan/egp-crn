@@ -1,6 +1,6 @@
 -- Drop / create sequences for incremental integer columns.
-DROP SEQUENCE roadseg_seq;
-DROP SEQUENCE ferryseg_seq;
+DROP SEQUENCE IF EXISTS roadseg_seq;
+DROP SEQUENCE IF EXISTS ferryseg_seq;
 CREATE TEMP SEQUENCE roadseg_seq;
 CREATE TEMP SEQUENCE ferryseg_seq;
 
@@ -73,6 +73,8 @@ street_name AS
          FROM public.street_name_link) street_name_partition
       WHERE row_number = 1) street_name_link_filter
       LEFT JOIN public.street_name ON street_name_link_filter.street_name_id = public.street_name.street_name_id)
+
+-- Create primary table.
 
 -- Compile all NRN attributes into a single table.
 SELECT REPLACE(nrn.segment_id::text, '-', '') AS segment_id,
@@ -195,11 +197,11 @@ SELECT REPLACE(nrn.segment_id::text, '-', '') AS segment_id,
        CASE nrn.segment_type
          WHEN 1 THEN nextval('roadseg_seq')
          ELSE -1
-       END roadsegid
+       END roadsegid,
        CASE nrn.segment_type
          WHEN 2 THEN nextval('ferryseg_seq')
          ELSE -1
-       END ferrysegid
+       END ferrysegid,
        {{ source_code }} AS datasetnam,
        {{ metacover }} AS metacover,
        {{ specvers }} AS specvers,
