@@ -8,12 +8,12 @@ CREATE TEMP SEQUENCE ferryseg_seq;
 
 -- Create temporary table(s): route name.
 WITH route_name_link AS
-  (SELECT *
-   FROM
-     (SELECT *,
-             ROW_NUMBER() OVER (PARTITION BY segment_id)
-      FROM public.route_name_link route_name_link_partition
-      LEFT JOIN public.route_name route_name ON route_name_link_partition.route_name_id = route_name.route_name_id) route_name_link_full),
+  (SELECT segment_id,
+          route_name_en,
+          route_name_fr,
+          ROW_NUMBER() OVER (PARTITION BY segment_id)
+   FROM public.route_name_link route_name_link_partition
+   LEFT JOIN public.route_name route_name ON route_name_link_partition.route_name_id = route_name.route_name_id),
 route_name_1 AS
   (SELECT *
    FROM route_name_link
@@ -33,14 +33,11 @@ route_name_4 AS
 
 -- Create temporary table(s): route number.
 route_number_link AS
-  (SELECT route_number_link_full.segment_id,
-          CONCAT(route_number_link_full.route_number, route_number_link_full.route_number_alpha) AS route_number,
-          route_number_link_full.row_number
-   FROM
-     (SELECT *,
-             ROW_NUMBER() OVER (PARTITION BY segment_id)
-      FROM public.route_number_link route_number_link_partition
-      LEFT JOIN public.route_number route_number ON route_number_link_partition.route_number_id = route_number.route_number_id) route_number_link_full),
+  (SELECT segment_id,
+          route_number,
+          ROW_NUMBER() OVER (PARTITION BY segment_id)
+   FROM public.route_number_link route_number_link_partition
+   LEFT JOIN public.route_number route_number ON route_number_link_partition.route_number_id = route_number.route_number_id),
 route_number_1 AS
   (SELECT *
    FROM route_number_link
@@ -103,7 +100,7 @@ SELECT REPLACE(nrn.segment_id::text, '-', '') AS segment_id,
        strplaname_r_place_type_lookup.value_en AS strplaname_r_placetype,
        strplaname_r_province_lookup.value_en AS strplaname_r_province,
        closing_period_lookup.value_en AS closing,
-       CONCAT(exit_number.exit_number, exit_number.exit_number_alpha) AS exitnbr,
+       exit_number.exit_number AS exitnbr,
        functional_road_class_lookup.value_en AS roadclass,
        CASE road_surface_type_lookup.value_en
          WHEN 'Unknown' THEN 'Unknown'
