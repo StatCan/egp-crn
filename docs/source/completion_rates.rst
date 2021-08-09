@@ -34,22 +34,22 @@ Revision Date                        0     0     0   100     0     0     0   100
 Standard Version                     0     0     0   100     0     0   100   100     0   100     0   100   100    46
 Alternate Street Name NID Left       0     0     0     0     0     0     0     0   100     0     0     0     0     8
 Alternate Street Name NID Right      0     0     0     0     0     0     0     0   100     0     0     0     0     8
-Digitizing Direction Flag Left       0     0     0    99     0     6     0   100     0    53     0     0    28    22
-Digitizing Direction Flag Right      0     0     0    99     0     6     0   100     0    54     0     0    27    22
-First House Number Left              0     0     0   100     0     6     0   100    99    53     0     0    28    30
-First House Number Right             0     0     0   100     0     6     0   100   100    54     0     0    27    30
+Digitizing Direction Flag Left       0     0     0    99     0     6     0   100     0    54     0     0    28    22
+Digitizing Direction Flag Right      0     0     0    99     0     6     0   100     0    55     0     0    27    22
+First House Number Left              0     0     0   100     0     6     0   100    99    54     0     0    28    30
+First House Number Right             0     0     0   100     0     6     0   100   100    55     0     0    27    30
 First House Number Suffix Left       0     0     0    99     0     1     0   100     0     0     0     0     1    15
 First House Number Suffix Right      0     0     0    99     0     1     0   100     0     0     0     0     1    15
-First House Number Type Left         0     0     0   100     0     6     0   100     0    53     0     0    28    22
-First House Number Type Right        0     0     0   100     0     6     0   100     0    54     0     0    27    22
-House Number Structure Left          0     0     0   100     0     6     0   100    98    53     0     0    28    30
-House Number Structure Right         0     0     0   100     0     6     0   100    98    54     0     0    27    30
-Last House Number Left               0     0     0   100     0     6     0   100   100    53     0     0    28    30
-Last House Number Right              0     0     0   100     0     6     0   100   100    54     0     0    27    30
+First House Number Type Left         0     0     0   100     0     6     0   100     0    54     0     0    28    22
+First House Number Type Right        0     0     0   100     0     6     0   100     0    55     0     0    27    22
+House Number Structure Left          0     0     0   100     0     6     0   100    98    54     0     0    28    30
+House Number Structure Right         0     0     0   100     0     6     0   100    98    55     0     0    27    30
+Last House Number Left               0     0     0   100     0     6     0   100   100    54     0     0    28    30
+Last House Number Right              0     0     0   100     0     6     0   100   100    55     0     0    27    30
 Last House Number Suffix Left        0     0     0    99     0     1     0   100     0     0     0     0     1    15
 Last House Number Suffix Right       0     0     0    99     0     1     0   100     0     0     0     0     1    15
-Last House Number Type Left          0     0     0   100     0     6     0   100     0    53     0     0    28    22
-Last House Number Type Right         0     0     0   100     0     6     0   100     0    54     0     0    27    22
+Last House Number Type Left          0     0     0   100     0     6     0   100     0    54     0     0    28    22
+Last House Number Type Right         0     0     0   100     0     6     0   100     0    55     0     0    27    22
 NID                                  0     0     0   100     0   100     0   100   100   100     0   100   100    54
 Official Street Name NID Left        0     0     0   100     0   100     0   100   100   100     0   100   100    54
 Official Street Name NID Right       0     0     0   100     0   100     0   100   100   100     0   100   100    54
@@ -166,16 +166,16 @@ Planimetric Accuracy                            100   100   100     0   100   10
 Provider                                        100   100   100   100   100   100    99   100     0   100   100    99     1    85
 Revision Date                                   100   100   100   100   100   100     0   100   100   100   100    99    98    92
 Standard Version                                100   100   100   100   100   100   100   100     0   100   100   100   100    92
-Address Range Digitizing Direction Flag Left    100   100   100    99   100   100     6   100     0    53   100     0    28    68
-Address Range Digitizing Direction Flag Right   100   100   100    99   100   100     6   100     0    54   100     0    27    68
+Address Range Digitizing Direction Flag Left    100   100   100    99   100   100     6   100     0    54   100     0    28    68
+Address Range Digitizing Direction Flag Right   100   100   100    99   100   100     6   100     0    55   100     0    27    68
 Address Range NID                               100   100   100   100   100   100   100   100   100   100   100   100   100   100
 Closing Period                                    0     1     0     1     0    28     2     0     0    82     1     0     1     9
 Exit Number                                     100   100   100   100   100   100     0     0   100     0   100     1     0    62
-First House Number Left                          90   100    65   100    99    73     6   100   100    53    98   100    28    78
-First House Number Right                         90   100    65   100    99    73     6   100   100    54    98   100    27    78
+First House Number Left                          90   100    65   100    99    73     6   100   100    54    98   100    28    78
+First House Number Right                         90   100    65   100    99    73     6   100   100    55    98   100    27    78
 Functional Road Class                           100   100   100    99   100   100    99    83   100   100   100    99    97    98
-Last House Number Left                           90   100    65   100    99    73     6   100   100    53    98   100    28    78
-Last House Number Right                          90   100    65   100    99    73     6   100   100    54    98   100    27    78
+Last House Number Left                           90   100    65   100    99    73     6   100   100    54    98   100    28    78
+Last House Number Right                          90   100    65   100    99    73     6   100   100    55    98   100    27    78
 NID                                             100   100   100   100   100   100   100   100   100   100   100   100   100   100
 Number of Lanes                                 100   100   100    99   100   100    76    81   100   100   100    99    98    96
 Official Place Name Left                        100   100   100    94   100    73    87   100    85    99    96    99   100    95
