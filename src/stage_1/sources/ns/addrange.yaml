@@ -1,0 +1,53 @@
+coverage:
+  country: ca
+  province: ns
+  ISO3166:
+    alpha2: CA-NS
+    country: Canada
+    subdivision: Nova Scotia
+  website: Provided directly from data contact.
+  update_frequency: daily
+license:
+  url: https://novascotia.ca/opendata/licence.asp
+  text: Open Government License - Nova Scotia
+language: en
+data:
+  filename: 2021/NRN_Output.gdb
+  layer: NRN_ADDRANGE
+  driver: OpenFileGDB
+  crs:
+  spatial: False
+  query:
+conform:
+  addrange:
+    acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: Nova Scotia
+    accuracy: ACCURACY
+    provider: PROVIDER
+    revdate: REVDATE
+    specvers: 2.0
+    l_altnanid: "None"
+    r_altnanid: "None"
+    l_digdirfg: L_DIGDIRFG
+    r_digdirfg: R_DIGDIRFG
+    l_hnumf: L_HNUMF
+    r_hnumf: R_HNUMF
+    l_hnumsuff: L_HNUMSUFF
+    r_hnumsuff: R_HNUMSUFF
+    l_hnumtypf: L_HNUMTYPF
+    r_hnumtypf: R_HNUMTYPF
+    l_hnumstr: L_HNUMSTR
+    r_hnumstr: R_HNUMSTR
+    l_hnuml: L_HNUML
+    r_hnuml: R_HNUML
+    l_hnumsufl: L_HNUMSUFL
+    r_hnumsufl: R_HNUMSUFL
+    l_hnumtypl: L_HNUMTYPL
+    r_hnumtypl: R_HNUMTYPL
+    nid: NID #TODO: FIX
+    l_offnanid: L_OFFNANID
+    r_offnanid: R_OFFNANID
+    l_rfsysind: L_RFSYSIND
+    r_rfsysind: R_RFSYSIND

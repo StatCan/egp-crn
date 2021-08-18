@@ -1,0 +1,70 @@
+coverage:
+  country: ca
+  province: ns
+  ISO3166:
+    alpha2: CA-NS
+    country: Canada
+    subdivision: Nova Scotia
+  website: Provided directly from data contact.
+  update_frequency: daily
+license:
+  url: https://novascotia.ca/opendata/licence.asp
+  text: Open Government License - Nova Scotia
+language: en
+data:
+  filename: 2021/NRN_Output.gdb
+  layer: NRN_ROADSEG
+  driver: OpenFileGDB
+  crs: "EPSG:2961"
+  spatial: True
+  query:
+conform:
+  roadseg:
+    acqtech: ACQTECH
+    metacover: METACOVER
+    credate: CREDATE
+    datasetnam: Nova Scotia
+    accuracy: ACCURACY
+    provider: PROVIDER
+    revdate: REVDATE
+    specvers: 2.0
+    l_adddirfg:
+    r_adddirfg:
+    adrangenid: ADRANGENID #TODO: FIX
+    closing: CLOSING
+    exitnbr: EXITNBR
+    l_hnumf: #TODO
+    r_hnumf: #TODO
+    roadclass: ROADCLASS
+    l_hnuml: #TODO
+    r_hnuml: #TODO
+    nid: NID
+    nbrlanes: NBRLANES
+    l_placenam: #TODO
+    r_placenam: #TODO
+    l_stname_c: #TODO
+    r_stname_c: #TODO
+    pavsurf: PAVSURF
+    pavstatus: PAVSTATUS
+    roadjuris: ROADJURIS
+    roadsegid:
+    rtename1en: RTENAME1EN
+    rtename2en: RTENAME2EN
+    rtename3en: RTENAME3EN
+    rtename4en: RTENAME4EN
+    rtename1fr: RTENAME1FR
+    rtename2fr: RTENAME2FR
+    rtename3fr: RTENAME3FR
+    rtename4fr: RTENAME4FR
+    rtnumber1: RTNUMBER1
+    rtnumber2: RTNUMBER2
+    rtnumber3: RTNUMBER3
+    rtnumber4: RTNUMBER4
+    rtnumber5: RTNUMBER5
+    speed: SPEED
+    strunameen: STRUNAMEEN
+    strunamefr: STRUNAMEFR
+    structid: STRUCTID #TODO: FIX
+    structtype: STRUCTTYPE
+    trafficdir: TRAFFICDIR
+    unpavsurf: UNPAVSURF
