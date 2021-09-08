@@ -83,8 +83,11 @@ class EGP_Topology_Validation:
 
         # Iterate and log errors.
         for code, errors in sorted(self.Validator.errors.items()):
-            errors = "\n".join(map(str, errors))
+            errors["values"] = "\n".join(map(str, errors["values"]))
             logger_validations.warning(f"{code}\n{errors}\n")
+
+            if errors["query"]:
+                logger_validations.warning(f"{code} query: {errors['query']}\n")
 
     def validations(self) -> None:
         """Applies a set of validations to segments."""

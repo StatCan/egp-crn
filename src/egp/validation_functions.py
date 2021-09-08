@@ -7,7 +7,7 @@ import shapely.ops
 import string
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime
+from copy import deepcopy
 from itertools import chain, combinations, compress, groupby, product, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
@@ -55,6 +55,36 @@ class Validator:
 
         self.segment = segment.copy(deep=True)
         self.errors = defaultdict(list)
+        self.id = "segment_id"
+
+        logger.info("Validating segment identifiers.")
+        # Performs the following identifier validations:
+        # 1) identifiers must be 32 digit hexadecimal strings.
+        # 2) identifiers must be unique (nulls excluded from this validation).
+        self.segment[self.id] = self.segment[self.id].astype(str)
+
+        try:
+
+            hexdigits = set(string.hexdigits)
+            flag_non_hex = (self.segment[self.id].map(len) != 32) | \
+                           (self.segment[self.id].map(lambda val: not set(val).issubset(hexdigits)))
+            flag_dups = (self.segment[self.id].duplicated(keep=False)) & (self.segment[self.id] != "None")
+
+            # Log invalid segment identifiers.
+            if sum(flag_non_hex) or sum(flag_dups):
+                logger.exception(f"Invalid identifiers detected for \"{self.id}\".")
+                if sum(flag_non_hex):
+                    values = "\n".join(self.segment.loc[flag_non_hex, self.id].drop_duplicates(keep="first").values)
+                    logger.exception(f"Validation: identifiers must be 32 digit hexadecimal strings.\n{values}")
+                if sum(flag_dups):
+                    values = "\n".join(self.segment.loc[flag_dups, self.id].drop_duplicates(keep="first").values)
+                    logger.exception(f"Validation: identifiers must be unique.\n{values}")
+                sys.exit(1)
+
+        except ValueError as e:
+            logger.exception(f"Unable to validate segment identifiers for \"{self.id}\".")
+            logger.exception(e)
+            sys.exit(1)
 
         logger.info("Standardizing segments.")
 
@@ -64,7 +94,7 @@ class Validator:
         # 3) explodes multi-part geometries.
         # 4) flattens coordinates to 2-dimensions.
         # 5) rounds coordinates to 7 decimal places.
-        self.segment = self.segment.loc[self.segment.segment_type == 1]
+        self.segment = self.segment.loc[self.segment.segment_type.astype(int) == 1]
         self.segment = self.segment.to_crs("EPSG:3348")
         self.segment = helpers.explode_geometry(self.segment)
         self.segment = helpers.flatten_coordinates(self.segment)
@@ -75,17 +105,28 @@ class Validator:
         # Define validation.
         # Note: List validations in order if execution order matters.
         self.validations = {
-            101: self.construction_singlepart,
-            102: self.construction_min_length,
-            103: self.construction_self_overlap,
-            104: self.construction_self_cross,
-            105: self.construction_cluster_tolerance,
-            201: self.duplication_duplicated,
-            202: self.duplication_overlap,
-            301: self.connectivity_orphans,
-            302: self.connectivity_node_intersection,
-            303: self.connectivity_min_distance,
-            304: self.connectivity_segmentation
+            101: {"func": self.construction_singlepart,
+                  "desc": "Arcs must be single part (i.e. \"LineString\")."},
+            102: {"func": self.construction_min_length,
+                  "desc": "Arcs must be >= 5 meters in length."},
+            103: {"func": self.construction_self_overlap,
+                  "desc": "Arcs must not contain repeated adjacent vertices (i.e. self-overlap)."},
+            104: {"func": self.construction_self_cross,
+                  "desc": "Arcs must not cross themselves (i.e. must be \"simple\")."},
+            105: {"func": self.construction_cluster_tolerance,
+                  "desc": "Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance)."},
+            201: {"func": self.duplication_duplicated,
+                  "desc": "Arcs must not be duplicated."},
+            202: {"func": self.duplication_overlap,
+                  "desc": "Arcs must not overlap (i.e. contain duplicated adjacent vertices)."},
+            301: {"func": self.connectivity_orphans,
+                  "desc": "Arcs must connect to at least one other arc."},
+            302: {"func": self.connectivity_node_intersection,
+                  "desc": "Arcs must only connect at endpoints (nodes)."},
+            303: {"func": self.connectivity_min_distance,
+                  "desc": "Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles)."},
+            304: {"func": self.connectivity_segmentation,
+                  "desc": "Arcs must not cross (i.e. must be segmented at each intersection)."}
         }
 
         logger.info("Generating reusable geometry attributes.")
@@ -96,144 +137,152 @@ class Validator:
         self.segment["pts_set"] = self.segment["geometry"].map(lambda g: set(g.coords))
         self.segment["pts_ordered_pairs"] = self.segment["geometry"].map(lambda g: ordered_pairs(g.coords))
 
-    def connectivity_min_distance(self) -> list:
+    def connectivity_min_distance(self) -> dict:
         """
         Validation: Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def connectivity_node_intersection(self) -> list:
+    def connectivity_node_intersection(self) -> dict:
         """
         Validates: Arcs must only connect at endpoints (nodes).
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def connectivity_orphans(self) -> list:
+    def connectivity_orphans(self) -> dict:
         """
         Validates: Arcs must connect to at least one other arc.
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def connectivity_segmentation(self) -> list:
+    def connectivity_segmentation(self) -> dict:
         """
         Validates: Arcs must not cross (i.e. must be segmented at each intersection).
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def construction_cluster_tolerance(self) -> list:
+    def construction_cluster_tolerance(self) -> dict:
         """
         Validates: Arcs must have >= 1x10-2 (0.01) meters distance between adjacent vertices (cluster tolerance).
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def construction_min_length(self) -> list:
+    def construction_min_length(self) -> dict:
         """
         Validates: Arcs must be >= 5 meters in length.
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def construction_self_cross(self) -> list:
+    def construction_self_cross(self) -> dict:
         """
         Validates: Arcs must not cross themselves (i.e. must be “simple”).
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def construction_self_overlap(self) -> list:
+    def construction_self_overlap(self) -> dict:
         """
         Validates: Arcs must not contain repeated adjacent vertices (i.e. self-overlap).
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def construction_singlepart(self) -> list:
+    def construction_singlepart(self) -> dict:
         """
         Validates: Arcs must be single part (i.e. 'LineString').
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
-        # TODO
+        # Flag non-LineStrings.
+        flag = self.segment.geom_type != "LineString"
+
+        # Compile error logs.
+        if sum(flag):
+            vals = self.segment.loc[flag, self.id].values
+            vals_quotes = map(lambda val: f"'{val}'", vals)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
 
         return errors
 
-    def duplication_duplicated(self) -> list:
+    def duplication_duplicated(self) -> dict:
         """
         Validates: Arcs must not be duplicated.
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
         return errors
 
-    def duplication_overlap(self) -> list:
+    def duplication_overlap(self) -> dict:
         """
         Validates: Arcs must not overlap (i.e. contain duplicated adjacent vertices).
 
-        :return list: lists of error messages.
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        errors = list()
+        errors = {"values": list(), "query": None}
 
         # TODO
 
@@ -245,14 +294,15 @@ class Validator:
         try:
 
             # Iterate validations.
-            for code, func in self.validations.items():
+            for code, params in self.validations.items():
+                func, description = itemgetter("func", "desc")(params)
 
                 logger.info(f"Applying validation: \"{func.__name__}\".")
 
                 # Execute validation and store non-empty results.
                 results = func()
-                if len(results):
-                    self.errors[f"E{code}"] = results
+                if len(results["values"]):
+                    self.errors[f"E{code} - {description}"] = deepcopy(results)
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")
