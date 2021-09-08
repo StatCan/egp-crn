@@ -108,7 +108,7 @@ class Validator:
             101: {"func": self.construction_singlepart,
                   "desc": "Arcs must be single part (i.e. \"LineString\")."},
             102: {"func": self.construction_min_length,
-                  "desc": "Arcs must be >= 5 meters in length."},
+                  "desc": "Arcs must be >= 3 meters in length."},
             103: {"func": self.construction_self_overlap,
                   "desc": "Arcs must not contain repeated adjacent vertices (i.e. self-overlap)."},
             104: {"func": self.construction_self_cross,
@@ -204,14 +204,23 @@ class Validator:
 
     def construction_min_length(self) -> dict:
         """
-        Validates: Arcs must be >= 5 meters in length.
+        Validates: Arcs must be >= 3 meters in length.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Flag arcs which are too short.
+        min_length = 3
+        flag = self.segment < min_length
+
+        # Compile error logs.
+        if sum(flag):
+            vals = self.segment.loc[flag, self.id].values
+            vals_quotes = map(lambda val: f"'{val}'", vals)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
 
         return errors
 
