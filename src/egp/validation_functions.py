@@ -100,6 +100,10 @@ class Validator:
         self.segment = helpers.flatten_coordinates(self.segment)
         self.segment = helpers.round_coordinates(self.segment, precision=7)
 
+        # Set identifiers as index and drop unneeded columns.
+        self.segment.index = self.segment[self.id]
+        self.segment = self.segment[[self.id, "geometry"]].copy(deep=True)
+
         logger.info("Configuring validations.")
 
         # Define validation.
@@ -109,33 +113,37 @@ class Validator:
                   "desc": "Arcs must be single part (i.e. \"LineString\")."},
             102: {"func": self.construction_min_length,
                   "desc": "Arcs must be >= 3 meters in length."},
-            103: {"func": self.construction_self_overlap,
-                  "desc": "Arcs must not contain repeated adjacent vertices (i.e. self-overlap)."},
-            104: {"func": self.construction_self_cross,
-                  "desc": "Arcs must not cross themselves (i.e. must be \"simple\")."},
-            105: {"func": self.construction_cluster_tolerance,
+            103: {"func": self.construction_simple,
+                  "desc": "Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior)."},
+            104: {"func": self.construction_cluster_tolerance,
                   "desc": "Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance)."},
             201: {"func": self.duplication_duplicated,
                   "desc": "Arcs must not be duplicated."},
             202: {"func": self.duplication_overlap,
                   "desc": "Arcs must not overlap (i.e. contain duplicated adjacent vertices)."},
-            301: {"func": self.connectivity_orphans,
-                  "desc": "Arcs must connect to at least one other arc."},
-            302: {"func": self.connectivity_node_intersection,
+            301: {"func": self.connectivity_node_intersection,
                   "desc": "Arcs must only connect at endpoints (nodes)."},
-            303: {"func": self.connectivity_min_distance,
+            302: {"func": self.connectivity_min_distance,
                   "desc": "Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles)."},
-            304: {"func": self.connectivity_segmentation,
+            303: {"func": self.connectivity_segmentation,
                   "desc": "Arcs must not cross (i.e. must be segmented at each intersection)."}
         }
 
         logger.info("Generating reusable geometry attributes.")
 
         # Store computationally intensive geometry attributes as new dataframe columns.
-        self.segment["pt_start"] = self.segment["geometry"].map(lambda g: g.coords[0])
-        self.segment["pt_end"] = self.segment["geometry"].map(lambda g: g.coords[-1])
-        self.segment["pts_set"] = self.segment["geometry"].map(lambda g: set(g.coords))
-        self.segment["pts_ordered_pairs"] = self.segment["geometry"].map(lambda g: ordered_pairs(g.coords))
+        self.segment["pts_tuple"] = self.segment["geometry"].map(attrgetter("coords")).map(tuple)
+        self.segment["pts_set"] = self.segment["pts_tuple"].map(set)
+        self.segment["pt_start"] = self.segment["pts_tuple"].map(itemgetter(0))
+        self.segment["pt_end"] = self.segment["pts_tuple"].map(itemgetter(-1))
+        self.segment["pts_ordered_pairs"] = self.segment["pts_tuple"].map(ordered_pairs)
+
+        # Store computationally intensive lookups.
+        pts = self.segment["pts_tuple"].explode()
+        pts_df = pd.DataFrame(pts).reset_index(drop=False)
+        self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pts_tuple", self.id).map(set).to_dict()
+        self.pts_idx_lookup = dict(zip(pts_df.index, pts_df[self.id]))
+        self.pts_unique = set(pts_df.loc[~pts_df["pts_tuple"].duplicated(keep=False), "pts_tuple"])
 
     def connectivity_min_distance(self) -> dict:
         """
@@ -153,19 +161,6 @@ class Validator:
     def connectivity_node_intersection(self) -> dict:
         """
         Validates: Arcs must only connect at endpoints (nodes).
-
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
-        """
-
-        errors = {"values": list(), "query": None}
-
-        # TODO
-
-        return errors
-
-    def connectivity_orphans(self) -> dict:
-        """
-        Validates: Arcs must connect to at least one other arc.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
@@ -198,7 +193,24 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Filter segments to those with > 2 vertices.
+        segment = self.segment.loc[self.segment["pts_tuple"].map(len) > 2]
+        if len(segment):
+
+            # Explode segment coordinate pairs and calculate distances.
+            coord_pairs = segment["pts_ordered_pairs"].explode()
+            coord_dist = coord_pairs.map(lambda pair: euclidean(*pair))
+
+            # Flag pairs with distances that are too small.
+            min_distance = 0.01
+            flag = coord_dist < min_distance
+
+            # Compile error logs.
+            if sum(flag):
+                vals = set(coord_pairs.loc[flag].index)
+                vals_quotes = map(lambda val: f"'{val}'", vals)
+                errors["values"] = vals
+                errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
 
         return errors
 
@@ -224,29 +236,24 @@ class Validator:
 
         return errors
 
-    def construction_self_cross(self) -> dict:
+    def construction_simple(self) -> dict:
         """
-        Validates: Arcs must not cross themselves (i.e. must be “simple”).
+        Validates: Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Flag complex (non-simple) geometries.
+        flag = ~self.segment.is_simple
 
-        return errors
-
-    def construction_self_overlap(self) -> dict:
-        """
-        Validates: Arcs must not contain repeated adjacent vertices (i.e. self-overlap).
-
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
-        """
-
-        errors = {"values": list(), "query": None}
-
-        # TODO
+        # Compile error logs.
+        if sum(flag):
+            vals = self.segment.loc[flag, self.id].values
+            vals_quotes = map(lambda val: f"'{val}'", vals)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
 
         return errors
 
@@ -280,7 +287,23 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Filter segments to those with duplicated lengths.
+        segment = self.segment.loc[self.segment.length.duplicated(keep=False)]
+        if len(segment):
+
+            # Filter segments to those with duplicated nodes.
+            segment = segment.loc[segment[["pt_start", "pt_end"]].agg(set, axis=1).map(tuple).duplicated(keep=False)]
+
+            # Flag duplicated geometries.
+            dups = segment.loc[segment["geometry"].map(
+                lambda g1: segment["geometry"].map(lambda g2: g1.equals(g2)).sum() > 1)]
+            if len(dups):
+
+                # Compile error logs.
+                vals = dups[self.id].values
+                vals_quotes = map(lambda val: f"'{val}'", vals)
+                errors["values"] = vals
+                errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
 
         return errors
 
