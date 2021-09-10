@@ -102,7 +102,7 @@ class Validator:
 
         # Set identifiers as index and drop unneeded columns.
         self.segment.index = self.segment[self.id]
-        self.segment = self.segment[[self.id, "geometry"]].copy(deep=True)
+        self.segment = self.segment[["geometry"]].copy(deep=True)
 
         logger.info("Configuring validations.")
 
@@ -130,6 +130,7 @@ class Validator:
         }
 
         logger.info("Generating reusable geometry attributes.")
+        #TODO: once validations are implemented, remove unused attributes below.
 
         # Store computationally intensive geometry attributes as new dataframe columns.
         self.segment["pts_tuple"] = self.segment["geometry"].map(attrgetter("coords")).map(tuple)
@@ -167,7 +168,31 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Compile nodes.
+        nodes = set(self.segment["pt_start"].append(self.segment["pt_end"]))
+
+        # Compile interior vertices (non-nodes).
+        # Note: only segments with > 2 vertices are used.
+        non_nodes = set(self.segment.loc[self.segment["pts_tuple"].map(len) > 2, "pts_tuple"]
+                        .map(lambda pts: set(pts[1:-1])).map(tuple).explode())
+
+        # Compile invalid vertices.
+        invalid_pts = nodes.intersection(non_nodes)
+        if len(invalid_pts):
+
+            # Filter segments to those with an invalid vertex.
+            invalid_ids = set(chain.from_iterable(map(lambda pt: itemgetter(pt)(self.pts_id_lookup), invalid_pts)))
+            segment = self.segment.loc[self.segment.index.isin(invalid_ids)]
+
+            # Flag invalid segments where the invalid vertex is a non-node.
+            flag = segment["pts_tuple"].map(lambda pts: len(set(pts[1:-1]).intersection(invalid_pts))) > 0
+
+            # Compile error logs.
+            if sum(flag):
+                vals = set(segment.loc[flag].index)
+                vals_quotes = map(lambda val: f"'{val}'", vals)
+                errors["values"] = vals
+                errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
 
         return errors
 
@@ -316,7 +341,20 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Explode segment coordinate pairs and filter to pairs where both points are non-unique.
+        coord_pairs = self.segment["pts_ordered_pairs"].explode()
+        coord_pairs = coord_pairs.loc[coord_pairs.map(
+            lambda pair: (pair[0] not in self.pts_unique) and (pair[1] not in self.pts_unique))].copy(deep=True)
+
+        # Flag segment which overlap other segments.
+        flag = coord_pairs.map(sorted).map(tuple).duplicated(keep=False)
+
+        # Compile error logs.
+        if sum(flag):
+            vals = set(coord_pairs.loc[flag].index)
+            vals_quotes = map(lambda val: f"'{val}'", vals)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
 
         return errors
 
