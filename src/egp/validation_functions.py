@@ -11,6 +11,7 @@ from copy import deepcopy
 from itertools import chain, combinations, compress, groupby, product, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
+from rtree import index as rtree_index
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import euclidean
 from shapely.geometry import Point
@@ -138,13 +139,14 @@ class Validator:
         self.segment["pt_start"] = self.segment["pts_tuple"].map(itemgetter(0))
         self.segment["pt_end"] = self.segment["pts_tuple"].map(itemgetter(-1))
         self.segment["pts_ordered_pairs"] = self.segment["pts_tuple"].map(ordered_pairs)
+        self.segment["bounds"] = self.segment.bounds.apply(tuple, axis=1)
 
         # Store computationally intensive lookups.
         pts = self.segment["pts_tuple"].explode()
-        pts_df = pd.DataFrame(pts).reset_index(drop=False)
-        self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pts_tuple", self.id).map(set).to_dict()
+        pts_df = pd.DataFrame({"pt": pts.values, self.id: pts.index})
+        self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pt", self.id).map(set).to_dict()
         self.pts_idx_lookup = dict(zip(pts_df.index, pts_df[self.id]))
-        self.pts_unique = set(pts_df.loc[~pts_df["pts_tuple"].duplicated(keep=False), "pts_tuple"])
+        self.pts_unique = set(pts_df.loc[~pts_df["pt"].duplicated(keep=False), "pt"])
 
     def connectivity_min_distance(self) -> dict:
         """
@@ -155,7 +157,24 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Compile all nodes as a DataFrame.
+        pts = pd.DataFrame({"pt": self.segment["pt_start"].append(self.segment["pt_end"]).unique()})
+
+        # Compute node bounds with distance tolerance.
+        dist = 5
+        pts["bounds"] = pts["pt"].map(lambda pt: (itemgetter(0)(pt) - dist, itemgetter(1)(pt) - dist,
+                                                  itemgetter(0)(pt) + dist, itemgetter(1)(pt) + dist))
+
+        # Query segments with bounds that intersect each node bounds.
+        pts["intersection_bbox"] = pts["bounds"].map(lambda bounds: set(self.segment.sindex.intersection(bounds)))
+
+        # Filter to those nodes with multiple intersections.
+        pts = pts.loc[pts["intersection_bbox"].map(len) > 1]
+        if len(pts):
+
+            # perform true intersection . . . .
+            self.segment["index"] = range(len(self.segment))
+            # . . . .
 
         return errors
 
