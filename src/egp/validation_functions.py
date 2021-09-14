@@ -1,21 +1,16 @@
 import geopandas as gpd
 import logging
-import networkx as nx
-import numpy as np
 import pandas as pd
-import shapely.ops
 import string
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from copy import deepcopy
-from itertools import chain, combinations, compress, groupby, product, tee
+from itertools import chain, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from rtree import index as rtree_index
-from scipy.spatial import cKDTree
 from scipy.spatial.distance import euclidean
 from shapely.geometry import Point
-from typing import Dict, List, Tuple, Union
+from typing import List, Tuple
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
@@ -131,22 +126,18 @@ class Validator:
         }
 
         logger.info("Generating reusable geometry attributes.")
-        #TODO: once validations are implemented, remove unused attributes below.
 
         # Store computationally intensive geometry attributes as new dataframe columns.
         self.segment["pts_tuple"] = self.segment["geometry"].map(attrgetter("coords")).map(tuple)
-        self.segment["pts_set"] = self.segment["pts_tuple"].map(set)
         self.segment["pt_start"] = self.segment["pts_tuple"].map(itemgetter(0))
         self.segment["pt_end"] = self.segment["pts_tuple"].map(itemgetter(-1))
         self.segment["pts_ordered_pairs"] = self.segment["pts_tuple"].map(ordered_pairs)
-        self.segment["bounds"] = self.segment.bounds.apply(tuple, axis=1)
 
         # Store computationally intensive lookups.
         pts = self.segment["pts_tuple"].explode()
         pts_df = pd.DataFrame({"pt": pts.values, self.id: pts.index})
         self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pt", self.id).map(set).to_dict()
-        self.pts_idx_lookup = dict(zip(pts_df.index, pts_df[self.id]))
-        self.pts_unique = set(pts_df.loc[~pts_df["pt"].duplicated(keep=False), "pt"])
+        self.idx_id_lookup = dict(zip(range(len(self.segment)), self.segment.index))
 
     def connectivity_min_distance(self) -> dict:
         """
@@ -160,21 +151,36 @@ class Validator:
         # Compile all nodes as a DataFrame.
         pts = pd.DataFrame({"pt": self.segment["pt_start"].append(self.segment["pt_end"]).unique()})
 
-        # Compute node bounds with distance tolerance.
+        # Generate simplified node buffers with distance tolerance.
         dist = 5
-        pts["bounds"] = pts["pt"].map(lambda pt: (itemgetter(0)(pt) - dist, itemgetter(1)(pt) - dist,
-                                                  itemgetter(0)(pt) + dist, itemgetter(1)(pt) + dist))
+        pts["buffer"] = pts["pt"].map(lambda pt: Point(pt).buffer(dist, resolution=5))
 
-        # Query segments with bounds that intersect each node bounds.
-        pts["intersection_bbox"] = pts["bounds"].map(lambda bounds: set(self.segment.sindex.intersection(bounds)))
+        # Query segments where their bbox intersects each node buffer.
+        pts["intersects_idx"] = pts["buffer"].map(lambda buffer: set(self.segment.sindex.query(buffer, "intersects")))
 
         # Filter to those nodes with multiple intersections.
-        pts = pts.loc[pts["intersection_bbox"].map(len) > 1]
+        pts = pts.loc[pts["intersects_idx"].map(len) > 1]
         if len(pts):
 
-            # perform true intersection . . . .
-            self.segment["index"] = range(len(self.segment))
-            # . . . .
+            # Compile identifiers for each intersecting segment index.
+            pts["intersects_ids"] = pts["intersects_idx"].map(
+                lambda idxs: set(map(lambda idx: itemgetter(idx)(self.idx_id_lookup), idxs)))
+
+            # Compile identifiers for each segment connected to the node.
+            pts["node_ids"] = pts["pt"].map(lambda pt: itemgetter(pt)(self.pts_id_lookup))
+
+            # Filter intersecting segment ids to those not containing the node (disconnected segments).
+            pts["disconnected_ids"] = pts["intersects_ids"] - pts["node_ids"]
+
+            # Filter to those nodes with multiple disconnected segments.
+            pts = pts.loc[pts["disconnected_ids"].map(len) > 0]
+            if len(pts):
+
+                # Compile error logs.
+                errors["values"] = pts[["disconnected_ids", "node_ids"]].apply(
+                    lambda row: f"Disconnected feature(s) are too close: {*row[0],} - {*row[1],}", axis=1).to_list()
+                vals = pts["node_ids"].append(pts["disconnected_ids"]).map(tuple).explode().unique()
+                errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -205,13 +211,12 @@ class Validator:
 
             # Flag invalid segments where the invalid vertex is a non-node.
             flag = segment["pts_tuple"].map(lambda pts: len(set(pts[1:-1]).intersection(invalid_pts))) > 0
-
-            # Compile error logs.
             if sum(flag):
+
+                # Compile error logs.
                 vals = set(segment.loc[flag].index)
-                vals_quotes = map(lambda val: f"'{val}'", vals)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
+                errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -224,7 +229,17 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Query segments which cross each segment.
+        crosses = self.segment["geometry"].map(lambda g: set(self.segment.sindex.query(g, predicate="crosses")))
+
+        # Flag segments which have one or more crossing segments.
+        flag = crosses.map(len) > 0
+        if sum(flag):
+
+            # Compile error logs.
+            vals = set(crosses.loc[flag].index)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -248,13 +263,12 @@ class Validator:
             # Flag pairs with distances that are too small.
             min_distance = 0.01
             flag = coord_dist < min_distance
-
-            # Compile error logs.
             if sum(flag):
+
+                # Compile error logs.
                 vals = set(coord_pairs.loc[flag].index)
-                vals_quotes = map(lambda val: f"'{val}'", vals)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
+                errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -270,13 +284,12 @@ class Validator:
         # Flag arcs which are too short.
         min_length = 3
         flag = self.segment < min_length
-
-        # Compile error logs.
         if sum(flag):
+
+            # Compile error logs.
             vals = self.segment.loc[flag, self.id].values
-            vals_quotes = map(lambda val: f"'{val}'", vals)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -291,13 +304,12 @@ class Validator:
 
         # Flag complex (non-simple) geometries.
         flag = ~self.segment.is_simple
-
-        # Compile error logs.
         if sum(flag):
+
+            # Compile error logs.
             vals = self.segment.loc[flag, self.id].values
-            vals_quotes = map(lambda val: f"'{val}'", vals)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -312,13 +324,12 @@ class Validator:
 
         # Flag non-LineStrings.
         flag = self.segment.geom_type != "LineString"
-
-        # Compile error logs.
         if sum(flag):
+
+            # Compile error logs.
             vals = self.segment.loc[flag, self.id].values
-            vals_quotes = map(lambda val: f"'{val}'", vals)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -345,9 +356,8 @@ class Validator:
 
                 # Compile error logs.
                 vals = dups[self.id].values
-                vals_quotes = map(lambda val: f"'{val}'", vals)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
+                errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -360,20 +370,17 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # Explode segment coordinate pairs and filter to pairs where both points are non-unique.
-        coord_pairs = self.segment["pts_ordered_pairs"].explode()
-        coord_pairs = coord_pairs.loc[coord_pairs.map(
-            lambda pair: (pair[0] not in self.pts_unique) and (pair[1] not in self.pts_unique))].copy(deep=True)
+        # Query segments which overlap each segment.
+        overlaps = self.segment["geometry"].map(lambda g: set(self.segment.sindex.query(g, predicate="overlaps")))
 
-        # Flag segment which overlap other segments.
-        flag = coord_pairs.map(sorted).map(tuple).duplicated(keep=False)
+        # Flag segments which have one or more overlapping segments.
+        flag = overlaps.map(len) > 0
 
         # Compile error logs.
         if sum(flag):
-            vals = set(coord_pairs.loc[flag].index)
-            vals_quotes = map(lambda val: f"'{val}'", vals)
+            vals = set(overlaps.loc[flag].index)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in ({','.join(vals_quotes)})"
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
