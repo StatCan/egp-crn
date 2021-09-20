@@ -40,7 +40,7 @@ class EGP_Topology_Validation:
         self.remove = remove
         self.Validator = None
         self.src = Path(filepath.parents[2] / f"data/interim/egp_data.gpkg")
-        self.validations_log = Path(self.src / "validations.log")
+        self.validations_log = Path(self.src.parent / "validations.log")
 
         # Configure source path and layer name.
         if self.src.exists():
@@ -55,6 +55,7 @@ class EGP_Topology_Validation:
         if self.validations_log.exists():
             if remove:
                 logger.info(f"Removing conflicting file: \"{self.validations_log}\".")
+                self.validations_log.unlink()
             else:
                 logger.exception(f"Conflicting file exists (\"{self.validations_log}\") but remove=False. Set "
                                  f"remove=True (-r) or manually clear the output namespace.")
@@ -78,11 +79,13 @@ class EGP_Topology_Validation:
 
         # Iterate and log errors.
         for code, errors in sorted(self.Validator.errors.items()):
-            errors["values"] = "\n".join(map(str, errors["values"]))
-            logger_validations.warning(f"{code}\n{errors}\n")
 
+            # Format and write logs.
+            errors["values"] = "\n".join(map(str, errors["values"]))
             if errors["query"]:
-                logger_validations.warning(f"{code} query: {errors['query']}\n")
+                logger_validations.warning(f"{code}\n\nValues:\n{errors['values']}\n\nQuery: {errors['query']}\n")
+            else:
+                logger_validations.warning(f"{code}\n\nValues:\n{errors['values']}\n")
 
     def validations(self) -> None:
         """Applies a set of validations to segments."""

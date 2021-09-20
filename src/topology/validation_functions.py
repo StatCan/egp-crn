@@ -393,7 +393,7 @@ class Validator:
             for code, params in self.validations.items():
                 func, description = itemgetter("func", "desc")(params)
 
-                logger.info(f"Applying validation: \"{func.__name__}\".")
+                logger.info(f"Applying validation E{code}: \"{func.__name__}\".")
 
                 # Execute validation and store non-empty results.
                 results = func()
