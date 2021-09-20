@@ -8,7 +8,7 @@ import sys
 import time
 from operator import attrgetter, itemgetter
 from osgeo import ogr
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString
 from shapely.wkt import loads
 from typing import Any, List, Union
 
@@ -62,7 +62,7 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     :return gpd.GeoDataFrame: GeoDataFrame containing only single-part geometries.
     """
 
-    logger.info("Exploding multi-type geometries.")
+    logger.info("Standardizing segments: exploding multi-type geometries.")
 
     multi_types = {"MultiLineString", "MultiPoint"}
     if len(set(gdf.geom_type.unique()).intersection(multi_types)):
@@ -90,7 +90,7 @@ def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     :return gpd.GeoDataFrame: GeoDataFrame with 2-dimensional coordinates.
     """
 
-    logger.info("Flattening coordinates to 2-dimensions.")
+    logger.info("Standardizing segments: flattening coordinates to 2-dimensions.")
 
     try:
 
@@ -98,15 +98,14 @@ def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         if len(gdf.geom_type.unique()) > 1:
             raise TypeError("Multiple geometry types detected for dataframe.")
 
-        elif gdf.geom_type.iloc[0] == "LineString":
-            gdf["geometry"] = gdf["geometry"].map(
-                lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
-
-        elif gdf.geom_type.iloc[0] == "Point":
-            gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
-
         else:
-            raise TypeError("Geometry type not supported for coordinate flattening.")
+
+            # Flag records with coordinates not already flattened to 2-dimensions.
+            flag = gdf["geometry"].map(lambda g: any(map(lambda pt: len(pt) > 2, attrgetter("coords")(g))))
+
+            # Flatten coordinates for flagged records.
+            gdf.loc[flag, "geometry"] = gdf.loc[flag, "geometry"].map(
+                lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
 
     except TypeError as e:
         logger.exception(e)
@@ -155,11 +154,17 @@ def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataF
     :return gpd.GeoDataFrame: GeoDataFrame with modified decimal precision.
     """
 
-    logger.info(f"Rounding coordinates to decimal precision: {precision}.")
+    logger.info(f"Standardizing segments: rounding coordinates to decimal precision: {precision}.")
 
     try:
 
-        gdf["geometry"] = gdf["geometry"].map(
+        # Flag records with coordinates not already rounded to specified precision.
+        flag = gdf["geometry"].map(
+            lambda g: max(map(lambda pt: max(len(str(pt[0]).split(".")[-1]),
+                                             len(str(pt[1]).split(".")[-1])), attrgetter("coords")(g)))) > precision
+
+        # Round coordinates for flagged records.
+        gdf.loc[flag, "geometry"] = gdf.loc[flag, "geometry"].map(
             lambda g: loads(re.sub(r"\d*\.\d+", lambda m: f"{float(m.group(0)):.{precision}f}", g.wkt)))
 
         return gdf

@@ -87,7 +87,7 @@ class EGP_Topology_Validation:
     def validations(self) -> None:
         """Applies a set of validations to segments."""
 
-        logger.info("Applying validations.")
+        logger.info("Initiating validator.")
 
         # Instantiate and execute validator class.
         self.Validator = Validator(self.segment)

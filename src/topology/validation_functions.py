@@ -283,7 +283,7 @@ class Validator:
 
         # Flag arcs which are too short.
         min_length = 3
-        flag = self.segment < min_length
+        flag = self.segment.length < min_length
         if sum(flag):
 
             # Compile error logs.
