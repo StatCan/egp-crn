@@ -53,7 +53,7 @@ class Validator:
         self.errors = defaultdict(list)
         self.id = "segment_id"
 
-        logger.info("Validating segment identifiers.")
+        logger.info(f"Validating segment identifiers for: \"{self.id}\".")
         # Performs the following identifier validations:
         # 1) identifiers must be 32 digit hexadecimal strings.
         # 2) identifiers must be unique (nulls excluded from this validation).
@@ -287,7 +287,7 @@ class Validator:
         if sum(flag):
 
             # Compile error logs.
-            vals = self.segment.loc[flag, self.id].values
+            vals = set(self.segment.loc[flag].index)
             errors["values"] = vals
             errors["query"] = f"\"{self.id}\" in {*vals,}"
 
@@ -307,7 +307,7 @@ class Validator:
         if sum(flag):
 
             # Compile error logs.
-            vals = self.segment.loc[flag, self.id].values
+            vals = set(self.segment.loc[flag].index)
             errors["values"] = vals
             errors["query"] = f"\"{self.id}\" in {*vals,}"
 
@@ -327,7 +327,7 @@ class Validator:
         if sum(flag):
 
             # Compile error logs.
-            vals = self.segment.loc[flag, self.id].values
+            vals = set(self.segment.loc[flag].index)
             errors["values"] = vals
             errors["query"] = f"\"{self.id}\" in {*vals,}"
 
@@ -355,7 +355,7 @@ class Validator:
             if len(dups):
 
                 # Compile error logs.
-                vals = dups[self.id].values
+                vals = set(dups.index)
                 errors["values"] = vals
                 errors["query"] = f"\"{self.id}\" in {*vals,}"
 

@@ -8,7 +8,7 @@ import sys
 import time
 from operator import attrgetter, itemgetter
 from osgeo import ogr
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 from shapely.wkt import loads
 from typing import Any, List, Union
 
@@ -98,14 +98,15 @@ def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         if len(gdf.geom_type.unique()) > 1:
             raise TypeError("Multiple geometry types detected for dataframe.")
 
-        else:
-
-            # Flag records with coordinates not already flattened to 2-dimensions.
-            flag = gdf["geometry"].map(lambda g: any(map(lambda pt: len(pt) > 2, attrgetter("coords")(g))))
-
-            # Flatten coordinates for flagged records.
-            gdf.loc[flag, "geometry"] = gdf.loc[flag, "geometry"].map(
+        elif gdf.geom_type.iloc[0] == "LineString":
+            gdf["geometry"] = gdf["geometry"].map(
                 lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
+
+        elif gdf.geom_type.iloc[0] == "Point":
+            gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
+
+        else:
+            raise TypeError("Geometry type not supported for coordinate flattening.")
 
     except TypeError as e:
         logger.exception(e)
@@ -158,13 +159,7 @@ def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataF
 
     try:
 
-        # Flag records with coordinates not already rounded to specified precision.
-        flag = gdf["geometry"].map(
-            lambda g: max(map(lambda pt: max(len(str(pt[0]).split(".")[-1]),
-                                             len(str(pt[1]).split(".")[-1])), attrgetter("coords")(g)))) > precision
-
-        # Round coordinates for flagged records.
-        gdf.loc[flag, "geometry"] = gdf.loc[flag, "geometry"].map(
+        gdf["geometry"] = gdf["geometry"].map(
             lambda g: loads(re.sub(r"\d*\.\d+", lambda m: f"{float(m.group(0)):.{precision}f}", g.wkt)))
 
         return gdf
