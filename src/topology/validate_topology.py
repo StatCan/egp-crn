@@ -28,52 +28,47 @@ logger_validations.setLevel(logging.WARNING)
 class EGP_Topology_Validation:
     """Defines the EGP topology validation class."""
 
-    def __init__(self, src: str, dst: str, remove: bool = False) -> None:
+    def __init__(self, source: str, remove: bool = False) -> None:
         """
         Initializes the EGP class.
 
-        :param str src: path to the source GeoPackage containing layer `segment`.
-        :param str dst: path to the directory where the validation log file will be written.
-        :param bool remove: remove pre-existing validation log within the `dst` directory, default False.
+        :param str source: abbreviation for the source province / territory.
+        :param bool remove: remove pre-existing output file (validations.log), default False.
         """
 
-        self.src = Path(src).resolve()
-        self.dst = Path(dst).resolve()
+        self.layer = f"segment_{source}"
         self.remove = remove
         self.Validator = None
-        self.validations_log = Path(self.dst / "validations.log")
+        self.src = Path(filepath.parents[2] / f"data/interim/egp_data.gpkg")
+        self.validations_log = Path(self.src / "validations.log")
 
-        # Configure source path.
+        # Configure source path and layer name.
         if self.src.exists():
-            if "segment" not in set(fiona.listlayers(self.src)):
-                logger.exception(f"Layer \"segment\" not found within source: \"{self.src}\".")
+            if self.layer not in set(fiona.listlayers(self.src)):
+                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
                 sys.exit(1)
         else:
             logger.exception(f"Source not found: \"{self.src}\".")
             sys.exit(1)
 
         # Configure destination path.
-        if self.dst.exists():
-            if self.validations_log.exists():
-                if remove:
-                    logger.info(f"Removing conflicting file: \"{self.validations_log}\".")
-                else:
-                    logger.exception(f"Conflicting file exists (\"{self.validations_log}\") but remove=False. Set "
-                                     f"remove=True (-r) or manually clear the output namespace.")
-                    sys.exit(1)
-        else:
-            logger.exception(f"Destination not found: \"{self.dst}\".")
-            sys.exit(1)
+        if self.validations_log.exists():
+            if remove:
+                logger.info(f"Removing conflicting file: \"{self.validations_log}\".")
+            else:
+                logger.exception(f"Conflicting file exists (\"{self.validations_log}\") but remove=False. Set "
+                                 f"remove=True (-r) or manually clear the output namespace.")
+                sys.exit(1)
 
         # Load source data.
-        logger.info(f"Loading source data: {self.src}|layer=segment.")
-        self.segment = gpd.read_file(self.src, layer="segment")
+        logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
+        self.segment = gpd.read_file(self.src, layer=self.layer)
         logger.info("Successfully loaded source data.")
 
     def log_errors(self) -> None:
         """Outputs error logs returned by validation functions."""
 
-        logger.info("Writing error logs.")
+        logger.info(f"Writing error logs: \"{self.validations_log}\".")
 
         # Add File Handler to validation logger.
         f_handler = logging.FileHandler(self.validations_log)
@@ -106,23 +101,21 @@ class EGP_Topology_Validation:
 
 
 @click.command()
-@click.argument("src", type=click.Path(exists=True))
-@click.argument("dst", type=click.Path(exists=True))
+@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
-              help="Remove pre-existing validation log within the `dst` directory, default False.")
-def main(src: str, dst: str, remove: bool = False) -> None:
+              help="Remove pre-existing output file (validations.log), default False.")
+def main(source: str, remove: bool = False) -> None:
     """
     Instantiates and executes the EGP class.
 
-    :param str src: path to the source GeoPackage containing layer `segment`.
-    :param str dst: path to the directory where the validation log file will be written.
-    :param bool remove: remove pre-existing validation log within the `dst` directory, default False.
+    :param str source: abbreviation for the source province / territory.
+    :param bool remove: remove pre-existing output file (validations.log), default False.
     """
 
     try:
 
         with helpers.Timer():
-            egp = EGP_Topology_Validation(src, dst, remove)
+            egp = EGP_Topology_Validation(source, remove)
             egp.execute()
 
     except KeyboardInterrupt:
