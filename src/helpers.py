@@ -85,13 +85,13 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         return gdf.copy(deep=True)
 
 
-def export(df: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
+def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
     """
     Exports a GeoDataFrame to a GeoPackage.
 
     :param gpd.GeoDataFrame df: GeoDataFrame containing LineStrings.
     :param Path dst: output GeoPackage path.
-    :param str layer: output GeoPackage layer name.
+    :param str name: output GeoPackage layer name.
     """
 
     try:
@@ -105,7 +105,7 @@ def export(df: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         srs.ImportFromEPSG(df.crs.to_epsg())
 
         # Create GeoPackage layer.
-        layer = gpkg.CreateLayer(name=layer, srs=srs, geom_type=ogr.wkbLineString, options=["OVERWRITE=YES"])
+        layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=ogr.wkbLineString, options=["OVERWRITE=YES"])
 
         # Set field definitions.
         ogr_field_map = {"i": ogr.OFTInteger, "O": ogr.OFTString}
@@ -118,7 +118,7 @@ def export(df: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         layer.StartTransaction()
 
         for feat in tqdm(df.itertuples(index=False), total=len(df),
-                         desc=f"Writing to file: {gpkg.GetName()}|layer={layer}",
+                         desc=f"Writing to file: {gpkg.GetName()}|layer={name}",
                          bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}"):
 
             # Instantiate feature.
@@ -144,7 +144,7 @@ def export(df: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         layer.CommitTransaction()
 
     except (KeyError, ValueError, sqlite3.Error) as e:
-        logger.exception(f"Error raised when writing output: {dst}|layer={layer}.")
+        logger.exception(f"Error raised when writing output: {dst}|layer={name}.")
         logger.exception(e)
         sys.exit(1)
 

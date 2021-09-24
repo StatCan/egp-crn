@@ -80,7 +80,7 @@ class Validator:
 
                 # Overwrite identifiers and export updated layer to file.
                 self.segment.loc[flag_invalid, self.id] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
-                helpers.export(self.segment, dst=self.dst, layer=self.layer)
+                helpers.export(self.segment, dst=self.dst, name=self.layer)
 
         except ValueError as e:
             logger.exception(f"Unable to validate segment identifiers for \"{self.id}\".")
