@@ -4,12 +4,15 @@ import logging
 import numpy as np
 import pandas as pd
 import re
+import sqlite3
 import sys
 import time
 from operator import attrgetter, itemgetter
-from osgeo import ogr
+from osgeo import ogr, osr
+from pathlib import Path
 from shapely.geometry import LineString, Point
 from shapely.wkt import loads
+from tqdm import tqdm
 from typing import Any, List, Union
 
 
@@ -80,6 +83,70 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
     else:
         return gdf.copy(deep=True)
+
+
+def export(df: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
+    """
+    Exports a GeoDataFrame to a GeoPackage.
+
+    :param gpd.GeoDataFrame df: GeoDataFrame containing LineStrings.
+    :param Path dst: output GeoPackage path.
+    :param str layer: output GeoPackage layer name.
+    """
+
+    try:
+
+        # Open GeoPackage.
+        driver = ogr.GetDriverByName("GPKG")
+        gpkg = driver.Open(str(dst), update=1)
+
+        # Configure spatial reference system.
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(df.crs.to_epsg())
+
+        # Create GeoPackage layer.
+        layer = gpkg.CreateLayer(name=layer, srs=srs, geom_type=ogr.wkbLineString, options=["OVERWRITE=YES"])
+
+        # Set field definitions.
+        ogr_field_map = {"i": ogr.OFTInteger, "O": ogr.OFTString}
+        for field_name, field_dtype in df.dtypes.to_dict().items():
+            if field_name != "geometry":
+                field_defn = ogr.FieldDefn(field_name, ogr_field_map[field_dtype.kind])
+                layer.CreateField(field_defn)
+
+        # Write layer.
+        layer.StartTransaction()
+
+        for feat in tqdm(df.itertuples(index=False), total=len(df),
+                         desc=f"Writing to file: {gpkg.GetName()}|layer={layer}",
+                         bar_format="{desc}: |{bar}| {percentage:3.0f}% {r_bar}"):
+
+            # Instantiate feature.
+            feature = ogr.Feature(layer.GetLayerDefn())
+
+            # Compile feature properties.
+            properties = feat._asdict()
+
+            # Set feature geometry.
+            geom = ogr.CreateGeometryFromWkb(properties.pop("geometry").wkb)
+            feature.SetGeometry(geom)
+
+            # Iterate and set feature properties (attributes).
+            for field_index, prop in enumerate(properties.items()):
+                feature.SetField(field_index, prop[-1])
+
+            # Create feature.
+            layer.CreateFeature(feature)
+
+            # Clear pointer for next iteration.
+            feature = None
+
+        layer.CommitTransaction()
+
+    except (KeyError, ValueError, sqlite3.Error) as e:
+        logger.exception(f"Error raised when writing output: {dst}|layer={layer}.")
+        logger.exception(e)
+        sys.exit(1)
 
 
 def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:

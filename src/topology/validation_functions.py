@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 import string
 import sys
+import uuid
 from collections import defaultdict
 from copy import deepcopy
 from itertools import chain, tee
@@ -42,40 +43,44 @@ def ordered_pairs(coords: Tuple[tuple, ...]) -> List[Tuple[tuple, tuple]]:
 class Validator:
     """Handles the execution of validation functions against the segment dataset."""
 
-    def __init__(self, segment: gpd.GeoDataFrame) -> None:
+    def __init__(self, segment: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         """
         Initializes variables for validation functions.
 
         :param gpd.GeoDataFrame segment: GeoDataFrame containing LineStrings.
+        :param Path dst: output GeoPackage path.
+        :param str layer: output GeoPackage layer name.
         """
 
         self.segment = segment.copy(deep=True)
+        self.dst = dst
+        self.layer = layer
         self.errors = defaultdict(list)
         self.id = "segment_id"
 
-        logger.info(f"Validating segment identifiers for: \"{self.id}\".")
-        # Performs the following identifier validations:
-        # 1) identifiers must be 32 digit hexadecimal strings.
-        # 2) identifiers must be unique (nulls excluded from this validation).
+        logger.info(f"Resolving segment identifiers for: \"{self.id}\".")
+        # Identifiers must be unique 32 digit hexadecimal strings. The process of data editing is likely to create
+        # duplicated or invalid identifiers; this process will resolve any invalid values such that the script can
+        # proceed. This process will overwrite any invalid identifiers. Therefore, original identifiers should be
+        # stored in a separate, backup column for post-processing linkages.
         self.segment[self.id] = self.segment[self.id].astype(str)
 
         try:
 
+            # Flag invalid identifiers.
             hexdigits = set(string.hexdigits)
             flag_non_hex = (self.segment[self.id].map(len) != 32) | \
                            (self.segment[self.id].map(lambda val: not set(val).issubset(hexdigits)))
             flag_dups = (self.segment[self.id].duplicated(keep=False)) & (self.segment[self.id] != "None")
+            flag_invalid = flag_non_hex | flag_dups
 
-            # Log invalid segment identifiers.
-            if sum(flag_non_hex) or sum(flag_dups):
-                logger.exception(f"Invalid identifiers detected for \"{self.id}\".")
-                if sum(flag_non_hex):
-                    values = "\n".join(self.segment.loc[flag_non_hex, self.id].drop_duplicates(keep="first").values)
-                    logger.exception(f"Validation: identifiers must be 32 digit hexadecimal strings.\n{values}")
-                if sum(flag_dups):
-                    values = "\n".join(self.segment.loc[flag_dups, self.id].drop_duplicates(keep="first").values)
-                    logger.exception(f"Validation: identifiers must be unique.\n{values}")
-                sys.exit(1)
+            # Resolve invalid identifiers.
+            if sum(flag_invalid):
+                logger.warning(f"Resolving {sum(flag_invalid)} invalid identifiers for: \"{self.id}\".")
+
+                # Overwrite identifiers and export updated layer to file.
+                self.segment.loc[flag_invalid, self.id] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
+                helpers.export(self.segment, dst=self.dst, layer=self.layer)
 
         except ValueError as e:
             logger.exception(f"Unable to validate segment identifiers for \"{self.id}\".")
