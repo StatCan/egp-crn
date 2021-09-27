@@ -108,13 +108,13 @@ class EGP_Topology_Validation:
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.argument("username", type=click.STRING)
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
-              help="Remove pre-existing output file (validations.log), default False.")
+              help="Remove pre-existing output file (validations.log).")
 def main(source: str, username: str, remove: bool = False) -> None:
     """
     Instantiates and executes the EGP class.
 
     :param str source: abbreviation for the source province / territory.
-    :param str username: name of a personalized sub-directory for data editing within egp/data/interim.
+    :param str username: name of a personalized sub-directory for data editing within egp/data/interim.\n
     :param bool remove: remove pre-existing output file (validations.log), default False.
     """
 
