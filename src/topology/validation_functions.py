@@ -289,21 +289,22 @@ class Validator:
         flag = self.segment.length < min_length
         if sum(flag):
             
-            # Filter out isolated structures (structures not connected to another structure).
+            # Flag isolated structures (structures not connected to another structure).
             
             # Compile structures.
-            structures = self.segment.loc[~self.segment["structure_type"].isin({-1, 0})]
+            structures = self.segment.loc[~self.segment["structure_type"].isin({"Unknown", "None"})]
             
             # Compile duplicated structure nodes.
             structure_nodes = pd.Series(structures["pt_start"].append(structures["pt_end"]))
             structure_nodes_dups = set(structure_nodes.loc[structure_nodes.duplicated(keep=False)])
             
             # Flag isolated structures.
-            isolated_structure_index = set(structures.loc[~((structures["pt_start"].isin(structure_nodes_dups)) | (structures["pt_end"].isin(structure_nodes_dups)))].index)
+            isolated_structure_index = set(structures.loc[~((structures["pt_start"].isin(structure_nodes_dups)) |
+                                                            (structures["pt_end"].isin(structure_nodes_dups)))].index)
             isolated_structure_flag = self.segment.index.isin(isolated_structure_index)
             
             # Modify flag to exclude isolated structures.
-            flag = (flag & isolated_structure_flag)
+            flag = (flag & (~isolated_structure_flag))
             if sum(flag):
 
                 # Compile error logs.
