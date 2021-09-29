@@ -93,17 +93,15 @@ class Validator:
         # 1) exclude non-road segments (segment_type=1).
         # 2) re-projects to a meter-based projection (EPSG:3348).
         # 3) explodes multi-part geometries.
-        # 4) flattens coordinates to 2-dimensions.
-        # 5) rounds coordinates to 7 decimal places.
+        # 4) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
         self.segment = self.segment.loc[self.segment.segment_type.astype(int) == 1]
         self.segment = self.segment.to_crs("EPSG:3348")
         self.segment = helpers.explode_geometry(self.segment)
-        self.segment = helpers.flatten_coordinates(self.segment)
         self.segment = helpers.round_coordinates(self.segment, precision=7)
 
         # Set identifiers as index and drop unneeded columns.
         self.segment.index = self.segment[self.id]
-        self.segment = self.segment[["geometry"]].copy(deep=True)
+        self.segment = self.segment[["structure_type", "geometry"]].copy(deep=True)
 
         logger.info("Configuring validations.")
 
@@ -279,7 +277,7 @@ class Validator:
 
     def construction_min_length(self) -> dict:
         """
-        Validates: Arcs must be >= 3 meters in length.
+        Validates: Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
@@ -290,11 +288,28 @@ class Validator:
         min_length = 3
         flag = self.segment.length < min_length
         if sum(flag):
+            
+            # Filter out isolated structures (structures not connected to another structure).
+            
+            # Compile structures.
+            structures = self.segment.loc[~self.segment["structure_type"].isin({-1, 0})]
+            
+            # Compile duplicated structure nodes.
+            structure_nodes = pd.Series(structures["pt_start"].append(structures["pt_end"]))
+            structure_nodes_dups = set(structure_nodes.loc[structure_nodes.duplicated(keep=False)])
+            
+            # Flag isolated structures.
+            isolated_structure_index = set(structures.loc[~((structures["pt_start"].isin(structure_nodes_dups)) | (structures["pt_end"].isin(structure_nodes_dups)))].index)
+            isolated_structure_flag = self.segment.index.isin(isolated_structure_index)
+            
+            # Modify flag to exclude isolated structures.
+            flag = (flag & isolated_structure_flag)
+            if sum(flag):
 
-            # Compile error logs.
-            vals = set(self.segment.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+                # Compile error logs.
+                vals = set(self.segment.loc[flag].index)
+                errors["values"] = vals
+                errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 

@@ -3,15 +3,13 @@ import geopandas as gpd
 import logging
 import numpy as np
 import pandas as pd
-import re
 import sqlite3
 import sys
 import time
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from pathlib import Path
-from shapely.geometry import LineString, Point
-from shapely.wkt import loads
+from shapely.geometry import LineString
 from tqdm import tqdm
 from typing import Any, List, Union
 
@@ -149,39 +147,6 @@ def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
         sys.exit(1)
 
 
-def flatten_coordinates(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """
-    Flattens the GeoDataFrame geometry coordinates to 2-dimensions.
-
-    :param gpd.GeoDataFrame gdf: GeoDataFrame.
-    :return gpd.GeoDataFrame: GeoDataFrame with 2-dimensional coordinates.
-    """
-
-    logger.info("Standardizing segments: flattening coordinates to 2-dimensions.")
-
-    try:
-
-        # Flatten coordinates.
-        if len(gdf.geom_type.unique()) > 1:
-            raise TypeError("Multiple geometry types detected for dataframe.")
-
-        elif gdf.geom_type.iloc[0] == "LineString":
-            gdf["geometry"] = gdf["geometry"].map(
-                lambda g: LineString(itemgetter(0, 1)(pt) for pt in attrgetter("coords")(g)))
-
-        elif gdf.geom_type.iloc[0] == "Point":
-            gdf["geometry"] = gdf["geometry"].map(lambda g: Point(itemgetter(0, 1)(attrgetter("coords")(g)[0])))
-
-        else:
-            raise TypeError("Geometry type not supported for coordinate flattening.")
-
-    except TypeError as e:
-        logger.exception(e)
-        sys.exit(1)
-
-    return gdf
-
-
 def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str], str], list_field: str) -> \
         pd.Series:
     """
@@ -216,6 +181,7 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
 def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataFrame:
     """
     Rounds the GeoDataFrame geometry coordinates to a specific decimal precision.
+    Only the first 2 values (x, y) are kept for each coordinate, effectively flattening the geometry to 2-dimensions.
 
     :param gpd.GeoDataFrame gdf: GeoDataFrame.
     :param int precision: decimal precision to round the GeoDataFrame geometry coordinates to.
@@ -226,8 +192,9 @@ def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataF
 
     try:
 
-        gdf["geometry"] = gdf["geometry"].map(
-            lambda g: loads(re.sub(r"\d*\.\d+", lambda m: f"{float(m.group(0)):.{precision}f}", g.wkt)))
+        gdf["geometry"] = gdf["geometry"].map(lambda g: LineString(map(
+            lambda pt: [round(itemgetter(0)(pt), precision), round(itemgetter(1)(pt), precision)],
+            attrgetter("coords")(g))))
 
         return gdf
 
