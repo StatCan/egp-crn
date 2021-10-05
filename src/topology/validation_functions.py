@@ -6,11 +6,13 @@ import sys
 import uuid
 from collections import defaultdict
 from copy import deepcopy
+from functools import reduce
 from itertools import chain, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from scipy.spatial.distance import euclidean
-from shapely.geometry import Point
+from shapely.geometry import LineString, MultiLineString, Point
+from shapely.ops import split
 from typing import List, Tuple
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -40,6 +42,18 @@ def ordered_pairs(coords: Tuple[tuple, ...]) -> List[Tuple[tuple, tuple]]:
     return sorted(zip(coords_1, coords_2))
 
 
+def split_line(line1: LineString, line2: LineString) -> MultiLineString:
+    """
+    Splits a LineString based on a crossing LineString.
+
+    :param LineString line1: LineString to be split.
+    :param LineString line2: LineString to be used as the splitter.
+    :return MultiLineString: Segmented, MultiLineString, version of the original LineString.
+    """
+
+    return MultiLineString(split(line1, line2))
+
+
 class Validator:
     """Handles the execution of validation functions against the segment dataset."""
 
@@ -53,6 +67,7 @@ class Validator:
         """
 
         self.segment = segment.copy(deep=True)
+        self.segment_original = None
         self.dst = dst
         self.layer = layer
         self.errors = defaultdict(list)
@@ -88,6 +103,8 @@ class Validator:
             sys.exit(1)
 
         logger.info("Standardizing segments.")
+
+        self.segment_original = self.segment.copy(deep=True)
 
         # Performs the following data standardizations:
         # 1) exclude non-road segments (segment_type=1).
@@ -239,10 +256,33 @@ class Validator:
         flag = crosses.map(len) > 0
         if sum(flag):
 
-            # Compile error logs.
-            vals = set(crosses.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+            # Segment original geometries.
+
+            # Compile splitter geometries.
+            flag.reset_index(drop=True, inplace=True)
+            self.segment_original["splitter"] = crosses.values
+            self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, "splitter"]\
+                .map(lambda indexes: itemgetter(*indexes)(self.segment_original["geometry"]))\
+                .map(lambda geoms: geoms if isinstance(geoms, tuple) else (geoms,))
+
+            # Add original geometry to beginning of splitter tuple.
+            self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, ["geometry", "splitter"]]\
+                .apply(lambda row: (row[0], *row[1]), axis=1)
+
+            # Iteratively split geometries using each splitter geometry.
+            self.segment_original.loc[flag, "geometry"] = self.segment_original.loc[flag, "splitter"].map(
+                lambda geoms: reduce(split_line, geoms))
+
+            # Cleanup and standardize source dataframe.
+            # 1) Explode multi-part geometries (MultiLineStrings).
+            # 2) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
+            # 3) Drop temporary attributes.
+            self.segment_original = helpers.explode_geometry(self.segment_original)
+            self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
+            self.segment_original.drop(columns=["splitter"], inplace=True)
+
+            # Export original dataframe.
+            helpers.export(self.segment_original, dst=self.dst, name=self.layer)
 
         return errors
 
