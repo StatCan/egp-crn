@@ -25,7 +25,7 @@ logger_validations = logging.getLogger("validations")
 logger_validations.setLevel(logging.WARNING)
 
 
-class EGP_Topology_Validation:
+class EGPTopologyValidation:
     """Defines the EGP topology validation class."""
 
     def __init__(self, source: str, remove: bool = False) -> None:
@@ -71,6 +71,8 @@ class EGP_Topology_Validation:
 
         logger.info(f"Writing error logs: \"{self.validations_log}\".")
 
+        total_records = 0
+
         # Add File Handler to validation logger.
         f_handler = logging.FileHandler(self.validations_log)
         f_handler.setLevel(logging.WARNING)
@@ -82,10 +84,12 @@ class EGP_Topology_Validation:
 
             # Format and write logs.
             errors["values"] = "\n".join(map(str, errors["values"]))
-            if errors["query"]:
-                logger_validations.warning(f"{code}\n\nValues:\n{errors['values']}\n\nQuery: {errors['query']}\n")
-            else:
-                logger_validations.warning(f"{code}\n\nValues:\n{errors['values']}\n")
+            logger_validations.warning(f"{code}\n\nValues:\n{errors['values']}\n\nQuery: {errors['query']}\n")
+
+            # Quantify invalid records.
+            total_records += errors["query"].count(",") + 1
+
+        logger.info(f"Number of records flagged by validations: {total_records}.")
 
     def validations(self) -> None:
         """Applies a set of validations to segments."""
@@ -118,7 +122,7 @@ def main(source: str, remove: bool = False) -> None:
     try:
 
         with helpers.Timer():
-            egp = EGP_Topology_Validation(source, remove)
+            egp = EGPTopologyValidation(source, remove)
             egp.execute()
 
     except KeyboardInterrupt:
