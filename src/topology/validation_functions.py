@@ -258,9 +258,15 @@ class Validator:
 
             # Segment original geometries.
 
+            # Modify flag to accommodate full (non-filtered) records present in original dataframe.
+            roads_flag = self.segment_original.segment_type.astype(int) == 1
+            self.segment_original.loc[roads_flag, "index"] = range(sum(roads_flag))
+            self.segment_original.loc[~roads_flag, "index"] = range(-1, (sum(~roads_flag) + 1) * -1)
+            self.segment_original.index = self.segment_original["index"]
+            # TODO: fix.
+
             # Compile splitter geometries.
-            flag.reset_index(drop=True, inplace=True)
-            self.segment_original["splitter"] = crosses.values
+            self.segment_original.loc[flag, "splitter"] = crosses.values
             self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, "splitter"]\
                 .map(lambda indexes: itemgetter(*indexes)(self.segment_original["geometry"]))\
                 .map(lambda geoms: geoms if isinstance(geoms, tuple) else (geoms,))
@@ -279,7 +285,7 @@ class Validator:
             # 3) Drop temporary attributes.
             self.segment_original = helpers.explode_geometry(self.segment_original)
             self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
-            self.segment_original.drop(columns=["splitter"], inplace=True)
+            self.segment_original.drop(columns=["index", "splitter"], inplace=True)
 
             # Export original dataframe.
             helpers.export(self.segment_original, dst=self.dst, name=self.layer)
