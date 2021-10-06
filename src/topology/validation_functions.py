@@ -48,7 +48,7 @@ def split_line(line1: LineString, line2: LineString) -> MultiLineString:
 
     :param LineString line1: LineString to be split.
     :param LineString line2: LineString to be used as the splitter.
-    :return MultiLineString: Segmented, MultiLineString, version of the original LineString.
+    :return MultiLineString: segmented, MultiLineString, version of the original LineString.
     """
 
     return MultiLineString(split(line1, line2))
@@ -72,38 +72,14 @@ class Validator:
         self.layer = layer
         self.errors = defaultdict(list)
         self.id = "segment_id"
-
-        logger.info(f"Resolving segment identifiers for: \"{self.id}\".")
-        # Identifiers must be unique 32 digit hexadecimal strings. The process of data editing is likely to create
-        # duplicated or invalid identifiers; this process will resolve any invalid values such that the script can
-        # proceed. This process will overwrite any invalid identifiers. Therefore, original identifiers should be
-        # stored in a separate, backup column for post-processing linkages.
-        self.segment[self.id] = self.segment[self.id].astype(str)
-
-        try:
-
-            # Flag invalid identifiers.
-            hexdigits = set(string.hexdigits)
-            flag_non_hex = (self.segment[self.id].map(len) != 32) | \
-                           (self.segment[self.id].map(lambda val: not set(val).issubset(hexdigits)))
-            flag_dups = (self.segment[self.id].duplicated(keep=False)) & (self.segment[self.id] != "None")
-            flag_invalid = flag_non_hex | flag_dups
-
-            # Resolve invalid identifiers.
-            if sum(flag_invalid):
-                logger.warning(f"Resolving {sum(flag_invalid)} invalid identifiers for: \"{self.id}\".")
-
-                # Overwrite identifiers and export updated layer to file.
-                self.segment.loc[flag_invalid, self.id] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
-                helpers.export(self.segment, dst=self.dst, name=self.layer)
-
-        except ValueError as e:
-            logger.exception(f"Unable to validate segment identifiers for \"{self.id}\".")
-            logger.exception(e)
-            sys.exit(1)
+        self.export = False
 
         logger.info("Standardizing segments.")
+        
+        # Resolve invalid identifiers.
+        self.segment = self._update_ids(self.segment, index=True)
 
+        # Create backup of dataframe prior to modifying and filtering geometries.
         self.segment_original = self.segment.copy(deep=True)
 
         # Performs the following data standardizations:
@@ -111,13 +87,14 @@ class Validator:
         # 2) re-projects to a meter-based projection (EPSG:3348).
         # 3) explodes multi-part geometries.
         # 4) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
-        self.segment = self.segment.loc[self.segment.segment_type.astype(int) == 1]
+        self.segment = self.segment.loc[self.segment["segment_type"].astype(int) == 1]
         self.segment = self.segment.to_crs("EPSG:3348")
         self.segment = helpers.explode_geometry(self.segment)
         self.segment = helpers.round_coordinates(self.segment, precision=7)
 
         # Set identifiers as index and drop unneeded columns.
         self.segment.index = self.segment[self.id]
+        self.segment_original.index = self.segment_original[self.id]
         self.segment = self.segment[["structure_type", "geometry"]].copy(deep=True)
 
         logger.info("Configuring validations.")
@@ -158,6 +135,47 @@ class Validator:
         pts_df = pd.DataFrame({"pt": pts.values, self.id: pts.index})
         self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pt", self.id).map(set).to_dict()
         self.idx_id_lookup = dict(zip(range(len(self.segment)), self.segment.index))
+
+    def _update_ids(self, gdf: gpd.GeoDataFrame, index: bool = True) -> gpd.GeoDataFrame:
+        """
+        Updates identifiers if they are not unique 32 digit hexadecimal strings.
+
+        :param gpd.GeoDataFrame gdf: GeoDataFrame.
+        :param bool index: assigns the identifier column as GeoDataFrame index, default = True.
+        :return gpd.GeoDataFrame: updated GeoDataFrame.
+        """
+
+        logger.info(f"Resolving segment identifiers for: \"{self.id}\".")
+
+        try:
+
+            # Flag invalid identifiers.
+            hexdigits = set(string.hexdigits)
+            flag_non_hex = (gdf[self.id].map(len) != 32) | \
+                           (gdf[self.id].map(lambda val: not set(val).issubset(hexdigits)))
+            flag_dups = (gdf[self.id].duplicated(keep=False)) & (gdf[self.id] != "None")
+            flag_invalid = flag_non_hex | flag_dups
+
+            # Resolve invalid identifiers.
+            if sum(flag_invalid):
+                logger.warning(f"Resolving {sum(flag_invalid)} invalid identifiers for: \"{self.id}\".")
+
+                # Overwrite identifiers.
+                gdf.loc[flag_invalid, self.id] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
+
+                # Trigger export requirement for class.
+                self.export = True
+
+            # Assign index.
+            if index:
+                gdf.index = gdf[self.id]
+
+            return gdf.copy(deep=True)
+
+        except ValueError as e:
+            logger.exception(f"Unable to validate segment identifiers for \"{self.id}\".")
+            logger.exception(e)
+            sys.exit(1)
 
     def connectivity_min_distance(self) -> dict:
         """
@@ -243,6 +261,7 @@ class Validator:
     def connectivity_segmentation(self) -> dict:
         """
         Validates: Arcs must not cross (i.e. must be segmented at each intersection).
+        This validation will automatically segment the required geometries.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
@@ -258,15 +277,12 @@ class Validator:
 
             # Segment original geometries.
 
-            # Modify flag to accommodate full (non-filtered) records present in original dataframe.
-            roads_flag = self.segment_original.segment_type.astype(int) == 1
-            self.segment_original.loc[roads_flag, "index"] = range(sum(roads_flag))
-            self.segment_original.loc[~roads_flag, "index"] = range(-1, (sum(~roads_flag) + 1) * -1)
-            self.segment_original.index = self.segment_original["index"]
-            # TODO: fix.
+            # Assign 'crosses' results to original dataframe.
+            self.segment_original["splitter"] = [{} for _ in range(len(self.segment_original))]
+            self.segment_original.loc[self.segment_original.index.isin(crosses.index), "splitter"] = crosses
+            flag = self.segment_original["splitter"].map(len) > 0
 
             # Compile splitter geometries.
-            self.segment_original.loc[flag, "splitter"] = crosses.values
             self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, "splitter"]\
                 .map(lambda indexes: itemgetter(*indexes)(self.segment_original["geometry"]))\
                 .map(lambda geoms: geoms if isinstance(geoms, tuple) else (geoms,))
@@ -285,10 +301,10 @@ class Validator:
             # 3) Drop temporary attributes.
             self.segment_original = helpers.explode_geometry(self.segment_original)
             self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
-            self.segment_original.drop(columns=["index", "splitter"], inplace=True)
-
-            # Export original dataframe.
-            helpers.export(self.segment_original, dst=self.dst, name=self.layer)
+            self.segment_original.drop(columns=["splitter"], inplace=True)
+            
+            # Resolve invalid identifiers.
+            self.segment_original = self._update_ids(self.segment_original, index=True)
 
         return errors
 
@@ -466,6 +482,10 @@ class Validator:
                 results = func()
                 if len(results["values"]):
                     self.errors[f"E{code} - {description}"] = deepcopy(results)
+
+            # Export data, if required.
+            if self.export:
+                helpers.export(self.segment_original, dst=self.dst, name=self.layer)
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")

@@ -64,7 +64,11 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
 
     logger.info("Standardizing segments: exploding multi-type geometries.")
-
+    
+    # Reset index, conditionally drop.
+    index_column = gdf.index.name
+    gdf.reset_index(drop=(index_column in gdf.columns), inplace=True)
+    
     multi_types = {"MultiLineString", "MultiPoint"}
     if len(set(gdf.geom_type.unique()).intersection(multi_types)):
 
