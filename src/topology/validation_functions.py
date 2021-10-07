@@ -71,42 +71,24 @@ class Validator:
         :param str layer: output GeoPackage layer name.
         """
 
-        self.segment = segment.copy(deep=True)
-        self.segment_original = None
         self.dst = dst
         self.layer = layer
         self.errors = defaultdict(list)
         self.id = "segment_id"
         self._export = False
 
-        logger.info("Standardizing segments.")
-        
-        # Resolve invalid identifiers.
-        self.segment = self._update_ids(self.segment, index=True)
-
-        # Create backup of dataframe prior to modifying and filtering geometries.
-        self.segment_original = self.segment.copy(deep=True)
-
-        # Performs the following data standardizations:
-        # 1) exclude non-road segments (segment_type=1).
-        # 2) re-projects to a meter-based projection (EPSG:3348).
-        # 3) explodes multi-part geometries.
-        # 4) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
-        self.segment = self.segment.loc[self.segment["segment_type"].astype(int) == 1]
-        self.segment = self.segment.to_crs("EPSG:3348")
-        self.segment = helpers.explode_geometry(self.segment)
-        self.segment = helpers.round_coordinates(self.segment, precision=7)
-
-        # Set identifiers as index and drop unneeded columns.
-        self.segment.index = self.segment[self.id]
-        self.segment_original.index = self.segment_original[self.id]
-        self.segment = self.segment[["structure_type", "geometry"]].copy(deep=True)
+        # Create original and standardized dataframes.
+        self.segment_original = segment.copy(deep=True)
+        self.segment = None
+        self._standardize_df()
 
         logger.info("Configuring validations.")
 
         # Define validation.
         # Note: List validations in order if execution order matters.
         self.validations = {
+            303: {"func": self.connectivity_segmentation,
+                  "desc": "Arcs must not cross (i.e. must be segmented at each intersection)."},
             101: {"func": self.construction_singlepart,
                   "desc": "Arcs must be single part (i.e. \"LineString\")."},
             102: {"func": self.construction_min_length,
@@ -122,20 +104,48 @@ class Validator:
             301: {"func": self.connectivity_node_intersection,
                   "desc": "Arcs must only connect at endpoints (nodes)."},
             302: {"func": self.connectivity_min_distance,
-                  "desc": "Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles)."},
-            303: {"func": self.connectivity_segmentation,
-                  "desc": "Arcs must not cross (i.e. must be segmented at each intersection)."}
+                  "desc": "Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles)."}
         }
+
+    def _standardize_df(self) -> None:
+        """
+        Applies the following standardizations to the original dataframe:
+        1) explodes multi-part geometries.
+        2) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
+        3) resolves invalid identifiers.
+
+        Then creates a copy of the original dataframe with the following standardizations:
+        1) exclude non-road segments (segment_type=1).
+        2) re-projects to a meter-based projection (EPSG:3348).
+        3) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
+
+        Then generates computationally intensive, reusable geometry attributes.
+        """
+
+        logger.info("Standardizing DataFrame.")
+
+        # Apply standardizations to original dataframe.
+        self.segment_original = helpers.explode_geometry(self.segment_original)
+        self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
+        self.segment_original = self._update_ids(self.segment_original, index=True)
+
+        # Create copy of original dataframe.
+        self.segment = self.segment_original.copy(deep=True)
+
+        # Apply standardizations to dataframe copy.
+        self.segment = self.segment.loc[self.segment["segment_type"].astype(int) == 1]
+        self.segment = self.segment.to_crs("EPSG:3348")
+        self.segment = helpers.round_coordinates(self.segment, precision=7)
 
         logger.info("Generating reusable geometry attributes.")
 
-        # Store computationally intensive geometry attributes as new dataframe columns.
+        # Generate computationally intensive geometry attributes as new columns.
         self.segment["pts_tuple"] = self.segment["geometry"].map(attrgetter("coords")).map(tuple)
         self.segment["pt_start"] = self.segment["pts_tuple"].map(itemgetter(0))
         self.segment["pt_end"] = self.segment["pts_tuple"].map(itemgetter(-1))
         self.segment["pts_ordered_pairs"] = self.segment["pts_tuple"].map(ordered_pairs)
 
-        # Store computationally intensive lookups.
+        # Generate computationally intensive lookups.
         pts = self.segment["pts_tuple"].explode()
         pts_df = pd.DataFrame({"pt": pts.values, self.id: pts.index})
         self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pt", self.id).map(set).to_dict()
@@ -268,9 +278,9 @@ class Validator:
         Validates: Arcs must not cross (i.e. must be segmented at each intersection).
         This validation will automatically segment the required geometries.
 
-        Note: due to coordinate rounding, left-over (new) segmentation errors will be created post-segmentation if a
-        line already contained a vertex within the rounding tolerance of the point of segmentation. These left-overs
-        will be logged rather than automatically resolved.
+        Note: due to coordinate rounding, perpetual segmentation errors may exist post-segmentation if they contain a
+        vertex within the rounding tolerance of the point of segmentation. These perpetual errors will be logged rather
+        than automatically resolved.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
@@ -304,21 +314,16 @@ class Validator:
             self.segment_original.loc[flag, "geometry"] = self.segment_original.loc[flag, "splitter"].map(
                 lambda geoms: reduce(split_line, geoms))
 
-            # Cleanup and standardize source dataframe.
-            # 1) Explode multi-part geometries (MultiLineStrings).
-            # 2) Rounds coordinates to 7 decimal places and flattens to 2-dimensions.
-            # 3) Drops temporary attributes.
-            self.segment_original = helpers.explode_geometry(self.segment_original)
-            self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
-            self.segment_original.drop(columns=["splitter"], inplace=True)
-
-            # Resolve invalid identifiers.
-            self.segment_original = self._update_ids(self.segment_original, index=True)
+            # Standardize original dataframe and regenerate re-projected copy.
+            self._standardize_df()
 
             # Re-apply validation on original, now-segmented, dataframe and log results.
 
-            # Query segments which cross each segment, filtered to only those segmented in the previous iteration.
-            filter_flag = ~self.segment_original.index.isin(self.segment.index)
+            # Flag records which were segmented.
+            filter_flag = self.segment_original["splitter"].map(len) > 0
+            self.segment_original.drop(columns=["splitter"], inplace=True)
+
+            # Query segments (flagged) which cross each segment (all).
             crosses = self.segment_original.loc[filter_flag, "geometry"].map(
                 lambda g: set(self.segment_original.sindex.query(g, predicate="crosses")))
 

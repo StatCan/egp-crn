@@ -79,6 +79,7 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
         # Merge all records.
         merged = gpd.GeoDataFrame(pd.concat([single, multi_exploded], ignore_index=True), crs=gdf.crs)
+
         return merged.copy(deep=True)
 
     else:
@@ -196,7 +197,8 @@ def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataF
             lambda pt: [round(itemgetter(0)(pt), precision), round(itemgetter(1)(pt), precision)],
             attrgetter("coords")(g))))
 
-        return gdf
+        gdf.set_crs(crs=gdf.crs, inplace=True)
+        return gdf.copy(deep=True)
 
     except (TypeError, ValueError) as e:
         logger.exception("Unable to round coordinates for GeoDataFrame.")
