@@ -62,8 +62,6 @@ def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     :param gpd.GeoDataFrame gdf: GeoDataFrame.
     :return gpd.GeoDataFrame: GeoDataFrame containing only single-part geometries.
     """
-
-    logger.info("Standardizing segments: exploding multi-type geometries.")
     
     # Reset index, conditionally drop.
     index_column = gdf.index.name
@@ -191,8 +189,6 @@ def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataF
     :param int precision: decimal precision to round the GeoDataFrame geometry coordinates to.
     :return gpd.GeoDataFrame: GeoDataFrame with modified decimal precision.
     """
-
-    logger.info(f"Standardizing segments: rounding coordinates to decimal precision: {precision}.")
 
     try:
 

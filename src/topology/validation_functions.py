@@ -72,7 +72,7 @@ class Validator:
         self.layer = layer
         self.errors = defaultdict(list)
         self.id = "segment_id"
-        self.export = False
+        self._export = False
 
         logger.info("Standardizing segments.")
         
@@ -164,7 +164,7 @@ class Validator:
                 gdf.loc[flag_invalid, self.id] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
 
                 # Trigger export requirement for class.
-                self.export = True
+                self._export = True
 
             # Assign index.
             if index:
@@ -263,6 +263,10 @@ class Validator:
         Validates: Arcs must not cross (i.e. must be segmented at each intersection).
         This validation will automatically segment the required geometries.
 
+        Note: due to coordinate rounding, left-over (new) segmentation errors will be created post-segmentation if a
+        line already contained a vertex within the rounding tolerance of the point of segmentation. These left-overs
+        will be logged rather than automatically resolved.
+
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
@@ -297,14 +301,31 @@ class Validator:
 
             # Cleanup and standardize source dataframe.
             # 1) Explode multi-part geometries (MultiLineStrings).
-            # 2) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
-            # 3) Drop temporary attributes.
+            # 2) Rounds coordinates to 7 decimal places and flattens to 2-dimensions.
+            # 3) Drops temporary attributes.
             self.segment_original = helpers.explode_geometry(self.segment_original)
             self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
             self.segment_original.drop(columns=["splitter"], inplace=True)
-            
+
             # Resolve invalid identifiers.
             self.segment_original = self._update_ids(self.segment_original, index=True)
+
+            # Re-apply validation on original, now-segmented, dataframe and log results.
+
+            # Query segments which cross each segment, filtered to only those segmented in the previous iteration.
+            filter_flag = ~self.segment_original.index.isin(self.segment.index)
+            crosses = self.segment_original.loc[filter_flag, "geometry"].map(
+                lambda g: set(self.segment_original.sindex.query(g, predicate="crosses")))
+
+            # Flag segments which have one or more crossing segments.
+            crosses = crosses.loc[crosses.map(len) > 0]
+            flag = self.segment_original.index.isin(crosses.index)
+            if sum(flag):
+
+                # Compile error logs.
+                vals = set(self.segment_original.loc[flag].index)
+                errors["values"] = vals
+                errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -484,7 +505,7 @@ class Validator:
                     self.errors[f"E{code} - {description}"] = deepcopy(results)
 
             # Export data, if required.
-            if self.export:
+            if self._export:
                 helpers.export(self.segment_original, dst=self.dst, name=self.layer)
 
         except (KeyError, SyntaxError, ValueError) as e:
