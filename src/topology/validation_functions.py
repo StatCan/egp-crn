@@ -13,7 +13,7 @@ from pathlib import Path
 from scipy.spatial.distance import euclidean
 from shapely.geometry import LineString, MultiLineString, Point
 from shapely.ops import split
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
@@ -42,16 +42,21 @@ def ordered_pairs(coords: Tuple[tuple, ...]) -> List[Tuple[tuple, tuple]]:
     return sorted(zip(coords_1, coords_2))
 
 
-def split_line(line1: LineString, line2: LineString) -> MultiLineString:
+def split_line(line1: LineString, line2: LineString) -> Union[LineString, MultiLineString]:
     """
     Splits a LineString based on a crossing LineString.
 
     :param LineString line1: LineString to be split.
     :param LineString line2: LineString to be used as the splitter.
-    :return MultiLineString: segmented, MultiLineString, version of the original LineString.
+    :return Union[LineString, MultiLineString]: segmented version of the original LineString.
     """
 
-    return MultiLineString(split(line1, line2))
+    try:
+
+        return MultiLineString(split(line1, line2))
+
+    except TypeError:
+        return line1
 
 
 class Validator:
