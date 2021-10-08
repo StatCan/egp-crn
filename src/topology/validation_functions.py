@@ -107,6 +107,11 @@ class Validator:
                   "desc": "Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles)."}
         }
 
+        # Define validation thresholds.
+        self._min_len = 3
+        self._min_dist = 5
+        self._min_cluster_dist = 0.01
+
     def _standardize_df(self) -> None:
         """
         Applies the following standardizations to the original dataframe:
@@ -117,7 +122,6 @@ class Validator:
         Then creates a copy of the original dataframe with the following standardizations:
         1) exclude non-road segments (segment_type=1).
         2) re-projects to a meter-based projection (EPSG:3348).
-        3) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
 
         Then generates computationally intensive, reusable geometry attributes.
         """
@@ -135,7 +139,6 @@ class Validator:
         # Apply standardizations to dataframe copy.
         self.segment = self.segment.loc[self.segment["segment_type"].astype(int) == 1]
         self.segment = self.segment.to_crs("EPSG:3348")
-        self.segment = helpers.round_coordinates(self.segment, precision=7)
 
         logger.info("Generating reusable geometry attributes.")
 
@@ -201,38 +204,50 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # Compile all nodes as a DataFrame.
-        pts = pd.DataFrame({"pt": self.segment["pt_start"].append(self.segment["pt_end"]).unique()})
+        # Compile all non-duplicated nodes (dead ends) as a DataFrame.
+        pts = self.segment["pt_start"].append(self.segment["pt_end"])
+        deadends = pts.loc[~pts.duplicated(keep=False)]
+        deadends = pd.DataFrame({"pt": deadends.values, self.id: deadends.index})
 
         # Generate simplified node buffers with distance tolerance.
-        dist = 5
-        pts["buffer"] = pts["pt"].map(lambda pt: Point(pt).buffer(dist, resolution=5))
+        deadends["buffer"] = deadends["pt"].map(lambda pt: Point(pt).buffer(self._min_dist, resolution=5))
 
-        # Query segments where their bbox intersects each node buffer.
-        pts["intersects_idx"] = pts["buffer"].map(lambda buffer: set(self.segment.sindex.query(buffer, "intersects")))
+        # Query segments which intersect each dead end buffer.
+        deadends["intersects"] = deadends["buffer"].map(
+            lambda buffer: set(self.segment.sindex.query(buffer, predicate="intersects")))
 
-        # Filter to those nodes with multiple intersections.
-        pts = pts.loc[pts["intersects_idx"].map(len) > 1]
-        if len(pts):
+        # Flag dead ends which have buffers with one or more intersecting segments.
+        deadends = deadends.loc[deadends["intersects"].map(len) > 1]
+        if len(deadends):
 
-            # Compile identifiers for each intersecting segment index.
-            pts["intersects_ids"] = pts["intersects_idx"].map(
-                lambda idxs: set(map(lambda idx: itemgetter(idx)(self.idx_id_lookup), idxs)))
+            # Aggregate deadends to their source features.
+            # Note: source features will exist twice if both nodes are deadends; these results will be aggregated.
+            deadends_agg = helpers.groupby_to_list(deadends, self.id, "intersects")\
+                .map(chain.from_iterable).map(set).to_dict()
+            deadends["intersects"] = deadends[self.id].map(deadends_agg)
+            deadends.drop_duplicates(subset=self.id, inplace=True)
 
-            # Compile identifiers for each segment connected to the node.
-            pts["node_ids"] = pts["pt"].map(lambda pt: itemgetter(pt)(self.pts_id_lookup))
+            # Compile identifiers corresponding to each 'intersects' index.
+            deadends["intersects"] = deadends["intersects"].map(lambda idxs: set(itemgetter(*idxs)(self.idx_id_lookup)))
 
-            # Filter intersecting segment ids to those not containing the node (disconnected segments).
-            pts["disconnected_ids"] = pts["intersects_ids"] - pts["node_ids"]
+            # Compile identifiers containing either of the source geometry nodes.
+            deadends["connected"] = deadends[self.id].map(
+                lambda identifier: set(chain.from_iterable(
+                    itemgetter(node)(self.pts_id_lookup) for node in itemgetter(0, -1)(
+                        itemgetter(identifier)(self.segment["pts_tuple"]))
+                )))
 
-            # Filter to those nodes with multiple disconnected segments.
-            pts = pts.loc[pts["disconnected_ids"].map(len) > 0]
-            if len(pts):
+            # Subtract identifiers of connected features from buffer-intersecting features.
+            deadends["disconnected"] = deadends["intersects"] - deadends["connected"]
+
+            # Filter to those results with disconnected segments.
+            flag = deadends["disconnected"].map(len) > 0
+            if sum(flag):
 
                 # Compile error logs.
-                errors["values"] = pts[["disconnected_ids", "node_ids"]].apply(
-                    lambda row: f"Disconnected feature(s) are too close: {*row[0],} - {*row[1],}", axis=1).to_list()
-                vals = pts["node_ids"].append(pts["disconnected_ids"]).map(tuple).explode().unique()
+                errors["values"] = deadends.loc[flag, [self.id, "disconnected"]].apply(
+                    lambda row: f"Disconnected features are too close: '{row[0]}' - {*row[1],}", axis=1).to_list()
+                vals = set(deadends.loc[flag].index)
                 errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
@@ -357,8 +372,7 @@ class Validator:
             coord_dist = coord_pairs.map(lambda pair: euclidean(*pair))
 
             # Flag pairs with distances that are too small.
-            min_distance = 0.01
-            flag = coord_dist < min_distance
+            flag = coord_dist < self._min_cluster_dist
             if sum(flag):
 
                 # Compile error logs.
@@ -378,8 +392,7 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Flag arcs which are too short.
-        min_length = 3
-        flag = self.segment.length < min_length
+        flag = self.segment.length < self._min_len
         if sum(flag):
             
             # Flag isolated structures (structures not connected to another structure).
