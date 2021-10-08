@@ -7,7 +7,7 @@ import uuid
 from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
-from itertools import chain, tee
+from itertools import chain, compress, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from scipy.spatial.distance import euclidean
@@ -271,6 +271,10 @@ class Validator:
 
         # Compile invalid vertices.
         invalid_pts = nodes.intersection(non_nodes)
+
+        # Filter invalid vertices to those with multiple connected features.
+        invalid_pts = set(compress(invalid_pts,
+                                   map(lambda pt: len(itemgetter(pt)(self.pts_id_lookup)) > 1, invalid_pts)))
         if len(invalid_pts):
 
             # Filter segments to those with an invalid vertex.
