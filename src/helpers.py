@@ -55,17 +55,17 @@ class Timer:
         logger.info(f"Finished. Time elapsed: {delta}.")
 
 
-def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def explode_geometry(gdf: gpd.GeoDataFrame, index: str) -> gpd.GeoDataFrame:
     """
     Explodes MultiLineStrings and MultiPoints to LineStrings and Points, respectively.
 
     :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :param str index: index column name.
     :return gpd.GeoDataFrame: GeoDataFrame containing only single-part geometries.
     """
     
     # Reset index, conditionally drop.
-    index_column = gdf.index.name
-    gdf.reset_index(drop=(index_column in gdf.columns), inplace=True)
+    gdf.reset_index(drop=(index in gdf.columns), inplace=True)
     
     multi_types = {"MultiLineString", "MultiPoint"}
     if len(set(gdf.geom_type.unique()).intersection(multi_types)):

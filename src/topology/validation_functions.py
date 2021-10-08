@@ -129,7 +129,7 @@ class Validator:
         logger.info("Standardizing DataFrame.")
 
         # Apply standardizations to original dataframe.
-        self.segment_original = helpers.explode_geometry(self.segment_original)
+        self.segment_original = helpers.explode_geometry(self.segment_original, index=self.id)
         self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
         self.segment_original = self._update_ids(self.segment_original, index=True)
 
