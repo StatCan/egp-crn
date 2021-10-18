@@ -247,7 +247,7 @@ class Validator:
                 # Compile error logs.
                 errors["values"] = deadends.loc[flag, [self.id, "disconnected"]].apply(
                     lambda row: f"Disconnected features are too close: '{row[0]}' - {*row[1],}", axis=1).to_list()
-                vals = set(deadends.loc[flag].index)
+                vals = set(deadends.loc[flag, self.id])
                 errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
