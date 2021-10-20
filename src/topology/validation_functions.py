@@ -11,7 +11,7 @@ from itertools import chain, compress, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from scipy.spatial.distance import euclidean
-from shapely.geometry import LineString, MultiLineString, Point
+from shapely.geometry import LineString, MultiLineString, MultiPoint, Point
 from shapely.ops import split
 from typing import List, Tuple, Union
 
@@ -378,6 +378,14 @@ class Validator:
             # Flag pairs with distances that are too small.
             flag = coord_dist < self._min_cluster_dist
             if sum(flag):
+
+                # Export invalid pairs as MultiPoint geometries.
+                pts = coord_pairs.loc[flag].map(MultiPoint)
+                pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs="EPSG:3348")
+                pts_df = pts_df.to_crs(f"EPSG:{pts_df.crs.to_epsg()}")
+
+                logger.info(f"Writing to file: {self.dst.name}|layer={self.layer}_v104")
+                pts_df.to_file(str(self.dst), driver="GPKG", layer=f"{self.layer}_v104")
 
                 # Compile error logs.
                 vals = set(coord_pairs.loc[flag].index)
