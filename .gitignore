@@ -1,6 +1,7 @@
 # Data files
 /data/*
 !/data/interim/.gitkeep
+!/data/interim/egp_editing.qgz
 !/data/processed/.gitkeep
 !/data/raw/.gitkeep
 
