@@ -93,7 +93,14 @@ class Validator:
 
         try:
 
+            # Cast identifier and segment_type attributes to accommodate for added NGD features.
             self.nrn[self.id] = self.nrn[self.id].astype(str)
+            if self.nrn["segment_type"].isna().any():
+                self.nrn.loc[self.nrn["segment_type"].isna(), "segment_type"] = 1
+                self.nrn["segment_type"] = self.nrn["segment_type"].astype(int)
+
+                # Trigger export requirement for class.
+                self._export = True
 
             # Flag invalid identifiers.
             hexdigits = set(string.hexdigits)
