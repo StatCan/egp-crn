@@ -93,6 +93,8 @@ class Validator:
 
         try:
 
+            self.nrn[self.id] = self.nrn[self.id].astype(str)
+
             # Flag invalid identifiers.
             hexdigits = set(string.hexdigits)
             flag_non_hex = (self.nrn[self.id].map(len) != 32) | \
