@@ -5,6 +5,7 @@ import logging
 import re
 import sys
 from pathlib import Path
+from tabulate import tabulate
 
 
 filepath = Path(__file__).resolve()
@@ -100,6 +101,14 @@ class EGPMeshblockValidation:
 
         logger.info(f"Total records flagged by validations: {total_records:,d}.")
         logger.info(f"Total unique records flagged by validations: {len(unique_records):,d}.")
+
+        # Log BO integration progress.
+        table = tabulate([[k, f"{v:,}"] for k, v in self.Validator.integration_progress.items()],
+                         headers=["BO Node Classification", "Count"], tablefmt="rst", colalign=("left", "right"))
+        logger.info("\n" + "\n".join(["\n".join(table.split("\n")[:-2]),
+                                      table.split("\n")[-1].replace("=", "-"),
+                                      table.split("\n")[-2],
+                                      table.split("\n")[-1]]))
 
     def validations(self) -> None:
         """Applies a set of validations to BOs."""

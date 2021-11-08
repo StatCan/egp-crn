@@ -133,7 +133,7 @@ class Validator:
         # Extract nodes.
         self.nrn_roads["nodes"] = self.nrn_roads["geometry"].map(
             lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
-        self.nrn_bos["nodes"] = self.nrn_roads["geometry"].map(
+        self.nrn_bos["nodes"] = self.nrn_bos["geometry"].map(
             lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
         self.ngd["nodes"] = self.ngd["geometry"].map(
             lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
@@ -158,7 +158,7 @@ class Validator:
         self._nrn_bos_nodes = self.nrn_bos["nodes"].explode().copy(deep=True)
 
         # Populate progress tracker with total BO node count.
-        self.integration_progress["total BO nodes"] = len(self._nrn_bos_nodes)
+        self.integration_progress["Total"] = len(self._nrn_bos_nodes)
 
         return errors
 
@@ -175,7 +175,7 @@ class Validator:
         self._integrated = self._nrn_bos_nodes.map(lambda node: node in self._nrn_roads_nodes_lookup)
 
         # Populate progress tracker with BO node count.
-        self.integration_progress["integrated BO nodes"] = sum(self._integrated)
+        self.integration_progress["Integrated"] = sum(self._integrated)
 
         return errors
 
@@ -210,7 +210,8 @@ class Validator:
             errors["query"] = f"\"{self.id}\" in {*set(vals),}"
 
             # Populate progress tracker with BO node count.
-            self.integration_progress["unintegrated BO nodes within nrn proximity"] = len(vals)
+            self.integration_progress[f"Unintegrated (all) - within NRN proximity ({self._bo_nrn_proximity} m)"] =\
+                len(vals)
 
         return errors
 
@@ -232,7 +233,7 @@ class Validator:
             lambda node: (node in self._ngd_nodes_lookup) & (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) == 1)))
 
         # Populate progress tracker with BO node count.
-        self.integration_progress["unintegrated BO nodes (ngd road connection)"] = sum(flag_ngd_connection)
+        self.integration_progress["Unintegrated (BO-to-NGD)"] = sum(flag_ngd_connection)
 
         # B) Flag BO nodes that connect only to another BO node.
         flag_bo_connection = (~self._integrated) & (self._nrn_bos_nodes.map(
@@ -240,14 +241,14 @@ class Validator:
                          (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) > 1)))
 
         # Populate progress tracker with BO node count.
-        self.integration_progress["unintegrated BO nodes (bo road connection)"] = sum(flag_bo_connection)
+        self.integration_progress["Unintegrated (BO-to-BO)"] = sum(flag_bo_connection)
 
         # C) Flag BO nodes that connect only to NGD road nodes and another BO node.
         flag_ngd_and_bo_connection = (~self._integrated) & (self._nrn_bos_nodes.map(
             lambda node: (node in self._ngd_nodes_lookup) & (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) > 1)))
 
         # Populate progress tracker with BO node count.
-        self.integration_progress["unintegrated BO nodes (ngd road and bo connection)"] =\
+        self.integration_progress["Unintegrated (BO-to-BO\\NGD)"] =\
             sum(flag_ngd_and_bo_connection)
 
         # D) Flag BO nodes that are isolated (i.e. connected only to itself).
@@ -256,7 +257,7 @@ class Validator:
                          (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) == 1)))
 
         # Populate progress tracker with BO node count.
-        self.integration_progress["unintegrated BO nodes (no connection)"] = sum(flag_no_connection)
+        self.integration_progress["Unintegrated (BO-to-None)"] = sum(flag_no_connection)
 
         return errors
 
