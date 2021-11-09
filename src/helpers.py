@@ -4,12 +4,14 @@ import logging
 import numpy as np
 import pandas as pd
 import sqlite3
+import string
 import sys
 import time
+import uuid
 from osgeo import ogr, osr
 from pathlib import Path
 from tqdm import tqdm
-from typing import Any, List, Union
+from typing import Any, List, Tuple, Union
 
 
 # Set logger.
@@ -177,3 +179,58 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     vals_arrays = np.split(vals, keys_indexes[1:])
 
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
+
+
+def update_ids(gdf: gpd.GeoDataFrame, identifier: str, index: bool = True) -> Tuple[gpd.GeoDataFrame, bool]:
+    """
+    Updates identifiers if they are not unique 32 digit hexadecimal strings.
+
+    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :param str identifier: identifier column.
+    :param bool index: assigns the identifier column as GeoDataFrame index, default = True.
+    :return Tuple[gpd.GeoDataFrame, bool]: updated GeoDataFrame and flag indicating if records have been modified.
+    """
+
+    logger.info(f"Resolving segment identifiers for: \"{identifier}\".")
+
+    try:
+
+        export_flag = False
+
+        # Cast identifier to str and float columns to int.
+        gdf[identifier] = gdf[identifier].astype(str)
+        for col in gdf.columns:
+            if gdf[col].dtype.kind == "f":
+                gdf.loc[gdf[col].isna(), col] = -1
+                gdf[col] = gdf[col].astype(int)
+
+                # Trigger export requirement for class.
+                export_flag = True
+
+        # Flag invalid identifiers.
+        hexdigits = set(string.hexdigits)
+        flag_non_hex = (gdf[identifier].map(len) != 32) | \
+                       (gdf[identifier].map(lambda val: not set(val).issubset(hexdigits)))
+        flag_dups = (gdf[identifier].duplicated(keep=False)) & (gdf[identifier] != "None")
+        flag_invalid = flag_non_hex | flag_dups
+
+        # Resolve invalid identifiers.
+        if sum(flag_invalid):
+            logger.warning(f"Resolving {sum(flag_invalid)} invalid identifiers for: \"{identifier}\".")
+
+            # Overwrite identifiers.
+            gdf.loc[flag_invalid, identifier] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
+
+            # Trigger export requirement for class.
+            export_flag = True
+
+        # Assign index.
+        if index:
+            gdf.index = gdf[identifier]
+
+        return gdf.copy(deep=True), export_flag
+
+    except ValueError as e:
+        logger.exception(f"Unable to validate segment identifiers for \"{identifier}\".")
+        logger.exception(e)
+        sys.exit(1)

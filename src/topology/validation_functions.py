@@ -1,9 +1,7 @@
 import geopandas as gpd
 import logging
 import pandas as pd
-import string
 import sys
-import uuid
 from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
@@ -130,7 +128,7 @@ class Validator:
 
         # Apply standardizations to original dataframe.
         self.segment_original = helpers.explode_geometry(self.segment_original, index=self.id)
-        self.segment_original = self._update_ids(self.segment_original, index=True)
+        self.segment_original, self._export = helpers.update_ids(self.segment_original, identifier=self.id, index=True)
 
         # Create copy of original dataframe.
         self.segment = self.segment_original.loc[self.segment_original["segment_type"].astype(int) == 1].copy(deep=True)
@@ -148,57 +146,6 @@ class Validator:
         pts_df = pd.DataFrame({"pt": pts.values, self.id: pts.index})
         self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pt", self.id).map(set).to_dict()
         self.idx_id_lookup = dict(zip(range(len(self.segment)), self.segment.index))
-
-    def _update_ids(self, gdf: gpd.GeoDataFrame, index: bool = True) -> gpd.GeoDataFrame:
-        """
-        Updates identifiers if they are not unique 32 digit hexadecimal strings.
-
-        :param gpd.GeoDataFrame gdf: GeoDataFrame.
-        :param bool index: assigns the identifier column as GeoDataFrame index, default = True.
-        :return gpd.GeoDataFrame: updated GeoDataFrame.
-        """
-
-        logger.info(f"Resolving segment identifiers for: \"{self.id}\".")
-
-        try:
-
-            # Cast identifier to str and float columns to int.
-            gdf[self.id] = gdf[self.id].astype(str)
-            for col in gdf.columns:
-                if gdf[col].dtype.kind == "f":
-                    gdf.loc[gdf[col].isna(), col] = -1
-                    gdf[col] = gdf[col].astype(int)
-
-                    # Trigger export requirement for class.
-                    self._export = True
-
-            # Flag invalid identifiers.
-            hexdigits = set(string.hexdigits)
-            flag_non_hex = (gdf[self.id].map(len) != 32) | \
-                           (gdf[self.id].map(lambda val: not set(val).issubset(hexdigits)))
-            flag_dups = (gdf[self.id].duplicated(keep=False)) & (gdf[self.id] != "None")
-            flag_invalid = flag_non_hex | flag_dups
-
-            # Resolve invalid identifiers.
-            if sum(flag_invalid):
-                logger.warning(f"Resolving {sum(flag_invalid)} invalid identifiers for: \"{self.id}\".")
-
-                # Overwrite identifiers.
-                gdf.loc[flag_invalid, self.id] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
-
-                # Trigger export requirement for class.
-                self._export = True
-
-            # Assign index.
-            if index:
-                gdf.index = gdf[self.id]
-
-            return gdf.copy(deep=True)
-
-        except ValueError as e:
-            logger.exception(f"Unable to validate segment identifiers for \"{self.id}\".")
-            logger.exception(e)
-            sys.exit(1)
 
     def connectivity_min_distance(self) -> dict:
         """
@@ -249,10 +196,16 @@ class Validator:
             flag = deadends["disconnected"].map(len) > 0
             if sum(flag):
 
+                # Remove duplicated results.
+                deadends = deadends.loc[flag]
+                deadends["ids"] = deadends[[self.id, "disconnected"]].apply(
+                    lambda row: tuple({row[0], *row[1]}), axis=1)
+                deadends.drop_duplicates(subset="ids", keep="first", inplace=True)
+
                 # Compile error logs.
-                errors["values"] = deadends.loc[flag, [self.id, "disconnected"]].apply(
-                    lambda row: f"Disconnected features are too close: '{row[0]}' - {*row[1],}", axis=1).to_list()
-                vals = set(deadends.loc[flag, self.id])
+                errors["values"] = deadends["ids"].map(
+                    lambda ids: f"Disconnected features are too close: {*ids,}").to_list()
+                vals = set(chain.from_iterable(deadends["ids"]))
                 errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors

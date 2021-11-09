@@ -1,9 +1,7 @@
 import geopandas as gpd
 import logging
 import pandas as pd
-import string
 import sys
-import uuid
 from collections import defaultdict
 from copy import deepcopy
 from itertools import chain
@@ -53,7 +51,7 @@ class Validator:
         self._integrated = None
 
         # Resolve identifiers.
-        self._update_ids()
+        self.nrn, self._export = helpers.update_ids(self.nrn, identifier=self.id, index=True)
 
         # Separate nrn BOs and roads.
         self.nrn_roads = self.nrn.loc[(self.nrn["segment_type"] == 1) |
@@ -81,53 +79,6 @@ class Validator:
 
         # Define validation thresholds.
         self._bo_nrn_proximity = 5
-
-    def _update_ids(self, index: bool = True) -> None:
-        """
-        Updates identifiers if they are not unique 32 digit hexadecimal strings.
-
-        :param bool index: assigns the identifier column as GeoDataFrame index, default = True.
-        """
-
-        logger.info(f"Resolving nrn identifiers for: \"{self.id}\".")
-
-        try:
-
-            # Cast identifier and segment_type attributes to accommodate for added NGD features.
-            self.nrn[self.id] = self.nrn[self.id].astype(str)
-            for col in self.nrn.columns:
-                if self.nrn[col].dtype.kind == "f":
-                    self.nrn.loc[self.nrn[col].isna(), col] = -1
-                    self.nrn[col] = self.nrn[col].astype(int)
-
-                    # Trigger export requirement for class.
-                    self._export = True
-
-            # Flag invalid identifiers.
-            hexdigits = set(string.hexdigits)
-            flag_non_hex = (self.nrn[self.id].map(len) != 32) | \
-                           (self.nrn[self.id].map(lambda val: not set(val).issubset(hexdigits)))
-            flag_dups = (self.nrn[self.id].duplicated(keep=False)) & (self.nrn[self.id] != "None")
-            flag_invalid = flag_non_hex | flag_dups
-
-            # Resolve invalid identifiers.
-            if sum(flag_invalid):
-                logger.warning(f"Resolving {sum(flag_invalid)} invalid identifiers for: \"{self.id}\".")
-
-                # Overwrite identifiers.
-                self.nrn.loc[flag_invalid, self.id] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
-
-                # Trigger export requirement for class.
-                self._export = True
-
-            # Assign index.
-            if index:
-                self.nrn.index = self.nrn[self.id]
-
-        except ValueError as e:
-            logger.exception(f"Unable to validate segment identifiers for \"{self.id}\".")
-            logger.exception(e)
-            sys.exit(1)
 
     def connectivity(self) -> dict:
         """
