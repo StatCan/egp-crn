@@ -75,7 +75,9 @@ class Validator:
         self.layer = layer
         self.errors = defaultdict(list)
         self.id = "segment_id"
+        self.crs = f"EPSG:{segment.crs.to_epsg()}"
         self._export = False
+        self._segment = self.layer.startswith("segment_")
 
         # Create original and standardized dataframes.
         self.segment_original = segment.copy(deep=True)
@@ -116,12 +118,10 @@ class Validator:
         """
         Applies the following standardizations to the original dataframe:
         1) explodes multi-part geometries.
-        2) rounds coordinates to 7 decimal places and flattens to 2-dimensions.
-        3) resolves invalid identifiers.
+        2) resolves invalid identifiers.
 
         Then creates a copy of the original dataframe with the following standardizations:
         1) exclude non-road segments (segment_type=1).
-        2) re-projects to a meter-based projection (EPSG:3348).
 
         Then generates computationally intensive, reusable geometry attributes.
         """
@@ -130,15 +130,10 @@ class Validator:
 
         # Apply standardizations to original dataframe.
         self.segment_original = helpers.explode_geometry(self.segment_original, index=self.id)
-        self.segment_original = helpers.round_coordinates(self.segment_original, precision=7)
         self.segment_original = self._update_ids(self.segment_original, index=True)
 
         # Create copy of original dataframe.
-        self.segment = self.segment_original.copy(deep=True)
-
-        # Apply standardizations to dataframe copy.
-        self.segment = self.segment.loc[self.segment["segment_type"].astype(int) == 1]
-        self.segment = self.segment.to_crs("EPSG:3348")
+        self.segment = self.segment_original.loc[self.segment_original["segment_type"].astype(int) == 1].copy(deep=True)
 
         logger.info("Generating reusable geometry attributes.")
 
@@ -166,6 +161,16 @@ class Validator:
         logger.info(f"Resolving segment identifiers for: \"{self.id}\".")
 
         try:
+
+            # Cast identifier to str and float columns to int.
+            gdf[self.id] = gdf[self.id].astype(str)
+            for col in gdf.columns:
+                if gdf[col].dtype.kind == "f":
+                    gdf.loc[gdf[col].isna(), col] = -1
+                    gdf[col] = gdf[col].astype(int)
+
+                    # Trigger export requirement for class.
+                    self._export = True
 
             # Flag invalid identifiers.
             hexdigits = set(string.hexdigits)
@@ -295,7 +300,8 @@ class Validator:
     def connectivity_segmentation(self) -> dict:
         """
         Validates: Arcs must not cross (i.e. must be segmented at each intersection).
-        This validation will automatically segment the required geometries.
+        If source layer is segment_{source}: This validation will automatically segment the required geometries.
+        If source layer is nrn_bo_{source}: This validation will not automatically segment the required geometries.
 
         Note: due to coordinate rounding, perpetual segmentation errors may exist post-segmentation if they contain a
         vertex within the rounding tolerance of the point of segmentation. These perpetual errors will be logged rather
@@ -313,48 +319,57 @@ class Validator:
         flag = crosses.map(len) > 0
         if sum(flag):
 
-            # Segment original geometries.
-
-            # Assign 'crosses' results to original dataframe.
-            self.segment_original["splitter"] = [{} for _ in range(len(self.segment_original))]
-            self.segment_original.loc[self.segment_original.index.isin(crosses.index), "splitter"] = crosses
-            flag = self.segment_original["splitter"].map(len) > 0
-
-            # Compile splitter geometries.
-            self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, "splitter"]\
-                .map(lambda indexes: itemgetter(*indexes)(self.segment_original["geometry"]))\
-                .map(lambda geoms: geoms if isinstance(geoms, tuple) else (geoms,))
-
-            # Add original geometry to beginning of splitter tuple.
-            self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, ["geometry", "splitter"]]\
-                .apply(lambda row: (row[0], *row[1]), axis=1)
-
-            # Iteratively split geometries using each splitter geometry.
-            self.segment_original.loc[flag, "geometry"] = self.segment_original.loc[flag, "splitter"].map(
-                lambda geoms: reduce(split_line, geoms))
-
-            # Standardize original dataframe and regenerate re-projected copy.
-            self._standardize_df()
-
-            # Re-apply validation on original, now-segmented, dataframe and log results.
-
-            # Flag records which were segmented.
-            filter_flag = self.segment_original["splitter"].map(len) > 0
-            self.segment_original.drop(columns=["splitter"], inplace=True)
-
-            # Query segments (flagged) which cross each segment (all).
-            crosses = self.segment_original.loc[filter_flag, "geometry"].map(
-                lambda g: set(self.segment_original.sindex.query(g, predicate="crosses")))
-
-            # Flag segments which have one or more crossing segments.
-            crosses = crosses.loc[crosses.map(len) > 0]
-            flag = self.segment_original.index.isin(crosses.index)
-            if sum(flag):
+            if not self._segment:
 
                 # Compile error logs.
-                vals = set(self.segment_original.loc[flag].index)
+                vals = set(self.segment.loc[flag].index)
                 errors["values"] = vals
                 errors["query"] = f"\"{self.id}\" in {*vals,}"
+
+            else:
+
+                # Segment original geometries.
+
+                # Assign 'crosses' results to original dataframe.
+                self.segment_original["splitter"] = [{} for _ in range(len(self.segment_original))]
+                self.segment_original.loc[self.segment_original.index.isin(crosses.index), "splitter"] = crosses
+                flag = self.segment_original["splitter"].map(len) > 0
+
+                # Compile splitter geometries.
+                self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, "splitter"]\
+                    .map(lambda indexes: itemgetter(*indexes)(self.segment_original["geometry"]))\
+                    .map(lambda geoms: geoms if isinstance(geoms, tuple) else (geoms,))
+
+                # Add original geometry to beginning of splitter tuple.
+                self.segment_original.loc[flag, "splitter"] = self.segment_original.loc[flag, ["geometry", "splitter"]]\
+                    .apply(lambda row: (row[0], *row[1]), axis=1)
+
+                # Iteratively split geometries using each splitter geometry.
+                self.segment_original.loc[flag, "geometry"] = self.segment_original.loc[flag, "splitter"].map(
+                    lambda geoms: reduce(split_line, geoms))
+
+                # Standardize original dataframe and regenerate re-projected copy.
+                self._standardize_df()
+
+                # Re-apply validation on original, now-segmented, dataframe and log results.
+
+                # Flag records which were segmented.
+                filter_flag = self.segment_original["splitter"].map(len) > 0
+                self.segment_original.drop(columns=["splitter"], inplace=True)
+
+                # Query segments (flagged) which cross each segment (all).
+                crosses = self.segment_original.loc[filter_flag, "geometry"].map(
+                    lambda g: set(self.segment_original.sindex.query(g, predicate="crosses")))
+
+                # Flag segments which have one or more crossing segments.
+                crosses = crosses.loc[crosses.map(len) > 0]
+                flag = self.segment_original.index.isin(crosses.index)
+                if sum(flag):
+
+                    # Compile error logs.
+                    vals = set(self.segment_original.loc[flag].index)
+                    errors["values"] = vals
+                    errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -381,8 +396,7 @@ class Validator:
 
                 # Export invalid pairs as MultiPoint geometries.
                 pts = coord_pairs.loc[flag].map(MultiPoint)
-                pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs="EPSG:3348")
-                pts_df = pts_df.to_crs(f"EPSG:{pts_df.crs.to_epsg()}")
+                pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs=self.crs)
 
                 logger.info(f"Writing to file: {self.dst.name}|layer={self.layer}_v104")
                 pts_df.to_file(str(self.dst), driver="GPKG", layer=f"{self.layer}_v104")

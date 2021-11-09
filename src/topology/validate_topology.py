@@ -37,7 +37,7 @@ class EGPTopologyValidation:
         :param bool remove: remove pre-existing output file (validations.log), default False.
         """
 
-        self.layer = f"segment_{source}"
+        self.layer = None
         self.remove = remove
         self.Validator = None
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
@@ -45,8 +45,13 @@ class EGPTopologyValidation:
 
         # Configure source path and layer name.
         if self.src.exists():
-            if self.layer not in set(fiona.listlayers(self.src)):
-                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
+            layers = set(fiona.listlayers(self.src))
+            for layer in (f"segment_{source}", f"nrn_bo_{source}"):
+                if layer in layers:
+                    self.layer = layer
+                    break
+            if not self.layer:
+                logger.exception(f"No valid layers found within source: \"{self.src}\".")
                 sys.exit(1)
         else:
             logger.exception(f"Source not found: \"{self.src}\".")

@@ -6,10 +6,8 @@ import pandas as pd
 import sqlite3
 import sys
 import time
-from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from pathlib import Path
-from shapely.geometry import LineString
 from tqdm import tqdm
 from typing import Any, List, Union
 
@@ -179,28 +177,3 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     vals_arrays = np.split(vals, keys_indexes[1:])
 
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
-
-
-def round_coordinates(gdf: gpd.GeoDataFrame, precision: int = 7) -> gpd.GeoDataFrame:
-    """
-    Rounds the GeoDataFrame geometry coordinates to a specific decimal precision.
-    Only the first 2 values (x, y) are kept for each coordinate, effectively flattening the geometry to 2-dimensions.
-
-    :param gpd.GeoDataFrame gdf: GeoDataFrame.
-    :param int precision: decimal precision to round the GeoDataFrame geometry coordinates to.
-    :return gpd.GeoDataFrame: GeoDataFrame with modified decimal precision.
-    """
-
-    try:
-
-        gdf["geometry"] = gdf["geometry"].map(lambda g: LineString(map(
-            lambda pt: [round(itemgetter(0)(pt), precision), round(itemgetter(1)(pt), precision)],
-            attrgetter("coords")(g))))
-
-        gdf.set_crs(crs=gdf.crs, inplace=True)
-        return gdf.copy(deep=True)
-
-    except (TypeError, ValueError) as e:
-        logger.exception("Unable to round coordinates for GeoDataFrame.")
-        logger.exception(e)
-        sys.exit(1)
