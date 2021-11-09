@@ -8,6 +8,7 @@ from itertools import chain
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from shapely.geometry import Point
+from shapely.ops import polygonize, unary_union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
@@ -58,6 +59,10 @@ class Validator:
                                       (self.nrn["segment_type"].isna())].copy(deep=True)
         self.nrn_bos = self.nrn.loc[self.nrn["segment_type"] == 3].copy(deep=True)
 
+        # Configure meshblock variables (all bob-ferry arcs).
+        self.meshblock_ = None
+        self.meshblock_input = self.nrn.loc[self.nrn["segment_type"] != 2].copy(deep=True)
+
         logger.info("Configuring validations.")
 
         # Define validation.
@@ -71,10 +76,11 @@ class Validator:
                   "desc": "BO node does not connect to NRN node."},
             103: {"func": self.connectivity_nrn_proximity,
                   "desc": "Unintegrated BO node is <= 5 meters from an NRN road (entire arc)."},
-            201: {"func": self.representation_existence,
-                  "desc": "All BO ngd_uids must exist."},
-            202: {"func": self.representation_duplication,
-                  "desc": "Duplicated BO ngd_uids must be contiguous (gaps bridged by NRN roads are acceptable)."}
+            200: {"func": self.meshblock,
+                  "desc": "Generate meshblock from LineStrings."},
+            201: {"func": self.meshblock_representation,
+                  "desc": "All non-deadend arcs (excluding ferries) must form a single meshblock polygon on both left "
+                          "and right sides, or just one side for boundary arcs."}
         }
 
         # Define validation thresholds.
@@ -222,22 +228,28 @@ class Validator:
 
         return errors
 
-    def representation_duplication(self) -> dict:
+    def meshblock(self) -> dict:
         """
-        Validates: Duplicated BO ngd_uids must be contiguous (gaps bridged by NRN roads are acceptable).
+        Validates: Generate meshblock from LineStrings.
+        Note: This method exists to generate the dependant variables for various meshblock validations and is not
+        intended to produce error logs itself.
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return dict: placeholder dict based on standard validations. For this method, its contents will be unpopulated.
         """
 
         errors = {"values": list(), "query": None}
 
-        # TODO
+        # Generate meshblock.
+        self.meshblock_ = gpd.GeoDataFrame(
+            geometry=list(polygonize(unary_union(self.meshblock_input["geometry"].to_list()))),
+            crs=self.meshblock_input.crs)
 
         return errors
 
-    def representation_existence(self) -> dict:
+    def meshblock_representation(self) -> dict:
         """
-        Validates: All BO ngd_uids must exist.
+        Validates: All non-deadend arcs (excluding ferries) must form a single meshblock polygon on both left and right
+        sides, or just one side for boundary arcs.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
@@ -245,6 +257,7 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # TODO
+        # After shapely update use LineString.covered_by(Polygon).
 
         return errors
 
