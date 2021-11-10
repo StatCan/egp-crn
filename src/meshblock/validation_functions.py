@@ -25,28 +25,25 @@ logger.addHandler(handler)
 class Validator:
     """Handles the execution of validation functions against the nrn dataset."""
 
-    def __init__(self, nrn: gpd.GeoDataFrame, ngd: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
+    def __init__(self, nrn: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         """
         Initializes variables for validation functions.
 
         :param gpd.GeoDataFrame nrn: GeoDataFrame containing LineStrings.
-        :param gpd.GeoDataFrame ngd: GeoDataFrame containing LineStrings.
         :param Path dst: output GeoPackage path.
         :param str layer: output GeoPackage layer name.
         """
 
         self.nrn = nrn.copy(deep=True)
-        self.ngd = ngd.copy(deep=True)
         self.dst = dst
         self.layer = layer
         self.errors = defaultdict(list)
-        self.integration_progress = dict()
+        self.meshblock_progress = dict()
         self.id = "segment_id"
         self._export = False
         self._nrn_bos_nodes = None
         self._nrn_roads_nodes_lookup = dict()
         self._nrn_bos_nodes_lookup = dict()
-        self._ngd_nodes_lookup = dict()
 
         # BO integration flag.
         self._integrated = None
@@ -59,9 +56,17 @@ class Validator:
                                       (self.nrn["segment_type"].isna())].copy(deep=True)
         self.nrn_bos = self.nrn.loc[self.nrn["segment_type"] == 3].copy(deep=True)
 
-        # Configure meshblock variables (all bob-ferry arcs).
+        # Configure meshblock variables (all non-ferry and non-ignore arcs).
         self.meshblock_ = None
-        self.meshblock_input = self.nrn.loc[self.nrn["segment_type"] != 2].copy(deep=True)
+        if "ignore_201" in self.nrn.columns:
+            self.meshblock_input = self.nrn.loc[(self.nrn["segment_type"] != 2) &
+                                                (self.nrn["ignore_201"] != 1)].copy(deep=True)
+        else:
+            self.meshblock_input = self.nrn.loc[self.nrn["segment_type"] != 2].copy(deep=True)
+
+            # Add ignore attribute.
+            self.nrn["ignore_201"] = 0
+            self._export = True
 
         logger.info("Configuring validations.")
 
@@ -70,11 +75,7 @@ class Validator:
         self.validations = {
             100: {"func": self.connectivity,
                   "desc": "All BOs must have nodal connections to other arcs."},
-            101: {"func": self.connectivity_integrated,
-                  "desc": "BO node connects to NRN node."},
-            102: {"func": self.connectivity_unintegrated,
-                  "desc": "BO node does not connect to NRN node."},
-            103: {"func": self.connectivity_nrn_proximity,
+            101: {"func": self.connectivity_nrn_proximity,
                   "desc": "Unintegrated BO node is <= 5 meters from an NRN road (entire arc)."},
             200: {"func": self.meshblock,
                   "desc": "Generate meshblock from LineStrings."},
@@ -89,8 +90,8 @@ class Validator:
     def connectivity(self) -> dict:
         """
         Validation: All BOs must have nodal connections to other arcs.
-        Note: The output of each connectivity validation feeds into the next. Therefore, this method exists to generate
-        the dependant variables for various connectivity validations and is not intended to produce error logs itself.
+        Note: This method exists to generate the dependant variables for various connectivity validations and is not
+        intended to produce error logs itself.
 
         :return dict: placeholder dict based on standard validations. For this method, its contents will be unpopulated.
         """
@@ -101,8 +102,6 @@ class Validator:
         self.nrn_roads["nodes"] = self.nrn_roads["geometry"].map(
             lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
         self.nrn_bos["nodes"] = self.nrn_bos["geometry"].map(
-            lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
-        self.ngd["nodes"] = self.ngd["geometry"].map(
             lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
 
         # Explode nodes collections and group identifiers based on shared nodes.
@@ -116,33 +115,11 @@ class Validator:
             pd.DataFrame({"node": nrn_bos_nodes_exp.values, self.id: nrn_bos_nodes_exp.index}),
             group_field="node", list_field=self.id).map(tuple))
 
-        ngd_nodes_exp = self.ngd["nodes"].explode()
-        self._ngd_nodes_lookup = dict(helpers.groupby_to_list(
-            pd.DataFrame({"node": ngd_nodes_exp.values, self.id: ngd_nodes_exp.index}),
-            group_field="node", list_field=self.id).map(tuple))
-
         # Explode BO node collections to allow for individual node validation.
         self._nrn_bos_nodes = self.nrn_bos["nodes"].explode().copy(deep=True)
 
-        # Populate progress tracker with total BO node count.
-        self.integration_progress["Total"] = len(self._nrn_bos_nodes)
-
-        return errors
-
-    def connectivity_integrated(self) -> dict:
-        """
-        Validates: BO node connects to NRN node.
-
-        :return dict: placeholder dict based on standard validations. For this method, its contents will be unpopulated.
-        """
-
-        errors = {"values": list(), "query": None}
-
         # Flag BO nodes connected to an nrn road node.
         self._integrated = self._nrn_bos_nodes.map(lambda node: node in self._nrn_roads_nodes_lookup)
-
-        # Populate progress tracker with BO node count.
-        self.integration_progress["Integrated"] = sum(self._integrated)
 
         return errors
 
@@ -176,56 +153,6 @@ class Validator:
             errors["values"] = set(vals)
             errors["query"] = f"\"{self.id}\" in {*set(vals),}"
 
-            # Populate progress tracker with BO node count.
-            self.integration_progress[f"Unintegrated (all) - within NRN proximity ({self._bo_nrn_proximity} m)"] =\
-                len(vals)
-
-        return errors
-
-    def connectivity_unintegrated(self) -> dict:
-        """
-        Validates: BO node does not connect to NRN node.
-        A) BO node connects only to NGD road node.
-        B) BO node connects only to another BO node.
-        C) BO node connects only to NGD road node and another BO node.
-        D) BO is isolated (i.e. connected only to itself).
-
-        :return dict: placeholder dict based on standard validations. For this method, its contents will be unpopulated.
-        """
-
-        errors = {"values": list(), "query": None}
-
-        # A) Flag BO nodes that connect only to NGD road nodes.
-        flag_ngd_connection = (~self._integrated) & (self._nrn_bos_nodes.map(
-            lambda node: (node in self._ngd_nodes_lookup) & (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) == 1)))
-
-        # Populate progress tracker with BO node count.
-        self.integration_progress["Unintegrated (BO-to-NGD)"] = sum(flag_ngd_connection)
-
-        # B) Flag BO nodes that connect only to another BO node.
-        flag_bo_connection = (~self._integrated) & (self._nrn_bos_nodes.map(
-            lambda node: (node not in self._ngd_nodes_lookup) &
-                         (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) > 1)))
-
-        # Populate progress tracker with BO node count.
-        self.integration_progress["Unintegrated (BO-to-BO)"] = sum(flag_bo_connection)
-
-        # C) Flag BO nodes that connect only to NGD road nodes and another BO node.
-        flag_ngd_and_bo_connection = (~self._integrated) & (self._nrn_bos_nodes.map(
-            lambda node: (node in self._ngd_nodes_lookup) & (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) > 1)))
-
-        # Populate progress tracker with BO node count.
-        self.integration_progress["Unintegrated (BO-to-BO\\NGD)"] =\
-            sum(flag_ngd_and_bo_connection)
-
-        # D) Flag BO nodes that are isolated (i.e. connected only to itself).
-        flag_no_connection = (~self._integrated) & (self._nrn_bos_nodes.map(
-            lambda node: (node not in self._ngd_nodes_lookup) &
-                         (len(itemgetter(node)(self._nrn_bos_nodes_lookup)) == 1)))
-
-        # Populate progress tracker with BO node count.
-        self.integration_progress["Unintegrated (BO-to-None)"] = sum(flag_no_connection)
-
         return errors
 
     def meshblock(self) -> dict:
@@ -256,8 +183,23 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # TODO
-        # After shapely update use LineString.covered_by(Polygon).
+        # Query meshblock polygons which cover each segment.
+        covered_by = self.meshblock_input["geometry"].map(
+            lambda g: set(self.meshblock_.sindex.query(g, predicate="covered_by")))
+
+        # Flag segments which do not have 2 covering polygons.
+        flag = covered_by.map(len) != 2
+
+        # Compile error logs.
+        if sum(flag):
+            vals = set(covered_by.loc[flag].index)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
+
+        # Populate progress tracker with total meshblock input, ignored, and flagged record counts.
+        self.meshblock_progress["Valid"] = len(self.meshblock_input) - sum(flag)
+        self.meshblock_progress["Invalid"] = sum(flag)
+        self.meshblock_progress["Ignored"] = len(self.nrn) - len(self.meshblock_input)
 
         return errors
 

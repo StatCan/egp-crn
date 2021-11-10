@@ -38,8 +38,7 @@ class EGPMeshblockValidation:
         :param bool remove: remove pre-existing output file (validations.log), default False.
         """
 
-        self.layer_nrn = f"nrn_bo_{source}"
-        self.layer_ngd = f"ngd_road_{source}"
+        self.layer = f"nrn_bo_{source}"
         self.remove = remove
         self.Validator = None
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
@@ -47,10 +46,9 @@ class EGPMeshblockValidation:
 
         # Configure source path and layer name.
         if self.src.exists():
-            for layer in (self.layer_nrn, self.layer_ngd):
-                if layer not in set(fiona.listlayers(self.src)):
-                    logger.exception(f"Layer \"{layer}\" not found within source: \"{self.src}\".")
-                    sys.exit(1)
+            if self.layer not in set(fiona.listlayers(self.src)):
+                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
+                sys.exit(1)
         else:
             logger.exception(f"Source not found: \"{self.src}\".")
             sys.exit(1)
@@ -66,11 +64,8 @@ class EGPMeshblockValidation:
                 sys.exit(1)
 
         # Load source data.
-        logger.info(f"Loading source data: {self.src}|layer={self.layer_nrn}.")
-        self.nrn = gpd.read_file(self.src, layer=self.layer_nrn)
-
-        logger.info(f"Loading source data: {self.src}|layer={self.layer_ngd}.")
-        self.ngd = gpd.read_file(self.src, layer=self.layer_ngd)
+        logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
+        self.nrn = gpd.read_file(self.src, layer=self.layer)
 
         logger.info("Successfully loaded source data.")
 
@@ -102,13 +97,10 @@ class EGPMeshblockValidation:
         logger.info(f"Total records flagged by validations: {total_records:,d}.")
         logger.info(f"Total unique records flagged by validations: {len(unique_records):,d}.")
 
-        # Log BO integration progress.
-        table = tabulate([[k, f"{v:,}"] for k, v in self.Validator.integration_progress.items()],
-                         headers=["BO Node Classification", "Count"], tablefmt="rst", colalign=("left", "right"))
-        logger.info("\n" + "\n".join(["\n".join(table.split("\n")[:-2]),
-                                      table.split("\n")[-1].replace("=", "-"),
-                                      table.split("\n")[-2],
-                                      table.split("\n")[-1]]))
+        # Log meshblock creation progress.
+        table = tabulate([[k, f"{v:,}"] for k, v in self.Validator.meshblock_progress.items()],
+                         headers=["Meshblock Input Arcs", "Count"], tablefmt="rst", colalign=("left", "right"))
+        logger.info("\n" + table)
 
     def validations(self) -> None:
         """Applies a set of validations to BOs."""
@@ -116,7 +108,7 @@ class EGPMeshblockValidation:
         logger.info("Initiating validator.")
 
         # Instantiate and execute validator class.
-        self.Validator = Validator(self.nrn, self.ngd, dst=self.src, layer=self.layer_nrn)
+        self.Validator = Validator(self.nrn, dst=self.src, layer=self.layer)
         self.Validator.execute()
 
     def execute(self) -> None:
