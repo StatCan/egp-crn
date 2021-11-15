@@ -190,6 +190,11 @@ class Validator:
         # Flag segments which do not have 2 covering polygons.
         flag = covered_by.map(len) != 2
 
+        # Invert flag for boundary arcs which have 1 covering polygon.
+        invert_flag_idxs = set((covered_by.loc[flag & (self.meshblock_input["boundary"] == 1)].map(len) == 1).index)
+        if len(invert_flag_idxs):
+            flag.loc[flag.index.isin(invert_flag_idxs)] = False
+
         # Compile error logs.
         if sum(flag):
             vals = set(covered_by.loc[flag].index)
