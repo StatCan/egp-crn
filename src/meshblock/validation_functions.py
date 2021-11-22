@@ -7,8 +7,8 @@ from copy import deepcopy
 from itertools import chain
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from shapely.geometry import LineString, Point
-from shapely.ops import polygonize, unary_union
+from shapely.geometry import LineString, MultiPoint, Point
+from shapely.ops import nearest_points, polygonize, unary_union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
@@ -128,7 +128,8 @@ class Validator:
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
-        _snap_nodes_lookup = dict()
+        snap_nodes_lookup = dict()
+        snap_bo_ids_total = set()
 
         def _update_nodes(g: LineString) -> LineString:
             """
@@ -144,7 +145,7 @@ class Validator:
             # Conditionally update nodes.
             for idx in (0, -1):
                 try:
-                    coords[idx] = itemgetter(coords[idx])(_snap_nodes_lookup)
+                    coords[idx] = itemgetter(coords[idx])(snap_nodes_lookup)
                 except KeyError:
                     pass
 
@@ -169,23 +170,28 @@ class Validator:
             # Compile identifiers of arcs for resulting BO nodes.
             vals = set(chain.from_iterable(unintegrated_bo_nodes.map(self._nrn_bos_nodes_lookup).values))
 
-            # Automatically snap unintegrated bo nodes <= 1 m from an NRN node.
-            # Compile all unintegrated bo nodes to be potentially snapped.
-            snap_nodes = unintegrated_bo_nodes.copy(deep=True)
+            # Automatically snap unintegrated bo nodes <= 1 m from a) an NRN node or b) an NRN arc.
 
             # Compile all nrn nodes.
             nrn_nodes = gpd.GeoSeries(map(Point, set(self.nrn_roads["nodes"].explode())), crs=self.nrn.crs)
 
             # Generate simplified node buffers with distance tolerance.
-            snap_node_buffers = snap_nodes.map(lambda node: Point(node).buffer(self._bo_nrn_prox_snap, resolution=5))
+            bo_node_buffers = unintegrated_bo_nodes.map(
+                lambda node: Point(node).buffer(self._bo_nrn_prox_snap, resolution=5))
 
-            # Query nrn roads which intersect each node buffer.
+            # Query nrn nodes and roads which intersect each node buffer.
             # Construct DataFrame containing results.
-            snap_nodes = pd.DataFrame({"from_node": snap_nodes, "to_node": snap_node_buffers.map(
-                lambda buffer: set(nrn_nodes.sindex.query(buffer, predicate="intersects")))})
+            snap_features = pd.DataFrame({
+                "from_node": unintegrated_bo_nodes,
+                "to_node": bo_node_buffers.map(
+                    lambda buffer: set(nrn_nodes.sindex.query(buffer, predicate="intersects"))),
+                "to_arc": bo_node_buffers.map(
+                    lambda buffer: set(self.nrn_roads.sindex.query(buffer, predicate="intersects")))
+            })
 
-            # Identify snap nodes by filtering to those with buffers with one or more intersecting nrn roads.
-            snap_nodes = snap_nodes.loc[snap_nodes["to_node"].map(len) >= 1]
+            # Snapping instance a) NRN node.
+            # Identify snap nodes by filtering to those with buffers with one or more intersecting nrn nodes.
+            snap_nodes = snap_features.loc[snap_features["to_node"].map(len) >= 1]
             if len(snap_nodes):
 
                 # Replace "to_node" set with actual node tuple of first result.
@@ -197,24 +203,62 @@ class Validator:
                     lambda idxs: itemgetter(tuple(idxs)[0])(nrn_nodes_lookup))
 
                 # Create node snapping lookup and update required bo arcs.
-                _snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_node"]))
+                snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_node"]))
                 snap_bo_ids = set(chain.from_iterable(snap_nodes["from_node"].map(self._nrn_bos_nodes_lookup).values))
                 self.nrn.loc[self.nrn[self.id].isin(snap_bo_ids), "geometry"] = \
                     self.nrn.loc[self.nrn[self.id].isin(snap_bo_ids), "geometry"].map(_update_nodes)
 
-                # Log modifications count.
-                logger.warning(f"Snapped nodes for {len(snap_bo_ids)} BO(s) based on snapping tolerance of "
-                               f"{self._bo_nrn_prox_snap} m.")
+                # Store updated bo ids.
+                snap_bo_ids_total.update(snap_bo_ids)
 
-                # Trigger export.
-                self._export = True
+            # Snapping instance b) NRN arc.
+            # Identify snap nodes by filtering to those with buffers with one or more intersecting nrn arcs.
+            snap_nodes = snap_features.loc[(snap_features["to_node"].map(len) == 0) &
+                                           (snap_features["to_arc"].map(len) >= 1)]
+            if len(snap_nodes):
 
-                # Update error log values.
-                vals = vals - snap_bo_ids
+                # Filter results to those nodes not containing nrn arcs between the 2 proximity thresholds.
+                snap_nodes["to_arc_max"] = snap_nodes.index.map(lambda idx: itemgetter(idx)(node_intersects)).values
+                snap_nodes = snap_nodes.loc[snap_nodes["to_arc"] == snap_nodes["to_arc_max"], ["from_node", "to_arc"]]
+                if len(snap_nodes):
+
+                    # Compile identifier and geometry of first result of "to_arc".
+                    nrn_idx_geom_lookup = dict(zip(range(len(self.nrn_roads)), self.nrn_roads["geometry"]))
+                    nrn_idx_id_lookup = dict(zip(range(len(self.nrn_roads)), self.nrn_roads[self.id]))
+                    snap_nodes["to_geom"] = snap_nodes["to_arc"].map(
+                        lambda idxs: itemgetter(tuple(idxs)[0])(nrn_idx_geom_lookup))
+                    snap_nodes["to_id"] = snap_nodes["to_arc"].map(
+                        lambda idxs: itemgetter(tuple(idxs)[0])(nrn_idx_id_lookup))
+
+                    # Configure nearest point on nrn arc.
+                    snap_nodes["to_pt"] = snap_nodes[["from_node", "to_geom"]].apply(
+                        lambda row: attrgetter("coords")(nearest_points(Point(row[0]), row[1])[-1])[0], axis=1)
+
+                    # Create node snapping lookup and update required bo arcs.
+                    snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_pt"]))
+                    snap_bo_ids = set(chain.from_iterable(snap_nodes["from_node"].map(
+                        self._nrn_bos_nodes_lookup).values))
+                    self.nrn.loc[self.nrn[self.id].isin(snap_bo_ids), "geometry"] = \
+                        self.nrn.loc[self.nrn[self.id].isin(snap_bo_ids), "geometry"].map(_update_nodes)
+
+                    # Store updated bo ids.
+                    snap_bo_ids_total.update(snap_bo_ids)
+
+                    # Split nrn arcs...
+                    # TODO
+
+            # Update error log values.
+            vals = vals - snap_bo_ids_total
 
             # Compile error logs.
             errors["values"] = vals
             errors["query"] = f"\"{self.id}\" in {*vals,}"
+
+        # Log modifications count and trigger export.
+        if len(snap_bo_ids_total):
+            logger.warning(f"Snapped {len(snap_bo_ids_total)} BO node(s) based on tolerance of "
+                           f"{self._bo_nrn_prox_snap} m.")
+            self._export = True
 
         return errors
 
