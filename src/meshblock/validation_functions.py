@@ -7,7 +7,7 @@ from copy import deepcopy
 from itertools import chain
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 from shapely.ops import polygonize, unary_union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -51,22 +51,19 @@ class Validator:
         # Resolve identifiers.
         self.nrn, self._export = helpers.update_ids(self.nrn, identifier=self.id, index=True)
 
+        # Configure meshblock variables (all non-ferry and non-ignore arcs).
+        self.meshblock_ = None
+        self._meshblock_input = None
+
+        # Add ignore attribute.
+        if "ignore_201" not in self.nrn.columns:
+            self.nrn["ignore_201"] = 0
+            self._export = True
+
         # Separate nrn BOs and roads.
         self.nrn_roads = self.nrn.loc[(self.nrn["segment_type"] == 1) |
                                       (self.nrn["segment_type"].isna())].copy(deep=True)
         self.nrn_bos = self.nrn.loc[self.nrn["segment_type"] == 3].copy(deep=True)
-
-        # Configure meshblock variables (all non-ferry and non-ignore arcs).
-        self.meshblock_ = None
-        if "ignore_201" in self.nrn.columns:
-            self.meshblock_input = self.nrn.loc[(self.nrn["segment_type"] != 2) &
-                                                (self.nrn["ignore_201"] != 1)].copy(deep=True)
-        else:
-            self.meshblock_input = self.nrn.loc[self.nrn["segment_type"] != 2].copy(deep=True)
-
-            # Add ignore attribute.
-            self.nrn["ignore_201"] = 0
-            self._export = True
 
         logger.info("Configuring validations.")
 
@@ -85,7 +82,8 @@ class Validator:
         }
 
         # Define validation thresholds.
-        self._bo_nrn_proximity = 5
+        self._bo_nrn_prox = 5
+        self._bo_nrn_prox_snap = 0.01
 
     def connectivity(self) -> dict:
         """
@@ -130,13 +128,35 @@ class Validator:
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
+        _snap_nodes_lookup = dict()
+
+        def _update_nodes(g: LineString) -> LineString:
+            """
+            Updates one or both nodes in the LineString.
+
+            :param LineString g: LineString to be updated.
+            :return LineString: updated LineString.
+            """
+
+            # Compile coordinates.
+            coords = list(attrgetter("coords")(g))
+
+            # Conditionally update nodes.
+            for idx in (0, -1):
+                try:
+                    coords[idx] = itemgetter(coords[idx])(_snap_nodes_lookup)
+                except KeyError:
+                    pass
+
+            return LineString(coords)
+
         errors = {"values": list(), "query": None}
 
         # Compile unintegrated BO nodes.
         unintegrated_bo_nodes = pd.Series(tuple(set(self._nrn_bos_nodes.loc[~self._integrated])))
 
         # Generate simplified node buffers with distance tolerance.
-        node_buffers = unintegrated_bo_nodes.map(lambda node: Point(node).buffer(self._bo_nrn_proximity, resolution=5))
+        node_buffers = unintegrated_bo_nodes.map(lambda node: Point(node).buffer(self._bo_nrn_prox, resolution=5))
 
         # Query nrn roads which intersect each node buffer.
         node_intersects = node_buffers.map(
@@ -147,11 +167,54 @@ class Validator:
         if len(unintegrated_bo_nodes):
 
             # Compile identifiers of arcs for resulting BO nodes.
-            vals = tuple(chain.from_iterable(unintegrated_bo_nodes.map(self._nrn_bos_nodes_lookup).values))
+            vals = set(chain.from_iterable(unintegrated_bo_nodes.map(self._nrn_bos_nodes_lookup).values))
+
+            # Automatically snap unintegrated bo nodes <= 1 m from an NRN node.
+            # Compile all unintegrated bo nodes to be potentially snapped.
+            snap_nodes = unintegrated_bo_nodes.copy(deep=True)
+
+            # Compile all nrn nodes.
+            nrn_nodes = gpd.GeoSeries(map(Point, set(self.nrn_roads["nodes"].explode())), crs=self.nrn.crs)
+
+            # Generate simplified node buffers with distance tolerance.
+            snap_node_buffers = snap_nodes.map(lambda node: Point(node).buffer(self._bo_nrn_prox_snap, resolution=5))
+
+            # Query nrn roads which intersect each node buffer.
+            # Construct DataFrame containing results.
+            snap_nodes = pd.DataFrame({"from_node": snap_nodes, "to_node": snap_node_buffers.map(
+                lambda buffer: set(nrn_nodes.sindex.query(buffer, predicate="intersects")))})
+
+            # Identify snap nodes by filtering to those with buffers with one or more intersecting nrn roads.
+            snap_nodes = snap_nodes.loc[snap_nodes["to_node"].map(len) >= 1]
+            if len(snap_nodes):
+
+                # Replace "to_node" set with actual node tuple of first result.
+                to_node_idxs = set(chain.from_iterable(snap_nodes["to_node"]))
+                nrn_nodes = nrn_nodes.loc[nrn_nodes.index.isin(to_node_idxs)]
+                nrn_nodes_lookup = dict(zip(nrn_nodes.index, nrn_nodes.map(
+                    lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
+                snap_nodes["to_node"] = snap_nodes["to_node"].map(
+                    lambda idxs: itemgetter(tuple(idxs)[0])(nrn_nodes_lookup))
+
+                # Create node snapping lookup and update required bo arcs.
+                _snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_node"]))
+                snap_bo_ids = set(chain.from_iterable(snap_nodes["from_node"].map(self._nrn_bos_nodes_lookup).values))
+                self.nrn.loc[self.nrn[self.id].isin(snap_bo_ids), "geometry"] = \
+                    self.nrn.loc[self.nrn[self.id].isin(snap_bo_ids), "geometry"].map(_update_nodes)
+
+                # Log modifications count.
+                logger.warning(f"Snapped nodes for {len(snap_bo_ids)} BO(s) based on snapping tolerance of "
+                               f"{self._bo_nrn_prox_snap} m.")
+
+                # Trigger export.
+                self._export = True
+
+                # Update error log values.
+                vals = vals - snap_bo_ids
 
             # Compile error logs.
-            errors["values"] = set(vals)
-            errors["query"] = f"\"{self.id}\" in {*set(vals),}"
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -165,6 +228,10 @@ class Validator:
         """
 
         errors = {"values": list(), "query": None}
+
+        # Configure meshblock input (all non-ferry and non-ignore arcs).
+        self.meshblock_input = self.nrn.loc[(self.nrn["segment_type"] != 2) &
+                                            (self.nrn["ignore_201"] != 1)].copy(deep=True)
 
         # Generate meshblock.
         self.meshblock_ = gpd.GeoDataFrame(
