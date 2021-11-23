@@ -4,10 +4,10 @@ import pandas as pd
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from itertools import chain
+from itertools import chain, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from shapely.geometry import LineString, MultiPoint, Point
+from shapely.geometry import LineString, MultiLineString, Point
 from shapely.ops import nearest_points, polygonize, unary_union
 
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -124,12 +124,45 @@ class Validator:
     def connectivity_nrn_proximity(self) -> dict:
         """
         Validates: Unintegrated BO node is <= 5 meters from an NRN road (entire arc).
+        Enforces snapping of BO nodes to NRN nodes / edges within a given tolerance.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
         snap_nodes_lookup = dict()
         snap_bo_ids_total = set()
+
+        def _cut_arc(arc: LineString, nodes: tuple) -> MultiLineString:
+            """
+            Cuts a coordinate sequence into multiple sequences based on one or more 'cut' points.
+
+            :param LineString arc: LineString to be cut.
+            :param tuple nodes: coordinate sequence to use for cutting.
+            :return MultiLineString: MultiLineString.
+            """
+
+            # Unpack arc coordinates.
+            coords = tuple(attrgetter("coords")(arc))
+
+            # Configure distances of each coordinate and node along the arc.
+            # Sort results using a nested tuple containing the point values and flag for node-status.
+            seq = sorted(tuple(zip(map(lambda pt: arc.project(Point(pt)), (*coords, *nodes)),
+                                   (*coords, *nodes),
+                                   (*(0,)*len(coords), *(1,)*len(nodes)))), key=itemgetter(0))
+
+            # Resolve loop arcs by moving first result to end of sequence.
+            if coords[0] == coords[-1]:
+                seq = [*seq[1:], seq[0]]
+
+            # Construct segmentation index ranges based on arc node and splitter node positions.
+            seq_unzip = tuple(zip(*seq))
+            start, end = tee([0, *(idx for idx, val in enumerate(seq_unzip[-1]) if val == 1), len(seq_unzip[-1]) - 1])
+            next(end, None)
+
+            # Iterate segmentation index ranges and constuct LineStrings from corresponding coordinates.
+            arcs = MultiLineString([LineString(seq_unzip[1][start: end + 1]) for start, end in tuple(zip(start, end))])
+
+            return arcs
 
         def _update_nodes(g: LineString) -> LineString:
             """
@@ -170,7 +203,7 @@ class Validator:
             # Compile identifiers of arcs for resulting BO nodes.
             vals = set(chain.from_iterable(unintegrated_bo_nodes.map(self._nrn_bos_nodes_lookup).values))
 
-            # Automatically snap unintegrated bo nodes <= 1 m from a) an NRN node or b) an NRN arc.
+            # Automatically snap unintegrated bo nodes <= 1 m from a) an NRN node or b) an NRN edge.
 
             # Compile all nrn nodes.
             nrn_nodes = gpd.GeoSeries(map(Point, set(self.nrn_roads["nodes"].explode())), crs=self.nrn.crs)
@@ -191,7 +224,7 @@ class Validator:
 
             # Snapping instance a) NRN node.
             # Identify snap nodes by filtering to those with buffers with one or more intersecting nrn nodes.
-            snap_nodes = snap_features.loc[snap_features["to_node"].map(len) >= 1]
+            snap_nodes = snap_features.loc[snap_features["to_node"].map(len) >= 1].copy(deep=True)
             if len(snap_nodes):
 
                 # Replace "to_node" set with actual node tuple of first result.
@@ -211,10 +244,10 @@ class Validator:
                 # Store updated bo ids.
                 snap_bo_ids_total.update(snap_bo_ids)
 
-            # Snapping instance b) NRN arc.
+            # Snapping instance b) NRN edge.
             # Identify snap nodes by filtering to those with buffers with one or more intersecting nrn arcs.
             snap_nodes = snap_features.loc[(snap_features["to_node"].map(len) == 0) &
-                                           (snap_features["to_arc"].map(len) >= 1)]
+                                           (snap_features["to_arc"].map(len) >= 1)].copy(deep=True)
             if len(snap_nodes):
 
                 # Filter results to those nodes not containing nrn arcs between the 2 proximity thresholds.
@@ -244,8 +277,31 @@ class Validator:
                     # Store updated bo ids.
                     snap_bo_ids_total.update(snap_bo_ids)
 
-                    # Split nrn arcs...
-                    # TODO
+                    # Split nrn arcs at snap points.
+
+                    # Group nrn snap points by identifier. Compile snap points and arc in single DataFrame.
+                    snap_arcs = helpers.groupby_to_list(snap_nodes, group_field="to_id", list_field="to_pt")
+                    nrn_id_geom_lookup = dict(zip(snap_nodes["to_id"], snap_nodes["to_geom"]))
+                    snap_arcs = pd.DataFrame({
+                        "pts": snap_arcs.map(tuple).values,
+                        "arc": snap_arcs.index.map(lambda val: itemgetter(val)(nrn_id_geom_lookup)).values
+                    }, index=snap_arcs.index)
+
+                    # Configure updated coordinate sequences for arcs.
+                    snap_arcs["coords"] = snap_arcs["arc"].map(lambda g: tuple(attrgetter("coords")(g)))
+                    snap_arcs["new_arc"] = snap_arcs[["arc", "pts"]].apply(lambda row: _cut_arc(*row), axis=1)
+
+                    # Update required NRN arcs.
+                    snap_arcs_lookup = dict(zip(snap_arcs.index, snap_arcs["new_arc"]))
+                    self.nrn.loc[self.nrn[self.id].isin(snap_arcs_lookup), "geometry"] =\
+                        self.nrn.loc[self.nrn[self.id].isin(snap_arcs_lookup), self.id].map(snap_arcs_lookup)
+
+                    # Explode MultiLineStrings and _update_ids.
+                    self.nrn.reset_index(drop=True, inplace=True)
+                    self.nrn = self.nrn.explode()
+
+                    # Resolve identifiers.
+                    self.nrn, _ = helpers.update_ids(self.nrn, identifier=self.id, index=True)
 
             # Update error log values.
             vals = vals - snap_bo_ids_total
