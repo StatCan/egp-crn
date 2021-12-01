@@ -330,13 +330,13 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Configure meshblock input (all non-ferry and non-ignore arcs).
-        self.meshblock_input = self.nrn.loc[(self.nrn["segment_type"] != 2) &
-                                            (self.nrn["ignore_201"] != 1)].copy(deep=True)
+        self._meshblock_input = self.nrn.loc[(self.nrn["segment_type"] != 2) &
+                                             (self.nrn["ignore_201"] != 1)].copy(deep=True)
 
         # Generate meshblock.
         self.meshblock_ = gpd.GeoDataFrame(
-            geometry=list(polygonize(unary_union(self.meshblock_input["geometry"].to_list()))),
-            crs=self.meshblock_input.crs)
+            geometry=list(polygonize(unary_union(self._meshblock_input["geometry"].to_list()))),
+            crs=self._meshblock_input.crs)
 
         return errors
 
@@ -351,14 +351,14 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Query meshblock polygons which cover each segment.
-        covered_by = self.meshblock_input["geometry"].map(
+        covered_by = self._meshblock_input["geometry"].map(
             lambda g: set(self.meshblock_.sindex.query(g, predicate="covered_by")))
 
         # Flag segments which do not have 2 covering polygons.
         flag = covered_by.map(len) != 2
 
         # Invert flag for boundary arcs which have 1 covering polygon.
-        invert_flag_idxs = set((covered_by.loc[flag & (self.meshblock_input["boundary"] == 1)].map(len) == 1).index)
+        invert_flag_idxs = set((covered_by.loc[flag & (self._meshblock_input["boundary"] == 1)].map(len) == 1).index)
         if len(invert_flag_idxs):
             flag.loc[flag.index.isin(invert_flag_idxs)] = False
 
@@ -369,9 +369,9 @@ class Validator:
             errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         # Populate progress tracker with total meshblock input, ignored, and flagged record counts.
-        self.meshblock_progress["Valid"] = len(self.meshblock_input) - sum(flag)
+        self.meshblock_progress["Valid"] = len(self._meshblock_input) - sum(flag)
         self.meshblock_progress["Invalid"] = sum(flag)
-        self.meshblock_progress["Ignored"] = len(self.nrn) - len(self.meshblock_input)
+        self.meshblock_progress["Ignored"] = len(self.nrn) - len(self._meshblock_input)
 
         return errors
 
