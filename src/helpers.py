@@ -8,6 +8,7 @@ import string
 import sys
 import time
 import uuid
+from operator import attrgetter
 from osgeo import ogr, osr
 from pathlib import Path
 from tqdm import tqdm
@@ -106,7 +107,8 @@ def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
         srs.ImportFromEPSG(df.crs.to_epsg())
 
         # Create GeoPackage layer.
-        layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=ogr.wkbLineString, options=["OVERWRITE=YES"])
+        geom_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
+        layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=geom_type, options=["OVERWRITE=YES"])
 
         # Set field definitions.
         ogr_field_map = {"i": ogr.OFTInteger, "O": ogr.OFTString}

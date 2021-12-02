@@ -30,16 +30,19 @@ logger_validations.setLevel(logging.WARNING)
 class EGPMeshblockValidation:
     """Defines the EGP meshblock validation class."""
 
-    def __init__(self, source: str, remove: bool = False) -> None:
+    def __init__(self, source: str, remove: bool = False, export_meshblock: bool = False) -> None:
         """
         Initializes the EGP class.
 
         :param str source: abbreviation for the source province / territory.
         :param bool remove: remove pre-existing output file (validations.log), default False.
+        :param bool export_meshblock: export meshblock polygon layer.
         """
 
+        self.source = source
         self.layer = f"nrn_bo_{source}"
         self.remove = remove
+        self.export_meshblock = export_meshblock
         self.Validator = None
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
         self.validations_log = Path(self.src.parent / "validations.log")
@@ -111,6 +114,10 @@ class EGPMeshblockValidation:
         self.Validator = Validator(self.nrn, dst=self.src, layer=self.layer)
         self.Validator.execute()
 
+        # Conditionally export meshblock.
+        if self.export_meshblock:
+            helpers.export(self.Validator.meshblock_, dst=self.src, name=f"meshblock_{self.source}")
+
     def execute(self) -> None:
         """Executes the EGP class."""
 
@@ -122,18 +129,21 @@ class EGPMeshblockValidation:
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing output file (validations.log).")
-def main(source: str, remove: bool = False) -> None:
+@click.option("--export-meshblock / --no-export-meshblock", "-e", default=False, show_default=True,
+              help="Export meshblock polygon layer.")
+def main(source: str, remove: bool = False, export_meshblock: bool = False) -> None:
     """
     Instantiates and executes the EGP class.
 
     :param str source: abbreviation for the source province / territory.
     :param bool remove: remove pre-existing output file (validations.log), default False.
+    :param bool export_meshblock: export meshblock polygon layer.
     """
 
     try:
 
         with helpers.Timer():
-            egp = EGPMeshblockValidation(source, remove)
+            egp = EGPMeshblockValidation(source, remove, export_meshblock)
             egp.execute()
 
     except KeyboardInterrupt:
