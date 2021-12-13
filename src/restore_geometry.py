@@ -4,6 +4,7 @@ import geopandas as gpd
 import logging
 import re
 import sys
+from operator import itemgetter
 from pathlib import Path
 from tabulate import tabulate
 
@@ -38,8 +39,8 @@ class EGPRestoreGeometry:
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
         self.src_restore = Path(filepath.parents[2] / "data/interim/nrn_bo_restore.gpkg")
-        self.missing_nrn = set()
-        self.missing_bo = set()
+        self.modified_nrn = set()
+        self.modified_bo = set()
 
         # Configure source path and layer name.
         for src in (self.src, self.src_restore):
@@ -66,23 +67,42 @@ class EGPRestoreGeometry:
 
         logger.info("Identifying missing data.")
 
-        # Define flags.
+        # Define flags to classify arcs.
         flag_nrn = self.df["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
-        flag_nrn_restore = self.df_restore["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
         flag_bo = self.df["segment_type"].astype(str).isin({"3", "3.0"})
+        flag_nrn_restore = self.df_restore["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
         flag_bo_restore = self.df_restore["segment_type"].astype(str).isin({"3", "3.0"})
 
-        # Identify missing nrn arcs.
-        self.missing_nrn.update(set(self.df_restore.loc[flag_nrn_restore, self.nrn_id]) -
-                                set(self.df.loc[flag_nrn, self.nrn_id]))
+        # Filter to exclusively nrn and bo arcs and dissolve geometries on identifiers.
+        nrn_dissolved = self.df.loc[flag_nrn].dissolve(by=self.nrn_id, sort=False)
+        bo_dissolved = self.df.loc[flag_bo].dissolve(by=self.bo_id, sort=False)
 
-        # Identify missing bo arcs.
-        self.missing_bo.update(set(self.df_restore.loc[flag_bo_restore, self.bo_id]) -
-                               set(self.df.loc[flag_bo, self.bo_id]))
+        # Create identifier - geometry lookups for new geometries.
+        nrn_id_geom_lookup = dict(zip(nrn_dissolved.index, nrn_dissolved["geometry"]))
+        bo_id_geom_lookup = dict(zip(bo_dissolved.index, bo_dissolved["geometry"]))
 
-        # Filter out non-NRN arcs and dissolve geometries on original identifier values.
-        df = self.df.loc[(~self.df[self.identifier].isna()) &
-                         (self.df[self.identifier] != "None")].dissolve(by=self.identifier, sort=False)
+        # Define flags to query arcs linkage.
+        flag_nrn_link = self.df_restore[self.nrn_id].isin(nrn_id_geom_lookup)
+        flag_bo_link = self.df_restore[self.bo_id].isin(bo_id_geom_lookup)
+
+        # Compile new arc associated with each original arc.
+        self.df_restore["geometry_orig"] = None
+        self.df_restore.loc[flag_nrn_link, "geometry_orig"] = self.df_restore.loc[flag_nrn_link, self.nrn_id]\
+            .map(lambda val: itemgetter(val)(nrn_id_geom_lookup))
+        self.df_restore.loc[flag_bo_link, "geometry_orig"] = self.df_restore.loc[flag_bo_link, self.bo_id]\
+            .map(lambda val: itemgetter(val)(bo_id_geom_lookup))
+
+        # Validate geometry equality.
+        self.df_restore["equals"] = False
+        self.df_restore.loc[~self.df_restore["geometry_orig"].isna(), "equals"] = \
+            self.df_restore.loc[~self.df_restore["geometry_orig"].isna(), ["geometry", "geometry_orig"]]\
+                .apply(lambda row: row[0].equals(row[1]), axis=1)
+
+        # Store identifiers of modified arcs.
+        self.modified_nrn.update(set(self.df_restore.loc[flag_nrn_restore & (~self.df_restore["equals"]), self.nrn_id]))
+        self.modified_bo.update(set(self.df_restore.loc[flag_bo_restore & (~self.df_restore["equals"]), self.bo_id]))
+
+        # TODO: refine equals criteria... perhaps dont include those with the same approximate length...
 
     def execute(self) -> None:
         """Executes the EGP class."""
