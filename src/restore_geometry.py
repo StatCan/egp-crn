@@ -96,8 +96,8 @@ class EGPRestoreGeometry:
             .map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
 
         # Create identifier - geometry lookups for new geometries.
-        nrn_id_geom_lookup = dict(zip(nrn_dissolved.index, nrn_dissolved["geometry"]))
-        bo_id_geom_lookup = dict(zip(bo_dissolved.index, bo_dissolved["geometry"]))
+        nrn_id_geom_lookup = dict(zip(nrn_dissolved.index, nrn_dissolved.values))
+        bo_id_geom_lookup = dict(zip(bo_dissolved.index, bo_dissolved.values))
 
         # Define flags to query arcs linkage.
         flag_nrn_link = self.df_restore[self.nrn_id].isin(nrn_id_geom_lookup)
@@ -133,6 +133,9 @@ class EGPRestoreGeometry:
 
         # Compile records of modified geometries.
         export_df = self.df_restore.loc[~self.df_restore["equals"]].copy(deep=True)
+
+        # Drop supplementary attribution and export results.
+        export_df.drop(columns=["geometry_new", "equals"], inplace=True)
         helpers.export(export_df, dst=self.src, name=f"restore_{self.source}")
 
         # Log modification summary.
