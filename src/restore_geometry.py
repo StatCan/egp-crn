@@ -36,6 +36,7 @@ class EGPRestoreGeometry:
 
         self.source = source
         self.layer = f"nrn_bo_{source}"
+        self.export_layer = f"restore_{source}"
         self.nrn_id = "segment_id_orig"
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[1] / "data/interim/egp_data.gpkg")
@@ -131,12 +132,10 @@ class EGPRestoreGeometry:
 
         logger.info(f"Restoring and logging modified data.")
 
-        # Compile records of modified geometries.
+        # Compile modified records, drop supplementary attribution, and export results.
         export_df = self.df_restore.loc[~self.df_restore["equals"]].copy(deep=True)
-
-        # Drop supplementary attribution and export results.
         export_df.drop(columns=["geometry_new", "equals"], inplace=True)
-        helpers.export(export_df, dst=self.src, name=f"restore_{self.source}")
+        helpers.export(export_df, dst=self.src, name=self.export_layer)
 
         # Log modification summary.
         table = tabulate([["NRN", len(self.modified_nrn)], ["BO", len(self.modified_bo)]],
