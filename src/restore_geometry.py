@@ -75,7 +75,7 @@ class EGPRestoreGeometry:
         self.df["geometry"] = self.df["geometry"].map(lambda g: LineString(map(
             lambda pt: [round(itemgetter(0)(pt), self._rnd_prec), round(itemgetter(1)(pt), self._rnd_prec)],
             attrgetter("coords")(g))))
-        self.df_restore["geometry"] = self.df_restore["geometry"].map(lambda g: LineString(map(
+        self.df_restore["geometry_rnd"] = self.df_restore["geometry"].map(lambda g: LineString(map(
             lambda pt: [round(itemgetter(0)(pt), self._rnd_prec), round(itemgetter(1)(pt), self._rnd_prec)],
             attrgetter("coords")(g))))
 
@@ -114,13 +114,13 @@ class EGPRestoreGeometry:
         # Validate geometry equality.
         self.df_restore["equals"] = False
         self.df_restore.loc[~self.df_restore["geometry_new"].isna(), "equals"] = \
-            self.df_restore.loc[~self.df_restore["geometry_new"].isna(), ["geometry", "geometry_new"]]\
+            self.df_restore.loc[~self.df_restore["geometry_new"].isna(), ["geometry_rnd", "geometry_new"]]\
                 .apply(lambda row: row[0].equals(row[1]), axis=1)
 
         # Refinement 1) update equality status based on geometry length, rounded to a defined decimal precision.
         refinement_flag = ~(self.df_restore["equals"] | self.df_restore["geometry_new"].isna())
         self.df_restore.loc[refinement_flag, "equals"] =\
-            self.df_restore.loc[refinement_flag, ["geometry", "geometry_new"]].apply(
+            self.df_restore.loc[refinement_flag, ["geometry_rnd", "geometry_new"]].apply(
                 lambda row: round(row[0].length, self._len_prec) == round(row[1].length, self._len_prec), axis=1)
 
         # Store identifiers of modified arcs.
@@ -134,13 +134,13 @@ class EGPRestoreGeometry:
 
         # Compile modified records, drop supplementary attribution, and export results.
         export_df = self.df_restore.loc[~self.df_restore["equals"]].copy(deep=True)
-        export_df.drop(columns=["geometry_new", "equals"], inplace=True)
+        export_df.drop(columns=["geometry_rnd", "geometry_new", "equals"], inplace=True)
         helpers.export(export_df, dst=self.src, name=self.export_layer)
 
         # Log modification summary.
         table = tabulate([["NRN", len(self.modified_nrn)], ["BO", len(self.modified_bo)]],
                          headers=["Arc Type", "Count"], tablefmt="rst", colalign=("left", "right"))
-        logger.info("Summary of restored data:", "\n" + table)
+        logger.info("Summary of restored data:\n" + table)
 
     def execute(self) -> None:
         """Executes the EGP class."""
