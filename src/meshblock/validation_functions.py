@@ -83,8 +83,7 @@ class Validator:
             200: {"func": self.meshblock,
                   "desc": "Generate meshblock from LineStrings."},
             201: {"func": self.meshblock_representation,
-                  "desc": "All non-deadend arcs (excluding ferries) must form a single meshblock polygon on both left "
-                          "and right sides, or just one side for boundary arcs."}
+                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."}
         }
 
     def _snap_arcs(self) -> None:
@@ -351,8 +350,7 @@ class Validator:
 
     def meshblock_representation(self) -> dict:
         """
-        Validates: All non-deadend arcs (excluding ferries) must form a single meshblock polygon on both left and right
-        sides, or just one side for boundary arcs.
+        Validates: All non-deadend arcs (excluding ferries) must form a meshblock polygon.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
@@ -363,13 +361,8 @@ class Validator:
         covered_by = self._meshblock_input["geometry"].map(
             lambda g: set(self.meshblock_.sindex.query(g, predicate="covered_by")))
 
-        # Flag segments which do not have 2 covering polygons.
-        flag = covered_by.map(len) != 2
-
-        # Invert flag for boundary arcs which have 1 covering polygon.
-        invert_flag_idxs = set((covered_by.loc[flag & (self._meshblock_input["boundary"] == 1)].map(len) == 1).index)
-        if len(invert_flag_idxs):
-            flag.loc[flag.index.isin(invert_flag_idxs)] = False
+        # Flag segments which do not form a polygon.
+        flag = covered_by.map(len) == 0
 
         # Compile error logs.
         if sum(flag):
