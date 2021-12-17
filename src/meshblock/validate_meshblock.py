@@ -45,16 +45,18 @@ class EGPMeshblockValidation:
         self.export_meshblock = export_meshblock
         self.Validator = None
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
+        self.src_bo_raw = Path(filepath.parents[2] / "data/interim/nrn_bo_restore.gpkg")
         self.validations_log = Path(self.src.parent / "validations.log")
 
         # Configure source path and layer name.
-        if self.src.exists():
-            if self.layer not in set(fiona.listlayers(self.src)):
-                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
+        for src in (self.src, self.src_bo_raw):
+            if src.exists():
+                if self.layer not in set(fiona.listlayers(src)):
+                    logger.exception(f"Layer \"{self.layer}\" not found within source: \"{src}\".")
+                    sys.exit(1)
+            else:
+                logger.exception(f"Source not found: \"{src}\".")
                 sys.exit(1)
-        else:
-            logger.exception(f"Source not found: \"{self.src}\".")
-            sys.exit(1)
 
         # Configure destination path.
         if self.validations_log.exists():
@@ -69,8 +71,13 @@ class EGPMeshblockValidation:
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
         self.nrn = gpd.read_file(self.src, layer=self.layer)
-
         logger.info("Successfully loaded source data.")
+
+        # Load raw bo data and filter to purely bos.
+        logger.info(f"Loading raw BO data: {self.src_bo_raw}|layer={self.layer}.")
+        self.bo_raw = gpd.read_file(self.src_bo_raw, layer=self.layer)
+        self.bo_raw = self.bo_raw.loc[self.bo_raw["segment_type"].astype(int) == 3].copy(deep=True)
+        logger.info("Successfully loaded raw BO data.")
 
     def log_errors(self) -> None:
         """Outputs error logs returned by validation functions."""
@@ -111,7 +118,7 @@ class EGPMeshblockValidation:
         logger.info("Initiating validator.")
 
         # Instantiate and execute validator class.
-        self.Validator = Validator(self.nrn, dst=self.src, layer=self.layer)
+        self.Validator = Validator(self.nrn, bo_raw=self.bo_raw, dst=self.src, layer=self.layer)
         self.Validator.execute()
 
         # Conditionally export meshblock.

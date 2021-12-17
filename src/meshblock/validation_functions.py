@@ -26,21 +26,24 @@ logger.addHandler(handler)
 class Validator:
     """Handles the execution of validation functions against the nrn dataset."""
 
-    def __init__(self, nrn: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
+    def __init__(self, nrn: gpd.GeoDataFrame, bo_raw: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         """
         Initializes variables for validation functions.
 
         :param gpd.GeoDataFrame nrn: GeoDataFrame containing LineStrings.
+        :param gpd.GeoDataFrame bo_raw: GeoDataFrame containing BO LineStrings.
         :param Path dst: output GeoPackage path.
         :param str layer: output GeoPackage layer name.
         """
 
         self.nrn = nrn.copy(deep=True)
+        self.bo_raw = bo_raw.copy(deep=True)
         self.dst = dst
         self.layer = layer
         self.errors = defaultdict(list)
         self.meshblock_progress = dict()
         self.id = "segment_id"
+        self.bo_id = "ngd_uid"
         self._export = False
         self._nrn_bos_nodes = None
         self._nrn_roads_nodes_lookup = dict()
@@ -80,6 +83,8 @@ class Validator:
                   "desc": "All BOs must have nodal connections to other arcs."},
             101: {"func": self.connectivity_nrn_proximity,
                   "desc": "Unintegrated BO node is <= 5 meters from an NRN road (entire arc)."},
+            102: {"func": self.connectivity_bo_missing,
+                  "desc": "BO identifier is missing."},
             200: {"func": self.meshblock,
                   "desc": "Generate meshblock from LineStrings."},
             201: {"func": self.meshblock_representation,
@@ -292,6 +297,25 @@ class Validator:
 
         # Flag BO nodes connected to an nrn road node.
         self._integrated = self._nrn_bos_nodes.map(lambda node: node in self._nrn_roads_nodes_lookup)
+
+        return errors
+
+    def connectivity_bo_missing(self) -> dict:
+        """
+        Validates: BO identifier is missing.
+
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        """
+
+        errors = {"values": list(), "query": None}
+
+        # Compile missing BO identifiers.
+        missing_ids = set(self.bo_raw[self.bo_id]) - set(self.nrn[self.bo_id])
+
+        # Compile error logs.
+        if len(missing_ids):
+            errors["values"] = missing_ids
+            errors["query"] = f"\"{self.bo_id}\" in {*missing_ids,}"
 
         return errors
 
