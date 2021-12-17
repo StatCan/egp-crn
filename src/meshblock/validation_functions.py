@@ -84,7 +84,7 @@ class Validator:
             101: {"func": self.connectivity_nrn_proximity,
                   "desc": "Unintegrated BO node is <= 5 meters from an NRN road (entire arc)."},
             102: {"func": self.connectivity_bo_missing,
-                  "desc": "BO identifier is missing."},
+                  "desc": "Untouchable BO identifier is missing."},
             200: {"func": self.meshblock,
                   "desc": "Generate meshblock from LineStrings."},
             201: {"func": self.meshblock_representation,
@@ -302,15 +302,18 @@ class Validator:
 
     def connectivity_bo_missing(self) -> dict:
         """
-        Validates: BO identifier is missing.
+        Validates: Untouchable BO identifier is missing.
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
 
         errors = {"values": list(), "query": None}
 
-        # Compile missing BO identifiers.
-        missing_ids = set(self.bo_raw[self.bo_id]) - set(self.nrn[self.bo_id])
+        # Compile missing BO identifiers for untouchable BOs.
+        untouchable_ids = set()
+        for col in [c for c in self.bo_raw.columns if c.startswith("untouchable_")]:
+            untouchable_ids.update(set(self.bo_raw.loc[self.bo_raw[col] == 1, self.bo_id]))
+        missing_ids = untouchable_ids - set(self.nrn[self.bo_id])
 
         # Compile error logs.
         if len(missing_ids):
