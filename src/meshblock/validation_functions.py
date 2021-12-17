@@ -83,7 +83,9 @@ class Validator:
             200: {"func": self.meshblock,
                   "desc": "Generate meshblock from LineStrings."},
             201: {"func": self.meshblock_representation,
-                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."}
+                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."},
+            202: {"func": self.meshblock_boundary_exclusion,
+                  "desc": "Boundary arcs must not be excluded from meshblock input."}
         }
 
     def _snap_arcs(self) -> None:
@@ -345,6 +347,26 @@ class Validator:
         self.meshblock_ = gpd.GeoDataFrame(
             geometry=list(polygonize(unary_union(self._meshblock_input["geometry"].to_list()))),
             crs=self._meshblock_input.crs)
+
+        return errors
+
+    def meshblock_boundary_exclusion(self) -> dict:
+        """
+        Validates: Boundary arcs must not be excluded from meshblock input.
+
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        """
+
+        errors = {"values": list(), "query": None}
+
+        # Flag boundary arcs which have also been flagged for meshblock exclusion.
+        flag = (self.nrn["boundary"] == 1) & (self.nrn["meshblock_exclude"] == 1)
+
+        # Compile error logs.
+        if sum(flag):
+            vals = set(self.nrn.loc[flag].index)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
