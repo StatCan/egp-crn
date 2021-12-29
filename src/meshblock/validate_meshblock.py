@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from tabulate import tabulate
 
-
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(filepath.parents[1]))
 import helpers
@@ -79,6 +78,12 @@ class EGPMeshblockValidation:
         self.bo_raw = self.bo_raw.loc[self.bo_raw["segment_type"].astype(int) == 3].copy(deep=True)
         logger.info("Successfully loaded raw BO data.")
 
+    def __call__(self) -> None:
+        """Executes the EGP class."""
+
+        self.validations()
+        self.log_errors()
+
     def log_errors(self) -> None:
         """Outputs error logs returned by validation functions."""
 
@@ -119,17 +124,11 @@ class EGPMeshblockValidation:
 
         # Instantiate and execute validator class.
         self.Validator = Validator(self.nrn, bo_raw=self.bo_raw, dst=self.src, layer=self.layer)
-        self.Validator.execute()
+        self.Validator()
 
         # Conditionally export meshblock.
         if self.export_meshblock:
             helpers.export(self.Validator.meshblock_, dst=self.src, name=f"meshblock_{self.source}")
-
-    def execute(self) -> None:
-        """Executes the EGP class."""
-
-        self.validations()
-        self.log_errors()
 
 
 @click.command()
@@ -151,7 +150,7 @@ def main(source: str, remove: bool = False, export_meshblock: bool = False) -> N
 
         with helpers.Timer():
             egp = EGPMeshblockValidation(source, remove, export_meshblock)
-            egp.execute()
+            egp()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")

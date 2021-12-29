@@ -79,6 +79,12 @@ class EGPRestoreGeometry:
             lambda pt: [round(itemgetter(0)(pt), self._rnd_prec), round(itemgetter(1)(pt), self._rnd_prec)],
             attrgetter("coords")(g))))
 
+    def __call__(self) -> None:
+        """Executes the EGP class."""
+
+        self.identify_mods()
+        self.restore_and_log_mods()
+
     def identify_mods(self) -> None:
         """Identifies partially or completely missing restoration data geometries from the source dataset."""
 
@@ -142,12 +148,6 @@ class EGPRestoreGeometry:
                          headers=["Arc Type", "Count"], tablefmt="rst", colalign=("left", "right"))
         logger.info("Summary of restored data:\n" + table)
 
-    def execute(self) -> None:
-        """Executes the EGP class."""
-
-        self.identify_mods()
-        self.restore_and_log_mods()
-
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
@@ -162,7 +162,7 @@ def main(source: str) -> None:
 
         with helpers.Timer():
             egp = EGPRestoreGeometry(source)
-            egp.execute()
+            egp()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")

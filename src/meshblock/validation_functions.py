@@ -93,6 +93,31 @@ class Validator:
                   "desc": "Boundary arcs must not be excluded from meshblock input."}
         }
 
+    def __call__(self) -> None:
+        """Orchestrates the execution of validation functions and compiles the resulting errors."""
+
+        try:
+
+            # Iterate validations.
+            for code, params in self.validations.items():
+                func, description = itemgetter("func", "desc")(params)
+
+                logger.info(f"Applying validation E{code}: \"{func.__name__}\".")
+
+                # Execute validation and store non-empty results.
+                results = func()
+                if len(results["values"]):
+                    self.errors[f"E{code} - {description}"] = deepcopy(results)
+
+            # Export data, if required.
+            if self._export:
+                helpers.export(self.nrn, dst=self.dst, name=self.layer)
+
+        except (KeyError, SyntaxError, ValueError) as e:
+            logger.exception("Unable to apply validation.")
+            logger.exception(e)
+            sys.exit(1)
+
     def _snap_arcs(self) -> None:
         """
         1) Snaps non-NRN road nodes to NRN road nodes if they are <= the minimum snapping distance.
@@ -425,28 +450,3 @@ class Validator:
         self.meshblock_progress["Excluded"] = len(self.nrn) - len(self._meshblock_input)
 
         return errors
-
-    def execute(self) -> None:
-        """Orchestrates the execution of validation functions and compiles the resulting errors."""
-
-        try:
-
-            # Iterate validations.
-            for code, params in self.validations.items():
-                func, description = itemgetter("func", "desc")(params)
-
-                logger.info(f"Applying validation E{code}: \"{func.__name__}\".")
-
-                # Execute validation and store non-empty results.
-                results = func()
-                if len(results["values"]):
-                    self.errors[f"E{code} - {description}"] = deepcopy(results)
-
-            # Export data, if required.
-            if self._export:
-                helpers.export(self.nrn, dst=self.dst, name=self.layer)
-
-        except (KeyError, SyntaxError, ValueError) as e:
-            logger.exception("Unable to apply validation.")
-            logger.exception(e)
-            sys.exit(1)

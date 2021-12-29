@@ -6,7 +6,6 @@ import re
 import sys
 from pathlib import Path
 
-
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(filepath.parents[1]))
 import helpers
@@ -72,6 +71,12 @@ class EGPTopologyValidation:
         self.segment = gpd.read_file(self.src, layer=self.layer)
         logger.info("Successfully loaded source data.")
 
+    def __call__(self) -> None:
+        """Executes the EGP class."""
+
+        self.validations()
+        self.log_errors()
+
     def log_errors(self) -> None:
         """Outputs error logs returned by validation functions."""
 
@@ -107,13 +112,7 @@ class EGPTopologyValidation:
 
         # Instantiate and execute validator class.
         self.Validator = Validator(self.segment, dst=self.src, layer=self.layer)
-        self.Validator.execute()
-
-    def execute(self) -> None:
-        """Executes the EGP class."""
-
-        self.validations()
-        self.log_errors()
+        self.Validator()
 
 
 @click.command()
@@ -132,7 +131,7 @@ def main(source: str, remove: bool = False) -> None:
 
         with helpers.Timer():
             egp = EGPTopologyValidation(source, remove)
-            egp.execute()
+            egp()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
