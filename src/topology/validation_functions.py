@@ -1,5 +1,6 @@
 import geopandas as gpd
 import logging
+import math
 import pandas as pd
 import sys
 from collections import defaultdict
@@ -8,7 +9,6 @@ from functools import reduce
 from itertools import chain, compress, tee
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from scipy.spatial.distance import euclidean
 from shapely.geometry import LineString, MultiLineString, MultiPoint, Point
 from shapely.ops import split
 from typing import List, Tuple, Union
@@ -341,7 +341,7 @@ class Validator:
 
             # Explode segment coordinate pairs and calculate distances.
             coord_pairs = segment["pts_ordered_pairs"].explode()
-            coord_dist = coord_pairs.map(lambda pair: euclidean(*pair))
+            coord_dist = coord_pairs.map(lambda pair: math.dist(*pair))
 
             # Flag pairs with distances that are too small.
             flag = coord_dist < self._min_cluster_dist
