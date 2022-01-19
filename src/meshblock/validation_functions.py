@@ -57,6 +57,12 @@ class Validator:
         self._snap_prox_min = 0.01
         self._snap_prox_max = 10
 
+        # Drop non-LineString geometries.
+        invalid_geoms = ~self.nrn.geom_type.isin({"LineString", "MultiLineString"})
+        if sum(invalid_geoms):
+            self.nrn = self.nrn.loc[~invalid_geoms].copy(deep=True)
+            self._export = True
+
         # Explode MultiLineStrings and resolve identifiers.
         if "MultiLineString" in set(self.nrn.geom_type):
             self.nrn = self.nrn.explode()

@@ -77,6 +77,12 @@ class Validator:
         self._export = False
         self._segment = self.layer.startswith("segment_")
 
+        # Drop non-LineString geometries.
+        invalid_geoms = ~segment.geom_type.isin({"LineString", "MultiLineString"})
+        if sum(invalid_geoms):
+            segment = segment.loc[~invalid_geoms].copy(deep=True)
+            self._export = True
+
         # Create original and standardized dataframes.
         self.segment_original = segment.copy(deep=True)
         self.segment = None
