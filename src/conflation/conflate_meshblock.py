@@ -1,0 +1,1 @@
+# TODO (poly comparison): > 99% of the ngd bb needs to intersect the egp bb AND > 99% of that egp bb needs to intersect that ngd bb. The actually threshold value is not set in stone.
