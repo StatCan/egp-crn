@@ -27,14 +27,18 @@ logger.addHandler(handler)
 class EGPRestoreGeometry:
     """Defines the EGP geometry restoration class."""
 
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, mode: str = "all", length: int = 5) -> None:
         """
         Initializes the EGP class.
 
         :param str source: abbreviation for the source province / territory.
+        :param str mode: determines what type of modifications will qualify for geometry restoration, default = 'all'.
+        :param int length: the minimum length (in CRS units) used to flag a modification for mode=length, default = 5.
         """
 
         self.source = source
+        self.mode = mode
+        self.length = length
         self.layer = f"nrn_bo_{source}"
         self.export_layer = f"restore_{source}"
         self.nrn_id = "segment_id_orig"
@@ -66,6 +70,7 @@ class EGPRestoreGeometry:
         # Load source restoration data.
         logger.info(f"Loading source restoration data: {self.src_restore}|layer={self.layer}.")
         self.df_restore = gpd.read_file(self.src_restore, layer=self.layer)
+        self.df_restore_cols = set(self.df_restore.columns)
         logger.info("Successfully loaded source restoration data.")
 
         # Round coordinates to defined decimal precision.
@@ -83,7 +88,30 @@ class EGPRestoreGeometry:
         """Executes the EGP class."""
 
         self.identify_mods()
+        if self.mode == "length":
+            self.filter_mods_length()
         self.restore_and_log_mods()
+
+    def filter_mods_length(self) -> None:
+        """Filters the identified modified arcs based on mode = length."""
+
+        logger.info(f"Filtering recovered modifications with mode={self.mode}.")
+
+        # Flag records with comparable geometries.
+        flag = ~self.df_restore["geometry_new"].isna()
+
+        # Flag modified records with a length difference >= the defined threshold.
+        self.df_restore["equals"] = True
+        self.df_restore.loc[flag, "equals"] = abs(
+            self.df_restore.loc[flag, "geometry_rnd"].map(lambda g: attrgetter("length")(g)) -
+            self.df_restore.loc[flag, "geometry_new"].map(lambda g: attrgetter("length")(g))
+        ) < self.length
+
+        # Reset and store identifiers of modified arcs.
+        self.modified_nrn = set()
+        self.modified_bo = set()
+        self.modified_nrn.update(set(self.df_restore.loc[~self.df_restore["equals"], self.nrn_id]))
+        self.modified_bo.update(set(self.df_restore.loc[~self.df_restore["equals"], self.bo_id]))
 
     def identify_mods(self) -> None:
         """Identifies partially or completely missing restoration data geometries from the source dataset."""
@@ -140,7 +168,7 @@ class EGPRestoreGeometry:
 
         # Compile modified records, drop supplementary attribution, and export results.
         export_df = self.df_restore.loc[~self.df_restore["equals"]].copy(deep=True)
-        export_df.drop(columns=["geometry_rnd", "geometry_new", "equals"], inplace=True)
+        export_df.drop(columns=set(self.df_restore.columns)-self.df_restore_cols, inplace=True)
         helpers.export(export_df, dst=self.src, name=self.export_layer)
 
         # Log modification summary.
@@ -151,17 +179,23 @@ class EGPRestoreGeometry:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source: str) -> None:
+@click.option("--mode", "-m", type=click.Choice(["all", "length"], False), default="all", show_default=True,
+              help="Determines what type of modifications will qualify for geometry restoration.")
+@click.option("--length", "-l", type=click.INT, default=5, show_default=True,
+              help="The minimum length (in CRS units) used to flag a modification for mode=length.")
+def main(source: str, mode: str = "all", length: int = 5) -> None:
     """
     Instantiates and executes the EGP class.
 
     :param str source: abbreviation for the source province / territory.
+    :param str mode: determines what type of modifications will qualify for geometry restoration, default = 'all'.
+    :param int length: the minimum length (in CRS units) used to flag a modification for mode=length, default = 5.
     """
 
     try:
 
         with helpers.Timer():
-            egp = EGPRestoreGeometry(source)
+            egp = EGPRestoreGeometry(source, mode, length)
             egp()
 
     except KeyboardInterrupt:
