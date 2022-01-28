@@ -3,10 +3,10 @@ import fiona
 import geopandas as gpd
 import logging
 import sys
-from operator import attrgetter, itemgetter
+from itertools import compress
+from operator import itemgetter
 from pathlib import Path
-from shapely.geometry import LineString
-from shapely.ops import linemerge
+from shapely.ops import unary_union
 from tabulate import tabulate
 
 
@@ -27,18 +27,16 @@ logger.addHandler(handler)
 class EGPRestoreGeometry:
     """Defines the EGP geometry restoration class."""
 
-    def __init__(self, source: str, mode: str = "all", length: int = 5) -> None:
+    def __init__(self, source: str, distance: int = 2) -> None:
         """
         Initializes the EGP class.
 
         :param str source: abbreviation for the source province / territory.
-        :param str mode: determines what type of modifications will qualify for geometry restoration, default = 'all'.
-        :param int length: the minimum length (in CRS units) used to flag a modification for mode=length, default = 5.
+        :param int distance: the radius of the buffer, default = 2.
         """
 
         self.source = source
-        self.mode = mode
-        self.length = length
+        self.distance = distance
         self.layer = f"nrn_bo_{source}"
         self.export_layer = f"restore_{source}"
         self.nrn_id = "segment_id_orig"
@@ -47,10 +45,6 @@ class EGPRestoreGeometry:
         self.src_restore = Path(filepath.parents[1] / "data/interim/nrn_bo_restore.gpkg")
         self.modified_nrn = set()
         self.modified_bo = set()
-
-        # Define thresholds.
-        self._rnd_prec = 2
-        self._len_prec = 0
 
         # Configure source path and layer name.
         for src in (self.src, self.src_restore):
@@ -73,50 +67,16 @@ class EGPRestoreGeometry:
         self.df_restore_cols = set(self.df_restore.columns)
         logger.info("Successfully loaded source restoration data.")
 
-        # Round coordinates to defined decimal precision.
-        # Note: This accounts for point snapping which, within a threshold, should not be considered a modification.
-        logger.info(f"Rounding coordinates to decimal precision: {self._rnd_prec} (0.{'0'*(self._rnd_prec-1)}1).")
-
-        self.df["geometry"] = self.df["geometry"].map(lambda g: LineString(map(
-            lambda pt: [round(itemgetter(0)(pt), self._rnd_prec), round(itemgetter(1)(pt), self._rnd_prec)],
-            attrgetter("coords")(g))))
-        self.df_restore["geometry_rnd"] = self.df_restore["geometry"].map(lambda g: LineString(map(
-            lambda pt: [round(itemgetter(0)(pt), self._rnd_prec), round(itemgetter(1)(pt), self._rnd_prec)],
-            attrgetter("coords")(g))))
-
     def __call__(self) -> None:
         """Executes the EGP class."""
 
         self.identify_mods()
-        if self.mode == "length":
-            self.filter_mods_length()
         self.restore_and_log_mods()
 
-    def filter_mods_length(self) -> None:
-        """Filters the identified modified arcs based on mode = length."""
-
-        logger.info(f"Filtering recovered modifications with mode={self.mode}.")
-
-        # Flag records with comparable geometries.
-        flag = ~self.df_restore["geometry_new"].isna()
-
-        # Flag modified records with a length difference >= the defined threshold.
-        self.df_restore["equals"] = True
-        self.df_restore.loc[flag, "equals"] = abs(
-            self.df_restore.loc[flag, "geometry_rnd"].map(lambda g: attrgetter("length")(g)) -
-            self.df_restore.loc[flag, "geometry_new"].map(lambda g: attrgetter("length")(g))
-        ) < self.length
-
-        # Reset and store identifiers of modified arcs.
-        self.modified_nrn = set()
-        self.modified_bo = set()
-        self.modified_nrn.update(set(self.df_restore.loc[~self.df_restore["equals"], self.nrn_id]))
-        self.modified_bo.update(set(self.df_restore.loc[~self.df_restore["equals"], self.bo_id]))
-
     def identify_mods(self) -> None:
-        """Identifies partially or completely missing restoration data geometries from the source dataset."""
+        """Identifies original geometries which have been removed or modified in the source dataset."""
 
-        logger.info("Identifying missing data.")
+        logger.info("Identifying modified data.")
 
         # Define flags to classify arcs.
         flag_nrn = self.df["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
@@ -124,42 +84,34 @@ class EGPRestoreGeometry:
         flag_nrn_restore = self.df_restore["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
         flag_bo_restore = self.df_restore["segment_type"].astype(str).isin({"3", "3.0"})
 
-        # Filter to exclusively nrn and bo arcs and dissolve geometries on identifiers.
-        nrn_dissolved = helpers.groupby_to_list(self.df.loc[flag_nrn], group_field=self.nrn_id, list_field="geometry")\
-            .map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
-        bo_dissolved = helpers.groupby_to_list(self.df.loc[flag_bo], group_field=self.bo_id, list_field="geometry")\
-            .map(lambda geoms: geoms[0] if len(geoms) == 1 else linemerge(geoms))
+        # Flag missing arcs based on identifiers and store results.
+        self.modified_nrn.update(set(self.df_restore.loc[flag_nrn_restore, self.nrn_id]) -
+                                 set(self.df.loc[flag_nrn, self.nrn_id]))
+        self.modified_bo.update(set(self.df_restore.loc[flag_bo_restore, self.bo_id]) -
+                                set(self.df.loc[flag_bo, self.bo_id]))
 
-        # Create identifier - geometry lookups for new geometries.
-        nrn_id_geom_lookup = dict(zip(nrn_dissolved.index, nrn_dissolved.values))
-        bo_id_geom_lookup = dict(zip(bo_dissolved.index, bo_dissolved.values))
+        # Flag modified arcs based on buffer intersection.
 
-        # Define flags to query arcs linkage.
-        flag_nrn_link = self.df_restore[self.nrn_id].isin(nrn_id_geom_lookup)
-        flag_bo_link = self.df_restore[self.bo_id].isin(bo_id_geom_lookup)
+        # Create buffers and index-buffer lookup dict from new arcs.
+        buffers = self.df.buffer(self.distance, resolution=5)
+        idx_buffer_lookup = dict(buffers)
 
-        # Compile new arc associated with each original arc.
-        self.df_restore["geometry_new"] = None
-        self.df_restore.loc[flag_nrn_link, "geometry_new"] = self.df_restore.loc[flag_nrn_link, self.nrn_id]\
-            .map(lambda val: itemgetter(val)(nrn_id_geom_lookup))
-        self.df_restore.loc[flag_bo_link, "geometry_new"] = self.df_restore.loc[flag_bo_link, self.bo_id]\
-            .map(lambda val: itemgetter(val)(bo_id_geom_lookup))
+        # Compile and dissolve all buffer polygons intersecting each original arc.
+        self.df_restore["buffer_idxs"] = self.df_restore["geometry"].map(
+            lambda g: buffers.sindex.query(g, predicate="intersects"))
+        self.df_restore["buffer"] = self.df_restore["buffer_idxs"].map(
+            lambda idxs: unary_union(itemgetter(*idxs)(idx_buffer_lookup)) if len(idxs) else None)
 
-        # Validate geometry equality.
-        self.df_restore["equals"] = False
-        self.df_restore.loc[~self.df_restore["geometry_new"].isna(), "equals"] = \
-            self.df_restore.loc[~self.df_restore["geometry_new"].isna(), ["geometry_rnd", "geometry_new"]]\
-                .apply(lambda row: row[0].equals(row[1]), axis=1)
+        # Flag arcs not completely within the intersecting buffer.
+        flag_buffer = ~self.df_restore["buffer"].isna()
+        flag_mods = ~gpd.GeoSeries(self.df_restore.loc[flag_buffer, ["geometry", "buffer"]]
+                                   .apply(lambda row: row[0].difference(row[1]), axis=1)).is_empty
+        mods_idxs = set(compress(self.df_restore[flag_buffer].index, flag_mods))
+        flag_mods = self.df_restore.index.isin(mods_idxs)
 
-        # Refinement 1) update equality status based on geometry length, rounded to a defined decimal precision.
-        refinement_flag = ~(self.df_restore["equals"] | self.df_restore["geometry_new"].isna())
-        self.df_restore.loc[refinement_flag, "equals"] =\
-            self.df_restore.loc[refinement_flag, ["geometry_rnd", "geometry_new"]].apply(
-                lambda row: round(row[0].length, self._len_prec) == round(row[1].length, self._len_prec), axis=1)
-
-        # Store identifiers of modified arcs.
-        self.modified_nrn.update(set(self.df_restore.loc[flag_nrn_restore & (~self.df_restore["equals"]), self.nrn_id]))
-        self.modified_bo.update(set(self.df_restore.loc[flag_bo_restore & (~self.df_restore["equals"]), self.bo_id]))
+        # Store results.
+        self.modified_nrn.update(set(self.df_restore.loc[flag_mods & flag_nrn_restore, self.nrn_id]))
+        self.modified_bo.update(set(self.df_restore.loc[flag_mods & flag_bo_restore, self.bo_id]))
 
     def restore_and_log_mods(self) -> None:
         """Exports records of modified geometries and logs results."""
@@ -167,7 +119,8 @@ class EGPRestoreGeometry:
         logger.info(f"Restoring and logging modified data.")
 
         # Compile modified records, drop supplementary attribution, and export results.
-        export_df = self.df_restore.loc[~self.df_restore["equals"]].copy(deep=True)
+        export_df = self.df_restore.loc[(self.df_restore[self.nrn_id].isin(self.modified_nrn)) |
+                                        (self.df_restore[self.bo_id].isin(self.modified_bo))].copy(deep=True)
         export_df.drop(columns=set(self.df_restore.columns)-self.df_restore_cols, inplace=True)
         helpers.export(export_df, dst=self.src, name=self.export_layer)
 
@@ -179,23 +132,20 @@ class EGPRestoreGeometry:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-@click.option("--mode", "-m", type=click.Choice(["all", "length"], False), default="all", show_default=True,
-              help="Determines what type of modifications will qualify for geometry restoration.")
-@click.option("--length", "-l", type=click.INT, default=5, show_default=True,
-              help="The minimum length (in CRS units) used to flag a modification for mode=length.")
-def main(source: str, mode: str = "all", length: int = 5) -> None:
+@click.option("--distance", "-d", type=click.IntRange(min=1), default=2, show_default=True,
+              help="The radius of the buffer.")
+def main(source: str, distance: int = 2) -> None:
     """
     Instantiates and executes the EGP class.
 
     :param str source: abbreviation for the source province / territory.
-    :param str mode: determines what type of modifications will qualify for geometry restoration, default = 'all'.
-    :param int length: the minimum length (in CRS units) used to flag a modification for mode=length, default = 5.
+    :param int distance: the radius of the buffer, default = 2.
     """
 
     try:
 
         with helpers.Timer():
-            egp = EGPRestoreGeometry(source, mode, length)
+            egp = EGPRestoreGeometry(source, distance)
             egp()
 
     except KeyboardInterrupt:
