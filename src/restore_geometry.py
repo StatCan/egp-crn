@@ -79,16 +79,12 @@ class EGPRestoreGeometry:
         logger.info("Identifying modified data.")
 
         # Define flags to classify arcs.
-        flag_nrn = self.df["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
-        flag_bo = self.df["segment_type"].astype(str).isin({"3", "3.0"})
         flag_nrn_restore = self.df_restore["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
         flag_bo_restore = self.df_restore["segment_type"].astype(str).isin({"3", "3.0"})
 
         # Flag missing arcs based on identifiers and store results.
-        self.modified_nrn.update(set(self.df_restore.loc[flag_nrn_restore, self.nrn_id]) -
-                                 set(self.df.loc[flag_nrn, self.nrn_id]))
-        self.modified_bo.update(set(self.df_restore.loc[flag_bo_restore, self.bo_id]) -
-                                set(self.df.loc[flag_bo, self.bo_id]))
+        self.modified_nrn.update(set(self.df_restore.loc[flag_nrn_restore, self.nrn_id]) - set(self.df[self.nrn_id]))
+        self.modified_bo.update(set(self.df_restore.loc[flag_bo_restore, self.bo_id]) - set(self.df[self.bo_id]))
 
         # Flag modified arcs based on buffer intersection.
 
