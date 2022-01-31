@@ -145,6 +145,7 @@ class EGPMeshblockConflation:
         logger.info(f"Outputting results.")
 
         # Export ngd meshblock with conflation indicator.
+        helpers.export(self.meshblock[["geometry"]], dst=self.src, name=f"meshblock_{self.source}")
         helpers.export(self.meshblock_ngd[[self.id_ngd, "one_to_one", "geometry"]], dst=self.src,
                        name=f"meshblock_ngd_{self.source}")
 
