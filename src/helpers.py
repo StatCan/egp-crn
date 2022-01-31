@@ -111,10 +111,12 @@ def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
         layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=geom_type, options=["OVERWRITE=YES"])
 
         # Set field definitions.
-        ogr_field_map = {"b": ogr.OFSTBoolean, "i": ogr.OFTInteger, "O": ogr.OFTString}
+        ogr_field_map = {"b": ogr.OFTInteger, "i": ogr.OFTInteger, "O": ogr.OFTString}
         for field_name, field_dtype in df.dtypes.to_dict().items():
             if field_name != "geometry":
                 field_defn = ogr.FieldDefn(field_name, ogr_field_map[field_dtype.kind])
+                if field_dtype.kind == "b":
+                    field_defn.SetSubType(ogr.OFSTBoolean)
                 layer.CreateField(field_defn)
 
         # Write layer.
