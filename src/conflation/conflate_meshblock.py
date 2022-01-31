@@ -78,19 +78,19 @@ class EGPMeshblockConflation:
         self.conflation()
         self.output_results()
 
-    def _validate_one_to_one(self, base: Polygon, targets: Tuple[Polygon, ...]) -> bool:
+    def _validate_one_to_one(self, base: Polygon, targets: Tuple[Polygon, ...]) -> int:
         """
         Validates if the relationship between the base Polygon and intersecting (target) Polygon(s) is 1:1 when
         factoring in a tolerance for the size of the area of intersection.
 
         Example, given a tolerance of 90%:
-        True = At least 90% of the base Polygon intersects the target Polygon AND at least 90% of the target Polygon
-               intersects the base Polygon.
-        False = Any other result.
+        Index = At least 90% of the base Polygon intersects the target Polygon AND at least 90% of the target Polygon
+                intersects the base Polygon AND this is only true for 1 target Polygon.
+        None = Any other result.
 
         :param Polygon base: the base Polygon.
         :param Tuple[Polygon, ...] targets: one or more intersecting Polygon(s).
-        :return bool: indicates if there is a 1:1 relationship between the base and target polygon(s).
+        :return int: -1 or the index of the target Polygon which is 1:1 with the base Polygon.
         """
 
         # Calculate areas, multiplied by the size threshold for the independent (non-intersection) sizes.
@@ -98,8 +98,11 @@ class EGPMeshblockConflation:
         target_areas = np.array(tuple(map(lambda poly: attrgetter("area")(poly) * self._threshold, targets)))
         intersection_areas = np.array(tuple(map(lambda poly: attrgetter("area")(base.intersection(poly)), targets)))
 
-        # Determine if relationship between base and targets is 1:1.
-        return sum((intersection_areas >= base_area) & (intersection_areas >= target_areas)) == 1
+        # Determine if there is any 1:1 relationship between base and targets; if True, return index of target.
+        try:
+            return tuple((intersection_areas >= base_area) & (intersection_areas >= target_areas)).index(True)
+        except ValueError:
+            return -1
 
     def conflation(self) -> None:
         """Validates the meshblock conflation."""
@@ -122,20 +125,32 @@ class EGPMeshblockConflation:
             .map(lambda polys: polys if isinstance(polys, tuple) else (polys,))
 
         # Validate 1:1 meshblock relationships.
-        _input = self.meshblock[["geometry", "ngd_polys"]].apply(tuple, axis=1)
-        self.meshblock["one_to_one"] = _input.map(lambda vals: self._validate_one_to_one(*vals))
+        self.meshblock["one_to_one_idx"] = self.meshblock[["geometry", "ngd_polys"]]\
+            .apply(tuple, axis=1)\
+            .map(lambda vals: self._validate_one_to_one(*vals))
+
+        # Assign 1:1 status as attribute - new meshblock.
+        self.meshblock["one_to_one"] = self.meshblock["one_to_one_idx"] >= 0
+
+        # Compile 1:1 ngd identifiers based on 1:1 validation results.
+        one_to_one_ngd_ids = set(self.meshblock.loc[self.meshblock["one_to_one"], ["one_to_one_idx", "ngd_ids"]]
+                                 .apply(lambda row: itemgetter(row[0])(row[1]), axis=1))
+
+        # Assign 1:1 status as attribute - ngd meshblock.
+        self.meshblock_ngd["one_to_one"] = self.meshblock_ngd[self.id_ngd].isin(one_to_one_ngd_ids)
 
     def output_results(self) -> None:
         """Outputs conflation results."""
 
         logger.info(f"Outputting results.")
 
-        # Export meshblock with conflation indicator.
-        helpers.export(self.meshblock[["one_to_one", "geometry"]], dst=self.src, name=f"meshblock_{self.source}")
+        # Export ngd meshblock with conflation indicator.
+        helpers.export(self.meshblock_ngd[[self.id_ngd, "one_to_one", "geometry"]], dst=self.src,
+                       name=f"meshblock_ngd_{self.source}")
 
         # Log conflation progress.
-        table = tabulate([[k, f"{v:,}"] for k, v in Counter(self.meshblock["one_to_one"]).items()],
-                         headers=["Meshblock Conflated (1:1)", "Count"], tablefmt="rst", colalign=("left", "right"))
+        table = tabulate([[k, f"{v:,}"] for k, v in Counter(self.meshblock_ngd["one_to_one"]).items()],
+                         headers=["Is Conflated (1:1)", "Count"], tablefmt="rst", colalign=("left", "right"))
         logger.info("\n" + table)
 
 
