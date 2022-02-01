@@ -2,15 +2,11 @@ import click
 import fiona
 import geopandas as gpd
 import logging
-import numpy as np
 import sys
 from collections import Counter
-from operator import attrgetter, itemgetter
 from pathlib import Path
-from shapely.geometry import Polygon
 from shapely.ops import polygonize, unary_union
 from tabulate import tabulate
-from typing import Tuple
 
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(filepath.parents[1]))
@@ -29,22 +25,21 @@ logger.addHandler(handler)
 class EGPMeshblockConflation:
     """Defines the EGP meshblock conflation class."""
 
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, threshold: int = 95) -> None:
         """
         Initializes the EGP class.
 
         :param str source: abbreviation for the source province / territory.
+        :param int threshold: the percentage of area intersection which constitutes a match, default=95.
         """
 
         self.source = source
+        self.threshold = threshold / 100
         self.layer = f"nrn_bo_{source}"
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
         self.layer_ngd = f"ngd_a_{source}"
         self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd_a.gpkg")
         self.id_ngd = "bb_uid"
-
-        # Define thresholds.
-        self._threshold = 0.95
 
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
@@ -78,66 +73,38 @@ class EGPMeshblockConflation:
         self.conflation()
         self.output_results()
 
-    def _validate_one_to_one(self, base: Polygon, targets: Tuple[Polygon, ...]) -> int:
-        """
-        Validates if the relationship between the base Polygon and intersecting (target) Polygon(s) is 1:1 when
-        factoring in a tolerance for the size of the area of intersection.
-
-        Example, given a tolerance of 90%:
-        Index = At least 90% of the base Polygon intersects the target Polygon AND at least 90% of the target Polygon
-                intersects the base Polygon AND this is only true for 1 target Polygon.
-        None = Any other result.
-
-        :param Polygon base: the base Polygon.
-        :param Tuple[Polygon, ...] targets: one or more intersecting Polygon(s).
-        :return int: -1 or the index of the target Polygon which is 1:1 with the base Polygon.
-        """
-
-        # Calculate areas, multiplied by the size threshold for the independent (non-intersection) sizes.
-        base_area = attrgetter("area")(base) * self._threshold
-        target_areas = np.array(tuple(map(lambda poly: attrgetter("area")(poly) * self._threshold, targets)))
-        intersection_areas = np.array(tuple(map(lambda poly: attrgetter("area")(base.intersection(poly)), targets)))
-
-        # Determine if there is any 1:1 relationship between base and targets; if True, return index of target.
-        try:
-            return tuple((intersection_areas >= base_area) & (intersection_areas >= target_areas)).index(True)
-        except ValueError:
-            return -1
-
     def conflation(self) -> None:
         """Validates the meshblock conflation."""
 
         logger.info("Validating meshblock conflation.")
 
+        meshblock = self.meshblock.copy(deep=True)
+
         # Generate ngd meshblock lookup dictionaries.
         ngd_idx_id_lookup = dict(zip(self.meshblock_ngd.index, self.meshblock_ngd[self.id_ngd]))
         ngd_id_poly_lookup = dict(zip(self.meshblock_ngd[self.id_ngd], self.meshblock_ngd["geometry"]))
 
-        # Compile the identifier for each ngd polygon intersecting each egp polygon.
-        self.meshblock["ngd_ids"] = self.meshblock["geometry"]\
-            .map(lambda g: self.meshblock_ngd.sindex.query(g, predicate="intersects"))\
-            .map(lambda idxs: itemgetter(*idxs)(ngd_idx_id_lookup))\
-            .map(lambda ids: ids if isinstance(ids, tuple) else (ids,))
+        # Compile the index of each ngd polygon intersecting each egp polygon.
+        meshblock["ngd_id"] = meshblock["geometry"]\
+            .map(lambda g: self.meshblock_ngd.sindex.query(g, predicate="intersects"))
 
-        # Compile the poly associated with each ngd identifier.
-        self.meshblock["ngd_polys"] = self.meshblock["ngd_ids"]\
-            .map(lambda ids: itemgetter(*ids)(ngd_id_poly_lookup))\
-            .map(lambda polys: polys if isinstance(polys, tuple) else (polys,))
+        # Explode on ngd index groups.
+        meshblock = meshblock.explode(column="ngd_id")
 
-        # Validate 1:1 meshblock relationships.
-        self.meshblock["one_to_one_idx"] = self.meshblock[["geometry", "ngd_polys"]]\
-            .apply(tuple, axis=1)\
-            .map(lambda vals: self._validate_one_to_one(*vals))
+        # Compile identifier and poly associated with each ngd index.
+        meshblock["ngd_id"] = meshblock["ngd_id"].map(ngd_idx_id_lookup)
+        meshblock["ngd_poly"] = meshblock["ngd_id"].map(ngd_id_poly_lookup)
 
-        # Assign 1:1 status as attribute - new meshblock.
-        self.meshblock["one_to_one"] = self.meshblock["one_to_one_idx"] >= 0
+        # Validate cardinality (valid: one-to-one and many-to-one based on egp-to-ngd direction).
+        cardinality = meshblock["geometry"].intersection(
+            gpd.GeoSeries(meshblock["ngd_poly"], crs=self.meshblock_ngd.crs)
+        ).area >= (meshblock.area * self.threshold)
 
-        # Compile 1:1 ngd identifiers based on 1:1 validation results.
-        one_to_one_ngd_ids = set(self.meshblock.loc[self.meshblock["one_to_one"], ["one_to_one_idx", "ngd_ids"]]
-                                 .apply(lambda row: itemgetter(row[0])(row[1]), axis=1))
+        # Compile valid ngd identifiers based on cardinality.
+        valid_ngd_ids = set(meshblock.loc[cardinality, "ngd_id"])
 
-        # Assign 1:1 status as attribute - ngd meshblock.
-        self.meshblock_ngd["one_to_one"] = self.meshblock_ngd[self.id_ngd].isin(one_to_one_ngd_ids)
+        # Assign validity status as attribute to ngd meshblock.
+        self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_ngd].isin(valid_ngd_ids)
 
     def output_results(self) -> None:
         """Outputs conflation results."""
@@ -146,28 +113,31 @@ class EGPMeshblockConflation:
 
         # Export ngd meshblock with conflation indicator.
         helpers.export(self.meshblock[["geometry"]], dst=self.src, name=f"meshblock_{self.source}")
-        helpers.export(self.meshblock_ngd[[self.id_ngd, "one_to_one", "geometry"]], dst=self.src,
+        helpers.export(self.meshblock_ngd[[self.id_ngd, "valid", "geometry"]], dst=self.src,
                        name=f"meshblock_ngd_{self.source}")
 
         # Log conflation progress.
-        table = tabulate([[k, f"{v:,}"] for k, v in Counter(self.meshblock_ngd["one_to_one"]).items()],
-                         headers=["Is Conflated (1:1)", "Count"], tablefmt="rst", colalign=("left", "right"))
+        table = tabulate([[k, f"{v:,}"] for k, v in Counter(self.meshblock_ngd["valid"]).items()],
+                         headers=["Valid Cardinality", "Count"], tablefmt="rst", colalign=("left", "right"))
         logger.info("\n" + table)
 
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-def main(source: str) -> None:
+@click.option("--threshold", "-t", type=click.IntRange(min=1, max=99), default=95, show_default=True,
+              help="The percentage of area intersection which constitutes a match.")
+def main(source: str, threshold: int = 95) -> None:
     """
     Instantiates and executes the EGP class.
 
     :param str source: abbreviation for the source province / territory.
+    :param int threshold: the percentage of area intersection which constitutes a match, default=95.
     """
 
     try:
 
         with helpers.Timer():
-            egp = EGPMeshblockConflation(source)
+            egp = EGPMeshblockConflation(source, threshold)
             egp()
 
     except KeyboardInterrupt:
