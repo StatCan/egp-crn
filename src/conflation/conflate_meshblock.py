@@ -67,6 +67,12 @@ class EGPMeshblockConflation:
         self.meshblock_ngd = gpd.read_file(self.src_ngd, layer=self.layer_ngd).copy(deep=True)
         logger.info("Successfully loaded ngd meshblock data.")
 
+        # Resolve added BOs and export updated dataset, if required.
+        flag_resolve = (df["ngd_uid"].isna() | df["ngd_uid"].isin({0, 1})) & (df["segment_type"] == 3)
+        if sum(flag_resolve):
+            df.loc[flag_resolve, "bo_new"] = 1
+            helpers.export(df, dst=self.src, name=self.layer)
+
     def __call__(self) -> None:
         """Executes the EGP class."""
 
