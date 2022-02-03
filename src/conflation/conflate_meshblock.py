@@ -25,12 +25,12 @@ logger.addHandler(handler)
 class EGPMeshblockConflation:
     """Defines the EGP meshblock conflation class."""
 
-    def __init__(self, source: str, threshold: int = 95) -> None:
+    def __init__(self, source: str, threshold: int = 80) -> None:
         """
         Initializes the EGP class.
 
         :param str source: abbreviation for the source province / territory.
-        :param int threshold: the percentage of area intersection which constitutes a match, default=95.
+        :param int threshold: the percentage of area intersection which constitutes a match, default=80.
         """
 
         self.source = source
@@ -124,14 +124,14 @@ class EGPMeshblockConflation:
 
 @click.command()
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-@click.option("--threshold", "-t", type=click.IntRange(min=1, max=99), default=95, show_default=True,
+@click.option("--threshold", "-t", type=click.IntRange(min=1, max=99), default=80, show_default=True,
               help="The percentage of area intersection which constitutes a match.")
-def main(source: str, threshold: int = 95) -> None:
+def main(source: str, threshold: int = 80) -> None:
     """
     Instantiates and executes the EGP class.
 
     :param str source: abbreviation for the source province / territory.
-    :param int threshold: the percentage of area intersection which constitutes a match, default=95.
+    :param int threshold: the percentage of area intersection which constitutes a match, default=80.
     """
 
     try:
