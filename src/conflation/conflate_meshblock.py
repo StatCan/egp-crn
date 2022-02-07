@@ -39,7 +39,8 @@ class EGPMeshblockConflation:
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
         self.layer_ngd = f"ngd_a_{source}"
         self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd_a.gpkg")
-        self.id_ngd = "bb_uid"
+        self.id_ngd_meshblock = "bb_uid"
+        self.id_ngd_arc = "ngd_uid"
 
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
@@ -68,8 +69,10 @@ class EGPMeshblockConflation:
         logger.info("Successfully loaded ngd meshblock data.")
 
         # Resolve added BOs and export updated dataset, if required.
-        flag_resolve = (df["ngd_uid"].isna() | df["ngd_uid"].isin({0, 1})) & (df["segment_type"] == 3)
+        flag_resolve = (df[self.id_ngd_arc].isna() | df[self.id_ngd_arc].isin({-1, 0, 1})) & (df["segment_type"] == 3)
         if sum(flag_resolve):
+            if "bo_new" not in df.columns:
+                df["bo_new"] = 0
             df.loc[flag_resolve, "bo_new"] = 1
             helpers.export(df, dst=self.src, name=self.layer)
 
@@ -87,8 +90,8 @@ class EGPMeshblockConflation:
         meshblock = self.meshblock.copy(deep=True)
 
         # Generate ngd meshblock lookup dictionaries.
-        ngd_idx_id_lookup = dict(zip(self.meshblock_ngd.index, self.meshblock_ngd[self.id_ngd]))
-        ngd_id_poly_lookup = dict(zip(self.meshblock_ngd[self.id_ngd], self.meshblock_ngd["geometry"]))
+        ngd_idx_id_lookup = dict(zip(self.meshblock_ngd.index, self.meshblock_ngd[self.id_ngd_meshblock]))
+        ngd_id_poly_lookup = dict(zip(self.meshblock_ngd[self.id_ngd_meshblock], self.meshblock_ngd["geometry"]))
 
         # Compile the index of each ngd polygon intersecting each egp polygon.
         meshblock["ngd_id"] = meshblock["geometry"]\
@@ -110,7 +113,7 @@ class EGPMeshblockConflation:
         valid_ngd_ids = set(meshblock.loc[cardinality, "ngd_id"])
 
         # Assign validity status as attribute to ngd meshblock.
-        self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_ngd].isin(valid_ngd_ids)
+        self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_ngd_meshblock].isin(valid_ngd_ids)
 
     def output_results(self) -> None:
         """Outputs conflation results."""
@@ -119,7 +122,7 @@ class EGPMeshblockConflation:
 
         # Export ngd meshblock with conflation indicator.
         helpers.export(self.meshblock[["geometry"]], dst=self.src, name=f"meshblock_{self.source}")
-        helpers.export(self.meshblock_ngd[[self.id_ngd, "valid", "geometry"]], dst=self.src,
+        helpers.export(self.meshblock_ngd[[self.id_ngd_meshblock, "valid", "geometry"]], dst=self.src,
                        name=f"meshblock_ngd_{self.source}")
 
         # Log conflation progress.
