@@ -103,9 +103,7 @@ class Validator:
             200: {"func": self.meshblock,
                   "desc": "Generate meshblock from LineStrings."},
             201: {"func": self.meshblock_representation,
-                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."},
-            202: {"func": self.meshblock_boundary_exclusion,
-                  "desc": "Boundary arcs must not be excluded from meshblock input."}
+                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."}
         }
 
     def __call__(self) -> None:
@@ -406,34 +404,16 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # Configure meshblock input (all non-ferry and non-exclude arcs).
-        self._meshblock_input = self.nrn.loc[(self.nrn["segment_type"] != 2) &
-                                             (self.nrn["meshblock_exclude"] != 1)].copy(deep=True)
+        # Configure meshblock input (all non-deadend and non-ferry arcs).
+        nodes = self.nrn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
+        deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
+        self._meshblock_input = self.nrn.loc[(~self.nrn.index.isin(deadends)) &
+                                             (self.nrn["segment_type"] != 2)].copy(deep=True)
 
         # Generate meshblock.
         self.meshblock_ = gpd.GeoDataFrame(
             geometry=list(polygonize(unary_union(self._meshblock_input["geometry"].to_list()))),
             crs=self._meshblock_input.crs)
-
-        return errors
-
-    def meshblock_boundary_exclusion(self) -> dict:
-        """
-        Validates: Boundary arcs must not be excluded from meshblock input.
-
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
-        """
-
-        errors = {"values": list(), "query": None}
-
-        # Flag boundary arcs which have also been flagged for meshblock exclusion.
-        flag = (self.nrn["boundary"] == 1) & (self.nrn["meshblock_exclude"] == 1)
-
-        # Compile error logs.
-        if sum(flag):
-            vals = set(self.nrn.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
 
         return errors
 
@@ -446,9 +426,12 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
+        # Extract boundary LineStrings from meshblock Polygons.
+        meshblock_boundaries = self.meshblock_.boundary
+
         # Query meshblock polygons which cover each segment.
-        covered_by = self._meshblock_input["geometry"].map(
-            lambda g: set(self.meshblock_.sindex.query(g, predicate="covered_by")))
+        covered_by = self.nrn_bos["geometry"].map(
+            lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
 
         # Flag segments which do not form a polygon.
         flag = covered_by.map(len) == 0

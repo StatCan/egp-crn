@@ -4,6 +4,7 @@ import geopandas as gpd
 import logging
 import sys
 from collections import Counter
+from operator import attrgetter, itemgetter
 from pathlib import Path
 from shapely.ops import polygonize, unary_union
 from tabulate import tabulate
@@ -53,11 +54,14 @@ class EGPMeshblockConflation:
                 logger.exception(f"Source not found: \"{src}\".")
                 sys.exit(1)
 
-        # Load source data and generate meshblock (all non-ferry and non-exclude arcs).
+        # Load source data and generate meshblock (all non-deadend and non-ferry arcs).
         logger.info(f"Loading and generating meshblock from source data: {self.src}|layer={self.layer}.")
 
         df = gpd.read_file(self.src, layer=self.layer)
-        meshblock_input = df.loc[(df["segment_type"] != 2) & (df["meshblock_exclude"] != 1)].copy(deep=True)
+        nodes = df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
+        deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
+        meshblock_input = df.loc[(~df.index.isin(deadends)) & (df["segment_type"] != 2)].copy(deep=True)
+
         self.meshblock = gpd.GeoDataFrame(geometry=list(polygonize(unary_union(meshblock_input["geometry"].to_list()))),
                                           crs=meshblock_input.crs)
 
