@@ -2,6 +2,7 @@
 /data/*
 !/data/interim/.gitkeep
 !/data/interim/*.qgz
+!/data/interim/*.csv
 !/data/processed/.gitkeep
 !/data/raw/.gitkeep
 

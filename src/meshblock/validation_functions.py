@@ -11,6 +11,7 @@ from shapely.geometry import LineString, MultiLineString, Point
 from shapely.ops import nearest_points, polygonize, unary_union
 from typing import Dict
 
+filepath = Path(__file__).resolve()
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import helpers
 
@@ -26,21 +27,22 @@ logger.addHandler(handler)
 class Validator:
     """Handles the execution of validation functions against the nrn dataset."""
 
-    def __init__(self, nrn: gpd.GeoDataFrame, bo_raw: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
+    def __init__(self, nrn: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         """
         Initializes variables for validation functions.
 
         :param gpd.GeoDataFrame nrn: GeoDataFrame containing LineStrings.
-        :param gpd.GeoDataFrame bo_raw: GeoDataFrame containing BO LineStrings.
         :param Path dst: output GeoPackage path.
         :param str layer: output GeoPackage layer name.
         """
 
         self.nrn = nrn.copy(deep=True)
-        self.bo_raw = bo_raw.copy(deep=True)
         self.dst = dst
         self.layer = layer
+        self.untouchable_bos = Path(filepath.parents[2] / "data/interim/untouchable_bos.csv")
         self.errors = defaultdict(list)
+        self.meshblock_ = None
+        self._meshblock_input = None
         self.meshblock_progress = dict()
         self.id = "segment_id"
         self.bo_id = "ngd_uid"
@@ -79,10 +81,6 @@ class Validator:
 
         # Snap nodes of integrated arcs to NRN roads.
         self._snap_arcs()
-
-        # Initialize meshblock variables.
-        self.meshblock_ = None
-        self._meshblock_input = None
 
         # Separate nrn BOs and roads.
         self.nrn_roads = self.nrn.loc[(self.nrn["segment_type"] == 1) |
@@ -347,10 +345,10 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # Compile missing BO identifiers for untouchable BOs.
-        untouchable_ids = set()
-        for col in [c for c in self.bo_raw.columns if c.startswith("untouchable_")]:
-            untouchable_ids.update(set(self.bo_raw.loc[self.bo_raw[col] == 1, self.bo_id]))
+        # Load untouchable BO identifiers.
+        untouchable_ids = set(pd.read_csv(self.untouchable_bos)[self.bo_id])
+
+        # Compile missing untouchable BO identifiers.
         missing_ids = untouchable_ids - set(self.nrn[self.bo_id])
 
         # Compile error logs.
