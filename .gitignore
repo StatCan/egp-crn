@@ -2,7 +2,7 @@
 /data/*
 !/data/interim/.gitkeep
 !/data/interim/*.qgz
-!/data/interim/*.csv
+!/data/interim/untouchable_bos.zip
 !/data/processed/.gitkeep
 !/data/raw/.gitkeep
 

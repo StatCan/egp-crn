@@ -27,19 +27,21 @@ logger.addHandler(handler)
 class Validator:
     """Handles the execution of validation functions against the nrn dataset."""
 
-    def __init__(self, nrn: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
+    def __init__(self, nrn: gpd.GeoDataFrame, source: str, dst: Path, layer: str) -> None:
         """
         Initializes variables for validation functions.
 
         :param gpd.GeoDataFrame nrn: GeoDataFrame containing LineStrings.
+        :param str source: abbreviation for the source province / territory.
         :param Path dst: output GeoPackage path.
         :param str layer: output GeoPackage layer name.
         """
 
         self.nrn = nrn.copy(deep=True)
+        self.source = source
         self.dst = dst
         self.layer = layer
-        self.untouchable_bos = Path(filepath.parents[2] / "data/interim/untouchable_bos.csv")
+        self.untouchable_bos = Path(filepath.parents[2] / "data/interim/untouchable_bos.zip")
         self.errors = defaultdict(list)
         self.meshblock_ = None
         self._meshblock_input = None
@@ -354,7 +356,8 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Load untouchable BO identifiers.
-        untouchable_ids = set(pd.read_csv(self.untouchable_bos)[self.bo_id])
+        untouchable_df = pd.read_csv(self.untouchable_bos)
+        untouchable_ids = set(untouchable_df.loc[untouchable_df["pr"] == self.source, self.bo_id])
 
         # Compile missing untouchable BO identifiers.
         missing_ids = untouchable_ids - set(self.nrn[self.bo_id])
@@ -436,7 +439,7 @@ class Validator:
         meshblock_boundaries = self.meshblock_.boundary
 
         # Query meshblock polygons which cover each segment.
-        covered_by = self.nrn_bos["geometry"].map(
+        covered_by = self.nrn_bos.loc[self.nrn_bos["bo_new"] != 1, "geometry"].map(
             lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
 
         # Flag segments which do not form a polygon.

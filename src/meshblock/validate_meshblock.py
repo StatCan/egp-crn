@@ -115,7 +115,7 @@ class EGPMeshblockValidation:
         logger.info("Initiating validator.")
 
         # Instantiate and execute validator class.
-        self.Validator = Validator(self.nrn, dst=self.src, layer=self.layer)
+        self.Validator = Validator(self.nrn, source=self.source, dst=self.src, layer=self.layer)
         self.Validator()
 
         # Conditionally export meshblock.
