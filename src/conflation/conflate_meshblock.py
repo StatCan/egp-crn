@@ -75,8 +75,6 @@ class EGPMeshblockConflation:
         # Resolve added BOs and export updated dataset, if required.
         flag_resolve = (df[self.id_ngd_arc].isna() | df[self.id_ngd_arc].isin({-1, 0, 1})) & (df["segment_type"] == 3)
         if sum(flag_resolve):
-            if "bo_new" not in df.columns:
-                df["bo_new"] = 0
             df.loc[flag_resolve, "bo_new"] = 1
             helpers.export(df, dst=self.src, name=self.layer)
 

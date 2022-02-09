@@ -59,12 +59,20 @@ class Validator:
         self._snap_prox_min = 0.01
         self._snap_prox_max = 10
 
+        # TODO: Start. Temp block.
+        if "bo_new" not in self.nrn.columns:
+            self.nrn["bo_new"] = 0
+            self._export = True
+        for col in ("meshblock_exclude", "untouchable_airport", "untouchable_hlg", "untouchable_musthold"):
+            if col in self.nrn.columns:
+                self.nrn.drop(columns=col, inplace=True)
+                self._export = True
+        # TODO: End. Temp block.
+
         # Resolve added BOs and export updated dataset, if required.
         flag_resolve = (self.nrn[self.bo_id].isna() | self.nrn[self.bo_id].isin({-1, 0, 1})) & \
                        (self.nrn["segment_type"] == 3)
         if sum(flag_resolve):
-            if "bo_new" not in self.nrn.columns:
-                self.nrn["bo_new"] = 0
             self.nrn.loc[flag_resolve, "bo_new"] = 1
             self._export = True
 
