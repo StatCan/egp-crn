@@ -58,18 +58,8 @@ class Validator:
 
         # Define thresholds.
         self._bo_nrn_prox = 5
-        self._snap_prox_min = 0.01
-        self._snap_prox_max = 10
-
-        # TODO: Start. Temp block.
-        if "bo_new" not in self.nrn.columns:
-            self.nrn["bo_new"] = 0
-            self._export = True
-        for col in ("meshblock_exclude", "untouchable_airport", "untouchable_hlg", "untouchable_musthold"):
-            if col in self.nrn.columns:
-                self.nrn.drop(columns=col, inplace=True)
-                self._export = True
-        # TODO: End. Temp block.
+        self._snap_prox = 0.1
+        self._snap_clearance = 10
 
         # Resolve added BOs and export updated dataset, if required.
         flag_resolve = (self.nrn[self.bo_id].isna() | self.nrn[self.bo_id].isin({-1, 0, 1})) & \
@@ -141,10 +131,10 @@ class Validator:
 
     def _snap_arcs(self) -> None:
         """
-        1) Snaps non-NRN road nodes to NRN road nodes if they are <= the minimum snapping distance.
+        1) Snaps non-NRN road nodes to NRN road nodes if they are <= the snapping proximity.
         2) Snaps non-NRN road nodes to NRN road edges if they are both:
-            a) <= the minimum snapping distance from an NRN road edge
-            b) > the maximum snapping distance from an NRN road node
+            a) <= the snapping proximity from an NRN road edge
+            b) > the snapping clearance from an NRN road node
         """
 
         # Compile nodes.
@@ -165,18 +155,18 @@ class Validator:
             nrn_roads_nodes = gpd.GeoSeries(map(Point, set(nrn_roads_nodes)), crs=self.nrn.crs)
 
             # Generate simplified node buffers using distance tolerance.
-            snap_node_buffers_min = snap_nodes.map(lambda pt: Point(pt).buffer(self._snap_prox_min, resolution=5))
-            snap_node_buffers_max = snap_nodes.map(lambda pt: Point(pt).buffer(self._snap_prox_max, resolution=5))
+            snap_node_buffers = snap_nodes.map(lambda pt: Point(pt).buffer(self._snap_prox, resolution=5))
+            snap_node_buffers_clear = snap_nodes.map(lambda pt: Point(pt).buffer(self._snap_clearance, resolution=5))
 
             # Query nrn road nodes and edges which intersect each node buffer.
             # Construct DataFrame containing results.
             snap_features = pd.DataFrame({
                 "from_node": snap_nodes,
-                "to_node": snap_node_buffers_min.map(
+                "to_node": snap_node_buffers.map(
                     lambda buffer: set(nrn_roads_nodes.sindex.query(buffer, predicate="intersects"))),
-                "to_node_max": snap_node_buffers_max.map(
+                "to_node_clear": snap_node_buffers_clear.map(
                     lambda buffer: set(nrn_roads_nodes.sindex.query(buffer, predicate="intersects"))),
-                "to_edge": snap_node_buffers_min.map(
+                "to_edge": snap_node_buffers.map(
                     lambda buffer: set(nrn_roads_edges.sindex.query(buffer, predicate="intersects")))
             })
 
@@ -203,14 +193,14 @@ class Validator:
                         lambda g: self._update_nodes(g, node_map=snap_nodes_lookup))
 
                 # Log modifications and trigger export.
-                logger.warning(f"Snapped {len(snap_nodes)} non-NRN nodes to NRN nodes based on {self._snap_prox_min} m "
+                logger.warning(f"Snapped {len(snap_nodes)} non-NRN nodes to NRN nodes based on {self._snap_prox} m "
                                f"threshold.")
                 self._export = True
 
             # Snapping type: NRN road edge.
-            # Filter snappable nodes to those with buffers intersecting 0 nrn road nodes within the maximum threshold
-            # and >= 1 nrn road edge within the minimum threshold.
-            snap_nodes = snap_features.loc[(snap_features["to_node_max"].map(len) == 0) &
+            # Filter snappable nodes to those with buffers intersecting 0 nrn road nodes within the clearance threshold
+            # and >= 1 nrn road edge within the snapping proximity threshold.
+            snap_nodes = snap_features.loc[(snap_features["to_node_clear"].map(len) == 0) &
                                            (snap_features["to_edge"].map(len) >= 1)].copy(deep=True)
             if len(snap_nodes):
 
