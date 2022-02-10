@@ -110,6 +110,12 @@ def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
         geom_type = attrgetter(f"wkb{df.geom_type.iloc[0]}")(ogr)
         layer = gpkg.CreateLayer(name=name, srs=srs, geom_type=geom_type, options=["OVERWRITE=YES"])
 
+        # Convert float fields to int.
+        for col in df.columns:
+            if df[col].dtype.kind == "f":
+                df.loc[df[col].isna(), col] = -1
+                df[col] = df[col].astype(int)
+
         # Set field definitions.
         ogr_field_map = {"b": ogr.OFTInteger, "i": ogr.OFTInteger, "O": ogr.OFTString}
         for field_name, field_dtype in df.dtypes.to_dict().items():
