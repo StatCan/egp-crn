@@ -73,7 +73,8 @@ class EGPMeshblockConflation:
         logger.info("Successfully loaded ngd meshblock data.")
 
         # Resolve added BOs and export updated dataset, if required.
-        flag_resolve = (df[self.id_ngd_arc].isna() | df[self.id_ngd_arc].isin({-1, 0, 1})) & (df["segment_type"] == 3)
+        flag_resolve = (df[self.id_ngd_arc].isna() | df[self.id_ngd_arc].isin({-1, 0})) & \
+                       (df["segment_type"] == 3) & (df["bo_new"] != 1)
         if sum(flag_resolve):
             df.loc[flag_resolve, "bo_new"] = 1
             helpers.export(df, dst=self.src, name=self.layer)
