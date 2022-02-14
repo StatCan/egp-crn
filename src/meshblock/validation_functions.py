@@ -62,10 +62,14 @@ class Validator:
         self._snap_clearance = 10
 
         # Resolve added BOs and export updated dataset, if required.
-        flag_resolve = (self.nrn[self.bo_id].isna() | self.nrn[self.bo_id].isin({-1, 0, 1})) & \
-                       (self.nrn["segment_type"] == 3)
-        if sum(flag_resolve):
-            self.nrn.loc[flag_resolve, "bo_new"] = 1
+        flag_resolve1 = (self.nrn[self.bo_id].isna() | self.nrn[self.bo_id].isin({-1, 0, 1})) & \
+                        (self.nrn["segment_type"] == 3)
+        if sum(flag_resolve1):
+            self.nrn.loc[flag_resolve1, "bo_new"] = 1
+        flag_resolve2 = (self.nrn["bo_new"] == 1) & (self.nrn["segment_type"] != 3)
+        if sum(flag_resolve2):
+            self.nrn.loc[flag_resolve2, "segment_type"] = 3
+        if sum(flag_resolve1) or sum(flag_resolve2):
             self._export = True
 
         # Drop non-LineString geometries.
