@@ -2,6 +2,7 @@ import click
 import fiona
 import geopandas as gpd
 import logging
+import pandas as pd
 import sys
 from collections import Counter
 from operator import attrgetter, itemgetter
@@ -112,15 +113,26 @@ class EGPMeshblockConflation:
         meshblock["ngd_poly"] = meshblock["ngd_id"].map(ngd_id_poly_lookup)
 
         # Validate cardinality (valid: one-to-one and many-to-one based on egp-to-ngd direction).
-        cardinality = meshblock["geometry"].intersection(
+        occupation_area = meshblock["geometry"].intersection(
             gpd.GeoSeries(meshblock["ngd_poly"], crs=self.meshblock_ngd.crs)
-        ).area >= (meshblock.area * self.threshold)
+        ).area / meshblock.area
 
         # Compile valid ngd identifiers based on cardinality.
-        valid_ngd_ids = set(meshblock.loc[cardinality, "ngd_id"])
+        valid_ngd_ids = set(meshblock.loc[occupation_area >= self.threshold, "ngd_id"])
 
-        # Assign validity status as attribute to ngd meshblock.
+        # Compile maximum occupation percentage for each invalid ngd meshblock as a lookup dictionary.
+        flag_invalid = ~meshblock["ngd_id"].isin(valid_ngd_ids)
+        occupation_pct = pd.DataFrame({"ngd_id": meshblock.loc[flag_invalid, "ngd_id"].values,
+                                       "occupation_pct": (occupation_area.loc[flag_invalid] * 100).map(int).values})\
+            .sort_values(by=["ngd_id", "occupation_pct"])\
+            .drop_duplicates(subset="ngd_id", keep="last")
+        occupation_pct = dict(zip(occupation_pct["ngd_id"], occupation_pct["occupation_pct"]))
+
+        # Assign validity status and occupation percentage as attributes to ngd meshblock.
         self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_ngd_meshblock].isin(valid_ngd_ids)
+        self.meshblock_ngd["occupation_pct"] = -1
+        self.meshblock_ngd.loc[~self.meshblock_ngd["valid"], "occupation_pct"] = \
+            self.meshblock_ngd.loc[~self.meshblock_ngd["valid"], self.id_ngd_meshblock].map(occupation_pct)
 
     def output_results(self) -> None:
         """Outputs conflation results."""
@@ -129,7 +141,7 @@ class EGPMeshblockConflation:
 
         # Export ngd meshblock with conflation indicator.
         helpers.export(self.meshblock[["geometry"]], dst=self.src, name=f"meshblock_{self.source}")
-        helpers.export(self.meshblock_ngd[[self.id_ngd_meshblock, "valid", "geometry"]], dst=self.src,
+        helpers.export(self.meshblock_ngd[[self.id_ngd_meshblock, "valid", "occupation_pct", "geometry"]], dst=self.src,
                        name=f"meshblock_ngd_{self.source}")
 
         # Log conflation progress.
