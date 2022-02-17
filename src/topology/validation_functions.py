@@ -159,7 +159,9 @@ class Validator:
 
         # Apply standardizations to original dataframe.
         self.segment_original = helpers.explode_geometry(self.segment_original, index=self.id)
-        self.segment_original, self._export = helpers.update_ids(self.segment_original, identifier=self.id, index=True)
+        self.segment_original, _export = helpers.update_ids(self.segment_original, identifier=self.id, index=True)
+        if _export:
+            self._export = True
 
         # Create copy of original dataframe.
         self.segment = self.segment_original.loc[self.segment_original["segment_type"].astype(int) == 1].copy(deep=True)

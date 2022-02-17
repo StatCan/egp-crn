@@ -43,6 +43,7 @@ class EGPMeshblockConflation:
         self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd_a.gpkg")
         self.id_ngd_meshblock = "bb_uid"
         self.id_ngd_arc = "ngd_uid"
+        self._export = False
 
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
@@ -55,14 +56,20 @@ class EGPMeshblockConflation:
                 logger.exception(f"Source not found: \"{src}\".")
                 sys.exit(1)
 
-        # Load source data and generate meshblock (all non-deadend and non-ferry arcs).
-        logger.info(f"Loading and generating meshblock from source data: {self.src}|layer={self.layer}.")
+        # Load source data and snap nodes of integrated arcs to nrn roads.
+        logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
 
         df = gpd.read_file(self.src, layer=self.layer)
+        df, _export = helpers.snap_nodes(df)
+        if _export:
+            self._export = True
+
+        # Generate meshblock (all non-deadend and non-ferry arcs).
+        logger.info(f"Generating meshblock from source data.")
+
         nodes = df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
         deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
         meshblock_input = df.loc[(~df.index.isin(deadends)) & (df["segment_type"] != 2)].copy(deep=True)
-
         self.meshblock = gpd.GeoDataFrame(geometry=list(polygonize(unary_union(meshblock_input["geometry"].to_list()))),
                                           crs=meshblock_input.crs)
 
@@ -78,10 +85,14 @@ class EGPMeshblockConflation:
                         (df["segment_type"] == 3) & (df["bo_new"] != 1)
         if sum(flag_resolve1):
             df.loc[flag_resolve1, "bo_new"] = 1
+            self._export = True
         flag_resolve2 = (df["bo_new"] == 1) & (df["segment_type"] != 3)
         if sum(flag_resolve2):
             df.loc[flag_resolve2, "segment_type"] = 3
-        if sum(flag_resolve1) or sum(flag_resolve2):
+            self._export = True
+
+        # Export data, if required.
+        if self._export:
             helpers.export(df, dst=self.src, name=self.layer)
 
     def __call__(self) -> None:

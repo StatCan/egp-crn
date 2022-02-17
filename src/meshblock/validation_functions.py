@@ -4,12 +4,11 @@ import pandas as pd
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from itertools import chain, tee
+from itertools import chain
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from shapely.geometry import LineString, MultiLineString, Point
-from shapely.ops import nearest_points, polygonize, unary_union
-from typing import Dict
+from shapely.geometry import Point
+from shapely.ops import polygonize, unary_union
 
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
@@ -66,10 +65,10 @@ class Validator:
                         (self.nrn["segment_type"] == 3)
         if sum(flag_resolve1):
             self.nrn.loc[flag_resolve1, "bo_new"] = 1
+            self._export = True
         flag_resolve2 = (self.nrn["bo_new"] == 1) & (self.nrn["segment_type"] != 3)
         if sum(flag_resolve2):
             self.nrn.loc[flag_resolve2, "segment_type"] = 3
-        if sum(flag_resolve1) or sum(flag_resolve2):
             self._export = True
 
         # Drop non-LineString geometries.
@@ -78,13 +77,19 @@ class Validator:
             self.nrn = self.nrn.loc[~invalid_geoms].copy(deep=True)
             self._export = True
 
-        # Explode MultiLineStrings and resolve identifiers.
+        # Explode MultiLineStrings.
         if "MultiLineString" in set(self.nrn.geom_type):
             self.nrn = self.nrn.explode()
-        self.nrn, self._export = helpers.update_ids(self.nrn, identifier=self.id, index=True)
+
+        # Resolve identifiers.
+        self.nrn, _export = helpers.update_ids(self.nrn, identifier=self.id, index=True)
+        if _export:
+            self._export = True
 
         # Snap nodes of integrated arcs to NRN roads.
-        self._snap_arcs()
+        self.nrn, _export = helpers.snap_nodes(self.nrn)
+        if _export:
+            self._export = True
 
         # Separate nrn BOs and roads.
         self.nrn_roads = self.nrn.loc[(self.nrn["segment_type"] == 1) |
@@ -132,177 +137,6 @@ class Validator:
             logger.exception("Unable to apply validation.")
             logger.exception(e)
             sys.exit(1)
-
-    def _snap_arcs(self) -> None:
-        """
-        1) Snaps non-NRN road nodes to NRN road nodes if they are <= the snapping proximity.
-        2) Snaps non-NRN road nodes to NRN road edges if they are both:
-            a) <= the snapping proximity from an NRN road edge
-            b) > the snapping clearance from an NRN road node
-        """
-
-        # Compile nodes.
-        nrn_roads_nodes = set(self.nrn.loc[self.nrn["segment_type"] == 1, "geometry"].map(
-            lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode())
-        non_nrn_roads_nodes = self.nrn.loc[
-            (~self.nrn["segment_type"].isin({1, 2})) & (self.nrn["boundary"] != 1), "geometry"].map(
-            lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode()
-
-        # Compile snappable nodes (non-nrn roads nodes not connected to an nrn road node).
-        snap_nodes = non_nrn_roads_nodes.loc[~non_nrn_roads_nodes.isin(nrn_roads_nodes)].copy(deep=True)
-        if len(snap_nodes):
-
-            # Compile nrn roads edges (full arcs).
-            nrn_roads_edges = self.nrn.loc[self.nrn["segment_type"] == 1, "geometry"].copy(deep=True)
-
-            # Compile nrn road nodes as Points.
-            nrn_roads_nodes = gpd.GeoSeries(map(Point, set(nrn_roads_nodes)), crs=self.nrn.crs)
-
-            # Generate simplified node buffers using distance tolerance.
-            snap_node_buffers = snap_nodes.map(lambda pt: Point(pt).buffer(self._snap_prox, resolution=5))
-            snap_node_buffers_clear = snap_nodes.map(lambda pt: Point(pt).buffer(self._snap_clearance, resolution=5))
-
-            # Query nrn road nodes and edges which intersect each node buffer.
-            # Construct DataFrame containing results.
-            snap_features = pd.DataFrame({
-                "from_node": snap_nodes,
-                "to_node": snap_node_buffers.map(
-                    lambda buffer: set(nrn_roads_nodes.sindex.query(buffer, predicate="intersects"))),
-                "to_node_clear": snap_node_buffers_clear.map(
-                    lambda buffer: set(nrn_roads_nodes.sindex.query(buffer, predicate="intersects"))),
-                "to_edge": snap_node_buffers.map(
-                    lambda buffer: set(nrn_roads_edges.sindex.query(buffer, predicate="intersects")))
-            })
-
-            # Snapping type: NRN road node.
-            # Filter snappable nodes to those with buffers intersecting >= 1 nrn road node.
-            snap_nodes = snap_features.loc[snap_features["to_node"].map(len) >= 1].copy(deep=True)
-            if len(snap_nodes):
-
-                # Compile target nrn road nodes as a lookup dict.
-                to_node_idxs = set(chain.from_iterable(snap_nodes["to_node"]))
-                to_nodes = nrn_roads_nodes.loc[nrn_roads_nodes.index.isin(to_node_idxs)]
-                to_node_lookup = dict(zip(to_nodes.index, to_nodes.map(
-                    lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
-
-                # Replace snappable target node sets with node tuple of first result.
-                snap_nodes["to_node"] = snap_nodes["to_node"].map(
-                    lambda idxs: itemgetter(tuple(idxs)[0])(to_node_lookup))
-
-                # Create node snapping lookup and update required arcs.
-                snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_node"]))
-                snap_arc_ids = set(snap_nodes.index)
-                self.nrn.loc[self.nrn[self.id].isin(snap_arc_ids), "geometry"] =\
-                    self.nrn.loc[self.nrn[self.id].isin(snap_arc_ids), "geometry"].map(
-                        lambda g: self._update_nodes(g, node_map=snap_nodes_lookup))
-
-                # Log modifications and trigger export.
-                logger.warning(f"Snapped {len(snap_nodes)} non-NRN nodes to NRN nodes based on {self._snap_prox} m "
-                               f"threshold.")
-                self._export = True
-
-            # Snapping type: NRN road edge.
-            # Filter snappable nodes to those with buffers intersecting 0 nrn road nodes within the clearance threshold
-            # and >= 1 nrn road edge within the snapping proximity threshold.
-            snap_nodes = snap_features.loc[(snap_features["to_node_clear"].map(len) == 0) &
-                                           (snap_features["to_edge"].map(len) >= 1)].copy(deep=True)
-            if len(snap_nodes):
-
-                # Compile target nrn road edge identifiers and geometries as lookup dicts.
-                to_edge_idx_id_lookup = dict(zip(range(len(nrn_roads_edges)), nrn_roads_edges.index))
-                to_edge_idx_geom_lookup = dict(zip(range(len(nrn_roads_edges)), nrn_roads_edges))
-
-                # Compile identifiers and geometries for first result of snappable target edge sets.
-                snap_nodes["to_edge_id"] = snap_nodes["to_edge"].map(
-                    lambda idxs: itemgetter(tuple(idxs)[0])(to_edge_idx_id_lookup))
-                snap_nodes["to_edge_geom"] = snap_nodes["to_edge"].map(
-                    lambda idxs: itemgetter(tuple(idxs)[0])(to_edge_idx_geom_lookup))
-
-                # Configure nearest snap point on each target edge.
-                snap_nodes["to_edge_pt"] = snap_nodes[["from_node", "to_edge_geom"]].apply(
-                    lambda row: attrgetter("coords")(nearest_points(Point(row[0]), row[1])[-1])[0], axis=1)
-
-                # Create node snapping lookup and update required arcs.
-                snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_edge_pt"]))
-                snap_arc_ids = set(snap_nodes.index)
-                self.nrn.loc[self.nrn[self.id].isin(snap_arc_ids), "geometry"] =\
-                    self.nrn.loc[self.nrn[self.id].isin(snap_arc_ids), "geometry"].map(
-                        lambda g: self._update_nodes(g, node_map=snap_nodes_lookup))
-
-                # Split nrn arcs at snapping points (split points).
-
-                # Create arc split points lookup and update required arcs.
-                split_arc_ids = set(snap_nodes["to_edge_id"])
-                split_arcs = helpers.groupby_to_list(snap_nodes, group_field="to_edge_id", list_field="to_edge_pt")
-                split_id_pts_lookup = dict(zip(split_arcs.index, split_arcs.map(tuple).values))
-                split_id_geom_lookup = dict(self.nrn.loc[self.nrn[self.id].isin(split_arc_ids), "geometry"])
-
-                self.nrn.loc[self.nrn[self.id].isin(split_arc_ids), "geometry"] =\
-                    self.nrn.loc[self.nrn[self.id].isin(split_arc_ids), self.id].map(
-                        lambda val: self._split_arc(itemgetter(val)(split_id_geom_lookup),
-                                                    split_pts=itemgetter(val)(split_id_pts_lookup)))
-
-                # Explode MultiLineStrings and resolve identifiers.
-                self.nrn.reset_index(drop=True, inplace=True)
-                self.nrn = self.nrn.explode()
-                self.nrn, export = helpers.update_ids(self.nrn, identifier=self.id, index=True)
-                if export:
-                    self._export = True
-
-    @staticmethod
-    def _split_arc(arc: LineString, split_pts: tuple) -> MultiLineString:
-        """
-        Splits a coordinate sequence into multiple sequences based on one or more 'split' points.
-
-        :param LineString arc: LineString to be split.
-        :param tuple split_pts: coordinate sequence to use for splitting the LineString.
-        :return MultiLineString: MultiLineString.
-        """
-
-        # Unpack arc coordinates.
-        coords = tuple(attrgetter("coords")(arc))
-
-        # Configure distances of each coordinate and node along the arc.
-        # Sort results using a nested tuple containing the point values and flag for node-status.
-        seq = sorted(tuple(zip(map(lambda pt: arc.project(Point(pt)), (*coords, *split_pts)),
-                               (*coords, *split_pts),
-                               (*(0,) * len(coords), *(1,) * len(split_pts)))), key=itemgetter(0))
-
-        # Resolve loop arcs by moving first result to end of sequence.
-        if coords[0] == coords[-1]:
-            seq = [*seq[1:], seq[0]]
-
-        # Construct segmentation index ranges based on arc node and splitter node positions.
-        seq_unzip = tuple(zip(*seq))
-        start, end = tee([0, *(idx for idx, val in enumerate(seq_unzip[-1]) if val == 1), len(seq_unzip[-1]) - 1])
-        next(end, None)
-
-        # Iterate segmentation index ranges and constuct LineStrings from corresponding coordinates.
-        arcs = MultiLineString([LineString(seq_unzip[1][start: end + 1]) for start, end in tuple(zip(start, end))])
-
-        return arcs
-
-    @staticmethod
-    def _update_nodes(g: LineString, node_map: Dict[tuple, tuple]) -> LineString:
-        """
-        Updates one or both nodes in the LineString.
-
-        :param LineString g: LineString to be updated.
-        :param Dict[tuple, tuple] node_map: mapping of from and to nodes.
-        :return LineString: updated LineString.
-        """
-
-        # Compile coordinates.
-        coords = list(attrgetter("coords")(g))
-
-        # Conditionally update nodes.
-        for idx in (0, -1):
-            try:
-                coords[idx] = itemgetter(coords[idx])(node_map)
-            except KeyError:
-                pass
-
-        return LineString(coords)
 
     def connectivity(self) -> dict:
         """

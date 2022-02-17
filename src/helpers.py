@@ -8,11 +8,13 @@ import string
 import sys
 import time
 import uuid
-from operator import attrgetter
+from itertools import chain
+from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from pathlib import Path
+from shapely.geometry import LineString, Point
 from tqdm import tqdm
-from typing import Any, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 
 # Set logger.
@@ -191,6 +193,64 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
+def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1) -> Tuple[gpd.GeoDataFrame, bool]:
+    """
+    Snaps NGD arcs to NRN arcs (node-to-node) if they are <= the snapping proximity threshold.
+
+    :param gpd.GeoDataFrame df: GeoDataFrame containing both NRN and NGD arcs.
+    :param float prox: maximum snapping distance (same unit as GeoDataFrame CRS), default=0.1.
+    :return Tuple[gpd.GeoDataFrame, bool]: updated GeoDataFrame and flag indicating if records have been modified.
+    """
+
+    logger.info(f"Snapping to NRN nodes.")
+
+    # Compile nodes.
+    nrn_flag = (~df["segment_id_orig"].isna()) & (df["segment_type"] != 2)
+    nrn_nodes = set(df.loc[nrn_flag, "geometry"].map(
+        lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode())
+    ngd_nodes = df.loc[(~nrn_flag) & (df["segment_type"] != 2) & (df["boundary"] != 1), "geometry"].map(
+        lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode()
+
+    # Compile snappable ngd nodes (ngd nodes not connected to an nrn node).
+    snap_nodes = ngd_nodes.loc[~ngd_nodes.isin(nrn_nodes)].copy(deep=True)
+    if len(snap_nodes):
+
+        # Compile nrn nodes as Points.
+        nrn_nodes = gpd.GeoSeries(map(Point, set(nrn_nodes)), crs=df.crs)
+
+        # Generate simplified ngd node buffers using distance tolerance.
+        snap_node_buffers = snap_nodes.map(lambda pt: Point(pt).buffer(prox, resolution=5))
+
+        # Query nrn node which intersect each ngd node buffer.
+        # Construct DataFrame containing results.
+        snap_features = pd.DataFrame({
+            "from_node": snap_nodes,
+            "to_node": snap_node_buffers.map(lambda buffer: set(nrn_nodes.sindex.query(buffer, predicate="intersects")))
+        })
+
+        # Filter snappable nodes to those intersecting >= 1 nrn node.
+        snap_nodes = snap_features.loc[snap_features["to_node"].map(len) >= 1].copy(deep=True)
+        if len(snap_nodes):
+
+            # Create idx-node lookup for target nodes.
+            to_node_idxs = set(chain.from_iterable(snap_nodes["to_node"]))
+            to_nodes = nrn_nodes.loc[nrn_nodes.index.isin(to_node_idxs)]
+            to_node_lookup = dict(zip(to_nodes.index, to_nodes.map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
+
+            # Replace target node indexes with actual nodes tuple of first result in each instance.
+            snap_nodes["to_node"] = snap_nodes["to_node"].map(lambda idxs: itemgetter(tuple(idxs)[0])(to_node_lookup))
+
+            # Create node snapping lookup dictionary and update required arcs.
+            snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_node"]))
+            snap_arc_ids = set(snap_nodes.index)
+            df.loc[df.index.isin(snap_arc_ids), "geometry"] = df.loc[df.index.isin(snap_arc_ids), "geometry"].map(
+                lambda g: update_nodes(g, node_map=snap_nodes_lookup))
+
+            logger.info(f"Snapped {len(snap_nodes)} non-NRN nodes to NRN nodes based on proximity={prox}.")
+
+    return df.copy(deep=True), bool(len(snap_nodes))
+
+
 def update_ids(gdf: gpd.GeoDataFrame, identifier: str, index: bool = True) -> Tuple[gpd.GeoDataFrame, bool]:
     """
     Updates identifiers if they are not unique 32 digit hexadecimal strings.
@@ -244,3 +304,25 @@ def update_ids(gdf: gpd.GeoDataFrame, identifier: str, index: bool = True) -> Tu
         logger.exception(f"Unable to validate segment identifiers for \"{identifier}\".")
         logger.exception(e)
         sys.exit(1)
+
+
+def update_nodes(g: LineString, node_map: Dict[tuple, tuple]) -> LineString:
+    """
+    Updates one or both nodes in the LineString.
+
+    :param LineString g: LineString to be updated.
+    :param Dict[tuple, tuple] node_map: mapping of from and to nodes.
+    :return LineString: updated LineString.
+    """
+
+    # Compile coordinates.
+    coords = list(attrgetter("coords")(g))
+
+    # Conditionally update nodes.
+    for idx in (0, -1):
+        try:
+            coords[idx] = itemgetter(coords[idx])(node_map)
+        except KeyError:
+            pass
+
+    return LineString(coords)
