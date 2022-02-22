@@ -156,8 +156,11 @@ class EGPMeshblockConflation:
                        name=f"meshblock_ngd_{self.source}")
 
         # Log conflation progress.
-        table = tabulate([[k, f"{v:,}"] for k, v in Counter(self.meshblock_ngd["valid"]).items()],
-                         headers=["Valid Cardinality", "Count"], tablefmt="rst", colalign=("left", "right"))
+        counts = Counter(self.meshblock_ngd["valid"])
+        if False not in counts:
+            counts[False] = 0
+        table = tabulate([[k, f"{v:,}"] for k, v in counts.items()], headers=["Block Validity", "Count"],
+                         tablefmt="rst", colalign=("left", "right"))
         logger.info("\n" + table)
 
 
