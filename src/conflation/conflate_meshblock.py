@@ -129,7 +129,10 @@ class EGPMeshblockConflation:
         ).area / meshblock.area
 
         # Compile valid ngd identifiers based on cardinality.
-        valid_ngd_ids = set(meshblock.loc[occupation_area >= self.threshold, "ngd_id"])
+        flag_valid = occupation_area >= self.threshold
+        valid_meshblock_idx_ngd_id_lookup = dict(zip(meshblock.loc[flag_valid].index,
+                                                     meshblock.loc[flag_valid, "ngd_id"]))
+        valid_ngd_ids = set(valid_meshblock_idx_ngd_id_lookup.values())
 
         # Compile maximum occupation percentage for each invalid ngd meshblock as a lookup dictionary.
         flag_invalid = ~meshblock["ngd_id"].isin(valid_ngd_ids)
@@ -141,9 +144,11 @@ class EGPMeshblockConflation:
 
         # Assign validity status and occupation percentage as attributes to ngd meshblock.
         self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_ngd_meshblock].isin(valid_ngd_ids)
-        self.meshblock_ngd["occupation_pct"] = -1
-        self.meshblock_ngd.loc[~self.meshblock_ngd["valid"], "occupation_pct"] = \
-            self.meshblock_ngd.loc[~self.meshblock_ngd["valid"], self.id_ngd_meshblock].map(occupation_pct)
+        self.meshblock_ngd["occupation_pct"] = self.meshblock_ngd[self.id_ngd_meshblock].map(occupation_pct).fillna(-1)
+
+        # Assign ngd bb identifier to meshblock.
+        self.meshblock[self.id_ngd_meshblock] = pd.Series(self.meshblock.index)\
+            .map(valid_meshblock_idx_ngd_id_lookup).fillna(-1).map(int)
 
     def output_results(self) -> None:
         """Outputs conflation results."""
@@ -151,7 +156,8 @@ class EGPMeshblockConflation:
         logger.info(f"Outputting results.")
 
         # Export ngd meshblock with conflation indicator.
-        helpers.export(self.meshblock[["geometry"]], dst=self.src, name=f"meshblock_{self.source}")
+        helpers.export(self.meshblock[[self.id_ngd_meshblock, "geometry"]], dst=self.src,
+                       name=f"meshblock_{self.source}")
         helpers.export(self.meshblock_ngd[[self.id_ngd_meshblock, "valid", "occupation_pct", "geometry"]], dst=self.src,
                        name=f"meshblock_ngd_{self.source}")
 
