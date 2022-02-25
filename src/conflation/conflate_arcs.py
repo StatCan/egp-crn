@@ -61,9 +61,10 @@ class CRNArcConflation:
                 logger.exception(f"Source not found: \"{src}\".")
                 sys.exit(1)
 
-        # Load source data.
+        # Load and filter source data (all non-ferry arcs).
         logger.info(f"Loading source data: {self.src}|layers={self.layer_arc},{self.layer_meshblock}.")
         self.arcs = gpd.read_file(self.src, layer=self.layer_arc)
+        self.arcs = self.arcs.loc[self.arcs["segment_type"] != 2].copy(deep=True)
         self.meshblock = gpd.read_file(self.src, layer=self.layer_meshblock)
         logger.info("Successfully loaded source data.")
 
@@ -85,7 +86,21 @@ class CRNArcConflation:
 
         logger.info(f"Performing arc conflation.")
 
-        # TODO
+        self.arcs[self.id_meshblock_ngd] = None
+
+        # Classify deadend arcs.
+        nodes = self.arcs["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
+        deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
+        self.arcs["deadend"] = pd.Series(self.arcs.index, index=self.arcs.index).isin(deadends)
+
+        # Compile the meshblock polygons associated with each arc - deadends.
+        self.arcs.loc[self.arcs["deadend"], self.id_meshblock_ngd] = self.arcs.loc[self.arcs["deadend"], "geometry"]\
+            .map(lambda g: set(self.meshblock.sindex.query(g, predicate="within")))
+
+        # Compile the meshblock polygons associated with each arc - non-deadends.
+        meshblock_boundaries = self.meshblock.boundary
+        self.arcs.loc[~self.arcs["deadend"], self.id_meshblock_ngd] = self.arcs.loc[~self.arcs["deadends"], "geometry"]\
+            .map(lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
 
     def output_results(self) -> None:
         """Outputs conflation results."""

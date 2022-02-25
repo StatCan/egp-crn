@@ -150,7 +150,7 @@ class CRNMeshblockConflation:
         self.meshblock_ngd["occupation_pct"] = self.meshblock_ngd[self.id_meshblock_ngd].map(occupation_pct).fillna(-1)
 
         # Assign ngd bb identifier to meshblock.
-        self.meshblock[self.id_meshblock_ngd] = pd.Series(self.meshblock.index)\
+        self.meshblock[self.id_meshblock_ngd] = pd.Series(self.meshblock.index, index=self.meshblock.index)\
             .map(valid_meshblock_idx_ngd_id_lookup).fillna(-1).map(int)
 
     def output_results(self) -> None:
