@@ -26,12 +26,12 @@ logger_validations = logging.getLogger("validations")
 logger_validations.setLevel(logging.WARNING)
 
 
-class EGPMeshblockValidation:
-    """Defines the EGP meshblock validation class."""
+class CRNMeshblockValidation:
+    """Defines the CRN meshblock validation class."""
 
     def __init__(self, source: str, remove: bool = False, export_meshblock: bool = False) -> None:
         """
-        Initializes the EGP class.
+        Initializes the CRN class.
 
         :param str source: abbreviation for the source province / territory.
         :param bool remove: remove pre-existing output file (validations.log), default False.
@@ -71,7 +71,7 @@ class EGPMeshblockValidation:
         logger.info("Successfully loaded source data.")
 
     def __call__(self) -> None:
-        """Executes the EGP class."""
+        """Executes the CRN class."""
 
         self.validations()
         self.log_errors()
@@ -131,7 +131,7 @@ class EGPMeshblockValidation:
               help="Export meshblock polygon layer.")
 def main(source: str, remove: bool = False, export_meshblock: bool = False) -> None:
     """
-    Instantiates and executes the EGP class.
+    Instantiates and executes the CRN class.
 
     :param str source: abbreviation for the source province / territory.
     :param bool remove: remove pre-existing output file (validations.log), default False.
@@ -141,8 +141,8 @@ def main(source: str, remove: bool = False, export_meshblock: bool = False) -> N
     try:
 
         with helpers.Timer():
-            egp = EGPMeshblockValidation(source, remove, export_meshblock)
-            egp()
+            crn = CRNMeshblockValidation(source, remove, export_meshblock)
+            crn()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")

@@ -24,12 +24,12 @@ handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s
 logger.addHandler(handler)
 
 
-class EGPMeshblockConflation:
-    """Defines the EGP meshblock conflation class."""
+class CRNMeshblockConflation:
+    """Defines the CRN meshblock conflation class."""
 
     def __init__(self, source: str, threshold: int = 80) -> None:
         """
-        Initializes the EGP class.
+        Initializes the CRN class.
 
         :param str source: abbreviation for the source province / territory.
         :param int threshold: the percentage of area intersection which constitutes a match, default=80.
@@ -37,18 +37,21 @@ class EGPMeshblockConflation:
 
         self.source = source
         self.threshold = threshold / 100
-        self.layer = f"nrn_bo_{source}"
+
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
-        self.layer_ngd = f"ngd_a_{source}"
+        self.layer_arc = f"nrn_bo_{source}"
+
         self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd_a.gpkg")
-        self.id_ngd_meshblock = "bb_uid"
-        self.id_ngd_arc = "ngd_uid"
+        self.layer_arc_ngd = f"ngd_a_{source}"
+
+        self.id_arc_ngd = "ngd_uid"
+        self.id_meshblock_ngd = "bb_uid"
         self._export = False
 
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
             if src.exists():
-                layer = {self.src: self.layer, self.src_ngd: self.layer_ngd}[src]
+                layer = {self.src: self.layer_arc, self.src_ngd: self.layer_arc_ngd}[src]
                 if layer not in set(fiona.listlayers(src)):
                     logger.exception(f"Layer \"{layer}\" not found within source: \"{src}\".")
                     sys.exit(1)
@@ -57,9 +60,9 @@ class EGPMeshblockConflation:
                 sys.exit(1)
 
         # Load source data and snap nodes of integrated arcs to nrn roads.
-        logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
+        logger.info(f"Loading source data: {self.src}|layer={self.layer_arc}.")
 
-        df = gpd.read_file(self.src, layer=self.layer)
+        df = gpd.read_file(self.src, layer=self.layer_arc)
         df, _export = helpers.snap_nodes(df)
         if _export:
             self._export = True
@@ -76,12 +79,12 @@ class EGPMeshblockConflation:
         logger.info("Successfully loaded and generated meshblock from source data.")
 
         # Load ngd meshblock data.
-        logger.info(f"Loading ngd meshblock data: {self.src_ngd}|layer={self.layer_ngd}.")
-        self.meshblock_ngd = gpd.read_file(self.src_ngd, layer=self.layer_ngd).copy(deep=True)
+        logger.info(f"Loading ngd meshblock data: {self.src_ngd}|layer={self.layer_arc_ngd}.")
+        self.meshblock_ngd = gpd.read_file(self.src_ngd, layer=self.layer_arc_ngd).copy(deep=True)
         logger.info("Successfully loaded ngd meshblock data.")
 
         # Resolve added BOs and export updated dataset, if required.
-        flag_resolve1 = (df[self.id_ngd_arc].isna() | df[self.id_ngd_arc].isin({-1, 0})) & \
+        flag_resolve1 = (df[self.id_arc_ngd].isna() | df[self.id_arc_ngd].isin({-1, 0})) & \
                         (df["segment_type"] == 3) & (df["bo_new"] != 1)
         if sum(flag_resolve1):
             df.loc[flag_resolve1, "bo_new"] = 1
@@ -93,26 +96,26 @@ class EGPMeshblockConflation:
 
         # Export data, if required.
         if self._export:
-            helpers.export(df, dst=self.src, name=self.layer)
+            helpers.export(df, dst=self.src, name=self.layer_arc)
 
     def __call__(self) -> None:
-        """Executes the EGP class."""
+        """Executes the CRN class."""
 
         self.conflation()
         self.output_results()
 
     def conflation(self) -> None:
-        """Validates the meshblock conflation."""
+        """Performs the meshblock conflation."""
 
-        logger.info("Validating meshblock conflation.")
+        logger.info("Performing meshblock conflation.")
 
         meshblock = self.meshblock.copy(deep=True)
 
         # Generate ngd meshblock lookup dictionaries.
-        ngd_idx_id_lookup = dict(zip(self.meshblock_ngd.index, self.meshblock_ngd[self.id_ngd_meshblock]))
-        ngd_id_poly_lookup = dict(zip(self.meshblock_ngd[self.id_ngd_meshblock], self.meshblock_ngd["geometry"]))
+        ngd_idx_id_lookup = dict(zip(self.meshblock_ngd.index, self.meshblock_ngd[self.id_meshblock_ngd]))
+        ngd_id_poly_lookup = dict(zip(self.meshblock_ngd[self.id_meshblock_ngd], self.meshblock_ngd["geometry"]))
 
-        # Compile the index of each ngd polygon intersecting each egp polygon.
+        # Compile the index of each ngd polygon intersecting each crn polygon.
         meshblock["ngd_id"] = meshblock["geometry"]\
             .map(lambda g: self.meshblock_ngd.sindex.query(g, predicate="intersects"))
 
@@ -123,7 +126,7 @@ class EGPMeshblockConflation:
         meshblock["ngd_id"] = meshblock["ngd_id"].map(ngd_idx_id_lookup)
         meshblock["ngd_poly"] = meshblock["ngd_id"].map(ngd_id_poly_lookup)
 
-        # Validate cardinality (valid: one-to-one and many-to-one based on egp-to-ngd direction).
+        # Validate cardinality (valid: one-to-one and many-to-one based on crn-to-ngd direction).
         occupation_area = meshblock["geometry"].intersection(
             gpd.GeoSeries(meshblock["ngd_poly"], crs=self.meshblock_ngd.crs)
         ).area / meshblock.area
@@ -143,11 +146,11 @@ class EGPMeshblockConflation:
         occupation_pct = dict(zip(occupation_pct["ngd_id"], occupation_pct["occupation_pct"]))
 
         # Assign validity status and occupation percentage as attributes to ngd meshblock.
-        self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_ngd_meshblock].isin(valid_ngd_ids)
-        self.meshblock_ngd["occupation_pct"] = self.meshblock_ngd[self.id_ngd_meshblock].map(occupation_pct).fillna(-1)
+        self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_meshblock_ngd].isin(valid_ngd_ids)
+        self.meshblock_ngd["occupation_pct"] = self.meshblock_ngd[self.id_meshblock_ngd].map(occupation_pct).fillna(-1)
 
         # Assign ngd bb identifier to meshblock.
-        self.meshblock[self.id_ngd_meshblock] = pd.Series(self.meshblock.index)\
+        self.meshblock[self.id_meshblock_ngd] = pd.Series(self.meshblock.index)\
             .map(valid_meshblock_idx_ngd_id_lookup).fillna(-1).map(int)
 
     def output_results(self) -> None:
@@ -156,9 +159,9 @@ class EGPMeshblockConflation:
         logger.info(f"Outputting results.")
 
         # Export ngd meshblock with conflation indicator.
-        helpers.export(self.meshblock[[self.id_ngd_meshblock, "geometry"]], dst=self.src,
+        helpers.export(self.meshblock[[self.id_meshblock_ngd, "geometry"]], dst=self.src,
                        name=f"meshblock_{self.source}")
-        helpers.export(self.meshblock_ngd[[self.id_ngd_meshblock, "valid", "occupation_pct", "geometry"]], dst=self.src,
+        helpers.export(self.meshblock_ngd[[self.id_meshblock_ngd, "valid", "occupation_pct", "geometry"]], dst=self.src,
                        name=f"meshblock_ngd_{self.source}")
 
         # Log conflation progress.
@@ -176,7 +179,7 @@ class EGPMeshblockConflation:
               help="The percentage of area intersection which constitutes a match.")
 def main(source: str, threshold: int = 80) -> None:
     """
-    Instantiates and executes the EGP class.
+    Instantiates and executes the CRN class.
 
     :param str source: abbreviation for the source province / territory.
     :param int threshold: the percentage of area intersection which constitutes a match, default=80.
@@ -185,8 +188,8 @@ def main(source: str, threshold: int = 80) -> None:
     try:
 
         with helpers.Timer():
-            egp = EGPMeshblockConflation(source, threshold)
-            egp()
+            crn = CRNMeshblockConflation(source, threshold)
+            crn()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")

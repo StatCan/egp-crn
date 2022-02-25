@@ -25,12 +25,12 @@ logger_validations = logging.getLogger("validations")
 logger_validations.setLevel(logging.WARNING)
 
 
-class EGPTopologyValidation:
-    """Defines the EGP topology validation class."""
+class CRNTopologyValidation:
+    """Defines the CRN topology validation class."""
 
     def __init__(self, source: str, remove: bool = False) -> None:
         """
-        Initializes the EGP class.
+        Initializes the CRN class.
 
         :param str source: abbreviation for the source province / territory.
         :param bool remove: remove pre-existing output file (validations.log), default False.
@@ -72,7 +72,7 @@ class EGPTopologyValidation:
         logger.info("Successfully loaded source data.")
 
     def __call__(self) -> None:
-        """Executes the EGP class."""
+        """Executes the CRN class."""
 
         self.validations()
         self.log_errors()
@@ -121,7 +121,7 @@ class EGPTopologyValidation:
               help="Remove pre-existing output file (validations.log).")
 def main(source: str, remove: bool = False) -> None:
     """
-    Instantiates and executes the EGP class.
+    Instantiates and executes the CRN class.
 
     :param str source: abbreviation for the source province / territory.
     :param bool remove: remove pre-existing output file (validations.log), default False.
@@ -130,8 +130,8 @@ def main(source: str, remove: bool = False) -> None:
     try:
 
         with helpers.Timer():
-            egp = EGPTopologyValidation(source, remove)
-            egp()
+            crn = CRNTopologyValidation(source, remove)
+            crn()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")

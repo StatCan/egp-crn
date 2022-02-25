@@ -24,12 +24,12 @@ handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s
 logger.addHandler(handler)
 
 
-class EGPRestoreGeometry:
-    """Defines the EGP geometry restoration class."""
+class CRNRestoreGeometry:
+    """Defines the CRN geometry restoration class."""
 
     def __init__(self, source: str, distance: int = 2) -> None:
         """
-        Initializes the EGP class.
+        Initializes the CRN class.
 
         :param str source: abbreviation for the source province / territory.
         :param int distance: the radius of the buffer, default = 2.
@@ -68,7 +68,7 @@ class EGPRestoreGeometry:
         logger.info("Successfully loaded source restoration data.")
 
     def __call__(self) -> None:
-        """Executes the EGP class."""
+        """Executes the CRN class."""
 
         self.identify_mods()
         self.restore_and_log_mods()
@@ -132,7 +132,7 @@ class EGPRestoreGeometry:
               help="The radius of the buffer.")
 def main(source: str, distance: int = 2) -> None:
     """
-    Instantiates and executes the EGP class.
+    Instantiates and executes the CRN class.
 
     :param str source: abbreviation for the source province / territory.
     :param int distance: the radius of the buffer, default = 2.
@@ -141,8 +141,8 @@ def main(source: str, distance: int = 2) -> None:
     try:
 
         with helpers.Timer():
-            egp = EGPRestoreGeometry(source, distance)
-            egp()
+            crn = CRNRestoreGeometry(source, distance)
+            crn()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
