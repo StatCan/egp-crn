@@ -39,10 +39,10 @@ class CRNMeshblockConflation:
         self.threshold = threshold / 100
 
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
-        self.layer_arc = f"nrn_bo_{source}"
+        self.layer_arc = f"nrn_bo_{self.source}"
 
-        self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd_a.gpkg")
-        self.layer_arc_ngd = f"ngd_a_{source}"
+        self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd.zip")
+        self.layer_meshblock_ngd = f"ngd_a_{self.source}"
 
         self.id_arc_ngd = "ngd_uid"
         self.id_meshblock_ngd = "bb_uid"
@@ -51,8 +51,8 @@ class CRNMeshblockConflation:
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
             if src.exists():
-                layer = {self.src: self.layer_arc, self.src_ngd: self.layer_arc_ngd}[src]
-                if layer not in set(fiona.listlayers(src)):
+                layer = {self.src: self.layer_arc, self.src_ngd: self.layer_meshblock_ngd}[src]
+                if layer not in set(fiona.listlayers("zip://" + str(src) if src.suffix == "zip" else src)):
                     logger.exception(f"Layer \"{layer}\" not found within source: \"{src}\".")
                     sys.exit(1)
             else:
@@ -79,8 +79,8 @@ class CRNMeshblockConflation:
         logger.info("Successfully loaded and generated meshblock from source data.")
 
         # Load ngd meshblock data.
-        logger.info(f"Loading ngd meshblock data: {self.src_ngd}|layer={self.layer_arc_ngd}.")
-        self.meshblock_ngd = gpd.read_file(self.src_ngd, layer=self.layer_arc_ngd).copy(deep=True)
+        logger.info(f"Loading ngd meshblock data: {self.src_ngd}|layer={self.layer_meshblock_ngd}.")
+        self.meshblock_ngd = gpd.read_file(self.src_ngd, layer=self.layer_meshblock_ngd).copy(deep=True)
         logger.info("Successfully loaded ngd meshblock data.")
 
         # Resolve added BOs and export updated dataset, if required.
