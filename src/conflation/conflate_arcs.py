@@ -86,21 +86,21 @@ class CRNArcConflation:
 
         logger.info(f"Performing arc conflation.")
 
-        self.arcs[self.id_meshblock_ngd] = None
-
-        # Classify deadend arcs.
-        nodes = self.arcs["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
-        deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
-        self.arcs["deadend"] = pd.Series(self.arcs.index, index=self.arcs.index).isin(deadends)
-
-        # Compile the meshblock polygons associated with each arc - deadends.
-        self.arcs.loc[self.arcs["deadend"], self.id_meshblock_ngd] = self.arcs.loc[self.arcs["deadend"], "geometry"]\
-            .map(lambda g: set(self.meshblock.sindex.query(g, predicate="within")))
-
-        # Compile the meshblock polygons associated with each arc - non-deadends.
+        # Compile the meshblock index associated with each arc - an arc will be covered by or contained by a polygon.
         meshblock_boundaries = self.meshblock.boundary
-        self.arcs.loc[~self.arcs["deadend"], self.id_meshblock_ngd] = self.arcs.loc[~self.arcs["deadends"], "geometry"]\
-            .map(lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
+        self.arcs["meshblock_idx"] = self.arcs["geometry"].map(
+            lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
+        self.arcs.loc[self.arcs["meshblock_idx"].map(len) == 0, "meshblock_idx"] = \
+            self.arcs.loc[self.arcs["meshblock_idx"].map(len) == 0, "geometry"].map(
+                lambda g: set(self.meshblock.sindex.query(g, predicate="within")))
+
+        # Retrieve the ngd meshblock identifier linking to each new meshblock.
+        meshblock_idx_ngd_id = dict(zip(self.meshblock.index, self.meshblock[self.id_meshblock_ngd]))
+        self.arcs[self.id_meshblock_ngd] = self.arcs["meshblock_idx"]\
+            .map(lambda idxs: itemgetter(*idxs)(meshblock_idx_ngd_id))\
+            .map(lambda vals: vals if isinstance(vals, tuple) else (vals,))
+
+        # ...
 
     def output_results(self) -> None:
         """Outputs conflation results."""
