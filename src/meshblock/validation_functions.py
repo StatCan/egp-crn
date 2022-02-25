@@ -51,6 +51,7 @@ class Validator:
         self._nrn_bos_nodes = None
         self._nrn_roads_nodes_lookup = dict()
         self._nrn_bos_nodes_lookup = dict()
+        self._deadends = set()
 
         # BO integration flag.
         self._integrated = None
@@ -109,8 +110,10 @@ class Validator:
                   "desc": "Untouchable BO identifier is missing."},
             200: {"func": self.meshblock,
                   "desc": "Generate meshblock from LineStrings."},
-            201: {"func": self.meshblock_representation,
-                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."}
+            201: {"func": self.meshblock_representation_deadend,
+                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."},
+            202: {"func": self.meshblock_representation_non_deadend,
+                  "desc": "All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon."}
         }
 
     def __call__(self) -> None:
@@ -241,10 +244,12 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # Configure meshblock input (all non-deadend and non-ferry arcs).
+        # Compile indexes of deadend arcs.
         nodes = self.nrn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
-        deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
-        self._meshblock_input = self.nrn.loc[(~self.nrn.index.isin(deadends)) &
+        self._deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
+
+        # Configure meshblock input (all non-deadend and non-ferry arcs).
+        self._meshblock_input = self.nrn.loc[(~self.nrn.index.isin(self._deadends)) &
                                              (self.nrn["segment_type"] != 2)].copy(deep=True)
 
         # Generate meshblock.
@@ -254,7 +259,31 @@ class Validator:
 
         return errors
 
-    def meshblock_representation(self) -> dict:
+    def meshblock_representation_deadend(self) -> dict:
+        """
+        All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon.
+
+        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        """
+
+        errors = {"values": list(), "query": None}
+
+        # Query meshblock polygons which contain each deadend arc.
+        within = self.nrn.loc[self.nrn.index.isin(self._deadends), "geometry"]\
+            .map(lambda g: set(self.meshblock_.sindex.query(g, predicate="within")))
+
+        # Flag arcs which are not completely within one polygon.
+        flag = within.map(len) != 1
+
+        # Compile error logs.
+        if sum(flag):
+            vals = set(within.loc[flag].index)
+            errors["values"] = vals
+            errors["query"] = f"\"{self.id}\" in {*vals,}"
+
+        return errors
+
+    def meshblock_representation_non_deadend(self) -> dict:
         """
         Validates: All non-deadend arcs (excluding ferries) must form a meshblock polygon.
 
@@ -266,11 +295,11 @@ class Validator:
         # Extract boundary LineStrings from meshblock Polygons.
         meshblock_boundaries = self.meshblock_.boundary
 
-        # Query meshblock polygons which cover each segment.
+        # Query meshblock polygons which cover each arc.
         covered_by = self.nrn_bos.loc[self.nrn_bos["bo_new"] != 1, "geometry"].map(
             lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
 
-        # Flag segments which do not form a polygon.
+        # Flag arcs which do not form a polygon.
         flag = covered_by.map(len) == 0
 
         # Compile error logs.
