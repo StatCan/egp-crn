@@ -41,7 +41,7 @@ class CRNMeshblockConflation:
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
         self.layer_arc = f"nrn_bo_{self.source}"
 
-        self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd.zip")
+        self.src_ngd = Path(filepath.parents[2] / r"data/interim/ngd.zip")
         self.layer_meshblock_ngd = f"ngd_a_{self.source}"
 
         self.id_arc_ngd = "ngd_uid"
@@ -52,7 +52,7 @@ class CRNMeshblockConflation:
         for src in (self.src, self.src_ngd):
             if src.exists():
                 layer = {self.src: self.layer_arc, self.src_ngd: self.layer_meshblock_ngd}[src]
-                if layer not in set(fiona.listlayers("zip://" + str(src) if src.suffix == "zip" else src)):
+                if layer not in set(fiona.listlayers(fr"zip://{str(src)}" if src.suffix == ".zip" else src)):
                     logger.exception(f"Layer \"{layer}\" not found within source: \"{src}\".")
                     sys.exit(1)
             else:
