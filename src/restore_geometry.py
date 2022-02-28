@@ -42,14 +42,14 @@ class CRNRestoreGeometry:
         self.nrn_id = "segment_id_orig"
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[1] / "data/interim/egp_data.gpkg")
-        self.src_restore = Path(filepath.parents[1] / "data/interim/nrn_bo_restore.gpkg")
+        self.src_restore = Path(filepath.parents[1] / r"data/interim/nrn_bo_restore.zip")
         self.modified_nrn = set()
         self.modified_bo = set()
 
         # Configure source path and layer name.
         for src in (self.src, self.src_restore):
             if src.exists():
-                if self.layer not in set(fiona.listlayers(src)):
+                if self.layer not in set(fiona.listlayers(fr"zip://{str(src)}" if src.suffix == ".zip" else src)):
                     logger.exception(f"Layer \"{self.layer}\" not found within source: \"{src}\".")
                     sys.exit(1)
             else:
