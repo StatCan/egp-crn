@@ -85,9 +85,8 @@ class CRNArcConflation:
         logger.info(f"Performing arc conflation.")
 
         # Define linkage attribution.
-        self.arcs["meshblock_idx"] = -1
-        self.arcs[f"{self.id_meshblock_ngd}_linked"] = -1
-        self.arcs[f"{self.id_arc_ngd}_linked"] = -1
+        for new_col in ("meshblock_idx", f"{self.id_meshblock_ngd}_linked", f"{self.id_arc_ngd}_linked"):
+            self.arcs[new_col] = ((-1,),) * len(self.arcs)
 
         # Filter source data to non-ferry arcs.
         arcs = self.arcs.loc[self.arcs["segment_type"] != 2].copy(deep=True)
