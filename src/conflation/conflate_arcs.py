@@ -4,11 +4,9 @@ import geopandas as gpd
 import logging
 import pandas as pd
 import sys
-from collections import Counter
-from operator import attrgetter, itemgetter
+from itertools import chain
+from operator import itemgetter
 from pathlib import Path
-from shapely.ops import polygonize, unary_union
-from tabulate import tabulate
 
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(filepath.parents[1]))
@@ -47,6 +45,8 @@ class CRNArcConflation:
         self.id_arc = "segment_id"
         self.id_arc_ngd = "ngd_uid"
         self.id_meshblock_ngd = "bb_uid"
+        self.id_meshblock_l_ngd = "bb_uid_l"
+        self.id_meshblock_r_ngd = "bb_uid_r"
 
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
@@ -61,10 +61,9 @@ class CRNArcConflation:
                 logger.exception(f"Source not found: \"{src}\".")
                 sys.exit(1)
 
-        # Load and filter source data (all non-ferry arcs).
+        # Load source data.
         logger.info(f"Loading source data: {self.src}|layers={self.layer_arc},{self.layer_meshblock}.")
         self.arcs = gpd.read_file(self.src, layer=self.layer_arc)
-        self.arcs = self.arcs.loc[self.arcs["segment_type"] != 2].copy(deep=True)
         self.meshblock = gpd.read_file(self.src, layer=self.layer_meshblock)
         logger.info("Successfully loaded source data.")
 
@@ -77,7 +76,6 @@ class CRNArcConflation:
     def __call__(self) -> None:
         """Executes the CRN class."""
 
-        self.link_arcs_to_meshblock()
         self.conflation()
         self.output_results()
 
@@ -86,33 +84,59 @@ class CRNArcConflation:
 
         logger.info(f"Performing arc conflation.")
 
+        # Define linkage attribution.
+        self.arcs["meshblock_idx"] = -1
+        self.arcs[f"{self.id_meshblock_ngd}_linked"] = -1
+        self.arcs[f"{self.id_arc_ngd}_linked"] = -1
+
+        # Filter source data to non-ferry arcs.
+        arcs = self.arcs.loc[self.arcs["segment_type"] != 2].copy(deep=True)
+
         # Compile the meshblock index associated with each arc - an arc will be covered by or contained by a polygon.
         meshblock_boundaries = self.meshblock.boundary
-        self.arcs["meshblock_idx"] = self.arcs["geometry"].map(
+        arcs["meshblock_idx"] = arcs["geometry"].map(
             lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
-        self.arcs.loc[self.arcs["meshblock_idx"].map(len) == 0, "meshblock_idx"] = \
-            self.arcs.loc[self.arcs["meshblock_idx"].map(len) == 0, "geometry"].map(
+        arcs.loc[arcs["meshblock_idx"].map(len) == 0, "meshblock_idx"] = \
+            arcs.loc[arcs["meshblock_idx"].map(len) == 0, "geometry"].map(
                 lambda g: set(self.meshblock.sindex.query(g, predicate="within")))
 
         # Retrieve the ngd meshblock identifier linking to each new meshblock.
         meshblock_idx_ngd_id = dict(zip(self.meshblock.index, self.meshblock[self.id_meshblock_ngd]))
-        self.arcs[self.id_meshblock_ngd] = self.arcs["meshblock_idx"]\
+        arcs[f"{self.id_meshblock_ngd}_linked"] = arcs["meshblock_idx"]\
             .map(lambda idxs: itemgetter(*idxs)(meshblock_idx_ngd_id))\
-            .map(lambda vals: vals if isinstance(vals, tuple) else (vals,))
+            .map(lambda vals: vals if isinstance(vals, tuple) else (vals,)).map(set).map(tuple)
 
-        # ...
+        # Create ngd meshblock - arc identifiers lookup. Add -1 to dict for non linkages.
+        ngd_meshblock_id_to_arc_ids = helpers.groupby_to_list(pd.DataFrame().append([
+            self.arcs_ngd[[self.id_arc_ngd, self.id_meshblock_l_ngd]]
+                .rename(columns={self.id_meshblock_l_ngd: self.id_meshblock_ngd}),
+            self.arcs_ngd[[self.id_arc_ngd, self.id_meshblock_r_ngd]]
+                .rename(columns={self.id_meshblock_r_ngd: self.id_meshblock_ngd})
+        ]), group_field=self.id_meshblock_ngd, list_field=self.id_arc_ngd).map(tuple).to_dict()
+        ngd_meshblock_id_to_arc_ids[-1] = (-1,)
+
+        # Compile ngd arc identifiers associated with each linked ngd meshblock.
+        arcs[f"{self.id_arc_ngd}_linked"] = arcs[f"{self.id_meshblock_ngd}_linked"]\
+            .map(lambda ids: itemgetter(*ids)(ngd_meshblock_id_to_arc_ids))\
+            .map(lambda vals: tuple(chain.from_iterable(vals) if isinstance(vals[0], tuple) else vals))
+
+        # Update original dataset with linkage attribution.
+        self.arcs.loc[arcs.index] = arcs.copy(deep=True)
 
     def output_results(self) -> None:
         """Outputs conflation results."""
 
         logger.info(f"Outputting results.")
 
-        # TODO
+        # Delete temporary attributes.
+        self.arcs.drop(columns=["meshblock_idx"], inplace=True)
 
-    def link_arcs_to_meshblock(self) -> None:
-        """Links each arc to a meshblock polygon."""
+        # Convert list-like attributes to comma-delimited strings.
+        for col in (f"{self.id_meshblock_ngd}_linked", f"{self.id_arc_ngd}_linked"):
+            self.arcs[col] = self.arcs[col].map(lambda vals: ",".join(map(str, vals)))
 
-        logger.info("Linking arcs to meshblock polygons.")
+        # Export arcs with linked ngd meshblock and arc identifiers.
+        helpers.export(self.arcs, dst=self.src, name=self.layer_arc)
 
 
 @click.command()
