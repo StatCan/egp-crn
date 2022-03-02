@@ -9,8 +9,8 @@ Network Conflation
    :maxdepth: 1
    :hidden:
 
-   network_conflation/meshblock_conflation
-   network_conflation/arc_conflation
+   meshblock_conflation
+   arc_conflation
 
 .. container:: button
 
