@@ -2,9 +2,6 @@
 About
 *****
 
-.. include:: <isonum.txt>
-.. include:: <isopub.txt>
-
 .. toctree::
    :maxdepth: 1
    :hidden:

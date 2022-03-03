@@ -2,11 +2,8 @@
 Overview
 ********
 
-.. include:: <isonum.txt>
-.. include:: <isopub.txt>
-
 .. contents:: Contents:
-   :depth: 2
+   :depth: 1
 
 Process Overview
 ================
@@ -15,3 +12,9 @@ Process Overview
     :alt: CRN process overview.
 
     Figure 1: CRN process overview.
+
+Process Example
+===============
+
+.. raw:: html
+    :file: /source/_static/overview/crn_process_example.html

@@ -1,9 +1,6 @@
 Canadian Road Network
 =====================
 
-.. include:: <isonum.txt>
-.. include:: <isopub.txt>
-
 .. toctree::
    :hidden:
 
