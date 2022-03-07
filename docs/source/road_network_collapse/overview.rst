@@ -17,3 +17,5 @@ Process Example
 ===============
 
 .. include:: /source/_static/overview/crn_process_example.rst
+
+    Figure 2: Interactive example of CRN process overview.
