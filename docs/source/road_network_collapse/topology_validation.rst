@@ -78,9 +78,8 @@ Validation 101
 
     Figure 2: Validation 101 example.
 
-**Description:** Arcs must be single part (i.e. "LineString").
-
-**Actions:**
+| **Description:** Arcs must be single part (i.e. "LineString").
+| **Actions:**
 
 1. Do nothing. This is resolved automatically by the script.
 
@@ -92,9 +91,8 @@ Validation 102
 
     Figure 3: Validation 102 example.
 
-**Description:** Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
-
-**Actions:**
+| **Description:** Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
+| **Actions:**
 
 A. If feature is bounded by 2 intersections: do nothing.
 B. If feature is a dead end and is connected to 1 intersection: do nothing.
@@ -117,9 +115,8 @@ Validation 103
 
     Figure 4: Validation 103 example.
 
-**Description:** Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
-
-**Actions:**
+| **Description:** Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
+| **Actions:**
 
 A. Self-cross: delete / edit crossed segment.
     1. Add vertex to the cross point, unless vertex already exists.
@@ -141,9 +138,8 @@ Validation 104
 
     Figure 5: Validation 104 example.
 
-**Description:** Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance).
-
-**Actions:**
+| **Description:** Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance).
+| **Actions:**
 
 1. Delete as many vertices as required, until no 2 adjacent vertices are within the cluster tolerance.
 
@@ -158,9 +154,8 @@ Validation 201
 
     Figure 6: Validation 201 example.
 
-**Description:** Arcs must not be duplicated.
-
-**Actions:**
+| **Description:** Arcs must not be duplicated.
+| **Actions:**
 
 1. Delete all but 1 of the duplicated features.
 
@@ -172,9 +167,8 @@ Validation 202
 
     Figure 7: Validation 202 example.
 
-**Description:** Arcs must not overlap (i.e. contain duplicated adjacent vertices).
-
-**Actions:**
+| **Description:** Arcs must not overlap (i.e. contain duplicated adjacent vertices).
+| **Actions:**
 
 1. For any overlapping features that continue beyond both ends of the overlap: split feature into 3.
     1. |icon_split_features| Select Split Features tool: Edit → Edit Geometry → Split Features.
@@ -197,9 +191,8 @@ Validation 301
 
     Figure 8: Validation 301 example.
 
-**Description:** Arcs must only connect at endpoints (nodes).
-
-**Actions:**
+| **Description:** Arcs must only connect at endpoints (nodes).
+| **Actions:**
 
 1. Split feature which is being intersected at a non-node into 2 features (split at the vertex to avoid creating new
    vertices).
@@ -212,9 +205,8 @@ Validation 302
 
     Figure 9: Validation 302 example.
 
-**Description:** Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
-
-**Actions:**
+| **Description:** Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
+| **Actions:**
 
 A. If features can be confirmed as being actually connected: connect features.
     1. Add 1 or more vertices to extend and connect one of the disconnected features to the other feature.
@@ -232,9 +224,8 @@ Validation 303
 
     Figure 10: Validation 303 example.
 
-**Description:** Arcs must not cross (i.e. must be segmented at each intersection).
-
-**Actions:**
+| **Description:** Arcs must not cross (i.e. must be segmented at each intersection).
+| **Actions:**
 
 1. Split feature at every point where it crosses another feature.
 
