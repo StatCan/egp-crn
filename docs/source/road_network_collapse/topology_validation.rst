@@ -5,6 +5,7 @@ Topology Validation
 .. contents:: Contents:
    :depth: 4
 
+
 .. |icon_delete_selected| image:: /source/_static/topology_validation/icon_delete_selected.svg
 .. |icon_merge_features| image:: /source/_static/topology_validation/icon_merge_features.svg
 .. |icon_select| image:: /source/_static/topology_validation/icon_select.svg
