@@ -5,6 +5,15 @@ Environment
 .. contents:: Contents:
    :depth: 4
 
+.. |icon_editing_enable| image:: /source/_static/environment/icon_editing_enable.svg
+.. |icon_editing_save| image:: /source/_static/environment/icon_editing_save.svg
+.. |icon_select| image:: /source/_static/environment/icon_select.svg
+.. |icon_snapping_advanced| image:: /source/_static/environment/icon_snapping_advanced.svg
+.. |icon_snapping_enable| image:: /source/_static/environment/icon_snapping_enable.svg
+.. |icon_snapping_intersection| image:: /source/_static/environment/icon_snapping_intersection.svg
+.. |icon_snapping_vertex| image:: /source/_static/environment/icon_snapping_vertex.svg
+.. |icon_vertex_enable_editing| image:: /source/_static/environment/icon_vertex_enable_editing.svg
+
 Virtual Machine (VM) Access
 ===========================
 
@@ -156,10 +165,6 @@ Basic Editing Actions
 Enable / Disable Editing
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. |icon_editing_enable| image:: /source/_static/environment/icon_editing_enable.svg
-.. |icon_select| image:: /source/_static/environment/icon_select.svg
-.. |icon_editing_save| image:: /source/_static/environment/icon_editing_save.svg
-
 1. |icon_editing_enable| Enable editing.
 
 2. |icon_select| Select arc(s) and perform edits.
@@ -170,11 +175,6 @@ Enable / Disable Editing
 
 Enable Snapping
 ^^^^^^^^^^^^^^^
-
-.. |icon_snapping_enable| image:: /source/_static/environment/icon_snapping_enable.svg
-.. |icon_snapping_advanced| image:: /source/_static/environment/icon_snapping_advanced.svg
-.. |icon_snapping_vertex| image:: /source/_static/environment/icon_snapping_vertex.svg
-.. |icon_snapping_intersection| image:: /source/_static/environment/icon_snapping_intersection.svg
 
 1. |icon_snapping_enable| Enable snapping.
 
@@ -188,8 +188,6 @@ Enable Snapping
 
 Add / Move / Delete Vertex
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. |icon_vertex_enable_editing| image:: /source/_static/environment/icon_vertex_enable_editing.svg
 
 1. |icon_vertex_enable_editing| With editing enabled, open vertex editor.
 
