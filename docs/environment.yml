@@ -3,7 +3,6 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - myst-nb=0.13.1
   - pydata-sphinx-theme=0.7.2
   - python=3.9.2
   - sphinx=3.5.1

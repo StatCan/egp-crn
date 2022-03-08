@@ -3,7 +3,7 @@ Environment
 ***********
 
 .. contents:: Contents:
-   :depth: 3
+   :depth: 4
 
 Virtual Machine (VM) Access
 ===========================
@@ -48,13 +48,13 @@ Software
 All software dependencies are pre-installed. All you need is the following:
 
 Data Editing
-^^^^^^^^^^^^
+------------
 
 - `Notepad++ <https://notepad-plus-plus.org/downloads/>`_: Base Notepad with added editing capabilities.
 - `QGIS <https://www.qgis.org/en/site/forusers/download.html>`_: Open source GIS application.
 
 Repository Management and Script Usage
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------
 
 - `Git <https://git-scm.com/downloads>`_: Version control system for tracking code changes and collaborative
   development.
@@ -70,7 +70,7 @@ The repository is the root directory containing all files and code for a project
 case) and integrate the differences into your local repository.
 
 Installation
-^^^^^^^^^^^^
+------------
 
 1. Change directory to the desired installation location::
 
@@ -81,7 +81,7 @@ Installation
     git clone https://github.com/StatCan/egp.git
 
 Updates
-^^^^^^^
+-------
 
 1. Change directory to the repository root::
 
@@ -103,14 +103,14 @@ environment and effective dependency management. The ``conda`` environment must 
 scripts in order to make use of the contained dependencies.
 
 Activation
-^^^^^^^^^^
+----------
 
 Activate the ``conda`` environment via::
 
     conda activate egp
 
 Updates
-^^^^^^^
+-------
 
 Update the ``conda`` environment via (only required if dependencies change)::
 
@@ -151,10 +151,10 @@ QGIS
 ====
 
 Basic Editing Actions
-^^^^^^^^^^^^^^^^^^^^^
+---------------------
 
 Enable / Disable Editing
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. |icon_editing_enable| image:: /source/_static/environment/icon_editing_enable.svg
 .. |icon_select| image:: /source/_static/environment/icon_select.svg
@@ -169,7 +169,7 @@ Enable / Disable Editing
 4. |icon_editing_enable| Disable editing.
 
 Enable Snapping
----------------
+^^^^^^^^^^^^^^^
 
 .. |icon_snapping_enable| image:: /source/_static/environment/icon_snapping_enable.svg
 .. |icon_snapping_advanced| image:: /source/_static/environment/icon_snapping_advanced.svg
@@ -187,7 +187,7 @@ Enable Snapping
 5. |icon_snapping_intersection| Enable Snapping on Intersection.
 
 Add / Move / Delete Vertex
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. |icon_vertex_enable_editing| image:: /source/_static/environment/icon_vertex_enable_editing.svg
 
@@ -204,14 +204,14 @@ Add / Move / Delete Vertex
   c. Delete: Select vertex (clicking and drag cursor or select from vertex editor) and press <Delete> key.
 
 QGIS Editing Demo
------------------
+^^^^^^^^^^^^^^^^^
 
 .. raw:: html
 
-    <video controls src="/source/_static/environment/qgis_basic_editing_actions.mp4" type="video/mp4"></video>
+    <video controls src="../../_static/environment/qgis_basic_editing_actions.mp4" type="video/mp4" width=100%></video>
 
 Updating Layer Sources
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 QGIS project files (``.qgz``) are part of the repository and, therefore, modifications will be included with any
 :code:`git pull` that you perform.
@@ -225,7 +225,7 @@ QGIS project files (``.qgz``) are part of the repository and, therefore, modific
     Figure 3: QGIS - Updating layer sources.
 
 Keyboard Shortcuts (Hotkeys)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 Hotkeys are recommended to make editing activities less tedious and can be assigned to individual QGIS actions via:
 Settings → Keyboard Shortcuts... → Search / select action → Change → Press desired keyboard key.
