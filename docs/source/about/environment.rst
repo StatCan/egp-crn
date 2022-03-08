@@ -15,7 +15,7 @@ Follow these steps to access your VM:
 
 1. Login in Microsoft Azure:
 
-  i. Access the `Azure portal <https://portal.azure.com>_` via Net B.
+  i. Access the `Azure portal <https://portal.azure.com>`_ via Net B.
 
   ii. Sign in using your cloud account credentials (``@cloud.statcan.ca``).
 
@@ -34,8 +34,8 @@ Follow these steps to access your VM:
 
 .. admonition:: Note
 
-    Ensure you are signed in to ``@cloud.statcan.ca`` and not ``@statcan.gc.ca`` by checking the upper-right corner,
-    otherwise you will not be able to find your VM.
+    Ensure you are signed in to ``@cloud.statcan.ca`` and not ``@statcan.gc.ca`` by checking the upper-right corner in
+    the Azure portal, otherwise you will not be able to find your VM.
 
 .. figure:: /source/_static/environment/vm_access.gif
     :alt: VM access.
@@ -50,15 +50,15 @@ All software dependencies are pre-installed. All you need is the following:
 Data Editing
 ^^^^^^^^^^^^
 
-- `Notepad++ <https://notepad-plus-plus.org/downloads/>_`: Base Notepad with added editing capabilities.
-- `QGIS <https://www.qgis.org/en/site/forusers/download.html>_`: Open source GIS application.
+- `Notepad++ <https://notepad-plus-plus.org/downloads/>`_: Base Notepad with added editing capabilities.
+- `QGIS <https://www.qgis.org/en/site/forusers/download.html>`_: Open source GIS application.
 
 Repository Management and Script Usage
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- `Git <https://git-scm.com/downloads>_`: Version control system for tracking code changes and collaborative
+- `Git <https://git-scm.com/downloads>`_: Version control system for tracking code changes and collaborative
   development.
-- `conda <https://docs.anaconda.com/anaconda/install/>_` >= 4.9: Virtual environment and package manager.
+- `conda <https://docs.anaconda.com/anaconda/install/>`_: Virtual environment and package manager.
 
 Repository
 ==========
@@ -156,6 +156,10 @@ Basic Editing Actions
 Enable / Disable Editing
 ------------------------
 
+.. |icon_editing_enable| image:: /source/_static/environment/icon_editing_enable.svg
+.. |icon_select| image:: /source/_static/environment/icon_select.svg
+.. |icon_editing_save| image:: /source/_static/environment/icon_editing_save.svg
+
 1. |icon_editing_enable|_ Enable editing.
 
 2. |icon_select|_ Select arc(s) and perform edits.
@@ -164,12 +168,13 @@ Enable / Disable Editing
 
 4. |icon_editing_enable|_ Disable editing.
 
-.. |icon_editing_enable| image:: /source/_static/environment/icon_editing_enable.svg
-.. |icon_select| image:: /source/_static/environment/icon_select.svg
-.. |icon_editing_save| image:: /source/_static/environment/icon_editing_save.svg
-
 Enable Snapping
 ---------------
+
+.. |icon_snapping_enable| image:: /source/_static/environment/icon_snapping_enable.svg
+.. |icon_snapping_advanced| image:: /source/_static/environment/icon_snapping_advanced.svg
+.. |icon_snapping_vertex| image:: /source/_static/environment/icon_snapping_vertex.svg
+.. |icon_snapping_intersection| image:: /source/_static/environment/icon_snapping_intersection.svg
 
 1. |icon_snapping_enable|_ Enable snapping.
 
@@ -181,13 +186,10 @@ Enable Snapping
 
 5. |icon_snapping_intersection|_ Enable Snapping on Intersection.
 
-.. |icon_snapping_enable| image:: /source/_static/environment/icon_snapping_enable.svg
-.. |icon_snapping_advanced| image:: /source/_static/environment/icon_snapping_advanced.svg
-.. |icon_snapping_vertex| image:: /source/_static/environment/icon_snapping_vertex.svg
-.. |icon_snapping_intersection| image:: /source/_static/environment/icon_snapping_intersection.svg
-
 Add / Move / Delete Vertex
 --------------------------
+
+.. |icon_vertex_enable_editing| image:: /source/_static/environment/icon_vertex_enable_editing.svg
 
 1. |icon_vertex_enable_editing|_ With editing enabled, open vertex editor.
 
@@ -201,8 +203,6 @@ Add / Move / Delete Vertex
 
   c. Delete: Select vertex (clicking and drag cursor or select from vertex editor) and press <Delete> key.
 
-.. |icon_vertex_enable_editing| image:: /source/_static/environment/icon_vertex_enable_editing.svg
-
 QGIS Editing Demo
 -----------------
 
@@ -214,7 +214,7 @@ Updating Layer Sources
 ^^^^^^^^^^^^^^^^^^^^^^
 
 QGIS project files (``.qgz``) are part of the repository and, therefore, modifications will be included with any
-:code: `git pull` that you perform.
+:code:`git pull` that you perform.
 
 :Problem: Your data sources will be overwritten by those being used when the modifications were made.
 :Solution: For each layer, right-click → Change Data Source...
