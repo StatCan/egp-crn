@@ -160,13 +160,13 @@ Enable / Disable Editing
 .. |icon_select| image:: /source/_static/environment/icon_select.svg
 .. |icon_editing_save| image:: /source/_static/environment/icon_editing_save.svg
 
-1. |icon_editing_enable|_ Enable editing.
+1. |icon_editing_enable| Enable editing.
 
-2. |icon_select|_ Select arc(s) and perform edits.
+2. |icon_select| Select arc(s) and perform edits.
 
-3. |icon_editing_save|_ Save edits.
+3. |icon_editing_save| Save edits.
 
-4. |icon_editing_enable|_ Disable editing.
+4. |icon_editing_enable| Disable editing.
 
 Enable Snapping
 ---------------
@@ -176,22 +176,22 @@ Enable Snapping
 .. |icon_snapping_vertex| image:: /source/_static/environment/icon_snapping_vertex.svg
 .. |icon_snapping_intersection| image:: /source/_static/environment/icon_snapping_intersection.svg
 
-1. |icon_snapping_enable|_ Enable snapping.
+1. |icon_snapping_enable| Enable snapping.
 
-2. |icon_snapping_advanced|_ Open snapping options → Advanced Configuration.
+2. |icon_snapping_advanced| Open snapping options → Advanced Configuration.
 
 3. Check box to enable snapping for specific layers.
 
-4. |icon_snapping_vertex|_ Enable vertex snapping for specific layers: Type → Vertex.
+4. |icon_snapping_vertex| Enable vertex snapping for specific layers: Type → Vertex.
 
-5. |icon_snapping_intersection|_ Enable Snapping on Intersection.
+5. |icon_snapping_intersection| Enable Snapping on Intersection.
 
 Add / Move / Delete Vertex
 --------------------------
 
 .. |icon_vertex_enable_editing| image:: /source/_static/environment/icon_vertex_enable_editing.svg
 
-1. |icon_vertex_enable_editing|_ With editing enabled, open vertex editor.
+1. |icon_vertex_enable_editing| With editing enabled, open vertex editor.
 
 2. Right-click arc to display vertices in vertex editor.
 
@@ -208,7 +208,7 @@ QGIS Editing Demo
 
 .. raw:: html
 
-    <video controls src="/source/_static/environment/qgis_basic_editing_actions.mp4"></video>
+    <video controls src="/source/_static/environment/qgis_basic_editing_actions.mp4" type="video/mp4"></video>
 
 Updating Layer Sources
 ^^^^^^^^^^^^^^^^^^^^^^
