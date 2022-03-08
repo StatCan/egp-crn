@@ -97,9 +97,12 @@ Validation 102
 A. If feature is bounded by 2 intersections: do nothing.
 B. If feature is a dead end and is connected to 1 intersection: do nothing.
 C. If feature is not connected to any other feature: delete feature.
+
     1. |icon_select| Select feature.
     2. |icon_delete_selected| Delete selected feature.
+
 D. Else: merge feature with 1 of its neighbours.
+
     1. |icon_select| Select feature and one of its neighbours.
     2. |icon_merge_features| Merge features: Edit → Edit Geometry → Merge Selected Features → Ok.
 
@@ -119,13 +122,18 @@ Validation 103
 | **Actions:**
 
 A. Self-cross: delete / edit crossed segment.
+
     1. Add vertex to the cross point, unless vertex already exists.
     2. For 1 of the 2 crossed segments, delete all vertices beyond the cross point.
     3. For the now-disconnected neighbouring feature, add vertices to the end of the feature to recreate the deleted
        vertices.
+
 B. Self-overlap: delete overlap.
+
     1. Delete duplicated vertices until segments no longer overlap.
+
 C. Touch interior: ensure vertex is duplicated.
+
     1. Add vertex to segment being touched, at touch point.
 
 **Demos:** :doc:`View video demos <demos/topology_validation_demos>`.
@@ -171,11 +179,14 @@ Validation 202
 | **Actions:**
 
 1. For any overlapping features that continue beyond both ends of the overlap: split feature into 3.
+
     1. |icon_split_features| Select Split Features tool: Edit → Edit Geometry → Split Features.
     2. Split features at beginning of overlap: draw a line across feature to split into 2 (split at the vertex to avoid
        creating new vertices).
     3. Split feature again at end of overlap.
+
 2. For any overlapping features that continue beyond just 1 end of the overlap: split feature into 2.
+
 3. Now delete all but 1 of the overlapping features.
 
 **Demos:** :doc:`View video demos <demos/topology_validation_demos>`.
@@ -209,7 +220,9 @@ Validation 302
 | **Actions:**
 
 A. If features can be confirmed as being actually connected: connect features.
+
     1. Add 1 or more vertices to extend and connect one of the disconnected features to the other feature.
+
 B. Else: do nothing.
 
 .. admonition:: Note
