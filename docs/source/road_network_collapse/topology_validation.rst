@@ -78,8 +78,11 @@ Validation 101
 
     Figure 2: Validation 101 example.
 
-:Description: Arcs must be single part (i.e. "LineString").
-:Actions: 1. Do nothing. This is resolved automatically by the script.
+**Description:** Arcs must be single part (i.e. "LineString").
+
+**Actions:**
+
+1. Do nothing. This is resolved automatically by the script.
 
 Validation 102
 ^^^^^^^^^^^^^^
@@ -89,15 +92,18 @@ Validation 102
 
     Figure 3: Validation 102 example.
 
-:Description: Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
-:Actions: A. If feature is bounded by 2 intersections: do nothing.
-          B. If feature is a dead end and is connected to 1 intersection: do nothing.
-          C. If feature is not connected to any other feature: delete feature.
-              1. |icon_select| Select feature.
-              2. |icon_delete_selected| Delete selected feature.
-          D. Else: merge feature with 1 of its neighbours.
-              1. |icon_select| Select feature and one of its neighbours.
-              2. |icon_merge_features| Merge features: Edit → Edit Geometry → Merge Selected Features → Ok.
+**Description:** Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
+
+**Actions:**
+
+A. If feature is bounded by 2 intersections: do nothing.
+B. If feature is a dead end and is connected to 1 intersection: do nothing.
+C. If feature is not connected to any other feature: delete feature.
+    1. |icon_select| Select feature.
+    2. |icon_delete_selected| Delete selected feature.
+D. Else: merge feature with 1 of its neighbours.
+    1. |icon_select| Select feature and one of its neighbours.
+    2. |icon_merge_features| Merge features: Edit → Edit Geometry → Merge Selected Features → Ok.
 
 .. admonition:: Definition
 
@@ -111,17 +117,21 @@ Validation 103
 
     Figure 4: Validation 103 example.
 
-:Description: Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
-:Actions: A. Self-cross: delete / edit crossed segment.
-              1. Add vertex to the cross point, unless vertex already exists.
-              2. For 1 of the 2 crossed segments, delete all vertices beyond the cross point.
-              3. For the now-disconnected neighbouring feature, add vertices to the end of the feature to recreate the
-                 deleted vertices.
-          B. Self-overlap: delete overlap.
-              1. Delete duplicated vertices until segments no longer overlap.
-          C. Touch interior: ensure vertex is duplicated.
-              1. Add vertex to segment being touched, at touch point.
-:Demos: :doc:`View video demos <demos/topology_validation_demos>`.
+**Description:** Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
+
+**Actions:**
+
+A. Self-cross: delete / edit crossed segment.
+    1. Add vertex to the cross point, unless vertex already exists.
+    2. For 1 of the 2 crossed segments, delete all vertices beyond the cross point.
+    3. For the now-disconnected neighbouring feature, add vertices to the end of the feature to recreate the deleted
+       vertices.
+B. Self-overlap: delete overlap.
+    1. Delete duplicated vertices until segments no longer overlap.
+C. Touch interior: ensure vertex is duplicated.
+    1. Add vertex to segment being touched, at touch point.
+
+**Demos:** :doc:`View video demos <demos/topology_validation_demos>`.
 
 Validation 104
 ^^^^^^^^^^^^^^
@@ -131,8 +141,11 @@ Validation 104
 
     Figure 5: Validation 104 example.
 
-:Description: Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance).
-:Actions: 1. Delete as many vertices as required, until no 2 adjacent vertices are within the cluster tolerance.
+**Description:** Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance).
+
+**Actions:**
+
+1. Delete as many vertices as required, until no 2 adjacent vertices are within the cluster tolerance.
 
 2. Duplication
 --------------
@@ -145,8 +158,11 @@ Validation 201
 
     Figure 6: Validation 201 example.
 
-:Description: Arcs must not be duplicated.
-:Actions: 1. Delete all but 1 of the duplicated features.
+**Description:** Arcs must not be duplicated.
+
+**Actions:**
+
+1. Delete all but 1 of the duplicated features.
 
 Validation 202
 ^^^^^^^^^^^^^^
@@ -156,15 +172,19 @@ Validation 202
 
     Figure 7: Validation 202 example.
 
-:Description: Arcs must not overlap (i.e. contain duplicated adjacent vertices).
-:Actions: 1. For any overlapping features that continue beyond both ends of the overlap: split feature into 3.
-              1. |icon_split_features| Select Split Features tool: Edit → Edit Geometry → Split Features.
-              2. Split features at beginning of overlap: draw a line across feature to split into 2 (split at the
-                 vertex to avoid creating new vertices).
-              3. Split feature again at end of overlap.
-          2. For any overlapping features that continue beyond just 1 end of the overlap: split feature into 2.
-          3. Now delete all but 1 of the overlapping features.
-:Demos: :doc:`View video demos <demos/topology_validation_demos>`.
+**Description:** Arcs must not overlap (i.e. contain duplicated adjacent vertices).
+
+**Actions:**
+
+1. For any overlapping features that continue beyond both ends of the overlap: split feature into 3.
+    1. |icon_split_features| Select Split Features tool: Edit → Edit Geometry → Split Features.
+    2. Split features at beginning of overlap: draw a line across feature to split into 2 (split at the vertex to avoid
+       creating new vertices).
+    3. Split feature again at end of overlap.
+2. For any overlapping features that continue beyond just 1 end of the overlap: split feature into 2.
+3. Now delete all but 1 of the overlapping features.
+
+**Demos:** :doc:`View video demos <demos/topology_validation_demos>`.
 
 3. Connectivity
 ---------------
@@ -177,9 +197,12 @@ Validation 301
 
     Figure 8: Validation 301 example.
 
-:Description: Arcs must only connect at endpoints (nodes).
-:Actions: 1. Split feature which is being intersected at a non-node into 2 features (split at the vertex to avoid
-             creating new vertices).
+**Description:** Arcs must only connect at endpoints (nodes).
+
+**Actions:**
+
+1. Split feature which is being intersected at a non-node into 2 features (split at the vertex to avoid creating new
+   vertices).
 
 Validation 302
 ^^^^^^^^^^^^^^
@@ -189,10 +212,13 @@ Validation 302
 
     Figure 9: Validation 302 example.
 
-:Description: Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
-:Actions: A. If features can be confirmed as being actually connected: connect features.
-              1. Add 1 or more vertices to extend and connect one of the disconnected features to the other feature.
-          B. Else: do nothing.
+**Description:** Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
+
+**Actions:**
+
+A. If features can be confirmed as being actually connected: connect features.
+    1. Add 1 or more vertices to extend and connect one of the disconnected features to the other feature.
+B. Else: do nothing.
 
 .. admonition:: Note
 
@@ -206,9 +232,13 @@ Validation 303
 
     Figure 10: Validation 303 example.
 
-:Description: Arcs must not cross (i.e. must be segmented at each intersection).
-:Actions: 1. Split feature at every point where it crosses another feature.
-:Demos: :doc:`View video demos <demos/topology_validation_demos>`.
+**Description:** Arcs must not cross (i.e. must be segmented at each intersection).
+
+**Actions:**
+
+1. Split feature at every point where it crosses another feature.
+
+**Demos:** :doc:`View video demos <demos/topology_validation_demos>`.
 
 .. admonition:: Note
 
