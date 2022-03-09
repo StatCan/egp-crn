@@ -61,16 +61,18 @@ Editing Process
 
     Figure 1: Editing process overview.
 
-QGIS Project - Explanation of Layers
-------------------------------------
+QGIS Project
+------------
+
+Explanation of Layers
+^^^^^^^^^^^^^^^^^^^^^
 
 .. figure:: /source/_static/meshblock_creation/qgis_project_layers.png
     :alt: QGIS table of contents.
 
     Figure 2: QGIS table of contents.
 
-Explanation of Layers
-^^^^^^^^^^^^^^^^^^^^^
+**Layers:**
 
 :``nrn_bo``: Primary editing layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
 :``ngd_road``: NGD roads (non-BOs) to be used for identifying roads which are missing from the NRN and are required for
