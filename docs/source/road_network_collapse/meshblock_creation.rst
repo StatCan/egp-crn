@@ -94,8 +94,8 @@ Validation 100
 **Description:** All BOs must have nodal connections to other arcs (non-logged - used to classify unintegrated BOs and
 feed into other 100-series validations).
 
-BO Integration
-""""""""""""""
+BO Integration Overview
+"""""""""""""""""""""""
 
 Every BO (boundary-only) arc must be integrated into the NRN dataset, whether it be the actual arc itself or just the
 assignment of the identifier to a corresponding NRN arc. Some exceptions exist such as when the BO is truly not
@@ -114,72 +114,228 @@ Make use of the WMS resources available within your ``.qgz`` file to avoid incor
 Scenario: Endpoint Snapping
 """""""""""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_endpoint_snapping.png
+    :alt: Validation 100 example - endpoint snapping.
+
+    Figure ?: Validation 100 example - endpoint snapping.
+
+**Actions:**
+
+1. Snap BO endpoint to NRN endpoint.
 
 Scenario: Non-Endpoint Snapping
 """""""""""""""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_non_endpoint_snapping.png
+    :alt: Validation 100 example - non-endpoint snapping.
+
+    Figure ?: Validation 100 example - non-endpoint snapping.
+
+**Actions:**
+
+1. Snap BO vertex to, or create new BO vertex at, NRN vertex.
+2. Split required arc(s) (BO or NRN) at point of intersection.
 
 Scenario: Crossing Arcs
 """""""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_crossing_arcs.png
+    :alt: Validation 100 example - crossing arcs.
+
+    Figure ?: Validation 100 example - crossing arcs.
+
+**Actions:**
+
+1. If possible, snap BO endpoint to NRN vertex.
+
+2. Split required arc(s) (BO, NRN, or both) at point of intersection.
 
 Scenario: Overlapping Arcs
 """"""""""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_overlapping_arcs.png
+    :alt: Validation 100 example - overlapping arcs.
+
+    Figure ?: Validation 100 example - overlapping arcs.
+
+**Actions:**
+
+1. Delete all BO vertices along overlapping section and snap BO endpoint to NRN vertex.
+
+2. If required, split NRN arc at point of intersection.
 
 Scenario: BO Not Required
 """""""""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_bo_not_required.png
+    :alt: Validation 100 example - BO not required.
+
+    Figure ?: Validation 100 example - BO not required.
+
+**Actions:**
+
+1. Assign the no-longer-required BO ``ngd_uid`` value to the corresponding NRN arc(s)' ``ngd_uid`` field.
+
+2. Delete the no-longer-required BO.
 
 Scenario: Bo-to-BO Connection
 """""""""""""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_bo-to-bo.png
+    :alt: Validation 100 example - Bo-to-BO connection.
+
+    Figure ?: Validation 100 example - BO-to-BO connection.
+
+**Actions:**
+
+1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+
+2. If required, leave BO-to-BO connection point as-is.
+
+.. admonition:: Note
+
+    Many BOs only connect to other BOs at one or both endpoints.
 
 Scenario: BO-to-Non-BO Connection
 """""""""""""""""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_bo-to-non-bo.png
+    :alt: Validation 100 example - BO-to-Non-BO.
+
+    Figure ?: Validation 100 example - BO-to-Non-BO.
+
+**Actions:**
+
+1. Copy and paste required Non-BO into NRN dataset.
+
+    i. Select required Non-BO from NGD layer.
+    ii. Edit → Copy Features.
+    iii. Enable editing for the NRN layer.
+    iv. With NRN layer selected: Edit → Paste Features → Save edits.
+
+2. If required, use the other BO integration scenarios to connect the BO and Non-BO to the NRN network.
+
+3. If required, leave BO-to-Non-BO connection point as-is.
+
+.. admonition:: Note
+
+    There may be several instances of Non-BOs (NGD road) missing from the NRN and worth integrating. A Non-BO should
+    only be integrated if it is necessary for integrating the connected BO.
 
 Scenario: Ferries
 """""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_ferries.png
+    :alt: Validation 100 example - ferries.
+
+    Figure ?: Validation 100 example - ferries.
+
+**Actions:**
+
+1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+
+.. admonition:: Note
+
+    Ferries are excluded from meshblock creation and, therefore, segmentation is not required when BOs and ferries
+    intersect. However, all other :doc:`topology rules <topology_validation>` should still be respected.
 
 Scenario: NatProvTer
 """"""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_natprovter.png
+    :alt: Validation 100 example - NatProvTer.
+
+    Figure ?: Validation 100 example - NatProvTer.
+
+**Actions:**
+
+1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+
+.. admonition:: Note
+
+    NatProvTer BOs are those forming any National, Provincial, and / or Territorial boundary. Avoid moving these BOs.
+    Instead, try adapting the NRN geometries to these BOs. Segmentation is completely fine and doesn't count as a
+    modification.
 
 Scenario: CSD Boundary
 """"""""""""""""""""""
 
-...
+.. figure:: /source/_static/meshblock_creation/validation_100_csd.png
+    :alt: Validation 100 example - CSD boundary.
+
+    Figure ?: Validation 100 example - CSD boundary.
+
+**Actions:**
+
+1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+
+.. admonition:: Note
+
+    CSD boundaries are important but not as strict as NatProvTer boundaries. They can be moved, just with caution and
+    may need to be reviewed later on. Segmentation is completely fine and doesn't count as a modification.
 
 Scenario: No Proper BO Connection
 """""""""""""""""""""""""""""""""
 
-...
+.. include:: /source/_static/meshblock_creation/validation_100_no_proper_bo_connection.rst
+
+**Actions:**
+
+1. Add a new BO which connects the problematic BO to the NRN network by following the route of the incorrect NGD road.
+
+2. Set attribute ``segment_type=3``.
+
+.. admonition:: Note
+
+    Some instances exist where the BO-NGD network is clearly incorrect and we do not want to integrate those required
+    NGD roads. This integration scenario accommodates this issue.
 
 Scenario: CanVec Alignment
 """"""""""""""""""""""""""
 
-...
+.. include:: /source/_static/meshblock_creation/validation_100_canvec_alignment.rst
+
+**Actions:**
+
+1. Avoid moving the CanVec-aligned BO. Instead, segment the BO and NRN arc(s) involved in the scenario at the point of
+   intersection.
+
+.. admonition:: Note
+
+    BOs are aligned to CanVec 50k hydrology data. If possible, avoid moving these BOs (segmenting is acceptable). Arcs
+    are allowed to cross into water.
 
 Scenario: Unclear Connections
 """""""""""""""""""""""""""""
 
-...
+.. include:: /source/_static/meshblock_creation/validation_100_unclear_connections.rst
+
+**Actions:**
+
+1. If possible, snap BO endpoint to NRN vertex.
+
+2. Segment the BO and NRN arc(s) involved in the scenario at the point of intersection.
+
+.. admonition:: Note
+
+    Unclear BO connections are acceptable if no other integration scenario is possible (i.e. no obvious BO adjustments
+    possible, as above).
 
 Scenario: Criss-Crossing BOs
 """"""""""""""""""""""""""""
 
-...
+.. include:: /source/_static/meshblock_creation/validation_100_criss-crossing_bos.rst
+
+**Actions:**
+
+1. If possible, snap BO endpoint to NRN vertex.
+
+2. Segment the BO and NRN arc(s) involved in the scenario at the point of intersection.
+
+.. admonition:: Note
+
+    Criss-crossing BOs and NRN arcs are acceptable if no other integration scenario is possible (i.e. no obvious BO
+    adjustments possible, as shown above).
 
 Validation 101
 ^^^^^^^^^^^^^^
