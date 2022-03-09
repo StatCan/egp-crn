@@ -181,13 +181,12 @@ Validation 202
 
 1. For any overlapping features that continue beyond both ends of the overlap: split feature into 3.
 
-    1. |icon_split_features| Select Split Features tool: Edit → Edit Geometry → Split Features.
-    2. Split features at beginning of overlap: draw a line across feature to split into 2 (split at the vertex to avoid
-       creating new vertices).
-    3. Split feature again at end of overlap.
+    i. |icon_split_features| Select Split Features tool: Edit → Edit Geometry → Split Features.
+    ii. Split features at beginning of overlap: draw a line across feature to split into 2 (split at the vertex to
+        avoid creating new vertices).
+    iii. Split feature again at end of overlap.
 
 2. For any overlapping features that continue beyond just 1 end of the overlap: split feature into 2.
-
 3. Now delete all but 1 of the overlapping features.
 
 **Demos:** :doc:`View video demos <demos/topology_validation_demos>`.

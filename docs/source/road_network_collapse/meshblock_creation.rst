@@ -86,7 +86,7 @@ Validations
 1. Connectivity
 ---------------
 
-.. _Validation 100:
+.. _Meshblock Creation Validation 100:
 
 Validation 100
 ^^^^^^^^^^^^^^
@@ -99,7 +99,7 @@ BO Integration Overview
 
 Every BO (boundary-only) arc must be integrated into the NRN dataset, whether it be the actual arc itself or just the
 assignment of the identifier to a corresponding NRN arc. Some exceptions exist such as when the BO is truly not
-required and is not ``untouchable`` (see :ref:`Validation 102`).
+required and is not ``untouchable`` (see :ref:`Meshblock Creation Validation 102`).
 
 The NRN is considered the ``base`` geometry for the EGP. Therefore, when deciding which arc to modify (NGD or NRN),
 modify the NGD data.
@@ -117,7 +117,7 @@ Scenario: Endpoint Snapping
 .. figure:: /source/_static/meshblock_creation/validation_100_endpoint_snapping.png
     :alt: Validation 100 example - endpoint snapping.
 
-    Figure ?: Validation 100 example - endpoint snapping.
+    Figure 3: Validation 100 example - endpoint snapping.
 
 **Actions:**
 
@@ -129,7 +129,7 @@ Scenario: Non-Endpoint Snapping
 .. figure:: /source/_static/meshblock_creation/validation_100_non_endpoint_snapping.png
     :alt: Validation 100 example - non-endpoint snapping.
 
-    Figure ?: Validation 100 example - non-endpoint snapping.
+    Figure 4: Validation 100 example - non-endpoint snapping.
 
 **Actions:**
 
@@ -142,12 +142,11 @@ Scenario: Crossing Arcs
 .. figure:: /source/_static/meshblock_creation/validation_100_crossing_arcs.png
     :alt: Validation 100 example - crossing arcs.
 
-    Figure ?: Validation 100 example - crossing arcs.
+    Figure 5: Validation 100 example - crossing arcs.
 
 **Actions:**
 
 1. If possible, snap BO endpoint to NRN vertex.
-
 2. Split required arc(s) (BO, NRN, or both) at point of intersection.
 
 Scenario: Overlapping Arcs
@@ -156,12 +155,11 @@ Scenario: Overlapping Arcs
 .. figure:: /source/_static/meshblock_creation/validation_100_overlapping_arcs.png
     :alt: Validation 100 example - overlapping arcs.
 
-    Figure ?: Validation 100 example - overlapping arcs.
+    Figure 6: Validation 100 example - overlapping arcs.
 
 **Actions:**
 
 1. Delete all BO vertices along overlapping section and snap BO endpoint to NRN vertex.
-
 2. If required, split NRN arc at point of intersection.
 
 Scenario: BO Not Required
@@ -170,12 +168,11 @@ Scenario: BO Not Required
 .. figure:: /source/_static/meshblock_creation/validation_100_bo_not_required.png
     :alt: Validation 100 example - BO not required.
 
-    Figure ?: Validation 100 example - BO not required.
+    Figure 7: Validation 100 example - BO not required.
 
 **Actions:**
 
 1. Assign the no-longer-required BO ``ngd_uid`` value to the corresponding NRN arc(s)' ``ngd_uid`` field.
-
 2. Delete the no-longer-required BO.
 
 Scenario: Bo-to-BO Connection
@@ -184,12 +181,11 @@ Scenario: Bo-to-BO Connection
 .. figure:: /source/_static/meshblock_creation/validation_100_bo-to-bo.png
     :alt: Validation 100 example - Bo-to-BO connection.
 
-    Figure ?: Validation 100 example - BO-to-BO connection.
+    Figure 8: Validation 100 example - BO-to-BO connection.
 
 **Actions:**
 
 1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
-
 2. If required, leave BO-to-BO connection point as-is.
 
 .. admonition:: Note
@@ -202,7 +198,7 @@ Scenario: BO-to-Non-BO Connection
 .. figure:: /source/_static/meshblock_creation/validation_100_bo-to-non-bo.png
     :alt: Validation 100 example - BO-to-Non-BO.
 
-    Figure ?: Validation 100 example - BO-to-Non-BO.
+    Figure 9: Validation 100 example - BO-to-Non-BO.
 
 **Actions:**
 
@@ -214,7 +210,6 @@ Scenario: BO-to-Non-BO Connection
     iv. With NRN layer selected: Edit → Paste Features → Save edits.
 
 2. If required, use the other BO integration scenarios to connect the BO and Non-BO to the NRN network.
-
 3. If required, leave BO-to-Non-BO connection point as-is.
 
 .. admonition:: Note
@@ -228,7 +223,7 @@ Scenario: Ferries
 .. figure:: /source/_static/meshblock_creation/validation_100_ferries.png
     :alt: Validation 100 example - ferries.
 
-    Figure ?: Validation 100 example - ferries.
+    Figure 10: Validation 100 example - ferries.
 
 **Actions:**
 
@@ -245,7 +240,7 @@ Scenario: NatProvTer
 .. figure:: /source/_static/meshblock_creation/validation_100_natprovter.png
     :alt: Validation 100 example - NatProvTer.
 
-    Figure ?: Validation 100 example - NatProvTer.
+    Figure 11: Validation 100 example - NatProvTer.
 
 **Actions:**
 
@@ -263,7 +258,7 @@ Scenario: CSD Boundary
 .. figure:: /source/_static/meshblock_creation/validation_100_csd.png
     :alt: Validation 100 example - CSD boundary.
 
-    Figure ?: Validation 100 example - CSD boundary.
+    Figure 12: Validation 100 example - CSD boundary.
 
 **Actions:**
 
@@ -282,7 +277,6 @@ Scenario: No Proper BO Connection
 **Actions:**
 
 1. Add a new BO which connects the problematic BO to the NRN network by following the route of the incorrect NGD road.
-
 2. Set attribute ``segment_type=3``.
 
 .. admonition:: Note
@@ -313,7 +307,6 @@ Scenario: Unclear Connections
 **Actions:**
 
 1. If possible, snap BO endpoint to NRN vertex.
-
 2. Segment the BO and NRN arc(s) involved in the scenario at the point of intersection.
 
 .. admonition:: Note
@@ -329,7 +322,6 @@ Scenario: Criss-Crossing BOs
 **Actions:**
 
 1. If possible, snap BO endpoint to NRN vertex.
-
 2. Segment the BO and NRN arc(s) involved in the scenario at the point of intersection.
 
 .. admonition:: Note
@@ -343,7 +335,7 @@ Validation 101
 .. figure:: /source/_static/meshblock_creation/validation_101.png
     :alt: Validation 101 example.
 
-    Figure ?: Validation 101 example.
+    Figure 13: Validation 101 example.
 
 | **Description:** Unintegrated BO node is <= 5 meters from an NRN road (entire arc).
 | **Actions:**
@@ -360,7 +352,7 @@ Validation 101
 
     Enable imagery WMS layer in QGIS table of contents to assist in determining feature connectivity.
 
-.. _Validation 102:
+.. _Meshblock Creation Validation 102:
 
 Validation 102
 ^^^^^^^^^^^^^^
@@ -385,12 +377,13 @@ Validation 201
 .. figure:: /source/_static/meshblock_creation/validation_201.png
     :alt: Validation 201 example.
 
-    Figure ?: Validation 201 example.
+    Figure 14: Validation 201 example.
 
 | **Description:** All non-deadend arcs (excluding ferries) must form a meshblock polygon.
 | **Actions:**
 
-1. Use the integration scenarios defined in :ref:`Validation 100` to correctly connect the arc to the NRN network.
+1. Use the integration scenarios defined in :ref:`Meshblock Creation Validation 100` to correctly connect the arc to
+   the NRN network.
 
 .. admonition:: Note
 
@@ -402,12 +395,13 @@ Validation 202
 .. figure:: /source/_static/meshblock_creation/validation_202.png
     :alt: Validation 202 example.
 
-    Figure ?: Validation 202 example.
+    Figure 15: Validation 202 example.
 
 | **Description:** All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon.
 | **Actions:**
 
-1. Use the integration scenarios defined in :ref:`Validation 100` to correctly connect the arc and BOs.
+1. Use the integration scenarios defined in :ref:`Meshblock Creation Validation 100` to correctly connect the arc and
+   BOs.
 
 .. admonition:: Note
 
