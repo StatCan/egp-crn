@@ -40,7 +40,7 @@ class Validator:
         self.source = source
         self.dst = dst
         self.layer = layer
-        self.untouchable_bos = Path(filepath.parents[2] / "data/interim/untouchable_bos.zip")
+        self.src_restore = Path(filepath.parents[2] / r"data/interim/nrn_bo_restore.zip")
         self.errors = defaultdict(list)
         self.meshblock_ = None
         self._meshblock_input = None
@@ -96,6 +96,11 @@ class Validator:
         self.nrn_roads = self.nrn.loc[(self.nrn["segment_type"] == 1) |
                                       (self.nrn["segment_type"].isna())].copy(deep=True)
         self.nrn_bos = self.nrn.loc[self.nrn["segment_type"] == 3].copy(deep=True)
+
+        # Load source restoration data.
+        logger.info(f"Loading source restoration data: {self.src_restore}|layer={self.layer}.")
+        self.df_restore = gpd.read_file(self.src_restore, layer=self.layer)
+        logger.info("Successfully loaded source restoration data.")
 
         logger.info("Configuring validations.")
 
@@ -186,9 +191,8 @@ class Validator:
 
         errors = {"values": list(), "query": None}
 
-        # Load untouchable BO identifiers.
-        untouchable_df = pd.read_csv(self.untouchable_bos)
-        untouchable_ids = set(untouchable_df.loc[untouchable_df["pr"] == self.source, self.bo_id])
+        # Compile untouchable BO identifiers.
+        untouchable_ids = set(self.df_restore.loc[self.df_restore["boundary"] == 1, self.bo_id])
 
         # Compile missing untouchable BO identifiers.
         missing_ids = untouchable_ids - set(self.nrn[self.bo_id])
