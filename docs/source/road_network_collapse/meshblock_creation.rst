@@ -409,3 +409,13 @@ Validation 202
 
     In this example, ``segment_id=1`` is flagged for not being completely within a single meshblock polygon.
     ``segment_id=0`` is fine.
+
+Progress
+========
+
+This section is temporary and will be removed once this task is completed.
+
+.. figure:: /source/_static/meshblock_creation/meshblock_creation_progress.svg
+    :alt: Meshblock creation progress.
+
+    Figure 16: Meshblock creation progress.
