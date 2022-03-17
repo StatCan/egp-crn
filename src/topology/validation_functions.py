@@ -237,9 +237,9 @@ class Validator:
 
                 # Compile error logs.
                 errors["values"] = deadends["ids"].map(
-                    lambda ids: f"Disconnected features are too close: {*ids,}").to_list()
+                    lambda ids: f"Disconnected features are too close: {*ids,}".replace(",)", ")")).to_list()
                 vals = set(chain.from_iterable(deadends["ids"]))
-                errors["query"] = f"\"{self.id}\" in {*vals,}"
+                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -279,7 +279,7 @@ class Validator:
                 # Compile error logs.
                 vals = set(segment.loc[flag].index)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}"
+                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -310,7 +310,7 @@ class Validator:
                 # Compile error logs.
                 vals = set(self.segment.loc[flag].index)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}"
+                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
             else:
 
@@ -355,7 +355,7 @@ class Validator:
                     # Compile error logs.
                     vals = set(self.segment_original.loc[flag].index)
                     errors["values"] = vals
-                    errors["query"] = f"\"{self.id}\" in {*vals,}"
+                    errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -390,7 +390,7 @@ class Validator:
                 # Compile error logs.
                 vals = set(coord_pairs.loc[flag].index)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}"
+                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -428,7 +428,7 @@ class Validator:
                 # Compile error logs.
                 vals = set(self.segment.loc[flag].index)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}"
+                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -448,7 +448,7 @@ class Validator:
             # Compile error logs.
             vals = set(self.segment.loc[flag].index)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -468,7 +468,7 @@ class Validator:
             # Compile error logs.
             vals = set(self.segment.loc[flag].index)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -496,7 +496,7 @@ class Validator:
                 # Compile error logs.
                 vals = set(dups.index)
                 errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}"
+                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -519,6 +519,6 @@ class Validator:
         if sum(flag):
             vals = set(overlaps.loc[flag].index)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors

@@ -204,7 +204,7 @@ class Validator:
         # Compile error logs.
         if len(missing_ids):
             errors["values"] = missing_ids
-            errors["query"] = f"\"{self.bo_id}\" in {*missing_ids,}"
+            errors["query"] = f"\"{self.bo_id}\" in {*missing_ids,}".replace(",)", ")")
 
         return errors
 
@@ -237,7 +237,7 @@ class Validator:
 
             # Compile error logs.
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
         return errors
 
@@ -287,7 +287,7 @@ class Validator:
         if sum(flag):
             vals = set(within.loc[flag].index)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
             # Update invalid count for progress tracker.
             self.meshblock_progress["Invalid"] += sum(flag)
@@ -317,7 +317,7 @@ class Validator:
         if sum(flag):
             vals = set(covered_by.loc[flag].index)
             errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}"
+            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
 
             # Update invalid count for progress tracker.
             self.meshblock_progress["Invalid"] += sum(flag)
