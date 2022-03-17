@@ -193,12 +193,13 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
-def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1) -> Tuple[gpd.GeoDataFrame, bool]:
+def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0.01) -> Tuple[gpd.GeoDataFrame, bool]:
     """
     Snaps NGD arcs to NRN arcs (node-to-node) if they are <= the snapping proximity threshold.
 
     :param gpd.GeoDataFrame df: GeoDataFrame containing both NRN and NGD arcs.
-    :param float prox: maximum snapping distance (same unit as GeoDataFrame CRS), default=0.1.
+    :param float prox: max snapping distance (same unit as GeoDataFrame CRS), default=0.1.
+    :param float prox_boundary: max snapping distance (same unit as GeoDataFrame CRS) for boundary arcs, default=0.01.
     :return Tuple[gpd.GeoDataFrame, bool]: updated GeoDataFrame and flag indicating if records have been modified.
     """
 
@@ -208,8 +209,10 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1) -> Tuple[gpd.GeoDataFram
     nrn_flag = (~df["segment_id_orig"].isna()) & (df["segment_type"] != 2)
     nrn_nodes = set(df.loc[nrn_flag, "geometry"].map(
         lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode())
-    ngd_nodes = df.loc[(~nrn_flag) & (df["segment_type"] != 2) & (df["boundary"] != 1), "geometry"].map(
+    ngd_nodes = df.loc[(~nrn_flag) & (df["segment_type"] != 2), "geometry"].map(
         lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode()
+    ngd_boundary_nodes = set(df.loc[(~nrn_flag) & (df["segment_type"] != 2) & (df["boundary"] == 1), "geometry"].map(
+        lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode())
 
     # Compile snappable ngd nodes (ngd nodes not connected to an nrn node).
     snap_nodes = ngd_nodes.loc[~ngd_nodes.isin(nrn_nodes)].copy(deep=True)
@@ -219,7 +222,8 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1) -> Tuple[gpd.GeoDataFram
         nrn_nodes = gpd.GeoSeries(map(Point, set(nrn_nodes)), crs=df.crs)
 
         # Generate simplified ngd node buffers using distance tolerance.
-        snap_node_buffers = snap_nodes.map(lambda pt: Point(pt).buffer(prox, resolution=5))
+        snap_node_buffers = snap_nodes.map(
+            lambda pt: Point(pt).buffer({True: prox_boundary, False: prox}[pt in ngd_boundary_nodes], resolution=5))
 
         # Query nrn node which intersect each ngd node buffer.
         # Construct DataFrame containing results.

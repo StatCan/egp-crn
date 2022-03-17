@@ -44,7 +44,7 @@ class Validator:
         self.errors = defaultdict(list)
         self.meshblock_ = None
         self._meshblock_input = None
-        self.meshblock_progress = dict()
+        self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Excluded")}
         self.id = "segment_id"
         self.bo_id = "ngd_uid"
         self._export = False
@@ -140,6 +140,10 @@ class Validator:
             # Export data, if required.
             if self._export:
                 helpers.export(self.nrn, dst=self.dst, name=self.layer)
+
+            # Populate progress tracker with total meshblock input, excluded, and flagged record counts.
+            self.meshblock_progress["Valid"] = len(self._meshblock_input) - self.meshblock_progress["Invalid"]
+            self.meshblock_progress["Excluded"] = len(self.nrn) - len(self._meshblock_input)
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")
@@ -285,6 +289,9 @@ class Validator:
             errors["values"] = vals
             errors["query"] = f"\"{self.id}\" in {*vals,}"
 
+            # Update invalid count for progress tracker.
+            self.meshblock_progress["Invalid"] += sum(flag)
+
         return errors
 
     def meshblock_representation_non_deadend(self) -> dict:
@@ -312,9 +319,7 @@ class Validator:
             errors["values"] = vals
             errors["query"] = f"\"{self.id}\" in {*vals,}"
 
-        # Populate progress tracker with total meshblock input, excluded, and flagged record counts.
-        self.meshblock_progress["Valid"] = len(self._meshblock_input) - sum(flag)
-        self.meshblock_progress["Invalid"] = sum(flag)
-        self.meshblock_progress["Excluded"] = len(self.nrn) - len(self._meshblock_input)
+            # Update invalid count for progress tracker.
+            self.meshblock_progress["Invalid"] += sum(flag)
 
         return errors
