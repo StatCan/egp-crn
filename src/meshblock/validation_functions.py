@@ -277,7 +277,7 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Query meshblock polygons which contain each deadend arc.
-        within = self.nrn.loc[self.nrn.index.isin(self._deadends), "geometry"]\
+        within = self.nrn.loc[(self.nrn.index.isin(self._deadends)) & (self.nrn["segment_type"] != 2), "geometry"]\
             .map(lambda g: set(self.meshblock_.sindex.query(g, predicate="within")))
 
         # Flag arcs which are not completely within one polygon.
