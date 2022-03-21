@@ -112,6 +112,13 @@ installed on your VM.
 environment and effective dependency management. The ``conda`` environment must be activated before executing any
 scripts in order to make use of the contained dependencies.
 
+Installation
+------------
+
+Install the ``conda`` environment via::
+
+    conda env create -f C:/egp/environment.yml
+
 Activation
 ----------
 
