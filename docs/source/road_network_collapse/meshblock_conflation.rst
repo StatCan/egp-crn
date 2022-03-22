@@ -95,6 +95,11 @@ Example Output
 Conflation Scenarios
 ====================
 
+.. admonition:: Converting NGD roads to BOs (applies to most scenarios)
+
+    If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the EGP data and set
+    ``bo_new=1``. The script will automatically set ``segment_type=3`` for these features, or you can do it yourself.
+
 Scenario: Missing NGD Roads
 ---------------------------
 
