@@ -15,8 +15,19 @@ arcs. This is why the networks cannot be simply linked arc-to-arc, but require m
 alignment differences. A threshold of 80% is currently used to determine acceptable network alignment and classify
 individual meshblock polygons (BBs) as ``conflated`` or ``unconflated``.
 
+.. admonition:: Definition
+
+    ``conflated``: An NGD BB which has >= 80% of its area contained within a single EGP BB.
+
+.. admonition:: Threshold Strictness
+
+    It will not always be possible to achieve the conflation threshold without introducing needless complexity to the
+    EGP network. Therefore, the threshold should be treated as a soft restriction and lower values are acceptable so
+    long as the NGD BB can be guaranteed to link to a single EGP BB based on majority area occupation, as defined above
+    for ``conflation``.
+
 The required actions to resolve ``unconflated`` BBs should follow those outlined in the various validations in
-:ref:`meshblock_creation`.
+:doc:`meshblock_creation`.
 
 Resources
 ---------
