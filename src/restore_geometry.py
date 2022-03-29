@@ -127,7 +127,7 @@ class CRNRestoreGeometry:
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
+@click.argument("source", type=click.Choice(helpers.load_yaml("config.yaml")["sources"], False))
 @click.option("--distance", "-d", type=click.IntRange(min=1), default=2, show_default=True,
               help="The radius of the buffer.")
 def main(source: str, distance: int = 2) -> None:

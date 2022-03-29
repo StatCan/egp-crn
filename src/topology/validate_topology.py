@@ -36,6 +36,7 @@ class CRNTopologyValidation:
         :param bool remove: remove pre-existing output file (validations.log), default False.
         """
 
+        self.source = source
         self.layer = None
         self.remove = remove
         self.Validator = None
@@ -116,7 +117,7 @@ class CRNTopologyValidation:
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
+@click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing output file (validations.log).")
 def main(source: str, remove: bool = False) -> None:

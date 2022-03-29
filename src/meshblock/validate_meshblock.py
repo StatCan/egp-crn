@@ -126,7 +126,7 @@ class CRNMeshblockValidation:
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
+@click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
 @click.option("--remove / --no-remove", "-r", default=False, show_default=True,
               help="Remove pre-existing output file (validations.log).")
 @click.option("--export-meshblock / --no-export-meshblock", "-e", default=False, show_default=True,

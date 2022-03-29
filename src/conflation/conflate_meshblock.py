@@ -42,7 +42,7 @@ class CRNMeshblockConflation:
         self.layer_arc = f"nrn_bo_{self.source}"
 
         self.src_ngd = Path(filepath.parents[2] / r"data/interim/ngd.zip")
-        self.layer_meshblock_ngd = f"ngd_a_{self.source}"
+        self.layer_meshblock_ngd = f"ngd_a_{self.source.split('_')[0]}"
 
         self.id_arc_ngd = "ngd_uid"
         self.id_meshblock_ngd = "bb_uid"
@@ -174,7 +174,7 @@ class CRNMeshblockConflation:
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
+@click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
 @click.option("--threshold", "-t", type=click.IntRange(min=1, max=99), default=80, show_default=True,
               help="The percentage of area intersection which constitutes a match.")
 def main(source: str, threshold: int = 80) -> None:

@@ -8,6 +8,7 @@ import string
 import sys
 import time
 import uuid
+import yaml
 from itertools import chain
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
@@ -191,6 +192,26 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
     vals_arrays = np.split(vals, keys_indexes[1:])
 
     return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
+
+
+def load_yaml(path: Union[Path, str]) -> Any:
+    """
+    Loads the content of a YAML file as a Python object.
+
+    :param Union[Path, str] path: path to the YAML file.
+    :return Any: Python object consisting of the YAML content.
+    """
+
+    path = Path(path).resolve()
+
+    with open(path, "r", encoding="utf8") as f:
+
+        try:
+
+            return yaml.safe_load(f)
+
+        except (ValueError, yaml.YAMLError):
+            logger.exception(f"Unable to load yaml: {path}.")
 
 
 def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0.01) -> Tuple[gpd.GeoDataFrame, bool]:

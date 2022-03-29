@@ -39,8 +39,8 @@ class CRNArcConflation:
         self.layer_meshblock = f"meshblock_{self.source}"
 
         self.src_ngd = Path(filepath.parents[2] / r"data/interim/ngd.zip")
-        self.layer_arc_ngd = f"ngd_al_{self.source}"
-        self.layer_meshblock_ngd = f"ngd_a_{self.source}"
+        self.layer_arc_ngd = f"ngd_al_{self.source.split('_')[0]}"
+        self.layer_meshblock_ngd = f"ngd_a_{self.source.split('_')[0]}"
 
         self.id_arc = "segment_id"
         self.id_arc_ngd = "ngd_uid"
@@ -139,7 +139,7 @@ class CRNArcConflation:
 
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
+@click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
 def main(source: str) -> None:
     """
     Instantiates and executes the CRN class.
