@@ -5,4 +5,4 @@ channels:
 dependencies:
   - pydata-sphinx-theme=0.7.2
   - python=3.9.2
-  - sphinx=3.5.1
+  - sphinx=4.5.0
