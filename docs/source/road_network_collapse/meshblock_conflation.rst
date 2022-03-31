@@ -167,9 +167,9 @@ Scenario: Missing NGD Roads
 7
 
 
-.. include:: ../../_static/meshblock_conflation/scenario_missing_ngd_roads.rst
+.. include:: ../_static/meshblock_conflation/scenario_missing_ngd_roads.rst
 
-.. figure:: ../../_static/meshblock_conflation/scenario_missing_ngd_roads.png
+.. figure:: ../_static/meshblock_conflation/scenario_missing_ngd_roads.png
 
 
 Scenario: Missing False NGD Road (1)
