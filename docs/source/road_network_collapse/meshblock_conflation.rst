@@ -119,11 +119,15 @@ Scenario: Missing NGD Roads
 
 .. include:: /source/_static/meshblock_conflation/scenario_missing_ngd_roads.rst
 
+.. figure:: /source/_static/meshblock_conflation/scenario_missing_ngd_roads.png
+
 
 2
 
 
 .. include:: source/_static/meshblock_conflation/scenario_missing_ngd_roads.rst
+
+.. figure:: source/_static/meshblock_conflation/scenario_missing_ngd_roads.png
 
 
 3
@@ -131,17 +135,39 @@ Scenario: Missing NGD Roads
 
 .. include:: docs/source/_static/meshblock_conflation/scenario_missing_ngd_roads.rst
 
+.. figure:: docs/source/_static/meshblock_conflation/scenario_missing_ngd_roads.png
+
 
 4
 
 
 .. include:: ../../source/_static/meshblock_conflation/scenario_missing_ngd_roads.rst
 
+.. figure:: ../../source/_static/meshblock_conflation/scenario_missing_ngd_roads.png
+
 
 5
 
 
 .. include:: ../source/_static/meshblock_conflation/scenario_missing_ngd_roads.rst
+
+.. figure:: ../source/_static/meshblock_conflation/scenario_missing_ngd_roads.png
+
+
+6
+
+
+.. include:: ../../_images/meshblock_conflation/scenario_missing_ngd_roads.rst
+
+.. figure:: ../../_images/meshblock_conflation/scenario_missing_ngd_roads.png
+
+
+7
+
+
+.. include:: ../../_static/meshblock_conflation/scenario_missing_ngd_roads.rst
+
+.. figure:: ../../_static/meshblock_conflation/scenario_missing_ngd_roads.png
 
 
 Scenario: Missing False NGD Road (1)
