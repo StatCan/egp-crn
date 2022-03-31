@@ -119,6 +119,8 @@ Scenario: Missing NGD Roads
 
 .. include:: /source/_static/meshblock_conflation/scenario_missing_ngd_roads.rst
 
+.. include:: /source/_static/meshblock_conflation/scenario_missing_ngd_roads.html
+
 .. figure:: /source/_static/meshblock_conflation/scenario_missing_ngd_roads.png
 
 
