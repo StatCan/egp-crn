@@ -161,7 +161,7 @@ Progress
 
 This section is temporary and will be removed once this task is completed.
 
-.. figure:: /source/_static/meshblock_conflation/meshblock_conflation_progress.svg
+.. figure:: /source/_static/progress_charts/meshblock_conflation_progress.svg
     :alt: Meshblock conflation progress.
 
     Figure 5: Meshblock conflation progress - original and current number of unconflated NGD BBs as of April 19, 2022.
