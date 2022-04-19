@@ -418,4 +418,4 @@ This section is temporary and will be removed once this task is completed.
 .. figure:: /source/_static/meshblock_creation/meshblock_creation_progress.svg
     :alt: Meshblock creation progress.
 
-    Figure 16: Meshblock creation progress - original and current number of invalid arcs as of April 11, 2022.
+    Figure 16: Meshblock creation progress - original and current number of invalid arcs as of April 19, 2022.
