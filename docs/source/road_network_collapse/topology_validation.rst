@@ -14,8 +14,8 @@ Topology Validation
 Overview
 ========
 
-The NRN must be topologically correct to facilitate its usage in downstream EGP tasks in addition to satisfying road
-network requirements such as routability.
+The CRN must be topologically correct to facilitate its usage in downstream CRN tasks in addition to satisfying NRN and
+NGD specific network requirements such as routability.
 
 Resources
 ---------

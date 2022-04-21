@@ -8,9 +8,9 @@ Meshblock Creation
 Overview
 ========
 
-A new meshblock (geographical polygon units) needs to be developed based on the NRN road geometry and NGD BOs (boundary
-only arcs). The lowest level of polygons created from these geometries will be the foundational layer of the entire
-statistical geographic unit hierarchy.
+A new meshblock (polygon units, also known as ``basic blocks`` (``BB``s)) needs to be developed based on the CRN using
+both NRN roads and NGD BOs (boundary-only arcs) as inputs. The resulting polygon network will be the foundational layer
+of the entire hierarchy of statistical geographic units and will replace NGD's NGD_AL dataset.
 
 Resources
 ---------

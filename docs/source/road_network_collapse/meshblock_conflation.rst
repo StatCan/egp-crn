@@ -8,9 +8,9 @@ Meshblock Conflation
 Overview
 ========
 
-The NGD network needs to be linkable to the new network. This includes individual arcs and BB (meshblock) units.
+The NGD network needs to be linkable to the new CRN network. This includes individual arcs and BB (meshblock) units.
 
-The EGP and NGD network differences are not limited to the quantity of arcs, but also the shape and alignment of those
+The CRN and NGD network differences are not limited to the quantity of arcs, but also the shape and alignment of those
 arcs. This is why the networks cannot be simply linked arc-to-arc, but require more detailed conflation to reduce
 alignment differences. A threshold of 80% is currently used to determine acceptable network alignment and classify
 individual meshblock polygons (BBs) as ``conflated`` or ``unconflated``.
