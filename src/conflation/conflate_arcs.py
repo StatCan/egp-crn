@@ -38,7 +38,7 @@ class CRNArcConflation:
         self.layer_arc = f"nrn_bo_{self.source}"
         self.layer_meshblock = f"meshblock_{self.source}"
 
-        self.src_ngd = Path(filepath.parents[2] / r"data/interim/ngd.zip")
+        self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd.gpkg")
         self.layer_arc_ngd = f"ngd_al_{self.source.split('_')[0]}"
         self.layer_meshblock_ngd = f"ngd_a_{self.source.split('_')[0]}"
 
@@ -51,7 +51,7 @@ class CRNArcConflation:
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
             if src.exists():
-                layers = set(fiona.listlayers(fr"zip://{str(src)}" if src.suffix == ".zip" else src))
+                layers = set(fiona.listlayers(src))
                 for layer in {self.src: (self.layer_arc, self.layer_meshblock),
                               self.src_ngd: (self.layer_arc_ngd, self.layer_meshblock_ngd)}[src]:
                     if layer not in layers:

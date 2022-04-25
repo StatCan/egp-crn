@@ -40,7 +40,7 @@ class Validator:
         self.source = source
         self.dst = dst
         self.layer = layer
-        self.src_restore = Path(filepath.parents[2] / r"data/interim/nrn_bo_restore.zip")
+        self.src_restore = Path(filepath.parents[2] / "data/interim/nrn_bo_restore.gpkg")
         self.errors = defaultdict(list)
         self.meshblock_ = None
         self._meshblock_input = None

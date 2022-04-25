@@ -44,13 +44,13 @@ class CRNMeshblockValidation:
         self.export_meshblock = export_meshblock
         self.Validator = None
         self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
-        self.src_restore = Path(filepath.parents[2] / r"data/interim/nrn_bo_restore.zip")
+        self.src_restore = Path(filepath.parents[2] / "data/interim/nrn_bo_restore.gpkg")
         self.validations_log = Path(self.src.parent / "validations.log")
 
         # Configure source path and layer name.
         for src in (self.src, self.src_restore):
             if src.exists():
-                if self.layer not in set(fiona.listlayers(fr"zip://{str(src)}" if src.suffix == ".zip" else src)):
+                if self.layer not in set(fiona.listlayers(src)):
                     logger.exception(f"Layer \"{self.layer}\" not found within source: \"{src}\".")
                     sys.exit(1)
             else:
