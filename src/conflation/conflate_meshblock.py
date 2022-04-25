@@ -42,7 +42,7 @@ class CRNMeshblockConflation:
         self.layer_arc = f"nrn_bo_{self.source}"
 
         self.src_ngd = Path(filepath.parents[2] / r"data/interim/ngd.zip")
-        self.layer_meshblock_ngd = f"ngd_a_{self.source.split('_')[0]}"
+        self.layer_meshblock_ngd = f"ngd_a_{self.source}"
 
         self.id_arc_ngd = "ngd_uid"
         self.id_meshblock_ngd = "bb_uid"
