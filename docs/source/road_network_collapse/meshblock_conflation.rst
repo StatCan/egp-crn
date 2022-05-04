@@ -22,9 +22,9 @@ individual meshblock polygons (BBs) as ``conflated`` or ``unconflated``.
 .. admonition:: Threshold Strictness
 
     It will not always be possible to achieve the conflation threshold without introducing needless complexity to the
-    EGP network. Therefore, the threshold should be treated as a soft restriction and lower values are acceptable so
-    long as the NGD BB can be guaranteed to link to a single EGP BB based on majority area occupation, as defined above
-    for ``conflation``.
+    CRN. Therefore, the threshold should be treated as a soft restriction and lower values are acceptable so long as
+    the NGD BB can be guaranteed to link to a single EGP BB based on majority area occupation, as defined above for
+    ``conflation``.
 
 The required actions to resolve ``unconflated`` BBs should follow those outlined in the various validations in
 :doc:`meshblock_creation`.
@@ -65,7 +65,7 @@ Cardinalities
     :Explanation: Networks align.
     :Action: None.
 ``many-to-one``:
-    :Explanation: EGP is more detailed.
+    :Explanation: CRN is more detailed.
     :Action: None.
 ``one-to-many``:
     :Explanation: NGD is more detailed.
@@ -108,7 +108,7 @@ Conflation Scenarios
 
 .. admonition:: Converting NGD roads to BOs (applies to most scenarios)
 
-    If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the EGP data and set
+    If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the CRN data and set
     ``bo_new=1``. The script will automatically set ``segment_type=3`` for these features, or you can do it yourself.
 
 Scenario: Missing NGD Roads

@@ -99,11 +99,11 @@ feed into other 100-series validations).
 BO Integration Overview
 """""""""""""""""""""""
 
-Every BO (boundary-only) arc must be integrated into the NRN dataset, whether it be the actual arc itself or just the
+Every BO (boundary-only) arc must be integrated into the CRN, whether it be the actual arc itself or just the
 assignment of the identifier to a corresponding NRN arc. Some exceptions exist such as when the BO is truly not
 required and is not ``untouchable`` (see :ref:`Meshblock Creation Validation 102`).
 
-The NRN is considered the ``base`` geometry for the EGP. Therefore, when deciding which arc to modify (NGD or NRN),
+The NRN is considered the ``base`` geometry for the CRN. Therefore, when deciding which arc to modify (NGD or NRN),
 modify the NGD data.
 
 Make use of the WMS resources available within your ``.qgz`` file to avoid incorrectly touching BOs.
@@ -164,18 +164,23 @@ Scenario: Overlapping Arcs
 1. Delete all BO vertices along overlapping section and snap BO endpoint to NRN vertex.
 2. If required, split NRN arc at point of intersection.
 
-Scenario: BO Not Required
-"""""""""""""""""""""""""
+Scenario: Obsolete BO
+"""""""""""""""""""""
 
-.. figure:: /source/_static/meshblock_creation/validation_100_bo_not_required.png
-    :alt: Validation 100 example - BO not required.
+.. figure:: /source/_static/meshblock_creation/validation_100_obsolete_bo.png
+    :alt: Validation 100 example - Obsolete BO.
 
-    Figure 7: Validation 100 example - BO not required.
+    Figure 7: Validation 100 example - Obsolete BO.
 
 **Actions:**
 
-1. Assign the no-longer-required BO ``ngd_uid`` value to the corresponding NRN arc(s)' ``ngd_uid`` field.
-2. Delete the no-longer-required BO.
+1. Assign the obsolete BO ``ngd_uid`` value to the corresponding NRN arc(s)' ``ngd_uid`` field.
+2. Delete the obsolete BO.
+
+.. admonition:: Note
+
+    If the BO only covers a small portion of an NRN arc, you may wish to split the associated arc to avoid over
+    representing the ``ngd_uid`` by a much larger feature.
 
 Scenario: Bo-to-BO Connection
 """""""""""""""""""""""""""""
@@ -187,37 +192,41 @@ Scenario: Bo-to-BO Connection
 
 **Actions:**
 
-1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+1. If required, use the other BO integration scenarios to connect the BO to the CRN.
 2. If required, leave BO-to-BO connection point as-is.
 
 .. admonition:: Note
 
     Many BOs only connect to other BOs at one or both endpoints.
 
-Scenario: BO-to-Non-BO Connection
-"""""""""""""""""""""""""""""""""
+Scenario: Missing NGD Road
+""""""""""""""""""""""""""
 
-.. figure:: /source/_static/meshblock_creation/validation_100_bo-to-non-bo.png
-    :alt: Validation 100 example - BO-to-Non-BO.
+.. figure:: /source/_static/meshblock_creation/validation_100_missing_ngd_road.png
+    :alt: Validation 100 example - Missing NGD road.
 
-    Figure 9: Validation 100 example - BO-to-Non-BO.
+    Figure 9: Validation 100 example - Missing NGD road.
 
 **Actions:**
 
-1. Copy and paste required Non-BO into NRN dataset.
+1. Copy and paste required NGD road into the CRN dataset.
 
-    i. Select required Non-BO from NGD layer.
+    i. Select required NGD road from NGD layer.
     ii. Edit → Copy Features.
-    iii. Enable editing for the NRN layer.
-    iv. With NRN layer selected: Edit → Paste Features → Save edits.
+    iii. Enable editing for the CRN layer.
+    iv. With CRN layer selected: Edit → Paste Features → Save edits.
 
-2. If required, use the other BO integration scenarios to connect the BO and Non-BO to the NRN network.
-3. If required, leave BO-to-Non-BO connection point as-is.
+2. If required, use the other BO integration scenarios to connect the BO and NGD road to the CRN.
 
 .. admonition:: Note
 
-    There may be several instances of Non-BOs (NGD road) missing from the NRN and worth integrating. A Non-BO should
-    only be integrated if it is necessary for integrating the connected BO.
+    There may be several instances of missing NGD roads, but try to limit your integration of these roads exclusively
+    to those required for resolving BO connections.
+
+.. admonition:: Converting NGD roads to BOs
+
+    If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the CRN data and set
+    ``bo_new=1``. The script will automatically set ``segment_type=3`` for these features, or you can do it yourself.
 
 Scenario: Ferries
 """""""""""""""""
@@ -229,7 +238,7 @@ Scenario: Ferries
 
 **Actions:**
 
-1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+1. If required, use the other BO integration scenarios to connect the BO to the CRN.
 
 .. admonition:: Note
 
@@ -246,7 +255,7 @@ Scenario: NatProvTer
 
 **Actions:**
 
-1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+1. If required, use the other BO integration scenarios to connect the BO to the CRN.
 
 .. admonition:: Note
 
@@ -264,27 +273,12 @@ Scenario: CSD Boundary
 
 **Actions:**
 
-1. If required, use the other BO integration scenarios to connect the BO to the NRN network.
+1. If required, use the other BO integration scenarios to connect the BO to the CRN.
 
 .. admonition:: Note
 
     CSD boundaries are important but not as strict as NatProvTer boundaries. They can be moved, just with caution and
     may need to be reviewed later on. Segmentation is completely fine and doesn't count as a modification.
-
-Scenario: No Proper BO Connection
-"""""""""""""""""""""""""""""""""
-
-.. include:: /source/_static/meshblock_creation/validation_100_no_proper_bo_connection.rst
-
-**Actions:**
-
-1. Add a new BO which connects the problematic BO to the NRN network by following the route of the incorrect NGD road.
-2. Set attribute ``segment_type=3``.
-
-.. admonition:: Note
-
-    Some instances exist where the BO-NGD network is clearly incorrect and we do not want to integrate those required
-    NGD roads. This integration scenario accommodates this issue.
 
 Scenario: CanVec Alignment
 """"""""""""""""""""""""""
@@ -385,7 +379,7 @@ Validation 201
 | **Actions:**
 
 1. Use the integration scenarios defined in :ref:`Meshblock Creation Validation 100` to correctly connect the arc to
-   the NRN network.
+   the CRN.
 
 .. admonition:: Note
 
