@@ -1,10 +1,27 @@
 sources:
-  - ab
-  - bc
-  - mb
-  - nb
+#  - ab
+  - ab_c
+  - ab_e
+  - ab_n
+  - ab_s
+  - ab_w
+#  - bc
+  - bc_c
+  - bc_n
+  - bc_se
+  - bc_sw
+  - bc_v
+#  - mb
+  - mb_n
+  - mb_s
+#  - nb
+  - nb_e
+  - nb_n
+  - nb_w
   - nl
-  - ns
+#  - ns
+  - ns_n
+  - ns_s
   - nt
   - nu
 #  - on
@@ -23,5 +40,8 @@ sources:
   - qc_s
   - qc_se
   - qc_w
-  - sk
+#  - sk
+  - sk_c
+  - sk_n
+  - sk_s
   - yt
