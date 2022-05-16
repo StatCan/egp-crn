@@ -139,8 +139,10 @@ class CRNMeshblockConflation:
 
         # Compile maximum occupation percentage for each invalid ngd meshblock as a lookup dictionary.
         flag_invalid = ~meshblock["ngd_id"].isin(valid_ngd_ids)
-        occupation_pct = pd.DataFrame({"ngd_id": meshblock.loc[flag_invalid, "ngd_id"].values,
-                                       "occupation_pct": (occupation_area.loc[flag_invalid] * 100).map(int).values})\
+        occupation_pct = pd.DataFrame({
+            "ngd_id": meshblock.loc[flag_invalid, "ngd_id"].values,
+            "occupation_pct": (occupation_area.loc[flag_invalid] * 100).fillna(0).map(int).values
+        })\
             .sort_values(by=["ngd_id", "occupation_pct"])\
             .drop_duplicates(subset="ngd_id", keep="last")
         occupation_pct = dict(zip(occupation_pct["ngd_id"], occupation_pct["occupation_pct"]))
