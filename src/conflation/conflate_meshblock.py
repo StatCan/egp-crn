@@ -4,7 +4,6 @@ import geopandas as gpd
 import logging
 import pandas as pd
 import sys
-from collections import Counter
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from shapely.ops import polygonize, unary_union
@@ -167,11 +166,11 @@ class CRNMeshblockConflation:
                        name=f"meshblock_ngd_{self.source}")
 
         # Log conflation progress.
-        counts = Counter(self.meshblock_ngd["valid"])
-        if False not in counts:
-            counts[False] = 0
-        table = tabulate([[k, f"{v:,}"] for k, v in counts.items()], headers=["Block Validity", "Count"],
-                         tablefmt="rst", colalign=("left", "right"))
+        count_ngd = sum(~self.meshblock_ngd['valid'])
+        count_egp = sum(self.meshblock[self.id_meshblock_ngd] == -1)
+        count_total = count_ngd + count_egp
+        table = tabulate([["NGD", f"{count_ngd:,}"], ["EGP", f"{count_egp:,}"], ["Total", f"{count_total:,}"]],
+                         headers=["Invalid Blocks", "Count"], tablefmt="rst", colalign=("left", "right"))
         logger.info("\n" + table)
 
 

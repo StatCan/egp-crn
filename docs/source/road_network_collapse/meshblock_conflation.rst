@@ -3,7 +3,7 @@ Meshblock Conflation
 ********************
 
 .. contents:: Contents:
-   :depth: 4
+   :depth: 5
 
 Overview
 ========
@@ -34,7 +34,7 @@ Resources
 
 :CLI Tool: ``egp/src/conflation/conflate_meshblock.py``
 :Output: - Basic metrics output to console.
-         - New BB layer: ``egp/data/interim/egp_data.gpkg|layer=meshblock_<source>``
+         - New (EGP) BB layer: ``egp/data/interim/egp_data.gpkg|layer=meshblock_<source>``
          - Current (NGD) BB layer: ``egp/data/interim/egp_data.gpkg|layer=meshblock_ngd_<source>``
 :Editing Environment: ``egp/data/interim/egp_editing_meshblock_conflation.qgz``
 
@@ -90,9 +90,8 @@ Explanation of Layers
 :``nrn_bo``: Primary editing layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
 :``ngd_road``: NGD roads (non-BOs) to be used for identifying roads which are missing from the NRN and are required for
                conflation.
-:``meshblock_ngd``: Current NGD BB layer, classified by conflation validity status and labelled with a conflation
-                    percentage.
-:``meshblock``: New BB layer generated from ``nrn_bo``.
+:``meshblock_ngd``: NGD BB layer, classified by conflation validity status and labelled with a conflation percentage.
+:``meshblock``: EGP BB layer generated from ``nrn_bo``.
 :``Esri Satellite``: Reference layer for recent imagery context.
 
 Example Output
@@ -106,10 +105,16 @@ Example Output
 Conflation Scenarios
 ====================
 
-.. admonition:: Converting NGD roads to BOs (applies to most scenarios)
+.. admonition:: Converting NGD roads to BOs
 
     If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the CRN data and set
     ``bo_new=1``. The script will automatically set ``segment_type=3`` for these features, or you can do it yourself.
+
+.. admonition:: Adding new BOs (completely new arcs)
+
+    If a network difference prevents an EGP BB from being properly conflated, you may need to add a new arc to the CRN
+    data. After creating the arc, either set ``bo_new=1``, ``segment_type=3``, or both. The script will automatically
+    resolve the other attribute if only one of them is set.
 
 Scenario: Missing NGD Roads
 ---------------------------
@@ -126,18 +131,28 @@ Scenario: Missing False NGD Road (2)
 
 .. include:: /source/_static/meshblock_conflation/scenario_missing_false_ngd_road_2.rst
 
+Scenario: Misaligned Networks
+-----------------------------
+
+.. admonition:: Note
+
+    Misaligned networks are difficult to resolve since there is no clear nor obvious solution. If the EGP and NGD BBs
+    are not too different in shape, try modifying the BO shape slightly or rerunning the script with a slightly lower
+    threshold value. Larger differences may require adding NGD roads as BOs and / or adding completely new BOs, thereby
+    segmenting the data until the conflation threshold is satisfied.
+
 Scenario: Misaligned Networks (1)
----------------------------------
+"""""""""""""""""""""""""""""""""
 
 .. include:: /source/_static/meshblock_conflation/scenario_misaligned_networks_1.rst
 
 Scenario: Misaligned Networks (2)
----------------------------------
+"""""""""""""""""""""""""""""""""
 
 .. include:: /source/_static/meshblock_conflation/scenario_misaligned_networks_2.rst
 
 Scenario: Misaligned Networks (3)
----------------------------------
+"""""""""""""""""""""""""""""""""
 
 .. include:: /source/_static/meshblock_conflation/scenario_misaligned_networks_3.rst
 
