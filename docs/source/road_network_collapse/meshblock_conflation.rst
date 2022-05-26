@@ -34,9 +34,9 @@ Resources
 
 :CLI Tool: ``egp/src/conflation/conflate_meshblock.py``
 :Output: - Basic metrics output to console.
-         - New (EGP) BB layer: ``egp/data/interim/egp_data.gpkg|layer=meshblock_<source>``
-         - Current (NGD) BB layer: ``egp/data/interim/egp_data.gpkg|layer=meshblock_ngd_<source>``
-:Editing Environment: ``egp/data/interim/egp_editing_meshblock_conflation.qgz``
+         - New (EGP) BB layer: ``egp/data/egp_data.gpkg|layer=meshblock_<source>``
+         - Current (NGD) BB layer: ``egp/data/egp_data.gpkg|layer=meshblock_ngd_<source>``
+:Editing Environment: ``egp/data/egp_editing_meshblock_conflation.qgz``
 
 Editing Process
 ---------------

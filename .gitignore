@@ -1,10 +1,6 @@
 # Data files
-/data/*
-!/data/interim/.gitkeep
-!/data/interim/*.qgz
-!/data/interim/untouchable_bos.zip
-!/data/processed/.gitkeep
-!/data/raw/.gitkeep
+/data/**
+!/data/*.qgz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

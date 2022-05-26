@@ -21,8 +21,8 @@ Resources
 ---------
 
 :CLI Tool: ``egp/src/topology/validate_topology.py``
-:Output: ``egp/data/interim/validations.log``
-:Editing Environment: ``egp/data/interim/egp_editing_topology.qgz``
+:Output: ``egp/data/validations.log``
+:Editing Environment: ``egp/data/egp_editing_topology.qgz``
 
 Log File
 --------

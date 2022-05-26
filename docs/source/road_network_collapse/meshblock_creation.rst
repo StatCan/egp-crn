@@ -16,9 +16,9 @@ Resources
 ---------
 
 :CLI Tool: ``egp/src/meshblock/validate_meshblock.py``
-:Output: - ``egp/data/interim/validations.log``
+:Output: - ``egp/data/validations.log``
          - Basic metrics output to console.
-:Editing Environment: ``egp/data/interim/egp_editing_meshblock.qgz``
+:Editing Environment: ``egp/data/egp_editing_meshblock.qgz``
 
 Log File
 --------
