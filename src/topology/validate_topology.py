@@ -40,7 +40,7 @@ class CRNTopologyValidation:
         self.layer = None
         self.remove = remove
         self.Validator = None
-        self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
+        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
         self.validations_log = Path(self.src.parent / "validations.log")
 
         # Configure source path and layer name.

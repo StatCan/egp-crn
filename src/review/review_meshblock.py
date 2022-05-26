@@ -32,9 +32,9 @@ class CRNMeshblockReview:
         """
 
         self.source = source
-        self.src = Path(filepath.parents[2] / "data/interim/egp_data.gpkg")
+        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
         self.layer = f"meshblock_{self.source}"
-        self.src_ngd = Path(filepath.parents[2] / "data/interim/ngd.gpkg")
+        self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
         self.layer_ngd = f"ngd_a_{self.source.split('_')[0]}"
         self.id = "bb_uid"
         self.meshblock_invalid = None
