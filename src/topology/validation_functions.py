@@ -148,7 +148,7 @@ class Validator:
         logger.info("Standardizing DataFrame.")
 
         # Standardize data.
-        self.segment_original = helpers.standardize(self.segment_original)
+        self.segment_original = helpers.standardize(self.segment_original, round_coords=False)
 
         # Create copy of original dataframe.
         self.segment = self.segment_original.loc[self.segment_original["segment_type"].astype(int) == 1].copy(deep=True)

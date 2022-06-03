@@ -59,33 +59,33 @@ class Timer:
         logger.info(f"Finished. Time elapsed: {delta}.")
 
 
-def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def explode_geometry(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Explodes MultiLineStrings to LineStrings.
 
-    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :param gpd.GeoDataFrame df: GeoDataFrame.
     :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
 
     # Explode.
-    if "MultiLineString" in set(gdf.geom_type):
+    if "MultiLineString" in set(df.geom_type):
 
         # Separate multi- and single-type records.
-        multi = gdf.loc[gdf.geom_type == "MultiLineString"]
-        single = gdf.loc[~gdf.index.isin(multi.index)]
+        multi = df.loc[df.geom_type == "MultiLineString"]
+        single = df.loc[~df.index.isin(multi.index)]
 
         # Explode multi-type geometries.
         multi_exploded = multi.explode().reset_index(drop=True)
 
         # Merge all records.
-        merged = gpd.GeoDataFrame(pd.concat([single, multi_exploded], ignore_index=True), crs=gdf.crs)
+        merged = gpd.GeoDataFrame(pd.concat([single, multi_exploded], ignore_index=True), crs=df.crs)
 
         logger.warning(f"Exploded {len(multi)} MultiLineString to {len(multi_exploded)} LineString geometries.")
 
         return merged.copy(deep=True)
 
     else:
-        return gdf.copy(deep=True)
+        return df.copy(deep=True)
 
 
 def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
@@ -212,6 +212,37 @@ def load_yaml(path: Union[Path, str]) -> Any:
             logger.exception(f"Unable to load yaml: {path}.")
 
 
+def round_coordinates(df: gpd.GeoDataFrame, precision: int = 5) -> gpd.GeoDataFrame:
+    """
+    Rounds the LineString coordinates to a specified decimal precision.
+    Only the first 2 values (x, y) are kept for each coordinate, effectively flattening the geometry to 2-dimensions.
+
+    :param gpd.GeoDataFrame df: GeoDataFrame of LineStrings.
+    :param int precision: decimal precision to round coordinates to.
+    :return gpd.GeoDataFrame: GeoDataFrame with modified decimal precision.
+    """
+
+    logger.info(f"Rounding coordinates to decimal precision: {precision}.")
+
+    try:
+
+        # Ensure valid geometry types.
+        if len(set(df.geom_type) - {"LineString"}):
+            raise TypeError("Non-LineString geometries detected for GeoDataFrame.")
+
+        # Round coordinates.
+        df["geometry"] = df["geometry"].map(lambda g: LineString(map(
+            lambda pt: [round(itemgetter(0)(pt), precision), round(itemgetter(1)(pt), precision)],
+            attrgetter("coords")(g))))
+
+        return df.copy(deep=True)
+
+    except (TypeError, ValueError) as e:
+        logger.exception(e)
+        logger.exception("Unable to round coordinates for GeoDataFrame.")
+        sys.exit(1)
+
+
 def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0.01) -> Tuple[gpd.GeoDataFrame, bool]:
     """
     Snaps NGD arcs to NRN arcs (node-to-node) if they are <= the snapping proximity threshold.
@@ -274,17 +305,19 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
     return df.copy(deep=True), bool(len(snap_nodes))
 
 
-def standardize(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataFrame:
     """
     Applies a series of geometry and attribute standardizations and rules:
     1) ensures geometries are LineString;
-    2) enforces domain restrictions and dtypes;
-    3) enforces attribute rules:
+    2) rounds coordinates;
+    3) enforces domain restrictions and dtypes;
+    4) enforces attribute rules:
         i) bo_new = 1 must result in segment_type = 3.
         ii) completely new bos must have both bo_new = 1 and segment_type = 3.
         iii) NRN records must not have modified values for bo_new, boundary, and segment_type.
 
-    :param gpd.GeoDataFrame gdf: GeoDataFrame.
+    :param gpd.GeoDataFrame df: GeoDataFrame.
+    :param bool round_coords: indicates if coordinates are to be rounded.
     :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
 
@@ -296,14 +329,18 @@ def standardize(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     try:
 
         # Standardization - geometry type.
-        flag_geom = ~gdf.geom_type.isin({"LineString", "MultiLineString"})
+        flag_geom = ~df.geom_type.isin({"LineString", "MultiLineString"})
         if sum(flag_geom):
-            gdf = gdf.loc[~flag_geom].copy(deep=True)
+            df = df.loc[~flag_geom].copy(deep=True)
 
             logger.warning(f"Dropped {sum(flag_geom)} non-(Multi)LineString geometries.")
 
         # Standardization - multi-type geometries.
-        gdf = explode_geometry(gdf)
+        df = explode_geometry(df)
+
+        # Standardization - round coordinates.
+        if round_coords:
+            df = round_coordinates(df)
 
         # Standardization - domains and dtypes.
         specs = {
@@ -329,21 +366,21 @@ def standardize(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         for col, params in specs.items():
 
             # Copy original series as object dtype.
-            s_orig = gdf[col].copy(deep=True).astype(object)
+            s_orig = df[col].copy(deep=True).astype(object)
 
             # Set Nulls to default value.
-            flag_null = gdf[col].isna()
-            gdf.loc[flag_null, col] = params["default"]
+            flag_null = df[col].isna()
+            df.loc[flag_null, col] = params["default"]
 
             # Set invalid values (not within domain) to default value.
             if params["domain"]:
-                flag_domain = ~gdf[col].astype(str).isin(params["domain"])
-                gdf.loc[flag_domain, col] = params["default"]
+                flag_domain = ~df[col].astype(str).isin(params["domain"])
+                df.loc[flag_domain, col] = params["default"]
 
             # Map values via domain.
             if params["domain"]:
-                flag_cast = ~gdf[col].isin(params["domain"].values())
-                gdf.loc[flag_cast, col] = gdf.loc[flag_cast, col].astype(str).map(params["domain"])
+                flag_cast = ~df[col].isin(params["domain"].values())
+                df.loc[flag_cast, col] = df.loc[flag_cast, col].astype(str).map(params["domain"])
 
             # Cast dtype.
             def _cast_dtype(val):
@@ -352,10 +389,10 @@ def standardize(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
                 except ValueError:
                     return params["default"]
 
-            gdf[col] = gdf[col].map(_cast_dtype)
+            df[col] = df[col].map(_cast_dtype)
 
             # Log results.
-            flag_invalid = pd.Series(s_orig.map(str) != gdf[col].map(str))
+            flag_invalid = pd.Series(s_orig.map(str) != df[col].map(str))
             if sum(flag_invalid):
                 logger.warning(f"Standardized domain and dtype for {sum(flag_invalid)} records for \"{col}\".")
 
@@ -363,54 +400,54 @@ def standardize(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
         # Flag invalid identifiers.
         hexdigits = set(string.hexdigits)
-        flag_len = gdf[identifier].map(len) != 32
-        flag_non_hex = gdf[identifier].map(lambda val: not set(val).issubset(hexdigits))
-        flag_dups = gdf[identifier].duplicated(keep=False)
+        flag_len = df[identifier].map(len) != 32
+        flag_non_hex = df[identifier].map(lambda val: not set(val).issubset(hexdigits))
+        flag_dups = df[identifier].duplicated(keep=False)
         flag_invalid = flag_len | flag_non_hex | flag_dups
 
         # Resolve invalid identifiers and assign attribute as index.
         if sum(flag_invalid):
-            gdf.loc[flag_invalid, identifier] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
-            gdf.index = gdf[identifier]
+            df.loc[flag_invalid, identifier] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
+            df.index = df[identifier]
 
             logger.warning(f"Resolved {sum(flag_invalid)} invalid identifiers for \"segment_id\".")
 
         # Rules - New BOs (must be done prior to validating NRN record integrity.
 
         # Converted ngd road.
-        flag_invalid = (gdf["bo_new"] == 1) & (gdf["segment_type"] != 3)
+        flag_invalid = (df["bo_new"] == 1) & (df["segment_type"] != 3)
         if sum(flag_invalid):
-            gdf.loc[flag_invalid, "segment_type"] = 3
+            df.loc[flag_invalid, "segment_type"] = 3
 
             logger.warning(f"Set \"segment_type\" = 3 for {sum(flag_invalid)} NGD roads converted to BOs.")
 
         # Completely new bo.
-        flag_invalid = (gdf["ngd_uid"] == -1) & (gdf["bo_new"] != 1) & (gdf["segment_type"] == 3)
+        flag_invalid = (df["ngd_uid"] == -1) & (df["bo_new"] != 1) & (df["segment_type"] == 3)
         if sum(flag_invalid):
-            gdf.loc[flag_invalid, "bo_new"] = 1
+            df.loc[flag_invalid, "bo_new"] = 1
 
             logger.warning(f"Set \"bo_new\" = 1 for {sum(flag_invalid)} completely new BOs.")
 
         # Rules - NRN record integrity.
 
         # Standardize NRN identifier.
-        flag_invalid = gdf[nrn_identifier].astype(str).map(len) != 32
+        flag_invalid = df[nrn_identifier].astype(str).map(len) != 32
         if sum(flag_invalid):
-            gdf.loc[flag_invalid, nrn_identifier] = -1
+            df.loc[flag_invalid, nrn_identifier] = -1
 
             logger.warning(f"Resolved {sum(flag_invalid)} invalid NRN identifiers for \"segment_id_orig\".")
 
         # Revert modified attributes.
         for col, domain in {"bo_new": {0}, "boundary": {0}, "segment_type": {1, 2}}.items():
-            flag_invalid = (gdf[nrn_identifier].astype(str).map(len) == 32) & (~gdf[col].isin(domain))
+            flag_invalid = (df[nrn_identifier].astype(str).map(len) == 32) & (~df[col].isin(domain))
             if sum(flag_invalid):
-                gdf.loc[flag_invalid, col] = specs[col]["default"]
+                df.loc[flag_invalid, col] = specs[col]["default"]
 
                 logger.warning(f"Reverted {sum(flag_invalid)} NRN record values for \"{col}\".")
 
         logger.info("Finished standardizing data.")
 
-        return gdf.copy(deep=True)
+        return df.copy(deep=True)
 
     except (TypeError, ValueError) as e:
         logger.exception(e)
