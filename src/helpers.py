@@ -59,23 +59,19 @@ class Timer:
         logger.info(f"Finished. Time elapsed: {delta}.")
 
 
-def explode_geometry(gdf: gpd.GeoDataFrame, index: str) -> gpd.GeoDataFrame:
+def explode_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
-    Explodes MultiLineStrings and MultiPoints to LineStrings and Points, respectively.
+    Explodes MultiLineStrings to LineStrings.
 
     :param gpd.GeoDataFrame gdf: GeoDataFrame.
-    :param str index: index column name.
-    :return gpd.GeoDataFrame: GeoDataFrame containing only single-part geometries.
+    :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
-    
-    # Reset index, conditionally drop.
-    gdf.reset_index(drop=(index in gdf.columns), inplace=True)
-    
-    multi_types = {"MultiLineString", "MultiPoint"}
-    if len(set(gdf.geom_type.unique()).intersection(multi_types)):
+
+    # Explode.
+    if "MultiLineString" in set(gdf.geom_type):
 
         # Separate multi- and single-type records.
-        multi = gdf.loc[gdf.geom_type.isin(multi_types)]
+        multi = gdf.loc[gdf.geom_type == "MultiLineString"]
         single = gdf.loc[~gdf.index.isin(multi.index)]
 
         # Explode multi-type geometries.
@@ -83,6 +79,8 @@ def explode_geometry(gdf: gpd.GeoDataFrame, index: str) -> gpd.GeoDataFrame:
 
         # Merge all records.
         merged = gpd.GeoDataFrame(pd.concat([single, multi_exploded], ignore_index=True), crs=gdf.crs)
+
+        logger.warning(f"Exploded {len(multi)} MultiLineString to {len(multi_exploded)} LineString geometries.")
 
         return merged.copy(deep=True)
 
@@ -276,58 +274,147 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
     return df.copy(deep=True), bool(len(snap_nodes))
 
 
-def update_ids(gdf: gpd.GeoDataFrame, identifier: str, index: bool = True) -> Tuple[gpd.GeoDataFrame, bool]:
+def standardize(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
-    Updates identifiers if they are not unique 32 digit hexadecimal strings.
+    Applies a series of geometry and attribute standardizations and rules:
+    1) ensures geometries are LineString;
+    2) enforces domain restrictions and dtypes;
+    3) enforces attribute rules:
+        i) bo_new = 1 must result in segment_type = 3.
+        ii) completely new bos must have both bo_new = 1 and segment_type = 3.
+        iii) NRN records must not have modified values for bo_new, boundary, and segment_type.
 
     :param gpd.GeoDataFrame gdf: GeoDataFrame.
-    :param str identifier: identifier column.
-    :param bool index: assigns the identifier column as GeoDataFrame index, default = True.
-    :return Tuple[gpd.GeoDataFrame, bool]: updated GeoDataFrame and flag indicating if records have been modified.
+    :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
 
-    logger.info(f"Resolving segment identifiers for: \"{identifier}\".")
+    logger.info("Standardizing data.")
+
+    identifier = "segment_id"
+    nrn_identifier = "segment_id_orig"
 
     try:
 
-        export_flag = False
+        # Standardization - geometry type.
+        flag_geom = ~gdf.geom_type.isin({"LineString", "MultiLineString"})
+        if sum(flag_geom):
+            gdf = gdf.loc[~flag_geom].copy(deep=True)
 
-        # Cast identifier to str and float columns to int.
-        gdf[identifier] = gdf[identifier].astype(str)
-        for col in gdf.columns:
-            if gdf[col].dtype.kind == "f":
-                gdf.loc[gdf[col].isna(), col] = -1
-                gdf[col] = gdf[col].astype(int)
+            logger.warning(f"Dropped {sum(flag_geom)} non-(Multi)LineString geometries.")
 
-                # Trigger export requirement for class.
-                export_flag = True
+        # Standardization - multi-type geometries.
+        gdf = explode_geometry(gdf)
+
+        # Standardization - domains and dtypes.
+        specs = {
+            "bo_new": {"domain": {"0": 0, "0.0": 0, "1": 1, "1.0": 1}, "default": 0, "dtype": int},
+            "boundary": {"domain": {"0": 0, "0.0": 0, "1": 1, "1.0": 1}, "default": 0, "dtype": int},
+            "ngd_uid": {"domain": None, "default": -1, "dtype": int},
+            "segment_id_orig": {"domain": None, "default": -1, "dtype": str},
+            "segment_type": {"domain": {"1": 1, "1.0": 1, "2": 2, "2.0": 2, "3": 3, "3.0": 3},
+                             "default": 1, "dtype": int},
+            "structure_type": {"domain": {
+                "-1": "Unknown", "-1.0": "Unknown", "Unknown": "Unknown",
+                "0": "None", "0.0": "None", "None": "None",
+                "1": "Bridge", "1.0": "Bridge", "Bridge": "Bridge",
+                "2": "Bridge covered", "2.0": "Bridge covered", "Bridge covered": "Bridge covered",
+                "3": "Bridge moveable", "3.0": "Bridge moveable", "Bridge moveable": "Bridge moveable",
+                "4": "Bridge unknown", "4.0": "Bridge unknown", "Bridge unknown": "Bridge unknown",
+                "5": "Tunnel", "5.0": "Tunnel", "Tunnel": "Tunnel",
+                "6": "Snowshed", "6.0": "Snowshed", "Snowshed": "Snowshed",
+                "7": "Dam", "7.0": "Dam", "Dam": "Dam"
+            }, "default": "Unknown", "dtype": str}
+        }
+
+        for col, params in specs.items():
+
+            # Copy original series as object dtype.
+            s_orig = gdf[col].copy(deep=True).astype(object)
+
+            # Set Nulls to default value.
+            flag_null = gdf[col].isna()
+            gdf.loc[flag_null, col] = params["default"]
+
+            # Set invalid values (not within domain) to default value.
+            if params["domain"]:
+                flag_domain = ~gdf[col].astype(str).isin(params["domain"])
+                gdf.loc[flag_domain, col] = params["default"]
+
+            # Map values via domain.
+            if params["domain"]:
+                flag_cast = ~gdf[col].isin(params["domain"].values())
+                gdf.loc[flag_cast, col] = gdf.loc[flag_cast, col].astype(str).map(params["domain"])
+
+            # Cast dtype.
+            def _cast_dtype(val):
+                try:
+                    return params["dtype"](val)
+                except ValueError:
+                    return params["default"]
+
+            gdf[col] = gdf[col].map(_cast_dtype)
+
+            # Log results.
+            flag_invalid = pd.Series(s_orig.map(str) != gdf[col].map(str))
+            if sum(flag_invalid):
+                logger.warning(f"Standardized domain and dtype for {sum(flag_invalid)} records for \"{col}\".")
+
+        # Standardization - identifier.
 
         # Flag invalid identifiers.
         hexdigits = set(string.hexdigits)
-        flag_non_hex = (gdf[identifier].map(len) != 32) | \
-                       (gdf[identifier].map(lambda val: not set(val).issubset(hexdigits)))
-        flag_dups = (gdf[identifier].duplicated(keep=False)) & (gdf[identifier] != "None")
-        flag_invalid = flag_non_hex | flag_dups
+        flag_len = gdf[identifier].map(len) != 32
+        flag_non_hex = gdf[identifier].map(lambda val: not set(val).issubset(hexdigits))
+        flag_dups = gdf[identifier].duplicated(keep=False)
+        flag_invalid = flag_len | flag_non_hex | flag_dups
 
-        # Resolve invalid identifiers.
+        # Resolve invalid identifiers and assign attribute as index.
         if sum(flag_invalid):
-            logger.warning(f"Resolving {sum(flag_invalid)} invalid identifiers for: \"{identifier}\".")
-
-            # Overwrite identifiers.
             gdf.loc[flag_invalid, identifier] = [uuid.uuid4().hex for _ in range(sum(flag_invalid))]
-
-            # Trigger export requirement for class.
-            export_flag = True
-
-        # Assign index.
-        if index:
             gdf.index = gdf[identifier]
 
-        return gdf.copy(deep=True), export_flag
+            logger.warning(f"Resolved {sum(flag_invalid)} invalid identifiers for \"segment_id\".")
 
-    except ValueError as e:
-        logger.exception(f"Unable to validate segment identifiers for \"{identifier}\".")
+        # Rules - New BOs (must be done prior to validating NRN record integrity.
+
+        # Converted ngd road.
+        flag_invalid = (gdf["bo_new"] == 1) & (gdf["segment_type"] != 3)
+        if sum(flag_invalid):
+            gdf.loc[flag_invalid, "segment_type"] = 3
+
+            logger.warning(f"Set \"segment_type\" = 3 for {sum(flag_invalid)} NGD roads converted to BOs.")
+
+        # Completely new bo.
+        flag_invalid = (gdf["ngd_uid"] == -1) & (gdf["bo_new"] != 1) & (gdf["segment_type"] == 3)
+        if sum(flag_invalid):
+            gdf.loc[flag_invalid, "bo_new"] = 1
+
+            logger.warning(f"Set \"bo_new\" = 1 for {sum(flag_invalid)} completely new BOs.")
+
+        # Rules - NRN record integrity.
+
+        # Standardize NRN identifier.
+        flag_invalid = gdf[nrn_identifier].astype(str).map(len) != 32
+        if sum(flag_invalid):
+            gdf.loc[flag_invalid, nrn_identifier] = -1
+
+            logger.warning(f"Resolved {sum(flag_invalid)} invalid NRN identifiers for \"segment_id_orig\".")
+
+        # Revert modified attributes.
+        for col, domain in {"bo_new": {0}, "boundary": {0}, "segment_type": {1, 2}}.items():
+            flag_invalid = (gdf[nrn_identifier].astype(str).map(len) == 32) & (~gdf[col].isin(domain))
+            if sum(flag_invalid):
+                gdf.loc[flag_invalid, col] = specs[col]["default"]
+
+                logger.warning(f"Reverted {sum(flag_invalid)} NRN record values for \"{col}\".")
+
+        logger.info("Finished standardizing data.")
+
+        return gdf.copy(deep=True)
+
+    except (TypeError, ValueError) as e:
         logger.exception(e)
+        logger.exception(f"Unable to complete dataset standardizations.")
         sys.exit(1)
 
 

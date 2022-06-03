@@ -73,20 +73,15 @@ class Validator:
         self.layer = layer
         self.errors = defaultdict(list)
         self.id = "segment_id"
-        self.crs = f"EPSG:{segment.crs.to_epsg()}"
-        self._export = False
         self._segment = self.layer.startswith("segment_")
 
-        # Drop non-LineString geometries.
-        invalid_geoms = ~segment.geom_type.isin({"LineString", "MultiLineString"})
-        if sum(invalid_geoms):
-            segment = segment.loc[~invalid_geoms].copy(deep=True)
-            self._export = True
+        # Standardize data.
+        segment = helpers.standardize(segment)
 
         # Create original and standardized dataframes.
         self.segment_original = segment.copy(deep=True)
         self.segment = None
-        self._standardize_df()
+        self._update_reusable_variables()
 
         logger.info("Configuring validations.")
 
@@ -134,34 +129,26 @@ class Validator:
                 if len(results["values"]):
                     self.errors[f"E{code} - {description}"] = deepcopy(results)
 
-            # Export data, if required.
-            if self._export:
-                helpers.export(self.segment_original, dst=self.dst, name=self.layer)
+            # Export data.
+            helpers.export(self.segment_original, dst=self.dst, name=self.layer)
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")
             logger.exception(e)
             sys.exit(1)
 
-    def _standardize_df(self) -> None:
+    def _update_reusable_variables(self) -> None:
         """
-        Applies the following standardizations to the original dataframe:
-        1) explodes multi-part geometries.
-        2) resolves invalid identifiers.
+        Standardizes the original dataframe then:
 
-        Then creates a copy of the original dataframe with the following standardizations:
-        1) exclude non-road segments (segment_type=1).
-
-        Then generates computationally intensive, reusable geometry attributes.
+        1) creates a copy of exclusively roads (segment_type=1);
+        2) regenerates computationally intensive, reusable geometry attributes.
         """
 
         logger.info("Standardizing DataFrame.")
 
-        # Apply standardizations to original dataframe.
-        self.segment_original = helpers.explode_geometry(self.segment_original, index=self.id)
-        self.segment_original, _export = helpers.update_ids(self.segment_original, identifier=self.id, index=True)
-        if _export:
-            self._export = True
+        # Standardize data.
+        self.segment_original = helpers.standardize(self.segment_original)
 
         # Create copy of original dataframe.
         self.segment = self.segment_original.loc[self.segment_original["segment_type"].astype(int) == 1].copy(deep=True)
@@ -334,8 +321,8 @@ class Validator:
                 self.segment_original.loc[flag, "geometry"] = self.segment_original.loc[flag, "splitter"].map(
                     lambda geoms: reduce(split_line, geoms))
 
-                # Standardize original dataframe and regenerate re-projected copy.
-                self._standardize_df()
+                # Standardize original dataframe and regenerate reusable variables.
+                self._update_reusable_variables()
 
                 # Re-apply validation on original, now-segmented, dataframe and log results.
 
@@ -382,10 +369,10 @@ class Validator:
 
                 # Export invalid pairs as MultiPoint geometries.
                 pts = coord_pairs.loc[flag].map(MultiPoint)
-                pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs=self.crs)
+                pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs=self.segment.crs)
 
-                logger.info(f"Writing to file: {self.dst.name}|layer={self.layer}_v104")
-                pts_df.to_file(str(self.dst), driver="GPKG", layer=f"{self.layer}_v104")
+                logger.info(f"Writing to file: {self.dst.name}|layer={self.layer}_cluster_tolerance")
+                pts_df.to_file(str(self.dst), driver="GPKG", layer=f"{self.layer}_cluster_tolerance")
 
                 # Compile error logs.
                 vals = set(coord_pairs.loc[flag].index)

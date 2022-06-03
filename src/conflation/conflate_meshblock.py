@@ -45,7 +45,6 @@ class CRNMeshblockConflation:
 
         self.id_arc_ngd = "ngd_uid"
         self.id_meshblock_ngd = "bb_uid"
-        self._export = False
 
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd):
@@ -58,13 +57,15 @@ class CRNMeshblockConflation:
                 logger.exception(f"Source not found: \"{src}\".")
                 sys.exit(1)
 
-        # Load source data and snap nodes of integrated arcs to nrn roads.
+        # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer_arc}.")
-
         df = gpd.read_file(self.src, layer=self.layer_arc)
-        df, _export = helpers.snap_nodes(df)
-        if _export:
-            self._export = True
+
+        # Standardize data.
+        df = helpers.standardize(df)
+
+        # Snap nodes of integrated arcs to NRN roads.
+        df = helpers.snap_nodes(df)
 
         # Generate meshblock (all non-deadend and non-ferry arcs).
         logger.info(f"Generating meshblock from source data.")
@@ -82,20 +83,8 @@ class CRNMeshblockConflation:
         self.meshblock_ngd = gpd.read_file(self.src_ngd, layer=self.layer_meshblock_ngd).copy(deep=True)
         logger.info("Successfully loaded ngd meshblock data.")
 
-        # Resolve added BOs and export updated dataset, if required.
-        flag_resolve1 = (df[self.id_arc_ngd].isna() | df[self.id_arc_ngd].isin({-1, 0})) & \
-                        (df["segment_type"] == 3) & (df["bo_new"] != 1)
-        if sum(flag_resolve1):
-            df.loc[flag_resolve1, "bo_new"] = 1
-            self._export = True
-        flag_resolve2 = (df["bo_new"] == 1) & (df["segment_type"] != 3)
-        if sum(flag_resolve2):
-            df.loc[flag_resolve2, "segment_type"] = 3
-            self._export = True
-
-        # Export data, if required.
-        if self._export:
-            helpers.export(df, dst=self.src, name=self.layer_arc)
+        # Export data.
+        helpers.export(df, dst=self.src, name=self.layer_arc)
 
     def __call__(self) -> None:
         """Executes the CRN class."""

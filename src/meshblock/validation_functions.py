@@ -47,7 +47,6 @@ class Validator:
         self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Excluded")}
         self.id = "segment_id"
         self.bo_id = "ngd_uid"
-        self._export = False
         self._nrn_bos_nodes = None
         self._nrn_roads_nodes_lookup = dict()
         self._nrn_bos_nodes_lookup = dict()
@@ -58,39 +57,12 @@ class Validator:
 
         # Define thresholds.
         self._bo_nrn_prox = 5
-        self._snap_prox = 0.1
-        self._snap_clearance = 10
 
-        # Resolve added BOs and export updated dataset, if required.
-        flag_resolve1 = (self.nrn[self.bo_id].isna() | self.nrn[self.bo_id].isin({-1, 0, 1})) & \
-                        (self.nrn["segment_type"] == 3)
-        if sum(flag_resolve1):
-            self.nrn.loc[flag_resolve1, "bo_new"] = 1
-            self._export = True
-        flag_resolve2 = (self.nrn["bo_new"] == 1) & (self.nrn["segment_type"] != 3)
-        if sum(flag_resolve2):
-            self.nrn.loc[flag_resolve2, "segment_type"] = 3
-            self._export = True
-
-        # Drop non-LineString geometries.
-        invalid_geoms = ~self.nrn.geom_type.isin({"LineString", "MultiLineString"})
-        if sum(invalid_geoms):
-            self.nrn = self.nrn.loc[~invalid_geoms].copy(deep=True)
-            self._export = True
-
-        # Explode MultiLineStrings.
-        if "MultiLineString" in set(self.nrn.geom_type):
-            self.nrn = self.nrn.explode()
-
-        # Resolve identifiers.
-        self.nrn, _export = helpers.update_ids(self.nrn, identifier=self.id, index=True)
-        if _export:
-            self._export = True
+        # Standardize data.
+        self.nrn = helpers.standardize(self.nrn)
 
         # Snap nodes of integrated arcs to NRN roads.
-        self.nrn, _export = helpers.snap_nodes(self.nrn)
-        if _export:
-            self._export = True
+        self.nrn = helpers.snap_nodes(self.nrn)
 
         # Separate nrn BOs and roads.
         self.nrn_roads = self.nrn.loc[(self.nrn["segment_type"] == 1) |
@@ -137,9 +109,8 @@ class Validator:
                 if len(results["values"]):
                     self.errors[f"E{code} - {description}"] = deepcopy(results)
 
-            # Export data, if required.
-            if self._export:
-                helpers.export(self.nrn, dst=self.dst, name=self.layer)
+            # Export data.
+            helpers.export(self.nrn, dst=self.dst, name=self.layer)
 
             # Populate progress tracker with total meshblock input, excluded, and flagged record counts.
             self.meshblock_progress["Valid"] = len(self._meshblock_input) - self.meshblock_progress["Invalid"]
