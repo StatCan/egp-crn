@@ -224,7 +224,15 @@ class Validator:
 
         # Compile indexes of deadend arcs.
         nodes = self.crn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
-        self._deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
+        _deadends = nodes.loc[~nodes.duplicated(keep=False)]
+        self._deadends = set(_deadends.index)
+
+        # Export deadends for reference.
+        if len(_deadends):
+            logger.info(f"Writing to file: {self.dst.name}|layer={self.layer}_deadends")
+
+            pts_df = gpd.GeoDataFrame(geometry=list(map(Point, set(_deadends))), crs=self.crn.crs)
+            pts_df.to_file(str(self.dst), driver="GPKG", layer=f"{self.layer}_deadends")
 
         # Configure meshblock input (all non-deadend and non-ferry arcs).
         self._meshblock_input = self.crn.loc[(~self.crn.index.isin(self._deadends)) &

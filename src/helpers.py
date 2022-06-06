@@ -347,7 +347,8 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
             "bo_new": {"domain": {"0": 0, "0.0": 0, "1": 1, "1.0": 1}, "default": 0, "dtype": int},
             "boundary": {"domain": {"0": 0, "0.0": 0, "1": 1, "1.0": 1}, "default": 0, "dtype": int},
             "ngd_uid": {"domain": None, "default": -1, "dtype": int},
-            "segment_id_orig": {"domain": None, "default": -1, "dtype": str},
+            "segment_id": {"domain": None, "default": "-1", "dtype": str},
+            "segment_id_orig": {"domain": None, "default": "-1", "dtype": str},
             "segment_type": {"domain": {"1": 1, "1.0": 1, "2": 2, "2.0": 2, "3": 3, "3.0": 3},
                              "default": 1, "dtype": int},
             "structure_type": {"domain": {
@@ -431,15 +432,15 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
         # Rules - NRN record integrity.
 
         # Standardize NRN identifier.
-        flag_invalid = df[nrn_identifier].astype(str).map(len) != 32
+        flag_invalid = df[nrn_identifier].map(len) != 32
         if sum(flag_invalid):
-            df.loc[flag_invalid, nrn_identifier] = -1
+            df.loc[flag_invalid, nrn_identifier] = specs[identifier]["default"]
 
             logger.warning(f"Resolved {sum(flag_invalid)} invalid NRN identifiers for \"segment_id_orig\".")
 
         # Revert modified attributes.
         for col, domain in {"bo_new": {0}, "boundary": {0}, "segment_type": {1, 2}}.items():
-            flag_invalid = (df[nrn_identifier].astype(str).map(len) == 32) & (~df[col].isin(domain))
+            flag_invalid = (df[nrn_identifier].map(len) == 32) & (~df[col].isin(domain))
             if sum(flag_invalid):
                 df.loc[flag_invalid, col] = specs[col]["default"]
 
