@@ -64,7 +64,7 @@ class CRNMeshblockConflation:
         # Standardize data.
         df = helpers.standardize(df)
 
-        # Snap nodes of integrated arcs to NRN roads.
+        # Snap nodes of integrated arcs to CRN roads.
         df = helpers.snap_nodes(df)
 
         # Generate meshblock (all non-deadend and non-ferry arcs).
@@ -129,8 +129,7 @@ class CRNMeshblockConflation:
         flag_invalid = ~meshblock["ngd_id"].isin(valid_ngd_ids)
         occupation_pct = pd.DataFrame({
             "ngd_id": meshblock.loc[flag_invalid, "ngd_id"].values,
-            "occupation_pct": (occupation_area.loc[flag_invalid] * 100).fillna(0).map(int).values
-        })\
+            "occupation_pct": (occupation_area.loc[flag_invalid] * 100).fillna(0).map(int).values})\
             .sort_values(by=["ngd_id", "occupation_pct"])\
             .drop_duplicates(subset="ngd_id", keep="last")
         occupation_pct = dict(zip(occupation_pct["ngd_id"], occupation_pct["occupation_pct"]))

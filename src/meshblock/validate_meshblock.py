@@ -69,7 +69,7 @@ class CRNMeshblockValidation:
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
-        self.nrn = gpd.read_file(self.src, layer=self.layer)
+        self.crn = gpd.read_file(self.src, layer=self.layer)
         logger.info("Successfully loaded source data.")
 
     def __call__(self) -> None:
@@ -117,7 +117,7 @@ class CRNMeshblockValidation:
         logger.info("Initiating validator.")
 
         # Instantiate and execute validator class.
-        self.Validator = Validator(self.nrn, source=self.source, dst=self.src, layer=self.layer)
+        self.Validator = Validator(self.crn, source=self.source, dst=self.src, layer=self.layer)
         self.Validator()
 
         # Conditionally export meshblock.

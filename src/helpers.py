@@ -15,7 +15,7 @@ from osgeo import ogr, osr
 from pathlib import Path
 from shapely.geometry import LineString, Point
 from tqdm import tqdm
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Union
 
 
 # Set logger.
@@ -243,14 +243,14 @@ def round_coordinates(df: gpd.GeoDataFrame, precision: int = 5) -> gpd.GeoDataFr
         sys.exit(1)
 
 
-def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0.01) -> Tuple[gpd.GeoDataFrame, bool]:
+def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0.01) -> gpd.GeoDataFrame:
     """
     Snaps NGD arcs to NRN arcs (node-to-node) if they are <= the snapping proximity threshold.
 
     :param gpd.GeoDataFrame df: GeoDataFrame containing both NRN and NGD arcs.
     :param float prox: max snapping distance (same unit as GeoDataFrame CRS), default=0.1.
     :param float prox_boundary: max snapping distance (same unit as GeoDataFrame CRS) for boundary arcs, default=0.01.
-    :return Tuple[gpd.GeoDataFrame, bool]: updated GeoDataFrame and flag indicating if records have been modified.
+    :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
 
     logger.info(f"Snapping to NRN nodes.")
@@ -302,7 +302,7 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
 
             logger.info(f"Snapped {len(snap_nodes)} non-NRN nodes to NRN nodes based on proximity={prox}.")
 
-    return df.copy(deep=True), bool(len(snap_nodes))
+    return df.copy(deep=True)
 
 
 def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataFrame:

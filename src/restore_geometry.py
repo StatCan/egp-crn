@@ -58,13 +58,13 @@ class CRNRestoreGeometry:
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
-        self.df = gpd.read_file(self.src, layer=self.layer)
+        self.crn = gpd.read_file(self.src, layer=self.layer)
         logger.info("Successfully loaded source data.")
 
         # Load source restoration data.
         logger.info(f"Loading source restoration data: {self.src_restore}|layer={self.layer}.")
-        self.df_restore = gpd.read_file(self.src_restore, layer=self.layer)
-        self.df_restore_cols = set(self.df_restore.columns)
+        self.crn_restore = gpd.read_file(self.src_restore, layer=self.layer)
+        self.crn_restore_cols = set(self.crn_restore.columns)
         logger.info("Successfully loaded source restoration data.")
 
     def __call__(self) -> None:
@@ -79,35 +79,35 @@ class CRNRestoreGeometry:
         logger.info("Identifying modified data.")
 
         # Define flags to classify arcs.
-        flag_nrn_restore = self.df_restore["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
-        flag_bo_restore = self.df_restore["segment_type"].astype(str).isin({"3", "3.0"})
+        flag_nrn_restore = self.crn_restore["segment_type"].astype(str).isin({"1", "2", "1.0", "2.0"})
+        flag_bo_restore = self.crn_restore["segment_type"].astype(str).isin({"3", "3.0"})
 
         # Flag missing arcs based on identifiers and store results.
-        self.modified_nrn.update(set(self.df_restore.loc[flag_nrn_restore, self.nrn_id]) - set(self.df[self.nrn_id]))
-        self.modified_bo.update(set(self.df_restore.loc[flag_bo_restore, self.bo_id]) - set(self.df[self.bo_id]))
+        self.modified_nrn.update(set(self.crn_restore.loc[flag_nrn_restore, self.nrn_id]) - set(self.crn[self.nrn_id]))
+        self.modified_bo.update(set(self.crn_restore.loc[flag_bo_restore, self.bo_id]) - set(self.crn[self.bo_id]))
 
         # Flag modified arcs based on buffer intersection.
 
         # Create buffers and index-buffer lookup dict from new arcs.
-        buffers = self.df.buffer(self.distance, resolution=5)
+        buffers = self.crn.buffer(self.distance, resolution=5)
         idx_buffer_lookup = dict(buffers)
 
         # Compile and dissolve all buffer polygons intersecting each original arc.
-        self.df_restore["buffer_idxs"] = self.df_restore["geometry"].map(
+        self.crn_restore["buffer_idxs"] = self.crn_restore["geometry"].map(
             lambda g: buffers.sindex.query(g, predicate="intersects"))
-        self.df_restore["buffer"] = self.df_restore["buffer_idxs"].map(
+        self.crn_restore["buffer"] = self.crn_restore["buffer_idxs"].map(
             lambda idxs: unary_union(itemgetter(*idxs)(idx_buffer_lookup)) if len(idxs) else None)
 
         # Flag arcs not completely within the intersecting buffer.
-        flag_buffer = ~self.df_restore["buffer"].isna()
-        flag_mods = ~gpd.GeoSeries(self.df_restore.loc[flag_buffer, ["geometry", "buffer"]]
+        flag_buffer = ~self.crn_restore["buffer"].isna()
+        flag_mods = ~gpd.GeoSeries(self.crn_restore.loc[flag_buffer, ["geometry", "buffer"]]
                                    .apply(lambda row: row[0].difference(row[1]), axis=1)).is_empty
-        mods_idxs = set(compress(self.df_restore[flag_buffer].index, flag_mods))
-        flag_mods = self.df_restore.index.isin(mods_idxs)
+        mods_idxs = set(compress(self.crn_restore[flag_buffer].index, flag_mods))
+        flag_mods = self.crn_restore.index.isin(mods_idxs)
 
         # Store results.
-        self.modified_nrn.update(set(self.df_restore.loc[flag_mods & flag_nrn_restore, self.nrn_id]))
-        self.modified_bo.update(set(self.df_restore.loc[flag_mods & flag_bo_restore, self.bo_id]))
+        self.modified_nrn.update(set(self.crn_restore.loc[flag_mods & flag_nrn_restore, self.nrn_id]))
+        self.modified_bo.update(set(self.crn_restore.loc[flag_mods & flag_bo_restore, self.bo_id]))
 
     def restore_and_log_mods(self) -> None:
         """Exports records of modified geometries and logs results."""
@@ -115,9 +115,9 @@ class CRNRestoreGeometry:
         logger.info(f"Restoring and logging modified data.")
 
         # Compile modified records, drop supplementary attribution, and export results.
-        export_df = self.df_restore.loc[(self.df_restore[self.nrn_id].isin(self.modified_nrn)) |
-                                        (self.df_restore[self.bo_id].isin(self.modified_bo))].copy(deep=True)
-        export_df.drop(columns=set(self.df_restore.columns)-self.df_restore_cols, inplace=True)
+        export_df = self.crn_restore.loc[(self.crn_restore[self.nrn_id].isin(self.modified_nrn)) |
+                                         (self.crn_restore[self.bo_id].isin(self.modified_bo))].copy(deep=True)
+        export_df.drop(columns=set(self.crn_restore.columns)-self.crn_restore_cols, inplace=True)
         helpers.export(export_df, dst=self.src, name=self.export_layer)
 
         # Log modification summary.

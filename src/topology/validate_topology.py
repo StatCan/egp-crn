@@ -37,7 +37,7 @@ class CRNTopologyValidation:
         """
 
         self.source = source
-        self.layer = None
+        self.layer = f"nrn_bo_{source}"
         self.remove = remove
         self.Validator = None
         self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
@@ -45,13 +45,8 @@ class CRNTopologyValidation:
 
         # Configure source path and layer name.
         if self.src.exists():
-            layers = set(fiona.listlayers(self.src))
-            for layer in (f"segment_{source}", f"nrn_bo_{source}"):
-                if layer in layers:
-                    self.layer = layer
-                    break
-            if not self.layer:
-                logger.exception(f"No valid layers found within source: \"{self.src}\".")
+            if self.layer not in set(fiona.listlayers(self.src)):
+                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
                 sys.exit(1)
         else:
             logger.exception(f"Source not found: \"{self.src}\".")
@@ -69,7 +64,7 @@ class CRNTopologyValidation:
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
-        self.segment = gpd.read_file(self.src, layer=self.layer)
+        self.crn = gpd.read_file(self.src, layer=self.layer)
         logger.info("Successfully loaded source data.")
 
     def __call__(self) -> None:
@@ -107,12 +102,12 @@ class CRNTopologyValidation:
         logger.info(f"Total unique records flagged by validations: {len(unique_records):,d}.")
 
     def validations(self) -> None:
-        """Applies a set of validations to segments."""
+        """Applies a set of validations to arcs."""
 
         logger.info("Initiating validator.")
 
         # Instantiate and execute validator class.
-        self.Validator = Validator(self.segment, dst=self.src, layer=self.layer)
+        self.Validator = Validator(self.crn, dst=self.src, layer=self.layer)
         self.Validator()
 
 

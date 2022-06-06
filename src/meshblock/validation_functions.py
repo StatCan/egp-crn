@@ -24,19 +24,19 @@ logger.addHandler(handler)
 
 
 class Validator:
-    """Handles the execution of validation functions against the nrn dataset."""
+    """Handles the execution of validation functions against the crn dataset."""
 
-    def __init__(self, nrn: gpd.GeoDataFrame, source: str, dst: Path, layer: str) -> None:
+    def __init__(self, crn: gpd.GeoDataFrame, source: str, dst: Path, layer: str) -> None:
         """
         Initializes variables for validation functions.
 
-        :param gpd.GeoDataFrame nrn: GeoDataFrame containing LineStrings.
+        :param gpd.GeoDataFrame crn: GeoDataFrame containing LineStrings.
         :param str source: abbreviation for the source province / territory.
         :param Path dst: output GeoPackage path.
         :param str layer: output GeoPackage layer name.
         """
 
-        self.nrn = nrn.copy(deep=True)
+        self.crn = crn.copy(deep=True)
         self.source = source
         self.dst = dst
         self.layer = layer
@@ -47,27 +47,27 @@ class Validator:
         self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Excluded")}
         self.id = "segment_id"
         self.bo_id = "ngd_uid"
-        self._nrn_bos_nodes = None
-        self._nrn_roads_nodes_lookup = dict()
-        self._nrn_bos_nodes_lookup = dict()
+        self._crn_bos_nodes = None
+        self._crn_roads_nodes_lookup = dict()
+        self._crn_bos_nodes_lookup = dict()
         self._deadends = set()
 
         # BO integration flag.
         self._integrated = None
 
         # Define thresholds.
-        self._bo_nrn_prox = 5
+        self._bo_road_prox = 5
 
         # Standardize data.
-        self.nrn = helpers.standardize(self.nrn)
+        self.crn = helpers.standardize(self.crn)
 
-        # Snap nodes of integrated arcs to NRN roads.
-        self.nrn = helpers.snap_nodes(self.nrn)
+        # Snap nodes of integrated arcs to CRN roads.
+        self.crn = helpers.snap_nodes(self.crn)
 
-        # Separate nrn BOs and roads.
-        self.nrn_roads = self.nrn.loc[(self.nrn["segment_type"] == 1) |
-                                      (self.nrn["segment_type"].isna())].copy(deep=True)
-        self.nrn_bos = self.nrn.loc[self.nrn["segment_type"] == 3].copy(deep=True)
+        # Separate crn BOs and roads.
+        self.crn_roads = self.crn.loc[(self.crn["segment_type"] == 1) |
+                                      (self.crn["segment_type"].isna())].copy(deep=True)
+        self.crn_bos = self.crn.loc[self.crn["segment_type"] == 3].copy(deep=True)
 
         # Load source restoration data.
         logger.info(f"Loading source restoration data: {self.src_restore}|layer={self.layer}.")
@@ -81,8 +81,8 @@ class Validator:
         self.validations = {
             100: {"func": self.connectivity,
                   "desc": "All BOs must have nodal connections to other arcs."},
-            101: {"func": self.connectivity_nrn_proximity,
-                  "desc": "Unintegrated BO node is <= 5 meters from an NRN road (entire arc)."},
+            101: {"func": self.connectivity_crn_proximity,
+                  "desc": "Unintegrated BO node is <= 5 meters from a CRN road (entire arc)."},
             102: {"func": self.connectivity_bo_missing,
                   "desc": "Untouchable BO identifier is missing."},
             200: {"func": self.meshblock,
@@ -110,11 +110,11 @@ class Validator:
                     self.errors[f"E{code} - {description}"] = deepcopy(results)
 
             # Export data.
-            helpers.export(self.nrn, dst=self.dst, name=self.layer)
+            helpers.export(self.crn, dst=self.dst, name=self.layer)
 
             # Populate progress tracker with total meshblock input, excluded, and flagged record counts.
             self.meshblock_progress["Valid"] = len(self._meshblock_input) - self.meshblock_progress["Invalid"]
-            self.meshblock_progress["Excluded"] = len(self.nrn) - len(self._meshblock_input)
+            self.meshblock_progress["Excluded"] = len(self.crn) - len(self._meshblock_input)
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")
@@ -133,27 +133,27 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Extract nodes.
-        self.nrn_roads["nodes"] = self.nrn_roads["geometry"].map(
+        self.crn_roads["nodes"] = self.crn_roads["geometry"].map(
             lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
-        self.nrn_bos["nodes"] = self.nrn_bos["geometry"].map(
+        self.crn_bos["nodes"] = self.crn_bos["geometry"].map(
             lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
 
         # Explode nodes collections and group identifiers based on shared nodes.
-        nrn_roads_nodes_exp = self.nrn_roads["nodes"].explode()
-        self._nrn_roads_nodes_lookup = dict(helpers.groupby_to_list(
-            pd.DataFrame({"node": nrn_roads_nodes_exp.values, self.id: nrn_roads_nodes_exp.index}),
+        crn_roads_nodes_exp = self.crn_roads["nodes"].explode()
+        self._crn_roads_nodes_lookup = dict(helpers.groupby_to_list(
+            pd.DataFrame({"node": crn_roads_nodes_exp.values, self.id: crn_roads_nodes_exp.index}),
             group_field="node", list_field=self.id).map(tuple))
 
-        nrn_bos_nodes_exp = self.nrn_bos["nodes"].explode()
-        self._nrn_bos_nodes_lookup = dict(helpers.groupby_to_list(
-            pd.DataFrame({"node": nrn_bos_nodes_exp.values, self.id: nrn_bos_nodes_exp.index}),
+        crn_bos_nodes_exp = self.crn_bos["nodes"].explode()
+        self._crn_bos_nodes_lookup = dict(helpers.groupby_to_list(
+            pd.DataFrame({"node": crn_bos_nodes_exp.values, self.id: crn_bos_nodes_exp.index}),
             group_field="node", list_field=self.id).map(tuple))
 
         # Explode BO node collections to allow for individual node validation.
-        self._nrn_bos_nodes = self.nrn_bos["nodes"].explode().copy(deep=True)
+        self._crn_bos_nodes = self.crn_bos["nodes"].explode().copy(deep=True)
 
-        # Flag BO nodes connected to an nrn road node.
-        self._integrated = self._nrn_bos_nodes.map(lambda node: node in self._nrn_roads_nodes_lookup)
+        # Flag BO nodes connected to an crn road node.
+        self._integrated = self._crn_bos_nodes.map(lambda node: node in self._crn_roads_nodes_lookup)
 
         return errors
 
@@ -170,7 +170,7 @@ class Validator:
         untouchable_ids = set(self.df_restore.loc[self.df_restore["boundary"] == 1, self.bo_id])
 
         # Compile missing untouchable BO identifiers.
-        missing_ids = untouchable_ids - set(self.nrn[self.bo_id])
+        missing_ids = untouchable_ids - set(self.crn[self.bo_id])
 
         # Compile error logs.
         if len(missing_ids):
@@ -179,10 +179,9 @@ class Validator:
 
         return errors
 
-    def connectivity_nrn_proximity(self) -> dict:
+    def connectivity_crn_proximity(self) -> dict:
         """
-        Validates: Unintegrated BO node is <= 5 meters from an NRN road (entire arc).
-        Enforces snapping of BO nodes to NRN nodes / edges within a given tolerance.
+        Validates: Unintegrated BO node is <= 5 meters from a CRN road (entire arc).
 
         :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
         """
@@ -190,21 +189,21 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Compile unintegrated BO nodes.
-        unintegrated_bo_nodes = pd.Series(tuple(set(self._nrn_bos_nodes.loc[~self._integrated])))
+        unintegrated_bo_nodes = pd.Series(tuple(set(self._crn_bos_nodes.loc[~self._integrated])))
 
         # Generate simplified node buffers with distance tolerance.
-        node_buffers = unintegrated_bo_nodes.map(lambda node: Point(node).buffer(self._bo_nrn_prox, resolution=5))
+        node_buffers = unintegrated_bo_nodes.map(lambda node: Point(node).buffer(self._bo_road_prox, resolution=5))
 
-        # Query nrn roads which intersect each node buffer.
+        # Query crn roads which intersect each node buffer.
         node_intersects = node_buffers.map(
-            lambda buffer: set(self.nrn_roads.sindex.query(buffer, predicate="intersects")))
+            lambda buffer: set(self.crn_roads.sindex.query(buffer, predicate="intersects")))
 
-        # Filter unintegrated bo nodes to those with buffers with one or more intersecting nrn roads.
+        # Filter unintegrated bo nodes to those with buffers with one or more intersecting crn roads.
         unintegrated_bo_nodes = unintegrated_bo_nodes.loc[node_intersects.map(len) >= 1]
         if len(unintegrated_bo_nodes):
 
             # Compile identifiers of arcs for resulting BO nodes.
-            vals = set(chain.from_iterable(unintegrated_bo_nodes.map(self._nrn_bos_nodes_lookup).values))
+            vals = set(chain.from_iterable(unintegrated_bo_nodes.map(self._crn_bos_nodes_lookup).values))
 
             # Compile error logs.
             errors["values"] = vals
@@ -224,12 +223,12 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Compile indexes of deadend arcs.
-        nodes = self.nrn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
+        nodes = self.crn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
         self._deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
 
         # Configure meshblock input (all non-deadend and non-ferry arcs).
-        self._meshblock_input = self.nrn.loc[(~self.nrn.index.isin(self._deadends)) &
-                                             (self.nrn["segment_type"] != 2)].copy(deep=True)
+        self._meshblock_input = self.crn.loc[(~self.crn.index.isin(self._deadends)) &
+                                             (self.crn["segment_type"] != 2)].copy(deep=True)
 
         # Generate meshblock.
         self.meshblock_ = gpd.GeoDataFrame(
@@ -248,7 +247,7 @@ class Validator:
         errors = {"values": list(), "query": None}
 
         # Query meshblock polygons which contain each deadend arc.
-        within = self.nrn.loc[(self.nrn.index.isin(self._deadends)) & (self.nrn["segment_type"] != 2), "geometry"]\
+        within = self.crn.loc[(self.crn.index.isin(self._deadends)) & (self.crn["segment_type"] != 2), "geometry"]\
             .map(lambda g: set(self.meshblock_.sindex.query(g, predicate="within")))
 
         # Flag arcs which are not completely within one polygon.
@@ -278,7 +277,7 @@ class Validator:
         meshblock_boundaries = self.meshblock_.boundary
 
         # Query meshblock polygons which cover each arc.
-        covered_by = self.nrn_bos.loc[self.nrn_bos["bo_new"] != 1, "geometry"].map(
+        covered_by = self.crn_bos.loc[self.crn_bos["bo_new"] != 1, "geometry"].map(
             lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
 
         # Flag arcs which do not form a polygon.
