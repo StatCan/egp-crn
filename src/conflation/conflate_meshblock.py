@@ -61,10 +61,8 @@ class CRNMeshblockConflation:
         logger.info(f"Loading source data: {self.src}|layer={self.layer_arc}.")
         df = gpd.read_file(self.src, layer=self.layer_arc)
 
-        # Standardize data.
+        # Standardize data and snap nodes.
         df = helpers.standardize(df)
-
-        # Snap nodes of integrated arcs to CRN roads.
         df = helpers.snap_nodes(df)
 
         # Generate meshblock (all non-deadend and non-ferry arcs).

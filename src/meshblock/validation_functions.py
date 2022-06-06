@@ -26,18 +26,16 @@ logger.addHandler(handler)
 class Validator:
     """Handles the execution of validation functions against the crn dataset."""
 
-    def __init__(self, crn: gpd.GeoDataFrame, source: str, dst: Path, layer: str) -> None:
+    def __init__(self, crn: gpd.GeoDataFrame, dst: Path, layer: str) -> None:
         """
         Initializes variables for validation functions.
 
         :param gpd.GeoDataFrame crn: GeoDataFrame containing LineStrings.
-        :param str source: abbreviation for the source province / territory.
         :param Path dst: output GeoPackage path.
         :param str layer: output GeoPackage layer name.
         """
 
         self.crn = crn.copy(deep=True)
-        self.source = source
         self.dst = dst
         self.layer = layer
         self.src_restore = Path(filepath.parents[2] / "data/nrn_bo_restore.gpkg")
@@ -58,12 +56,6 @@ class Validator:
         # Define thresholds.
         self._bo_road_prox = 5
 
-        # Standardize data.
-        self.crn = helpers.standardize(self.crn)
-
-        # Snap nodes of integrated arcs to CRN roads.
-        self.crn = helpers.snap_nodes(self.crn)
-
         # Separate crn BOs and roads.
         self.crn_roads = self.crn.loc[(self.crn["segment_type"] == 1) |
                                       (self.crn["segment_type"].isna())].copy(deep=True)
@@ -79,18 +71,12 @@ class Validator:
         # Define validation.
         # Note: List validations in order if execution order matters.
         self.validations = {
-            100: {"func": self.connectivity,
-                  "desc": "All BOs must have nodal connections to other arcs."},
-            101: {"func": self.connectivity_crn_proximity,
-                  "desc": "Unintegrated BO node is <= 5 meters from a CRN road (entire arc)."},
-            102: {"func": self.connectivity_bo_missing,
-                  "desc": "Untouchable BO identifier is missing."},
-            200: {"func": self.meshblock,
-                  "desc": "Generate meshblock from LineStrings."},
-            201: {"func": self.meshblock_representation_deadend,
-                  "desc": "All non-deadend arcs (excluding ferries) must form a meshblock polygon."},
-            202: {"func": self.meshblock_representation_non_deadend,
-                  "desc": "All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon."}
+            100: self.connectivity,
+            101: self.connectivity_crn_proximity,
+            102: self.connectivity_bo_missing,
+            200: self.meshblock,
+            201: self.meshblock_representation_deadend,
+            202: self.meshblock_representation_non_deadend
         }
 
     def __call__(self) -> None:
@@ -99,18 +85,12 @@ class Validator:
         try:
 
             # Iterate validations.
-            for code, params in self.validations.items():
-                func, description = itemgetter("func", "desc")(params)
+            for code, func in self.validations.items():
 
-                logger.info(f"Applying validation E{code}: \"{func.__name__}\".")
+                logger.info(f"Applying validation {code}: \"{func.__name__}\".")
 
-                # Execute validation and store non-empty results.
-                results = func()
-                if len(results["values"]):
-                    self.errors[f"E{code} - {description}"] = deepcopy(results)
-
-            # Export data.
-            helpers.export(self.crn, dst=self.dst, name=self.layer)
+                # Execute validation and store results.
+                self.errors[code] = deepcopy(func())
 
             # Populate progress tracker with total meshblock input, excluded, and flagged record counts.
             self.meshblock_progress["Valid"] = len(self._meshblock_input) - self.meshblock_progress["Invalid"]
@@ -121,16 +101,16 @@ class Validator:
             logger.exception(e)
             sys.exit(1)
 
-    def connectivity(self) -> dict:
+    def connectivity(self) -> set:
         """
         Validation: All BOs must have nodal connections to other arcs.
         Note: This method exists to generate the dependant variables for various connectivity validations and is not
         intended to produce error logs itself.
 
-        :return dict: placeholder dict based on standard validations. For this method, its contents will be unpopulated.
+        :return set: placeholder set based on standard validations. For this method, it will be empty.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Extract nodes.
         self.crn_roads["nodes"] = self.crn_roads["geometry"].map(
@@ -157,14 +137,14 @@ class Validator:
 
         return errors
 
-    def connectivity_bo_missing(self) -> dict:
+    def connectivity_bo_missing(self) -> set:
         """
         Validates: Untouchable BO identifier is missing.
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Compile untouchable BO identifiers.
         untouchable_ids = set(self.df_restore.loc[self.df_restore["boundary"] == 1, self.bo_id])
@@ -174,19 +154,24 @@ class Validator:
 
         # Compile error logs.
         if len(missing_ids):
-            errors["values"] = missing_ids
-            errors["query"] = f"\"{self.bo_id}\" in {*missing_ids,}".replace(",)", ")")
+            errors.update(missing_ids)
+
+            # Export missing BOs for reference.
+            logger.info(f"Writing to file: {self.dst.name}|layer={self.layer}_bo_missing")
+
+            bos_df = self.df_restore.loc[self.df_restore[self.bo_id].isin(missing_ids)].copy(deep=True)
+            bos_df.to_file(str(self.dst), driver="GPKG", layer=f"{self.layer}_bo_missing")
 
         return errors
 
-    def connectivity_crn_proximity(self) -> dict:
+    def connectivity_crn_proximity(self) -> set:
         """
         Validates: Unintegrated BO node is <= 5 meters from a CRN road (entire arc).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Compile unintegrated BO nodes.
         unintegrated_bo_nodes = pd.Series(tuple(set(self._crn_bos_nodes.loc[~self._integrated])))
@@ -206,21 +191,20 @@ class Validator:
             vals = set(chain.from_iterable(unintegrated_bo_nodes.map(self._crn_bos_nodes_lookup).values))
 
             # Compile error logs.
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+            errors.update(vals)
 
         return errors
 
-    def meshblock(self) -> dict:
+    def meshblock(self) -> set:
         """
         Validates: Generate meshblock from LineStrings.
         Note: This method exists to generate the dependant variables for various meshblock validations and is not
         intended to produce error logs itself.
 
-        :return dict: placeholder dict based on standard validations. For this method, its contents will be unpopulated.
+        :return set: placeholder set based on standard validations. For this method, it will be empty.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Compile indexes of deadend arcs.
         nodes = self.crn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
@@ -245,14 +229,14 @@ class Validator:
 
         return errors
 
-    def meshblock_representation_deadend(self) -> dict:
+    def meshblock_representation_deadend(self) -> set:
         """
         All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon.
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Query meshblock polygons which contain each deadend arc.
         within = self.crn.loc[(self.crn.index.isin(self._deadends)) & (self.crn["segment_type"] != 2), "geometry"]\
@@ -263,23 +247,21 @@ class Validator:
 
         # Compile error logs.
         if sum(flag):
-            vals = set(within.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+            errors.update(set(within.loc[flag].index))
 
             # Update invalid count for progress tracker.
             self.meshblock_progress["Invalid"] += sum(flag)
 
         return errors
 
-    def meshblock_representation_non_deadend(self) -> dict:
+    def meshblock_representation_non_deadend(self) -> set:
         """
         Validates: All non-deadend arcs (excluding ferries) must form a meshblock polygon.
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Extract boundary LineStrings from meshblock Polygons.
         meshblock_boundaries = self.meshblock_.boundary
@@ -293,9 +275,7 @@ class Validator:
 
         # Compile error logs.
         if sum(flag):
-            vals = set(covered_by.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+            errors.update(set(covered_by.loc[flag].index))
 
             # Update invalid count for progress tracker.
             self.meshblock_progress["Invalid"] += sum(flag)

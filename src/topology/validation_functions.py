@@ -50,13 +50,13 @@ class Validator:
         :param str layer: output GeoPackage layer name.
         """
 
+        self.crn = crn.copy(deep=True)
         self.dst = dst
         self.layer = layer
-        self.errors = defaultdict(list)
         self.id = "segment_id"
+        self.errors = defaultdict(list)
 
-        # Standardize data and create subset of exclusively roads.
-        self.crn = helpers.standardize(crn)
+        # Create subset dataframe of exclusively roads.
         self.crn_roads = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
 
         # Generate reusable geometry variables.
@@ -67,24 +67,15 @@ class Validator:
         # Define validation.
         # Note: List validations in order if execution order matters.
         self.validations = {
-            303: {"func": self.connectivity_segmentation,
-                  "desc": "Arcs must not cross (i.e. must be segmented at each intersection)."},
-            101: {"func": self.construction_singlepart,
-                  "desc": "Arcs must be single part (i.e. \"LineString\")."},
-            102: {"func": self.construction_min_length,
-                  "desc": "Arcs must be >= 3 meters in length."},
-            103: {"func": self.construction_simple,
-                  "desc": "Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior)."},
-            104: {"func": self.construction_cluster_tolerance,
-                  "desc": "Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance)."},
-            201: {"func": self.duplication_duplicated,
-                  "desc": "Arcs must not be duplicated."},
-            202: {"func": self.duplication_overlap,
-                  "desc": "Arcs must not overlap (i.e. contain duplicated adjacent vertices)."},
-            301: {"func": self.connectivity_node_intersection,
-                  "desc": "Arcs must only connect at endpoints (nodes)."},
-            302: {"func": self.connectivity_min_distance,
-                  "desc": "Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles)."}
+            303: self.connectivity_segmentation,
+            101: self.construction_singlepart,
+            102: self.construction_min_length,
+            103: self.construction_simple,
+            104: self.construction_cluster_tolerance,
+            201: self.duplication_duplicated,
+            202: self.duplication_overlap,
+            301: self.connectivity_node_intersection,
+            302: self.connectivity_min_distance
         }
 
         # Define validation thresholds.
@@ -98,18 +89,12 @@ class Validator:
         try:
 
             # Iterate validations.
-            for code, params in self.validations.items():
-                func, description = itemgetter("func", "desc")(params)
+            for code, func in self.validations.items():
 
-                logger.info(f"Applying validation E{code}: \"{func.__name__}\".")
+                logger.info(f"Applying validation {code}: \"{func.__name__}\".")
 
-                # Execute validation and store non-empty results.
-                results = func()
-                if len(results["values"]):
-                    self.errors[f"E{code} - {description}"] = deepcopy(results)
-
-            # Export data.
-            helpers.export(self.crn, dst=self.dst, name=self.layer)
+                # Execute validation and store results.
+                self.errors[code] = deepcopy(func())
 
         except (KeyError, SyntaxError, ValueError) as e:
             logger.exception("Unable to apply validation.")
@@ -133,14 +118,14 @@ class Validator:
         self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pt", self.id).map(set).to_dict()
         self.idx_id_lookup = dict(zip(range(len(self.crn_roads)), self.crn_roads.index))
 
-    def connectivity_min_distance(self) -> dict:
+    def connectivity_min_distance(self) -> set:
         """
         Validation: Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Compile all non-duplicated nodes (dead ends) as a DataFrame.
         pts = self.crn_roads["pt_start"].append(self.crn_roads["pt_end"])
@@ -188,22 +173,19 @@ class Validator:
                     lambda row: tuple({row[0], *row[1]}), axis=1)
                 deadends.drop_duplicates(subset="ids", keep="first", inplace=True)
 
-                # Compile error logs.
-                errors["values"] = deadends["ids"].map(
-                    lambda ids: f"Disconnected features are too close: {*ids,}".replace(",)", ")")).to_list()
-                vals = set(chain.from_iterable(deadends["ids"]))
-                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+                # Compile errors.
+                errors.update(chain.from_iterable(deadends["ids"]))
 
         return errors
 
-    def connectivity_node_intersection(self) -> dict:
+    def connectivity_node_intersection(self) -> set:
         """
         Validates: Arcs must only connect at endpoints (nodes).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Compile nodes.
         nodes = set(self.crn_roads["pt_start"].append(self.crn_roads["pt_end"]))
@@ -229,21 +211,19 @@ class Validator:
             flag = crn_roads["pts_tuple"].map(lambda pts: len(set(pts[1:-1]).intersection(invalid_pts))) > 0
             if sum(flag):
 
-                # Compile error logs.
-                vals = set(crn_roads.loc[flag].index)
-                errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+                # Compile errors.
+                errors.update(set(crn_roads.loc[flag].index))
 
         return errors
 
-    def connectivity_segmentation(self) -> dict:
+    def connectivity_segmentation(self) -> set:
         """
         Validates: Arcs must not cross (i.e. must be segmented at each intersection).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Query arcs which cross each arc.
         crosses = self.crn_roads["geometry"].map(lambda g: set(self.crn_roads.sindex.query(g, predicate="crosses")))
@@ -252,21 +232,19 @@ class Validator:
         flag = crosses.map(len) > 0
         if sum(flag):
 
-            # Compile error logs.
-            vals = set(self.crn_roads.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+            # Compile errors.
+            errors.update(set(self.crn_roads.loc[flag].index))
 
         return errors
 
-    def construction_cluster_tolerance(self) -> dict:
+    def construction_cluster_tolerance(self) -> set:
         """
         Validates: Arcs must have >= 1x10-2 (0.01) meters distance between adjacent vertices (cluster tolerance).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Filter arcs to those with > 2 vertices.
         crn_roads = self.crn_roads.loc[self.crn_roads["pts_tuple"].map(len) > 2]
@@ -287,21 +265,19 @@ class Validator:
                 logger.info(f"Writing to file: {self.dst.name}|layer={self.layer}_cluster_tolerance")
                 pts_df.to_file(str(self.dst), driver="GPKG", layer=f"{self.layer}_cluster_tolerance")
 
-                # Compile error logs.
-                vals = set(coord_pairs.loc[flag].index)
-                errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+                # Compile errors.
+                errors.update(set(coord_pairs.loc[flag].index))
 
         return errors
 
-    def construction_min_length(self) -> dict:
+    def construction_min_length(self) -> set:
         """
         Validates: Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Flag arcs which are too short.
         flag = self.crn_roads.length < self._min_len
@@ -325,61 +301,55 @@ class Validator:
             flag = (flag & (~isolated_structure_flag))
             if sum(flag):
 
-                # Compile error logs.
-                vals = set(self.crn_roads.loc[flag].index)
-                errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+                # Compile errors.
+                errors.update(set(self.crn_roads.loc[flag].index))
 
         return errors
 
-    def construction_simple(self) -> dict:
+    def construction_simple(self) -> set:
         """
         Validates: Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Flag complex (non-simple) geometries.
         flag = ~self.crn_roads.is_simple
         if sum(flag):
 
-            # Compile error logs.
-            vals = set(self.crn_roads.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+            # Compile errors.
+            errors.update(set(self.crn_roads.loc[flag].index))
 
         return errors
 
-    def construction_singlepart(self) -> dict:
+    def construction_singlepart(self) -> set:
         """
         Validates: Arcs must be single part (i.e. 'LineString').
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Flag non-LineStrings.
         flag = self.crn_roads.geom_type != "LineString"
         if sum(flag):
 
-            # Compile error logs.
-            vals = set(self.crn_roads.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+            # Compile errors.
+            errors.update(set(self.crn_roads.loc[flag].index))
 
         return errors
 
-    def duplication_duplicated(self) -> dict:
+    def duplication_duplicated(self) -> set:
         """
         Validates: Arcs must not be duplicated.
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Filter arcs to those with duplicated lengths.
         crn_roads = self.crn_roads.loc[self.crn_roads.length.duplicated(keep=False)]
@@ -394,21 +364,19 @@ class Validator:
                 lambda g1: crn_roads["geometry"].map(lambda g2: g1.equals(g2)).sum() > 1)]
             if len(dups):
 
-                # Compile error logs.
-                vals = set(dups.index)
-                errors["values"] = vals
-                errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+                # Compile errors.
+                errors.update(set(dups.index))
 
         return errors
 
-    def duplication_overlap(self) -> dict:
+    def duplication_overlap(self) -> set:
         """
         Validates: Arcs must not overlap (i.e. contain duplicated adjacent vertices).
 
-        :return dict: dict containing error messages and, optionally, a query to identify erroneous records.
+        :return set: set containing identifiers of erroneous records.
         """
 
-        errors = {"values": list(), "query": None}
+        errors = set()
 
         # Query arcs which overlap each arc.
         overlaps = self.crn_roads["geometry"].map(lambda g: set(self.crn_roads.sindex.query(g, predicate="overlaps")))
@@ -416,10 +384,8 @@ class Validator:
         # Flag arcs which have one or more overlapping arcs.
         flag = overlaps.map(len) > 0
 
-        # Compile error logs.
+        # Compile errors.
         if sum(flag):
-            vals = set(overlaps.loc[flag].index)
-            errors["values"] = vals
-            errors["query"] = f"\"{self.id}\" in {*vals,}".replace(",)", ")")
+            errors.update(set(overlaps.loc[flag].index))
 
         return errors

@@ -315,6 +315,8 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
         i) bo_new = 1 must result in segment_type = 3.
         ii) completely new bos must have both bo_new = 1 and segment_type = 3.
         iii) NRN records must not have modified values for bo_new, boundary, and segment_type.
+    5) drops any existing validation attributes (v#+).
+    6) assign identifier attribute (segment_id) as index.
 
     :param gpd.GeoDataFrame df: GeoDataFrame.
     :param bool round_coords: indicates if coordinates are to be rounded.
@@ -445,6 +447,16 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
                 df.loc[flag_invalid, col] = specs[col]["default"]
 
                 logger.warning(f"Reverted {sum(flag_invalid)} NRN record values for \"{col}\".")
+
+        # Drop validation attributes.
+        cols = set(df.filter(regex="v[0-9]+$").columns)
+        if cols:
+            df.drop(columns=cols, inplace=True)
+
+            logger.warning(f"Dropped {len(cols)} existing validation attributes: {', '.join(cols)}.")
+
+        # Assign index.
+        df.index = df[identifier]
 
         logger.info("Finished standardizing data.")
 

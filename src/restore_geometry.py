@@ -61,6 +61,9 @@ class CRNRestoreGeometry:
         self.crn = gpd.read_file(self.src, layer=self.layer)
         logger.info("Successfully loaded source data.")
 
+        # Standardize data.
+        self.crn = helpers.standardize(self.crn)
+
         # Load source restoration data.
         logger.info(f"Loading source restoration data: {self.src_restore}|layer={self.layer}.")
         self.crn_restore = gpd.read_file(self.src_restore, layer=self.layer)
