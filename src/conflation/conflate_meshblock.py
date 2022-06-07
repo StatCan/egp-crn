@@ -147,9 +147,9 @@ class CRNMeshblockConflation:
 
         # Export ngd meshblock with conflation indicator.
         helpers.export(self.meshblock[[self.id_meshblock_ngd, "geometry"]], dst=self.src,
-                       name=f"meshblock_{self.source}")
+                       name=f"{self.source}_meshblock")
         helpers.export(self.meshblock_ngd[[self.id_meshblock_ngd, "valid", "occupation_pct", "geometry"]], dst=self.src,
-                       name=f"meshblock_ngd_{self.source}")
+                       name=f"{self.source}_meshblock_ngd")
 
         # Log conflation progress.
         count_ngd = sum(~self.meshblock_ngd['valid'])

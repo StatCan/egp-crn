@@ -92,7 +92,7 @@ def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
     """
     Exports a GeoDataFrame to a GeoPackage.
 
-    :param gpd.GeoDataFrame df: GeoDataFrame containing LineStrings.
+    :param gpd.GeoDataFrame df: GeoDataFrame.
     :param Path dst: output GeoPackage path.
     :param str name: output GeoPackage layer name.
     """
@@ -311,7 +311,7 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
     1) ensures geometries are LineString;
     2) rounds coordinates;
     3) enforces domain restrictions and dtypes;
-    4) enforces attribute rules:
+    4) enforces attribute-specific rules:
         i) bo_new = 1 must result in segment_type = 3.
         ii) completely new bos must have both bo_new = 1 and segment_type = 3.
         iii) NRN records must not have modified values for bo_new, boundary, and segment_type.
@@ -330,21 +330,25 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
     try:
 
-        # Standardization - geometry type.
+        # 1) Ensure geometries are LineString.
+
+        # Enforce geometry type.
         flag_geom = ~df.geom_type.isin({"LineString", "MultiLineString"})
         if sum(flag_geom):
             df = df.loc[~flag_geom].copy(deep=True)
 
             logger.warning(f"Dropped {sum(flag_geom)} non-(Multi)LineString geometries.")
 
-        # Standardization - multi-type geometries.
+        # Explode MultiLineStrings.
         df = explode_geometry(df)
 
-        # Standardization - round coordinates.
+        # 2) Round coordinates.
         if round_coords:
             df = round_coordinates(df)
 
-        # Standardization - domains and dtypes.
+        # 3) Enforce domains and dtypes.
+
+        # Define attribute specifications.
         specs = {
             "bo_new": {"domain": {"0": 0, "0.0": 0, "1": 1, "1.0": 1}, "default": 0, "dtype": int},
             "boundary": {"domain": {"0": 0, "0.0": 0, "1": 1, "1.0": 1}, "default": 0, "dtype": int},
@@ -366,6 +370,7 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
             }, "default": "Unknown", "dtype": str}
         }
 
+        # Iterate attribute specifications.
         for col, params in specs.items():
 
             # Copy original series as object dtype.
@@ -399,7 +404,7 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
             if sum(flag_invalid):
                 logger.warning(f"Standardized domain and dtype for {sum(flag_invalid)} records for \"{col}\".")
 
-        # Standardization - identifier.
+        # Standardize domain - identifier.
 
         # Flag invalid identifiers.
         hexdigits = set(string.hexdigits)
@@ -415,23 +420,23 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
             logger.warning(f"Resolved {sum(flag_invalid)} invalid identifiers for \"segment_id\".")
 
-        # Rules - New BOs (must be done prior to validating NRN record integrity.
+        # 4) Enforce attribute-specific rules.
 
-        # Converted ngd road.
+        # i) New BOs (converted ngd road; must be done prior to validating NRN record integrity).
         flag_invalid = (df["bo_new"] == 1) & (df["segment_type"] != 3)
         if sum(flag_invalid):
             df.loc[flag_invalid, "segment_type"] = 3
 
             logger.warning(f"Set \"segment_type\" = 3 for {sum(flag_invalid)} NGD roads converted to BOs.")
 
-        # Completely new bo.
+        # ii) New BOs (completely new feature; must be done prior to validating NRN record integrity).
         flag_invalid = (df["ngd_uid"] == -1) & (df["bo_new"] != 1) & (df["segment_type"] == 3)
         if sum(flag_invalid):
             df.loc[flag_invalid, "bo_new"] = 1
 
             logger.warning(f"Set \"bo_new\" = 1 for {sum(flag_invalid)} completely new BOs.")
 
-        # Rules - NRN record integrity.
+        # iii) NRN record integrity.
 
         # Standardize NRN identifier.
         flag_invalid = df[nrn_identifier].map(len) != 32
@@ -448,14 +453,14 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
                 logger.warning(f"Reverted {sum(flag_invalid)} NRN record values for \"{col}\".")
 
-        # Drop validation attributes.
+        # 5) Drop existing validation attributes.
         cols = set(df.filter(regex="v[0-9]+$").columns)
         if cols:
             df.drop(columns=cols, inplace=True)
 
             logger.warning(f"Dropped {len(cols)} existing validation attributes: {', '.join(cols)}.")
 
-        # Assign index.
+        # 6) Assign identifier attribute as index.
         df.index = df[identifier]
 
         logger.info("Finished standardizing data.")
