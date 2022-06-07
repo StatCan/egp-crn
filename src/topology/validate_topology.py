@@ -307,7 +307,7 @@ class CRNTopologyValidation:
                 # Export invalid pairs as MultiPoint geometries.
                 pts = coord_pairs.loc[flag].map(MultiPoint)
                 pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs=self.crn_roads.crs)
-                self.export[f"{self.layer}_cluster_tolerance"] = pts_df.copy(deep=True)
+                self.export[f"{self.source}_cluster_tolerance"] = pts_df.copy(deep=True)
 
                 # Compile errors.
                 errors.update(set(coord_pairs.loc[flag].index))

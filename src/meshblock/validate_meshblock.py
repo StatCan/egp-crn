@@ -25,8 +25,8 @@ handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s
 logger.addHandler(handler)
 
 
-class CRNMeshblockValidation:
-    """Defines the CRN meshblock validation class."""
+class CRNMeshblockCreation:
+    """Defines the CRN meshblock creation class."""
 
     def __init__(self, source: str) -> None:
         """
@@ -215,7 +215,7 @@ class CRNMeshblockValidation:
 
             # Export missing BOs for reference.
             bos_df = self.crn_restore.loc[self.crn_restore[self.bo_id].isin(missing_ids)]
-            self.export[f"{self.layer}_bo_missing"] = bos_df.copy(deep=True)
+            self.export[f"{self.source}_bo_missing"] = bos_df.copy(deep=True)
 
         return errors
 
@@ -270,7 +270,7 @@ class CRNMeshblockValidation:
         if len(_deadends):
 
             pts_df = gpd.GeoDataFrame(geometry=list(map(Point, set(_deadends))), crs=self.crn.crs)
-            self.errors[f"{self.layer}_deadends"] = pts_df.copy(deep=True)
+            self.export[f"{self.source}_deadends"] = pts_df.copy(deep=True)
 
         # Configure meshblock input (all non-deadend and non-ferry arcs).
         self._meshblock_input = self.crn.loc[(~self.crn.index.isin(self._deadends)) &
@@ -280,7 +280,7 @@ class CRNMeshblockValidation:
         self.meshblock_ = gpd.GeoDataFrame(
             geometry=list(polygonize(unary_union(self._meshblock_input["geometry"].to_list()))),
             crs=self._meshblock_input.crs)
-        self.export[f"{self.layer}_meshblock"] = self.meshblock_.copy(deep=True)
+        self.export[f"{self.source}_meshblock"] = self.meshblock_.copy(deep=True)
 
         return errors
 
@@ -350,7 +350,7 @@ def main(source: str) -> None:
     try:
 
         with helpers.Timer():
-            crn = CRNMeshblockValidation(source)
+            crn = CRNMeshblockCreation(source)
             crn()
 
     except KeyboardInterrupt:
