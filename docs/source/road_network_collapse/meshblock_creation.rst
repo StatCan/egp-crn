@@ -16,42 +16,13 @@ Resources
 ---------
 
 :CLI Tool: ``egp/src/meshblock/validate_meshblock.py``
-:Output: - ``egp/data/validations.log``
-         - Basic metrics output to console.
+:Output: - Basic metrics output to console.
+         - Updated source layer: ``egp/data/egp_data.gpkg|layer=nrn_bo_<source>``
+         - Reference layers (for editing assistance, some exports conditional on validation results):
+             - Missing BOs layer: ``egp/data/egp_data.gpkg|layer=<source>_bo_missing``
+             - Deadend points layer: ``egp/data/egp_data.gpkg|layer=<source>_deadends``
+             - New (EGP) BB layer: ``egp/data/egp_data.gpkg|layer=<source>_meshblock``
 :Editing Environment: ``egp/data/egp_editing_meshblock.qgz``
-
-Log File
---------
-
-The output log will contain a series of standardized logs for each validation output by the script. Each logged
-validation will have the same content structure.
-
-**Generic structure:** ::
-
-    <timestamp> - WARNING: E<error code>
-
-    Values:
-    <identifier>
-    ...
-
-    Query: "<identifier_field>" in ('<identifier>', ...)
-
-**Specific structure:** ::
-
-    2022-01-04 16:00:51 - WARNING: E201
-
-    Values:
-    76d283b46076400c900ed84c02ab605f
-    c9ac2f60a0814eec9ff56bf95ad79804
-
-    Query: "segment_id" in ('76d283b46076400c900ed84c02ab605f', 'c9ac2f60a0814eec9ff56bf95ad79804')
-
-**Components:**
-
-:Values: A list containing the identifier field value of each record flagged by the validation for the target dataset.
-         The actual identifier field may vary depending on the target dataset.
-:Query: A QGIS expression to query all records flagged by the validation for the target dataset. This will contain the
-        same values as ``Values``.
 
 Editing Process
 ---------------
