@@ -162,7 +162,7 @@ class CRNMeshblockConflation:
 
 @click.command()
 @click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
-@click.option("--threshold", "-t", type=click.IntRange(min=1, max=99), default=80, show_default=True,
+@click.option("--threshold", "-t", type=click.IntRange(min=60, max=99), default=80, show_default=True,
               help="The percentage of area intersection which constitutes a match.")
 def main(source: str, threshold: int = 80) -> None:
     """

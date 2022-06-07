@@ -256,7 +256,7 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
     logger.info(f"Snapping to NRN nodes.")
 
     # Compile nodes.
-    nrn_flag = (df["segment_id_orig"].map(str) != "None") & (df["segment_type"] != 2)
+    nrn_flag = (df["segment_id_orig"].map(len) == 32) & (df["segment_type"] == 1)
     nrn_nodes = set(df.loc[nrn_flag, "geometry"].map(
         lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode())
     ngd_nodes = df.loc[(~nrn_flag) & (df["segment_type"] != 2), "geometry"].map(

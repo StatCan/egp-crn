@@ -159,7 +159,8 @@ class CRNTopologyValidation:
 
         # Iterate and write errors to DataFrame.
         for code, vals in sorted(self.errors.items()):
-            self.crn[f"v{code}"] = self.crn[self.id].isin(vals).astype(int)
+            if len(vals):
+                self.crn[f"v{code}"] = self.crn[self.id].isin(vals).astype(int)
 
         logger.info(f"Total records flagged by validations: {total_records:,d}.")
         logger.info(f"Total unique records flagged by validations: {total_unique_records:,d}.")
