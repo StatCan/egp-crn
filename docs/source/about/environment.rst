@@ -153,7 +153,7 @@ Script usage:
 
   a. Regular execution example::
 
-      python validate_topology.py bc -r
+      python validate_topology.py bc
 
   b. Execution to view parameter details::
 

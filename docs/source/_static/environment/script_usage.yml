@@ -1,3 +1,7 @@
+# Program: terminalizer
+# 1) execute in cmd: terminalizer <path>/script_usage.yml -q 50
+# 2) compress gif
+
 # The configurations that used for the recording, feel free to edit them
 config:
 
@@ -9,7 +13,7 @@ config:
   
   # Specify the current working directory path
   # the default is the current working directory path
-  cwd: C:\Users\jesse
+  cwd: C:\
   
   # Export additional ENV variables
   env:
@@ -18,12 +22,12 @@ config:
   # Explicitly set the number of columns
   # or use `auto` to take the current
   # number of columns of your shell
-  cols: 120
+  cols: 100
   
   # Explicitly set the number of rows
   # or use `auto` to take the current
   # number of rows of your shell
-  rows: 24
+  rows: 18
   
   # Amount of times to repeat GIF
   # If value is -1, play once
@@ -109,7 +113,7 @@ records:
   - delay: 50
     content: "\e[2J\e[?25l\e[m\e[H\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\e[H\e]0;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\a\e[?25h"
   - delay: 50
-    content: "C:\\Users\\jesse>"
+    content: "C:\\>"
   - delay: 1000
     content: "c"
   - delay: 50
@@ -147,7 +151,7 @@ records:
   - delay: 50
     content: "p\r\n\e[?25h"
   - delay: 500
-    content: "\r\n(egp) C:\\Users\\jesse>"
+    content: "\r\n(egp) C:\\>"
   - delay: 1000
     content: "c"
   - delay: 50
@@ -269,7 +273,7 @@ records:
   - delay: 50
     content: "p\r\n\e[?25h"
   - delay: 500
-    content: "\r\nUsage: validate_topology.py [OPTIONS] [ab|bc|mb|nb|nl|ns|nt|nu|on|pe|qc|sk|yt]\r\n\r\n  Instantiates and executes the EGP class.\r\n\r\n  :param str source: abbreviation for the source province / territory.\r\n  :param bool remove: remove pre-existing output file (validations.log),\r\n  default False.\r\n\r\nOptions:\r\n  -r, --remove / --no-remove  Remove pre-existing output file\r\n                              (validations.log)  [default:\r\n                              False]\r\n\r\n  --help                      Show this message and exit.\r\n\r\n\e[?25h"
+    content: "\r\nUsage: validate_topology.py [OPTIONS] [ab|bc|mb|nb|nl|ns|nt|nu|on|pe|qc|sk|yt]\r\n\r\n  Instantiates and executes the EGP class.\r\n\r\n  :param str source: abbreviation for the source province / territory.\r\n\r\n  --help                      Show this message and exit.\r\n\r\n\e[?25h"
   - delay: 50
     content: "(egp) C:\\egp\\src\\topology>"
   - delay: 1000
