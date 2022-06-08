@@ -33,7 +33,7 @@ Editing Process
 .. figure:: /source/_static/topology_validation/editing_process_topology_validation.svg
     :alt: Editing process overview.
 
-    Figure 1: Editing process overview.
+    Figure: Editing process overview.
 
 The source layer ``egp_data.gpkg|layer=nrn_bo_<source>`` will contain new attributes for each validation executed by
 the script (v101, v102, v301, etc.), if that validation actually returned results. The values of these attributes will
@@ -48,7 +48,7 @@ Explanation of Layers
 .. figure:: /source/_static/topology_validation/qgis_project_layers.png
     :alt: QGIS table of contents.
 
-    Figure 2: QGIS table of contents.
+    Figure: QGIS table of contents.
 
 **Layers:**
 
@@ -71,7 +71,7 @@ Validation 101
 .. figure:: /source/_static/topology_validation/validation_101.png
     :alt: Validation 101 example.
 
-    Figure 3: Validation 101 example.
+    Figure: Validation 101 example.
 
 | **Description:** Arcs must be single part (i.e. "LineString").
 | **Actions:**
@@ -84,7 +84,7 @@ Validation 102
 .. figure:: /source/_static/topology_validation/validation_102.png
     :alt: Validation 102 example.
 
-    Figure 4: Validation 102 example.
+    Figure: Validation 102 example.
 
 | **Description:** Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
 | **Actions:**
@@ -111,7 +111,7 @@ Validation 103
 .. figure:: /source/_static/topology_validation/validation_103.png
     :alt: Validation 103 example.
 
-    Figure 5: Validation 103 example.
+    Figure: Validation 103 example.
 
 | **Description:** Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
 | **Actions:**
@@ -139,7 +139,7 @@ Validation 104
 .. figure:: /source/_static/topology_validation/validation_104.png
     :alt: Validation 104 example.
 
-    Figure 6: Validation 104 example.
+    Figure: Validation 104 example.
 
 | **Description:** Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance).
 | **Actions:**
@@ -155,7 +155,7 @@ Validation 201
 .. figure:: /source/_static/topology_validation/validation_201.png
     :alt: Validation 201 example.
 
-    Figure 7: Validation 201 example.
+    Figure: Validation 201 example.
 
 | **Description:** Arcs must not be duplicated.
 | **Actions:**
@@ -168,7 +168,7 @@ Validation 202
 .. figure:: /source/_static/topology_validation/validation_202.png
     :alt: Validation 202 example.
 
-    Figure 8: Validation 202 example.
+    Figure: Validation 202 example.
 
 | **Description:** Arcs must not overlap (i.e. contain duplicated adjacent vertices).
 | **Actions:**
@@ -194,7 +194,7 @@ Validation 301
 .. figure:: /source/_static/topology_validation/validation_301.png
     :alt: Validation 301 example.
 
-    Figure 9: Validation 301 example.
+    Figure: Validation 301 example.
 
 | **Description:** Arcs must only connect at endpoints (nodes).
 | **Actions:**
@@ -208,7 +208,7 @@ Validation 302
 .. figure:: /source/_static/topology_validation/validation_302.png
     :alt: Validation 302 example.
 
-    Figure 10: Validation 302 example.
+    Figure: Validation 302 example.
 
 | **Description:** Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
 | **Actions:**
@@ -229,7 +229,7 @@ Validation 303
 .. figure:: /source/_static/topology_validation/validation_303.png
     :alt: Validation 303 example.
 
-    Figure 11: Validation 303 example.
+    Figure: Validation 303 example.
 
 | **Description:** Arcs must not cross (i.e. must be segmented at each intersection).
 | **Actions:**

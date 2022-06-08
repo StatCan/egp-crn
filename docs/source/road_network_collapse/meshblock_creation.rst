@@ -31,7 +31,7 @@ Editing Process
 .. figure:: /source/_static/meshblock_creation/editing_process_meshblock_creation.svg
     :alt: Editing process overview.
 
-    Figure 1: Editing process overview.
+    Figure: Editing process overview.
 
 The source layer ``egp_data.gpkg|layer=nrn_bo_<source>`` will contain new attributes for each validation executed by
 the script (v101, v102, v301, etc.), if that validation actually returned results. The values of these attributes will
@@ -46,7 +46,7 @@ Explanation of Layers
 .. figure:: /source/_static/meshblock_creation/qgis_project_layers.png
     :alt: QGIS table of contents.
 
-    Figure 2: QGIS table of contents.
+    Figure: QGIS table of contents.
 
 **Layers:**
 
@@ -95,7 +95,7 @@ Scenario: Endpoint Snapping
 .. figure:: /source/_static/meshblock_creation/validation_100_endpoint_snapping.png
     :alt: Validation 100 example - endpoint snapping.
 
-    Figure 3: Validation 100 example - endpoint snapping.
+    Figure: Validation 100 example - endpoint snapping.
 
 **Actions:**
 
@@ -107,7 +107,7 @@ Scenario: Non-Endpoint Snapping
 .. figure:: /source/_static/meshblock_creation/validation_100_non_endpoint_snapping.png
     :alt: Validation 100 example - non-endpoint snapping.
 
-    Figure 4: Validation 100 example - non-endpoint snapping.
+    Figure: Validation 100 example - non-endpoint snapping.
 
 **Actions:**
 
@@ -120,7 +120,7 @@ Scenario: Crossing Arcs
 .. figure:: /source/_static/meshblock_creation/validation_100_crossing_arcs.png
     :alt: Validation 100 example - crossing arcs.
 
-    Figure 5: Validation 100 example - crossing arcs.
+    Figure: Validation 100 example - crossing arcs.
 
 **Actions:**
 
@@ -133,7 +133,7 @@ Scenario: Overlapping Arcs
 .. figure:: /source/_static/meshblock_creation/validation_100_overlapping_arcs.png
     :alt: Validation 100 example - overlapping arcs.
 
-    Figure 6: Validation 100 example - overlapping arcs.
+    Figure: Validation 100 example - overlapping arcs.
 
 **Actions:**
 
@@ -146,7 +146,7 @@ Scenario: Obsolete BO
 .. figure:: /source/_static/meshblock_creation/validation_100_obsolete_bo.png
     :alt: Validation 100 example - Obsolete BO.
 
-    Figure 7: Validation 100 example - Obsolete BO.
+    Figure: Validation 100 example - Obsolete BO.
 
 **Actions:**
 
@@ -164,7 +164,7 @@ Scenario: Bo-to-BO Connection
 .. figure:: /source/_static/meshblock_creation/validation_100_bo-to-bo.png
     :alt: Validation 100 example - Bo-to-BO connection.
 
-    Figure 8: Validation 100 example - BO-to-BO connection.
+    Figure: Validation 100 example - BO-to-BO connection.
 
 **Actions:**
 
@@ -181,7 +181,7 @@ Scenario: Missing NGD Road
 .. figure:: /source/_static/meshblock_creation/validation_100_missing_ngd_road.png
     :alt: Validation 100 example - Missing NGD road.
 
-    Figure 9: Validation 100 example - Missing NGD road.
+    Figure: Validation 100 example - Missing NGD road.
 
 **Actions:**
 
@@ -210,7 +210,7 @@ Scenario: Ferries
 .. figure:: /source/_static/meshblock_creation/validation_100_ferries.png
     :alt: Validation 100 example - ferries.
 
-    Figure 10: Validation 100 example - ferries.
+    Figure: Validation 100 example - ferries.
 
 **Actions:**
 
@@ -227,7 +227,7 @@ Scenario: NatProvTer
 .. figure:: /source/_static/meshblock_creation/validation_100_natprovter.png
     :alt: Validation 100 example - NatProvTer.
 
-    Figure 11: Validation 100 example - NatProvTer.
+    Figure: Validation 100 example - NatProvTer.
 
 **Actions:**
 
@@ -245,7 +245,7 @@ Scenario: CSD Boundary
 .. figure:: /source/_static/meshblock_creation/validation_100_csd.png
     :alt: Validation 100 example - CSD boundary.
 
-    Figure 12: Validation 100 example - CSD boundary.
+    Figure: Validation 100 example - CSD boundary.
 
 **Actions:**
 
@@ -307,7 +307,7 @@ Validation 101
 .. figure:: /source/_static/meshblock_creation/validation_101.png
     :alt: Validation 101 example.
 
-    Figure 13: Validation 101 example.
+    Figure: Validation 101 example.
 
 | **Description:** Unintegrated BO node is <= 5 meters from an NRN road (entire arc).
 | **Actions:**
@@ -349,7 +349,7 @@ Validation 201
 .. figure:: /source/_static/meshblock_creation/validation_201.png
     :alt: Validation 201 example.
 
-    Figure 14: Validation 201 example.
+    Figure: Validation 201 example.
 
 | **Description:** All non-deadend arcs (excluding ferries) must form a meshblock polygon.
 | **Actions:**
@@ -367,7 +367,7 @@ Validation 202
 .. figure:: /source/_static/meshblock_creation/validation_202.png
     :alt: Validation 202 example.
 
-    Figure 15: Validation 202 example.
+    Figure: Validation 202 example.
 
 | **Description:** All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon.
 | **Actions:**
@@ -387,7 +387,12 @@ Progress
 
     This section is temporary and will be removed once this task is completed.
 
-.. figure:: /source/_static/progress_charts/meshblock_creation_progress.svg
-    :alt: Meshblock creation progress.
+.. figure:: /source/_static/progress/meshblock_creation_progress_chart.svg
+    :alt: Meshblock creation progress chart.
 
-    Figure 16: Meshblock creation progress - original and current number of invalid arcs as of May 30, 2022.
+    Figure: Meshblock creation progress chart as of May 30, 2022.
+
+.. figure:: /source/_static/progress/meshblock_creation_progress_map.svg
+    :alt: Meshblock creation progress map.
+
+    Figure: Meshblock creation progress map as of June 8, 2022.

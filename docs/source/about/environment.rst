@@ -50,7 +50,7 @@ Follow these steps to access your VM:
 .. figure:: /source/_static/environment/vm_access.gif
     :alt: VM access.
 
-    Figure 1: VM access.
+    Figure: VM access.
 
 Software
 ========
@@ -162,7 +162,7 @@ Script usage:
 .. figure:: /source/_static/environment/script_usage.gif
     :alt: Script CLI execution demo.
 
-    Figure 2: Script CLI execution demo.
+    Figure: Script CLI execution demo.
 
 QGIS
 ====
@@ -228,7 +228,7 @@ QGIS project files (``.qgz``) are part of the repository and, therefore, modific
 .. figure:: /source/_static/environment/qgis_updating_layer_sources.png
     :alt: QGIS - Updating layer sources.
 
-    Figure 3: QGIS - Updating layer sources.
+    Figure: QGIS - Updating layer sources.
 
 Keyboard Shortcuts (Hotkeys)
 ----------------------------
@@ -239,4 +239,4 @@ Settings → Keyboard Shortcuts... → Search / select action → Change → Pre
 .. figure:: /source/_static/environment/qgis_keyboard_shortcuts.png
     :alt: QGIS - Assigning hotkeys.
 
-    Figure 4: QGIS - Assigning hotkeys.
+    Figure: QGIS - Assigning hotkeys.

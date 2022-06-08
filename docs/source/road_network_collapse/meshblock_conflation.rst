@@ -46,7 +46,7 @@ Editing Process
 .. figure:: /source/_static/meshblock_conflation/editing_process_meshblock_conflation.svg
     :alt: Editing process overview.
 
-    Figure 1: Editing process overview.
+    Figure: Editing process overview.
 
 Cardinalities
 -------------
@@ -59,7 +59,7 @@ Cardinalities
 .. figure:: /source/_static/meshblock_conflation/cardinalities_overview.png
     :alt: Cardinalities overview.
 
-    Figure 2: Cardinalities overview. Direction: EGP (blue) - to - NGD (pink).
+    Figure: Cardinalities overview. Direction: EGP (blue) - to - NGD (pink).
 
 **Cardinalities Explained:**
 
@@ -85,7 +85,7 @@ Explanation of Layers
 .. figure:: /source/_static/meshblock_conflation/qgis_project_layers.png
     :alt: QGIS table of contents.
 
-    Figure 3: QGIS table of contents.
+    Figure: QGIS table of contents.
 
 **Layers:**
 
@@ -102,7 +102,7 @@ Example Output
 .. figure:: /source/_static/meshblock_conflation/qgis_example_output.png
     :alt: QGIS example output.
 
-    Figure 4: QGIS example output.
+    Figure: QGIS example output.
 
 Conflation Scenarios
 ====================
@@ -180,7 +180,12 @@ Progress
 
     This section is temporary and will be removed once this task is completed.
 
-.. figure:: /source/_static/progress_charts/meshblock_conflation_progress.svg
-    :alt: Meshblock conflation progress.
+.. figure:: /source/_static/progress/meshblock_conflation_progress_chart.svg
+    :alt: Meshblock conflation progress chart.
 
-    Figure 5: Meshblock conflation progress - original and current number of unconflated NGD BBs as of May 30, 2022.
+    Figure: Meshblock conflation progress chart as of May 30, 2022.
+
+.. figure:: /source/_static/progress/meshblock_conflation_progress_map.svg
+    :alt: Meshblock conflation progress map.
+
+    Figure: Meshblock conflation progress map as of June 8, 2022.
