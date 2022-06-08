@@ -32,17 +32,18 @@ The required actions to resolve ``unconflated`` BBs should follow those outlined
 Resources
 ---------
 
-:CLI Tool: ``egp/src/conflation/conflate_meshblock.py``
-:Output: - Basic metrics output to console.
-         - Updated source layer: ``egp/data/egp_data.gpkg|layer=nrn_bo_<source>``
-         - New (EGP) BB layer: ``egp/data/egp_data.gpkg|layer=<source>_meshblock``
-         - Current (NGD) BB layer: ``egp/data/egp_data.gpkg|layer=<source>_meshblock_ngd``
-:Editing Environment: ``egp/data/egp_editing_meshblock_conflation.qgz``
+:CLI Tool: ``src/conflation/conflate_meshblock.py``
+:Output (see data/egp_data.gpkg):
+    - Basic metrics output to console.
+    - Updated source layer: ``nrn_bo_<source>``
+    - New (EGP) BB layer: ``<source>_meshblock``
+    - Current (NGD) BB layer: ``<source>_meshblock_ngd``
+:Editing Environment: ``data/egp_editing_meshblock_conflation.qgz``
 
 Editing Process
 ---------------
 
-.. figure:: /source/_static/meshblock_conflation/editing_process_meshblock_conflation.png
+.. figure:: /source/_static/meshblock_conflation/editing_process_meshblock_conflation.svg
     :alt: Editing process overview.
 
     Figure 1: Editing process overview.
@@ -88,12 +89,12 @@ Explanation of Layers
 
 **Layers:**
 
-:``nrn_bo``: Primary editing layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
-:``ngd_road``: NGD roads (non-BOs) to be used for identifying roads which are missing from the NRN and are required for
-               conflation.
-:``meshblock_ngd``: NGD BB layer, classified by conflation validity status and labelled with a conflation percentage.
-:``meshblock``: EGP BB layer generated from ``nrn_bo``.
-:``Esri Satellite``: Reference layer for recent imagery context.
+:``nrn_bo``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for conflation.
+:``meshblock_ngd``: Current NGD BB layer, classified by conflation validity status and labelled with a conflation
+                    percentage.
+:``meshblock``: New EGP BB layer generated from ``nrn_bo``, classified according to NGD BB linkage status.
+:``Esri Satellite``: Reference WMS for recent imagery context.
 
 Example Output
 ^^^^^^^^^^^^^^
@@ -175,7 +176,9 @@ Scenario: Correction of NGD Road
 Progress
 ========
 
-This section is temporary and will be removed once this task is completed.
+.. admonition:: Note
+
+    This section is temporary and will be removed once this task is completed.
 
 .. figure:: /source/_static/progress_charts/meshblock_conflation_progress.svg
     :alt: Meshblock conflation progress.

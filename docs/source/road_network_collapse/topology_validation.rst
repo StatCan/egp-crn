@@ -20,19 +20,24 @@ NGD specific network requirements such as routability.
 Resources
 ---------
 
-:CLI Tool: ``egp/src/topology/validate_topology.py``
-:Output: - Updated source layer: ``egp/data/egp_data.gpkg|layer=nrn_bo_<source>``
-         - Reference layers (for editing assistance, some exports conditional on validation results):
-             - Cluster tolerance point layer: ``egp/data/egp_data.gpkg|layer=<source>_cluster_tolerance``
-:Editing Environment: ``egp/data/egp_editing_topology.qgz``
+:CLI Tool: ``src/topology/validate_topology.py``
+:Output (see data/egp_data.gpkg):
+    - Updated source layer: ``nrn_bo_<source>``
+    - Reference layers (availability conditional on validation results):
+        - Cluster tolerance point layer: ``<source>_cluster_tolerance``
+:Editing Environment: ``data/egp_editing_topology.qgz``
 
 Editing Process
 ---------------
 
-.. figure:: /source/_static/topology_validation/editing_process_topology_validation.png
+.. figure:: /source/_static/topology_validation/editing_process_topology_validation.svg
     :alt: Editing process overview.
 
     Figure 1: Editing process overview.
+
+The source layer ``egp_data.gpkg|layer=nrn_bo_<source>`` will contain new attributes for each validation executed by
+the script (v101, v102, v301, etc.), if that validation actually returned results. The values of these attributes will
+be 1 or 0, indicating whether or not that record was flagged by that validation. Use this data to edit the records.
 
 QGIS Project
 ------------
@@ -47,13 +52,12 @@ Explanation of Layers
 
 **Layers:**
 
-:``nrn_bo``: Primary editing layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
-:``ngd_road``: NGD roads (non-BOs) to be used for identifying roads which are missing from the NRN and are required for
-               BO integration.
-:``nrn_bo``: Copy of ``nrn_bo`` intended to be used with a query / filter from validations.log. Helps to clearly see
-             features which need to be targeted without having to individually query each one.
-:``CanVec Hydro``: Reference layer to help identify features which may be aligned to CanVec Hydro.
-:``Esri Satellite``: Reference layer for recent imagery context.
+:``nrn_bo``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``nrn_bo``: Copy of ``nrn_bo`` with highly visible symbology for quickly identifying erroneous features to edit
+             without having to individually query each one. Intended to have a definition query applied using one of
+             the validation attributes (i.e. ``"v101" = 1``).
+:``CanVec Hydro``: Reference WMS to help identify features which may be aligned to CanVec Hydro.
+:``Esri Satellite``: Reference WMS for recent imagery context.
 
 Validations
 ===========

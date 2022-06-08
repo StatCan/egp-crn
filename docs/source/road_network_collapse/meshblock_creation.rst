@@ -15,22 +15,27 @@ of the entire hierarchy of statistical geographic units and will replace NGD's N
 Resources
 ---------
 
-:CLI Tool: ``egp/src/meshblock/validate_meshblock.py``
-:Output: - Basic metrics output to console.
-         - Updated source layer: ``egp/data/egp_data.gpkg|layer=nrn_bo_<source>``
-         - Reference layers (for editing assistance, some exports conditional on validation results):
-             - Missing BOs layer: ``egp/data/egp_data.gpkg|layer=<source>_bo_missing``
-             - Deadend points layer: ``egp/data/egp_data.gpkg|layer=<source>_deadends``
-             - New (EGP) BB layer: ``egp/data/egp_data.gpkg|layer=<source>_meshblock``
-:Editing Environment: ``egp/data/egp_editing_meshblock.qgz``
+:CLI Tool: ``src/meshblock/validate_meshblock.py``
+:Output (see data/egp_data.gpkg):
+    - Basic metrics output to console.
+    - Updated source layer: ``nrn_bo_<source>``
+    - Reference layers (availability conditional on validation results):
+        - Missing BOs layer: ``<source>_bo_missing``
+        - Deadend points layer: ``<source>_deadends``
+        - New (EGP) BB layer: ``<source>_meshblock``
+:Editing Environment: ``data/egp_editing_meshblock.qgz``
 
 Editing Process
 ---------------
 
-.. figure:: /source/_static/meshblock_creation/editing_process_meshblock_creation.png
+.. figure:: /source/_static/meshblock_creation/editing_process_meshblock_creation.svg
     :alt: Editing process overview.
 
     Figure 1: Editing process overview.
+
+The source layer ``egp_data.gpkg|layer=nrn_bo_<source>`` will contain new attributes for each validation executed by
+the script (v101, v102, v301, etc.), if that validation actually returned results. The values of these attributes will
+be 1 or 0, indicating whether or not that record was flagged by that validation. Use this data to edit the records.
 
 QGIS Project
 ------------
@@ -45,13 +50,13 @@ Explanation of Layers
 
 **Layers:**
 
-:``nrn_bo``: Primary editing layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
-:``ngd_road``: NGD roads (non-BOs) to be used for identifying roads which are missing from the NRN and are required for
-               BO integration.
-:``nrn_bo``: Copy of ``nrn_bo`` intended to be used with a query / filter from validations.log. Helps to clearly see
-             features which need to be targeted without having to individually query each one.
-:``CanVec Hydro``: Reference layer to help identify features which may be aligned to CanVec Hydro.
-:``Esri Satellite``: Reference layer for recent imagery context.
+:``nrn_bo``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for BO integration.
+:``nrn_bo``: Copy of ``nrn_bo`` with highly visible symbology for quickly identifying erroneous features to edit
+             without having to individually query each one. Intended to have a definition query applied using one of
+             the validation attributes (i.e. ``"v101" = 1``).
+:``CanVec Hydro``: Reference WMS to help identify features which may be aligned to CanVec Hydro.
+:``Esri Satellite``: Reference WMS for recent imagery context.
 
 Validations
 ===========
@@ -378,7 +383,9 @@ Validation 202
 Progress
 ========
 
-This section is temporary and will be removed once this task is completed.
+.. admonition:: Note
+
+    This section is temporary and will be removed once this task is completed.
 
 .. figure:: /source/_static/progress_charts/meshblock_creation_progress.svg
     :alt: Meshblock creation progress.
