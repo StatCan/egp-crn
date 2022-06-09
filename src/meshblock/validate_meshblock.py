@@ -38,15 +38,20 @@ class CRNMeshblockCreation:
         self.source = source
         self.layer = f"nrn_bo_{source}"
         self.id = "segment_id"
+        self.nrn_id = "segment_id_orig"
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
         self.src_restore = Path(filepath.parents[2] / "data/nrn_bo_restore.gpkg")
         self.errors = dict()
-        self.export = dict()
+        self.export = {
+            f"{self.source}_deadends": None,
+            f"{self.source}_missing_bo": None,
+            f"{self.source}_missing_nrn": None
+        }
 
         self.meshblock_ = None
         self._meshblock_input = None
-        self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Excluded")}
+        self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Missing", "Excluded")}
         self._crn_bos_nodes = None
         self._crn_roads_nodes_lookup = dict()
         self._crn_bos_nodes_lookup = dict()
@@ -90,7 +95,7 @@ class CRNMeshblockCreation:
         self.validations = {
             100: self.connectivity,
             101: self.connectivity_crn_proximity,
-            102: self.connectivity_bo_missing,
+            102: self.connectivity_missing,
             200: self.meshblock,
             201: self.meshblock_representation_deadend,
             202: self.meshblock_representation_non_deadend
@@ -106,8 +111,10 @@ class CRNMeshblockCreation:
         self._write_errors()
 
         # Export required datasets.
+        helpers.delete_layers(dst=self.src, layers=self.export.keys())
         for layer, df in {self.layer: self.crn, **self.export}.items():
-            helpers.export(df, dst=self.src, name=layer)
+            if isinstance(df, pd.DataFrame):
+                helpers.export(df, dst=self.src, name=layer)
 
     def _validate(self) -> None:
         """Executes validations against the CRN dataset."""
@@ -193,28 +200,33 @@ class CRNMeshblockCreation:
 
         return errors
 
-    def connectivity_bo_missing(self) -> set:
+    def connectivity_missing(self) -> set:
         """
-        Validates: Untouchable BO identifier is missing.
+        Validates: NRN or BO identifier is missing.
 
-        :return set: set containing identifiers of erroneous records.
+        :return set: placeholder set based on standard validations. For this method, it will be empty.
         """
 
         errors = set()
 
-        # Compile untouchable BO identifiers.
-        untouchable_ids = set(self.crn_restore.loc[self.crn_restore["boundary"] == 1, self.bo_id])
+        # Separate NRN data and BOs and compile identifiers.
+        ids_nrn = set(self.crn_restore.loc[self.crn_restore["segment_type"].isin({1, 2}), self.nrn_id])
+        ids_bo = set(self.crn_restore.loc[self.crn_restore["segment_type"] == 3, self.bo_id])
 
-        # Compile missing untouchable BO identifiers.
-        missing_ids = untouchable_ids - set(self.crn[self.bo_id])
+        # Compile and log missing identifiers.
+        for name, params in {"nrn": {"col": self.nrn_id, "ids": ids_nrn},
+                             "bo": {"col": self.bo_id, "ids": ids_bo}}.items():
 
-        # Compile error logs.
-        if len(missing_ids):
-            errors.update(missing_ids)
+            # Compile missing identifiers.
+            missing_ids = params["ids"] - set(self.crn[params["col"]])
+            if len(missing_ids):
 
-            # Export missing BOs for reference.
-            bos_df = self.crn_restore.loc[self.crn_restore[self.bo_id].isin(missing_ids)]
-            self.export[f"{self.source}_bo_missing"] = bos_df.copy(deep=True)
+                # Export missing records for reference.
+                df = self.crn_restore.loc[self.crn_restore[params["col"]].isin(missing_ids)]
+                self.export[f"{self.source}_missing_{name}"] = df.copy(deep=True)
+
+                # Update invalid count for progress tracker.
+                self.meshblock_progress["Missing"] += len(missing_ids)
 
         return errors
 

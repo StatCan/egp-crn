@@ -55,7 +55,9 @@ class CRNTopologyValidation:
         self.id = "segment_id"
         self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
         self.errors = dict()
-        self.export = dict()
+        self.export = {
+            f"{self.source}_cluster_tolerance": None
+        }
 
         # Configure source path and layer name.
         if self.src.exists():
@@ -108,8 +110,10 @@ class CRNTopologyValidation:
         self._write_errors()
 
         # Export required datasets.
+        helpers.delete_layers(dst=self.src, layers=self.export.keys())
         for layer, df in {self.layer: self.crn, **self.export}.items():
-            helpers.export(df, dst=self.src, name=layer)
+            if isinstance(df, pd.DataFrame):
+                helpers.export(df, dst=self.src, name=layer)
 
     def _gen_reusable_variables(self) -> None:
         """Generates computationally intensive, reusable geometry attributes."""

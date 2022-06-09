@@ -1,4 +1,5 @@
 import datetime
+import fiona
 import geopandas as gpd
 import logging
 import numpy as np
@@ -57,6 +58,32 @@ class Timer:
         total_seconds = time.time() - self.start_time
         delta = datetime.timedelta(seconds=total_seconds)
         logger.info(f"Finished. Time elapsed: {delta}.")
+
+
+def delete_layers(dst: Union[Path, str], layers: Union[list[str, ...], str]) -> None:
+    """
+    Deletes one or more layers from a GeoPackage.
+
+    :param Union[Path, str] dst: An existing GeoPackage.
+    :param Union[list[str, ...], str] layers: layer(s) to be deleted.
+    """
+
+    # Resolve inputs.
+    if isinstance(layers, str):
+        layers = [layers]
+    dst = str(dst)
+
+    logger.info(f"Deleting layer(s): {', '.join(layers)} from \"{dst}\".")
+
+    # Open Geopackage.
+    driver = ogr.GetDriverByName("GPKG")
+    gpkg = driver.Open(dst, update=1)
+
+    # Delete layer(s).
+    for layer in set(layers).intersection(set(fiona.listlayers(dst))):
+        gpkg.DeleteLayer(layer)
+
+    del driver, gpkg
 
 
 def explode_geometry(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:

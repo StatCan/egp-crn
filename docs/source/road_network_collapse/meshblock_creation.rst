@@ -20,7 +20,8 @@ Resources
     - Basic metrics output to console.
     - Updated source layer: ``nrn_bo_<source>``
     - Reference layers (availability conditional on validation results):
-        - Missing BOs layer: ``<source>_bo_missing``
+        - Missing BOs layer: ``<source>_missing_bo``
+        - Missing NRN layer: ``<source>_missing_nrn``
         - Deadend points layer: ``<source>_deadends``
         - New (EGP) BB layer: ``<source>_meshblock``
 :Editing Environment: ``data/egp_editing_meshblock.qgz``
