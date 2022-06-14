@@ -8,4 +8,5 @@ Review Process
 BB Review
 =========
 
-.. include:: /source/_static/review_process/bb_review_example.rst
+.. figure:: /source/_static/review_process/bb_review_example_1.png
+    :alt: BB review - example 1.
