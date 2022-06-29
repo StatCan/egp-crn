@@ -55,9 +55,9 @@ Explanation of Layers
 **Layers:**
 
 :``crossings_deltas``: Crossings differences relative to the existing crossings dataset.
-                       :Additions: New crossings.
-                       :Modifications: Preserved crossings with a different feature count.
-                       :Deletions: Removed crossings.
+    :Additions: New crossings.
+    :Deletions: Removed crossings.
+    :Modifications: Preserved crossings with a different feature count.
 :``crossings``: Crossings dataset, symbolized according to dissolve requirement status.
 :``crn_roads``: CRN roads, used to determine if each crossing point contains dissolvable features.
 :``Esri Satellite``: Reference WMS for recent imagery context.
@@ -73,7 +73,7 @@ Crossing Classification
 Dissolve IDs
 ------------
 
-.. figure:: /source/_static/meshblock_conflation/example_output_dissolve_ids.png
+.. figure:: /source/_static/routable_crn/example_output_dissolve_ids.png
     :alt: Dissolve IDs example output.
 
     Figure: Dissolve IDs example output.
