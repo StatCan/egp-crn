@@ -28,9 +28,9 @@ Resources
 :CLI Tool: ``src/routability/gen_crossings.py``
 :Output (see data/egp_data.gpkg):
     - Basic metrics output to console.
-    - One of the following point datasets, dependant on the existence of a crossings dataset:
-        - If exists, delta crossings layer: ``<source>_crossings_deltas``
-        - If not exists, complete crossings layer: ``<source>_crossings``
+    - Crossings point layer:
+        - If already exists, only delta crossings: ``<source>_crossings_deltas``
+        - Otherwise, all crossings: ``<source>_crossings``
 :Editing Environment: ``data/egp_editing_routable_crossings.qgz``
 
 Editing Process
