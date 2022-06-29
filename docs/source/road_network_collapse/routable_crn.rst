@@ -54,10 +54,11 @@ Explanation of Layers
 
 **Layers:**
 
-:``crossings_deltas``: Crossings differences relative to the existing crossings dataset.
-    - :Additions: New crossings.
-    - :Deletions: Removed crossings.
-    - :Modifications: Preserved crossings with a different feature count.
+:``crossings_deltas``:
+    Crossings differences relative to the existing crossings dataset.
+        :Additions: New crossings.
+        :Deletions: Removed crossings.
+        :Modifications: Preserved crossings with a different feature count.
 :``crossings``: Crossings dataset, symbolized according to dissolve requirement status.
 :``crn_roads``: CRN roads, used to determine if each crossing point contains dissolvable features.
 :``Esri Satellite``: Reference WMS for recent imagery context.
