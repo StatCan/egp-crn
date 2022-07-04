@@ -474,7 +474,7 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
         # iii) NRN record integrity.
 
         # Standardize NRN identifier.
-        flag_invalid = df[nrn_identifier].map(len) != 32
+        flag_invalid = (df[nrn_identifier].map(len) != 32) & (df[nrn_identifier] != specs[nrn_identifier]["default"])
         if sum(flag_invalid):
             df.loc[flag_invalid, nrn_identifier] = specs[identifier]["default"]
 
