@@ -244,7 +244,7 @@ class CRNTopologyValidation:
         # Compile interior vertices (non-nodes).
         # Note: only arcs with > 2 vertices are used.
         non_nodes = set(self.crn_roads.loc[self.crn_roads["pts_tuple"].map(len) > 2, "pts_tuple"]
-                        .map(lambda pts: set(pts[1:-1])).map(tuple).explode())
+                        .map(lambda pts: set(pts[1:-1])).explode())
 
         # Compile invalid vertices.
         invalid_pts = nodes.intersection(non_nodes)

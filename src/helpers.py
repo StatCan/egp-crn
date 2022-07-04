@@ -207,7 +207,7 @@ def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Unio
                 df[field] = df[field].astype("U")
         transpose = df.sort_values(group_field)[[*group_field, list_field]].values.T
         keys, vals = np.column_stack(transpose[:-1]), transpose[-1]
-        keys_unique, keys_indexes = np.unique(keys.astype("U") if isinstance(keys, np.object) else keys,
+        keys_unique, keys_indexes = np.unique(keys.astype("U") if isinstance(keys, object) else keys,
                                               axis=0, return_index=True)
 
     else:
@@ -285,11 +285,11 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
     # Compile nodes.
     nrn_flag = (df["segment_id_orig"].map(len) == 32) & (df["segment_type"] == 1)
     nrn_nodes = set(df.loc[nrn_flag, "geometry"].map(
-        lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode())
+        lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g)))).explode())
     ngd_nodes = df.loc[(~nrn_flag) & (df["segment_type"] != 2), "geometry"].map(
-        lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode()
+        lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g)))).explode()
     ngd_boundary_nodes = set(df.loc[(~nrn_flag) & (df["segment_type"] != 2) & (df["boundary"] == 1), "geometry"].map(
-        lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g))))).explode())
+        lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g)))).explode())
 
     # Compile snappable ngd nodes (ngd nodes not connected to an nrn node).
     snap_nodes = ngd_nodes.loc[~ngd_nodes.isin(nrn_nodes)].copy(deep=True)
