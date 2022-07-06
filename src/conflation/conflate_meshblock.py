@@ -168,6 +168,7 @@ def main(source: str, threshold: int = 80) -> None:
     """
     Instantiates and executes the CRN class.
 
+    \b
     :param str source: abbreviation for the source province / territory.
     :param int threshold: the percentage of area intersection which constitutes a match, default=80.
     """

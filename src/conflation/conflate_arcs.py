@@ -144,6 +144,7 @@ def main(source: str) -> None:
     """
     Instantiates and executes the CRN class.
 
+    \b
     :param str source: abbreviation for the source province / territory.
     """
 

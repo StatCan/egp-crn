@@ -137,6 +137,7 @@ def main(source: str, distance: int = 2) -> None:
     """
     Instantiates and executes the CRN class.
 
+    \b
     :param str source: abbreviation for the source province / territory.
     :param int distance: the radius of the buffer, default = 2.
     """
