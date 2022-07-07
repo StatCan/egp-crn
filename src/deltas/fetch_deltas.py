@@ -38,15 +38,15 @@ class CRNDeltas:
         self.source = source
         self.layer = f"nrn_bo_{source}"
         self.layer_ngd = f"..."
-        self.layer_nrn = f"..."
+        self.layer_nrn = f"nrn_{source}"
 
         self.id = "segment_id"
         self.ngd_id = "ngd_uid"
-        self.nrn_id = "..."
+        self.nrn_id = "nid"
 
-        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
-        self.src_ngd = Path(filepath.parents[2] / "data/....gpkg")
-        self.src_nrn = Path(filepath.parents[2] / "data/....gpkg")
+        self.src = Path(filepath.parents[2] / "data/egp_delta_data.gpkg")
+        self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
+        self.src_nrn = Path(filepath.parents[2] / "data/nrn.gpkg")
 
         # Configure source path and layer name.
         for src in (self.src, self.src_ngd, self.src_nrn):
@@ -96,7 +96,22 @@ class CRNDeltas:
 
         logger.info("Fetching NRN deltas.")
 
+        # Extract all nrn vertex coordinates.
+        nrn_flag = self.nrn["nid"].map(len) == 32
+
+        nrn_nodes = set(self.nrn.loc[nrn_flag, "geometry"].map(
+            lambda x: tuple(set(attrgetter("coords")(x)))))
+
+        # Extract all crn vertex coordinates.
+        crn_flag = self.crn["segment_id"].map(len) == 32 & (self.crn["segment_type"] == 1)
+
+        crn_nodes = set(self.crn.loc[crn_flag, "geometry"].map(
+            lambda x: tuple(set(attrgetter("coords")(x)))))
+
         # TODO
+        # Calculate deltas.
+        additions = nrn_nodes - crn_nodes
+        deletions = crn_nodes - nrn_nodes
 
 
 @click.command()
