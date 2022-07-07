@@ -28,23 +28,32 @@ logger.addHandler(handler)
 class CRNDeltas:
     """Defines the CRN deltas class."""
 
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, mode: str = "both") -> None:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: abbreviation for the source province / territory.
+        :param str mode: the type of deltas to be returned:
+            both: NGD and NRN (default)
+            ngd: NGD only
+            nrn: NRN only
         """
 
         self.source = source
+        self.mode = mode
+        self.process_ngd = mode in {"both", "ngd"}
+        self.process_nrn = mode in {"both", "nrn"}
+
         self.layer = f"nrn_bo_{source}"
-        self.layer_ngd = f"..."
+        self.layer_ngd = f"ngd_al_{source}"
         self.layer_nrn = f"nrn_{source}"
 
         self.id = "segment_id"
         self.ngd_id = "ngd_uid"
         self.nrn_id = "nid"
 
-        self.src = Path(filepath.parents[2] / "data/egp_delta_data.gpkg")
+        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
         self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
         self.src_nrn = Path(filepath.parents[2] / "data/nrn.gpkg")
 
@@ -69,20 +78,30 @@ class CRNDeltas:
         self.crn = helpers.snap_nodes(self.crn)
 
         # Load NGD data.
-        logger.info(f"Loading NGD data: {self.src_ngd}|layer={self.layer_ngd}.")
-        self.ngd = gpd.read_file(self.src_ngd, layer=self.layer_ngd)
-        logger.info("Successfully loaded NGD data.")
+        if self.process_ngd:
+            logger.info(f"Loading NGD data: {self.src_ngd}|layer={self.layer_ngd}.")
+            self.ngd = gpd.read_file(self.src_ngd, layer=self.layer_ngd)
+            logger.info("Successfully loaded NGD data.")
+
+            # Standardize data.
+            self.ngd = helpers.round_coordinates(self.ngd)
 
         # Load NRN data.
-        logger.info(f"Loading NRN data: {self.src_nrn}|layer={self.layer_nrn}.")
-        self.nrn = gpd.read_file(self.src_nrn, layer=self.layer_nrn)
-        logger.info("Successfully loaded NRN data.")
+        if self.process_nrn:
+            logger.info(f"Loading NRN data: {self.src_nrn}|layer={self.layer_nrn}.")
+            self.nrn = gpd.read_file(self.src_nrn, layer=self.layer_nrn)
+            logger.info("Successfully loaded NRN data.")
+
+            # Standardize data.
+            self.nrn = helpers.round_coordinates(self.nrn)
 
     def __call__(self) -> None:
         """Executes the CRN class."""
 
-        self.fetch_ngd_deltas()
-        self.fetch_nrn_deltas()
+        if self.process_ngd:
+            self.fetch_ngd_deltas()
+        if self.process_nrn:
+            self.fetch_nrn_deltas()
 
     def fetch_ngd_deltas(self) -> None:
         """Identifies and retrieves NGD deltas."""
@@ -96,6 +115,7 @@ class CRNDeltas:
 
         logger.info("Fetching NRN deltas.")
 
+        # ORIGINAL - start
         # Extract all nrn vertex coordinates.
         nrn_flag = self.nrn["nid"].map(len) == 32
 
@@ -107,27 +127,43 @@ class CRNDeltas:
 
         crn_nodes = set(self.crn.loc[crn_flag, "geometry"].map(
             lambda x: tuple(set(attrgetter("coords")(x)))))
+        # ORIGINAL - end
 
-        # TODO
-        # Calculate deltas.
+        # NEW - start
+        # Compile all nrn and crn road points as sets.
+        nrn_nodes = set(self.nrn["geometry"].map(lambda g: attrgetter("coords")(g)).explode())
+        crn_nodes = set(self.crn.loc[self.crn["segment_type" == 1], "geometry"].map(
+            lambda g: attrgetter("coords")(g)).explode())
+        # NEW - end
+
+        # Configure deltas.
         additions = nrn_nodes - crn_nodes
         deletions = crn_nodes - nrn_nodes
+
+        # TODO: Create and export GeoDataFrames from delta pt tuples.
 
 
 @click.command()
 @click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
-def main(source: str) -> None:
+@click.option("--mode", "-m", type=click.Choice(["both", "ngd", "nrn"], False), default="both", show_default=True,
+              help="The type of deltas to be returned.")
+def main(source: str, mode: str = "both") -> None:
     """
     Instantiates and executes the CRN class.
 
+    \b
     :param str source: abbreviation for the source province / territory.
+    :param str mode: the type of deltas to be returned:
+        both: NGD and NRN (default)
+        ngd: NGD only
+        nrn: NRN only
     """
 
     try:
 
         with helpers.Timer():
-            crn = CRNDeltas(source)
-            crn()
+            deltas = CRNDeltas(source, mode)
+            deltas()
 
     except KeyboardInterrupt:
         logger.exception("KeyboardInterrupt: Exiting program.")
