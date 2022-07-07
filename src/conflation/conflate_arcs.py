@@ -106,12 +106,14 @@ class CRNArcConflation:
             .map(lambda vals: vals if isinstance(vals, tuple) else (vals,)).map(set).map(tuple)
 
         # Create ngd meshblock - arc identifiers lookup. Add -1 to dict for non linkages.
-        ngd_meshblock_id_to_arc_ids = helpers.groupby_to_list(pd.DataFrame().append([
+        arcs_ngd_both_sides = pd.DataFrame().append([
             self.arcs_ngd[[self.id_arc_ngd, self.id_meshblock_l_ngd]]
                 .rename(columns={self.id_meshblock_l_ngd: self.id_meshblock_ngd}),
             self.arcs_ngd[[self.id_arc_ngd, self.id_meshblock_r_ngd]]
                 .rename(columns={self.id_meshblock_r_ngd: self.id_meshblock_ngd})
-        ]), group_field=self.id_meshblock_ngd, list_field=self.id_arc_ngd).map(tuple).to_dict()
+        ])
+        ngd_meshblock_id_to_arc_ids = arcs_ngd_both_sides.groupby(
+            by=self.id_meshblock_ngd, axis=0, as_index=True)[self.id_arc_ngd].agg(tuple).to_dict()
         ngd_meshblock_id_to_arc_ids[-1] = (-1,)
 
         # Compile ngd arc identifiers associated with each linked ngd meshblock.

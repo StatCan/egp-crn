@@ -129,7 +129,7 @@ class CRNTopologyValidation:
         # Generate computationally intensive lookups.
         pts = self.crn_roads["pts_tuple"].explode()
         pts_df = pd.DataFrame({"pt": pts.values, self.id: pts.index})
-        self.pts_id_lookup = helpers.groupby_to_list(pts_df, "pt", self.id).map(set).to_dict()
+        self.pts_id_lookup = pts_df.groupby(by="pt", axis=0, as_index=True)[self.id].agg(set).to_dict()
         self.idx_id_lookup = dict(zip(range(len(self.crn_roads)), self.crn_roads.index))
 
     def _validate(self) -> None:
@@ -196,7 +196,7 @@ class CRNTopologyValidation:
 
             # Aggregate deadends to their source features.
             # Note: source features will exist twice if both nodes are deadends; these results will be aggregated.
-            deadends_agg = helpers.groupby_to_list(deadends, self.id, "intersects")\
+            deadends_agg = deadends.groupby(by=self.id, axis=0, as_index=True)["intersects"].agg(tuple)\
                 .map(chain.from_iterable).map(set).to_dict()
             deadends["intersects"] = deadends[self.id].map(deadends_agg)
             deadends.drop_duplicates(subset=self.id, inplace=True)

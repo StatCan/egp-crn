@@ -2,7 +2,6 @@ import datetime
 import fiona
 import geopandas as gpd
 import logging
-import numpy as np
 import pandas as pd
 import sqlite3
 import string
@@ -16,7 +15,7 @@ from osgeo import ogr, osr
 from pathlib import Path
 from shapely.geometry import LineString, Point
 from tqdm import tqdm
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Union
 
 
 # Set logger.
@@ -186,37 +185,6 @@ def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
         logger.exception(f"Error raised when writing output: {dst}|layer={name}.")
         logger.exception(e)
         sys.exit(1)
-
-
-def groupby_to_list(df: Union[gpd.GeoDataFrame, pd.DataFrame], group_field: Union[List[str], str], list_field: str) -> \
-        pd.Series:
-    """
-    Faster alternative to :func:`~pd.groupby.apply/agg(list)`.
-    Groups records by one or more fields and compiles an output field into a list for each group.
-
-    :param Union[gpd.GeoDataFrame, pd.DataFrame] df: (Geo)DataFrame.
-    :param Union[List[str], str] group_field: field or list of fields by which the (Geo)DataFrame records will be
-        grouped.
-    :param str list_field: (Geo)DataFrame field to output, based on the record groupings.
-    :return pd.Series: Series of grouped values.
-    """
-
-    if isinstance(group_field, list):
-        for field in group_field:
-            if df[field].dtype.name != "geometry":
-                df[field] = df[field].astype("U")
-        transpose = df.sort_values(group_field)[[*group_field, list_field]].values.T
-        keys, vals = np.column_stack(transpose[:-1]), transpose[-1]
-        keys_unique, keys_indexes = np.unique(keys.astype("U") if isinstance(keys, object) else keys,
-                                              axis=0, return_index=True)
-
-    else:
-        keys, vals = df.sort_values(group_field)[[group_field, list_field]].values.T
-        keys_unique, keys_indexes = np.unique(keys, return_index=True)
-
-    vals_arrays = np.split(vals, keys_indexes[1:])
-
-    return pd.Series([list(vals_array) for vals_array in vals_arrays], index=keys_unique).copy(deep=True)
 
 
 def load_yaml(path: Union[Path, str]) -> Any:

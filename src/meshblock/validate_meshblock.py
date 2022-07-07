@@ -183,14 +183,14 @@ class CRNMeshblockCreation:
 
         # Explode nodes collections and group identifiers based on shared nodes.
         crn_roads_nodes_exp = self.crn_roads["nodes"].explode()
-        self._crn_roads_nodes_lookup = dict(helpers.groupby_to_list(
-            pd.DataFrame({"node": crn_roads_nodes_exp.values, self.id: crn_roads_nodes_exp.index}),
-            group_field="node", list_field=self.id).map(tuple))
+        self._crn_roads_nodes_lookup = dict(pd.DataFrame({"node": crn_roads_nodes_exp.values,
+                                                          self.id: crn_roads_nodes_exp.index})
+                                            .groupby(by="node", axis=0, as_index=True)[self.id].agg(tuple))
 
         crn_bos_nodes_exp = self.crn_bos["nodes"].explode()
-        self._crn_bos_nodes_lookup = dict(helpers.groupby_to_list(
-            pd.DataFrame({"node": crn_bos_nodes_exp.values, self.id: crn_bos_nodes_exp.index}),
-            group_field="node", list_field=self.id).map(tuple))
+        self._crn_bos_nodes_lookup = dict(pd.DataFrame({"node": crn_bos_nodes_exp.values,
+                                                        self.id: crn_bos_nodes_exp.index})
+                                          .groupby(by="node", axis=0, as_index=True)[self.id].agg(tuple))
 
         # Explode BO node collections to allow for individual node validation.
         self._crn_bos_nodes = self.crn_bos["nodes"].explode().copy(deep=True)
