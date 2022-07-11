@@ -391,9 +391,9 @@ Progress
 .. figure:: /source/_static/progress/meshblock_creation_progress_chart.svg
     :alt: Meshblock creation progress chart.
 
-    Figure: Meshblock creation progress chart as of June 27, 2022.
+    Figure: Meshblock creation progress chart as of July 11, 2022.
 
 .. figure:: /source/_static/progress/meshblock_creation_progress_map.svg
     :alt: Meshblock creation progress map.
 
-    Figure: Meshblock creation progress map as of June 27, 2022.
+    Figure: Meshblock creation progress map as of July 11, 2022.
