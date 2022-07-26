@@ -10,17 +10,17 @@ Overview
 
 The CRN has been segmented at each and every arc intersection to support meshblock creation. However, this effectively
 makes the network unroutable with respect to real-world connectivity between roads. Therefore, the CRN must contain a
-dissolve indicator attribute on which a subset of roads which have been segmented, but are contiguous in reality, can
-be merged into single features. An interim point dataset representing all crossings of a specified order should also be
-maintained to simplify the update process after deltas integration phases.
+dissolve indicator / overpass attribute on which a subset of roads which have been segmented, but are contiguous in
+reality, can be merged into single features. An interim point dataset representing all crossings of a specified order
+should also be maintained to simplify the update process after deltas integration phases.
 
 .. admonition:: Crossings Order
 
     Order represents the number of features connected to a crossing point. In this context, 4 is the minimum order used
     to identify points to be exported to the crossings dataset because this is seen as the minimum order involving
-    real-world, multi-level road crossings. Technically, it is possible to used 3 (dead end terminating directly
-    beneath another road), but this would exponentially increase the number of points requiring review for only a
-    handful of valid instances.
+    real-world, multi-level road crossings (overpasses). Technically, it is possible to used 3 (dead end terminating
+    directly beneath another road), but this would exponentially increase the number of points requiring review for
+    only a handful of valid instances.
 
 Resources
 ---------
@@ -59,7 +59,7 @@ Explanation of Layers
     - ``Additions``: New crossings.
     - ``Deletions``: Removed crossings.
     - ``Modifications``: Preserved crossings with a different order (feature count).
-:``crossings``: Crossings dataset, symbolized according to dissolve requirement status.
+:``crossings``: Crossings dataset, symbolized according to overpass status.
 :``crn_roads``: CRN roads, used to determine if each crossing point contains dissolvable features.
 :``Esri Satellite``: Reference WMS for recent imagery context.
 
