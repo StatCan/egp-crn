@@ -139,7 +139,7 @@ class CRNCrossings:
 
         # Compile crossings as GeoDataFrame.
         self.crossings = gpd.GeoDataFrame(counts_df, geometry=list(map(Point, counts_df["geometry"])), crs=self.crn.crs)
-        self.crossings["dissolve_required"] = -1
+        self.crossings["overpass_flag"] = -1
 
 
 @click.command()
