@@ -1,6 +1,7 @@
 # Data files
 /data/**
 !/data/*.qgz
+!/data/regions.gpkg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
