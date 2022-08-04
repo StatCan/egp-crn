@@ -27,8 +27,12 @@ sources:
 #  - on
   - on_c
   - on_e
+  - on_m
   - on_n
+  - on_o
   - on_s
+  - on_se
+  - on_sw
   - on_t
   - pe
 #  - qc
