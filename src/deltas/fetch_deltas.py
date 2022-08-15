@@ -14,6 +14,7 @@ from tabulate import tabulate
 
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+
 import helpers
 
 # Set logger.
@@ -54,7 +55,7 @@ class CRNDeltas:
         self.nrn_id = "nid"
 
         self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
-        self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
+        self.src_ngd = Path(filepath.parents[2] / "data/ngd_test.gpkg")
         self.src_nrn = Path(filepath.parents[2] / "data/nrn.gpkg")
 
         # Configure source path and layer name.
@@ -94,6 +95,7 @@ class CRNDeltas:
 
             # Standardize data.
             self.nrn = helpers.round_coordinates(self.nrn)
+            self.nrn = self.nrn.to_crs(3347)
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -115,33 +117,24 @@ class CRNDeltas:
 
         logger.info("Fetching NRN deltas.")
 
-        # ORIGINAL - start
-        # Extract all nrn vertex coordinates.
-        nrn_flag = self.nrn["nid"].map(len) == 32
-
-        nrn_nodes = set(self.nrn.loc[nrn_flag, "geometry"].map(
-            lambda x: tuple(set(attrgetter("coords")(x)))))
-
-        # Extract all crn vertex coordinates.
-        crn_flag = self.crn["segment_id"].map(len) == 32 & (self.crn["segment_type"] == 1)
-
-        crn_nodes = set(self.crn.loc[crn_flag, "geometry"].map(
-            lambda x: tuple(set(attrgetter("coords")(x)))))
-        # ORIGINAL - end
-
-        # NEW - start
         # Compile all nrn and crn road points as sets.
         nrn_nodes = set(self.nrn["geometry"].map(lambda g: attrgetter("coords")(g)).explode())
-        crn_nodes = set(self.crn.loc[self.crn["segment_type" == 1], "geometry"].map(
-            lambda g: attrgetter("coords")(g)).explode())
-        # NEW - end
+        crn_nodes = set(self.crn.loc[(self.crn.segment_type == 1) & (self.crn.segment_id_orig != "-1"), "geometry"].map
+                        (lambda g: attrgetter("coords")(g)).explode())
 
         # Configure deltas.
         additions = nrn_nodes - crn_nodes
         deletions = crn_nodes - nrn_nodes
 
-        # TODO: Create and export GeoDataFrames from delta pt tuples.
+        # Create GeoDataFrames from delta pt tuples.
+        del_gdf = gpd.GeoDataFrame(geometry=list(map(Point, deletions)), crs=self.crn.crs)
+        add_gdf = gpd.GeoDataFrame(geometry=list(map(Point, additions)), crs=self.crn.crs)
 
+        # Export delta GeoDataFrames to GeoPackages.
+        helpers.export(del_gdf, dst=self.src, name=f"{self.source}_deletions")
+        helpers.export(add_gdf, dst=self.src, name=f"{self.source}_additions")
+
+        # TODO Create nrn_deltas layer and compile NRN delta classifications
 
 @click.command()
 @click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
