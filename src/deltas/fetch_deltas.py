@@ -54,7 +54,7 @@ class CRNDeltas:
         self.nrn_id = "nid"
 
         self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
-        self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
+        self.src_ngd = Path(filepath.parents[2] / "data/ngd_test.gpkg")
         self.src_nrn = Path(filepath.parents[2] / "data/nrn.gpkg")
 
         # Configure source path and layer name.
