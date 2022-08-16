@@ -46,6 +46,11 @@ sources:
   - qc_w
 #  - sk
   - sk_c
+  - sk_e
   - sk_n
+  - sk_r
   - sk_s
+  - sk_se
+  - sk_sw
+  - sk_w
   - yt
