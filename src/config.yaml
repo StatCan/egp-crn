@@ -25,15 +25,33 @@ sources:
   - nt
   - nu
 #  - on
-  - on_c
-  - on_e
-  - on_m
-  - on_n
-  - on_o
-  - on_s
-  - on_se
-  - on_sw
-  - on_t
+  - on_algoma
+  - on_algonquin
+  - on_bancroft
+  - on_brampton
+  - on_brantford
+  - on_halton
+  - on_hamilton
+  - on_huron
+  - on_kenora
+  - on_kingston
+  - on_london
+  - on_mississauga
+  - on_niagara
+  - on_nipissing
+  - on_oshawa
+  - on_ottawa
+  - on_peterborough
+  - on_sarnia
+  - on_scarborough
+  - on_simcoe
+  - on_sudbury
+  - on_thunder_bay
+  - on_timmins
+  - on_toronto
+  - on_waterloo
+  - on_windsor
+  - on_york
   - pe
 #  - qc
   - qc_c
