@@ -63,12 +63,16 @@ sources:
   - qc_se
   - qc_w
 #  - sk
-  - sk_c
-  - sk_e
-  - sk_n
-  - sk_r
-  - sk_s
-  - sk_se
-  - sk_sw
-  - sk_w
+  - sk_estevan
+  - sk_humboldt
+  - sk_kindersley
+  - sk_lloydminster
+  - sk_moose_jaw
+  - sk_north_battleford
+  - sk_prince_albert
+  - sk_regina
+  - sk_saskatoon
+  - sk_swift_current
+  - sk_tisdale
+  - sk_yorkton
   - yt
