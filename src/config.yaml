@@ -12,8 +12,11 @@ sources:
   - bc_sw
   - bc_v
 #  - mb
-  - mb_n
-  - mb_s
+  - mb_brandon
+  - mb_portage_la_prairie
+  - mb_steinbach
+  - mb_thompson
+  - mb_winnipeg
 #  - nb
   - nb_e
   - nb_n
