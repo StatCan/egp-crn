@@ -18,13 +18,22 @@ sources:
   - mb_thompson
   - mb_winnipeg
 #  - nb
-  - nb_e
-  - nb_n
-  - nb_w
-  - nl
+  - nb_edmundston
+  - nb_fredericton
+  - nb_miramichi
+  - nb_moncton
+  - nb_saint_john
+#  - nl
+  - nl_avalon
+  - nl_corner_brook
+  - nl_grand_falls-windsor
+  - nl_labrador
 #  - ns
-  - ns_n
-  - ns_s
+  - ns_cape_breton
+  - ns_halifax
+  - ns_truro
+  - ns_windsor
+  - ns_yarmouth
   - nt
   - nu
 #  - on
