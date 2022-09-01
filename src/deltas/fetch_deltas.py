@@ -8,13 +8,15 @@ from copy import deepcopy
 from itertools import chain
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 from tabulate import tabulate
+from collections import Counter
 
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 
+# import hazhelper
 import helpers
 
 # Set logger.
@@ -55,7 +57,7 @@ class CRNDeltas:
         self.nrn_id = "nid"
 
         self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
-        self.src_ngd = Path(filepath.parents[2] / "data/ngd_test.gpkg")
+        self.src_ngd = Path(filepath.parents[2] / "data/ngd_al.gpkg")
         self.src_nrn = Path(filepath.parents[2] / "data/nrn.gpkg")
 
         # Configure source path and layer name.
@@ -75,7 +77,9 @@ class CRNDeltas:
         logger.info("Successfully loaded source data.")
 
         # Standardize data and snap nodes.
+        print(Counter(self.crn.segment_type))
         self.crn = helpers.standardize(self.crn)
+        print(Counter(self.crn.segment_type))
         self.crn = helpers.snap_nodes(self.crn)
 
         # Load NGD data.
@@ -85,7 +89,9 @@ class CRNDeltas:
             logger.info("Successfully loaded NGD data.")
 
             # Standardize data.
-            self.ngd = helpers.round_coordinates(self.ngd)
+            # self.ngd = hazhelper.drop_zero_geom(self.ngd)
+            # self.ngd = helpers.round_coordinates(self.ngd)
+            # self.ngd["SGMNT_DTE"] = self.ngd.SGMNT_DTE.dt.strftime("%Y%m%d").astype(int)
 
         # Load NRN data.
         if self.process_nrn:
@@ -94,8 +100,8 @@ class CRNDeltas:
             logger.info("Successfully loaded NRN data.")
 
             # Standardize data.
-            self.nrn = helpers.round_coordinates(self.nrn)
             self.nrn = self.nrn.to_crs(3347)
+            self.nrn = helpers.round_coordinates(self.nrn)
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -110,7 +116,15 @@ class CRNDeltas:
 
         logger.info("Fetching NGD deltas.")
 
-        # TODO
+        # filter ngd arcs based on date created.
+        ngd_additions = set(self.ngd.loc[self.ngd["SGMNT_DTE"] >= 20210601, "geometry"].map
+                            (lambda g: attrgetter("coords")(g)))
+
+        # Create NGD additions GeoDatFrame.
+        ngd_add_gdf = gpd.GeoDataFrame(geometry=list(map(LineString, ngd_additions)), crs=self.crn.crs)
+
+        # Export NGD additions GeoDataFrame to GeoPackage
+        helpers.export(ngd_add_gdf, dst=self.src, name=f"{self.source}_ngd_deltas")
 
     def fetch_nrn_deltas(self) -> None:
         """Identifies and retrieves NRN deltas."""
@@ -125,16 +139,35 @@ class CRNDeltas:
         # Configure deltas.
         additions = nrn_nodes - crn_nodes
         deletions = crn_nodes - nrn_nodes
-
-        # Create GeoDataFrames from delta pt tuples.
         del_gdf = gpd.GeoDataFrame(geometry=list(map(Point, deletions)), crs=self.crn.crs)
         add_gdf = gpd.GeoDataFrame(geometry=list(map(Point, additions)), crs=self.crn.crs)
 
+        # Create DataFrames from delta pt tuples.
+        del_df = pd.DataFrame({"del_status": "delete", "geometry": del_gdf["geometry"].map(
+                                      lambda g: (attrgetter("coords")(g)))})
+        add_df = pd.DataFrame({"add_status": "add", "geometry": add_gdf["geometry"].map(
+                                      lambda g: (attrgetter("coords")(g)))})
+
+        # Merge NRN deltas dataframes.
+        nrn_deltas = del_df.merge(add_df, on="geometry", how="outer")
+
+        # Compile NRN delta classifications.
+        nrn_deltas["status"] = -1
+        nrn_deltas.loc[nrn_deltas["del_status"].isna(), "status"] = "addition"
+        nrn_deltas.loc[nrn_deltas["add_status"].isna(), "status"] = "deletion"
+
+        # Create NRN deltas GeoDataFrame.
+        nrn_deltas = nrn_deltas.loc[nrn_deltas["status"] != -1].fillna("other").copy(deep=True)
+        if len(nrn_deltas):
+            deltas_nrn = gpd.GeoDataFrame(nrn_deltas, geometry=list(map(Point, nrn_deltas["geometry"])),
+                                          crs=self.crn.crs)
+
         # Export delta GeoDataFrames to GeoPackages.
-        helpers.export(del_gdf, dst=self.src, name=f"{self.source}_deletions")
-        helpers.export(add_gdf, dst=self.src, name=f"{self.source}_additions")
+        helpers.export(deltas_nrn, dst=self.src, name=f"{self.source}_nrn_deltas_T")
+        # helpers.export(add_gdf, dst=self.src, name=f"{self.source}_additions")
 
         # TODO Create nrn_deltas layer and compile NRN delta classifications
+
 
 @click.command()
 @click.argument("source", type=click.Choice(helpers.load_yaml("../config.yaml")["sources"], False))
