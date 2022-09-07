@@ -1,10 +1,23 @@
 sources:
 #  - ab
-  - ab_c
-  - ab_e
-  - ab_n
-  - ab_s
-  - ab_w
+  - ab_athabasca
+  - ab_brooks
+  - ab_calgary_east
+  - ab_calgary_north
+  - ab_calgary_west
+  - ab_camrose
+  - ab_drumheller
+  - ab_edmonton_north
+  - ab_edmonton_south
+  - ab_grande_prairie
+  - ab_lacombe
+  - ab_lethbridge
+  - ab_medicine_hat
+  - ab_peace_river
+  - ab_red_deer
+  - ab_rockies
+  - ab_wood_buffalo
+  - ab_yellowhead
 #  - bc
   - bc_c
   - bc_n
