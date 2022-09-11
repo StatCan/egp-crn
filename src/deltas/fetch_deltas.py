@@ -15,11 +15,9 @@ from collections import Counter
 
 filepath = Path(__file__).resolve()
 sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
-<<<<<<< HEAD
+
 
 # import hazhelper
-=======
->>>>>>> 3c5d0d92d4d8c04014f32dde0fd346671b75b7cb
 import helpers
 
 # Set logger.
@@ -103,10 +101,7 @@ class CRNDeltas:
             logger.info("Successfully loaded NRN data.")
 
             # Standardize data.
-<<<<<<< HEAD
             self.nrn = self.nrn.to_crs(3347)
-=======
->>>>>>> 3c5d0d92d4d8c04014f32dde0fd346671b75b7cb
             self.nrn = helpers.round_coordinates(self.nrn)
 
     def __call__(self) -> None:
@@ -137,31 +132,15 @@ class CRNDeltas:
 
         logger.info("Fetching NRN deltas.")
 
-        # ORIGINAL - start
-        # Extract all nrn vertex coordinates.
-        nrn_flag = self.nrn["nid"].map(len) == 32
-
-        nrn_nodes = set(self.nrn.loc[nrn_flag, "geometry"].map(
-            lambda x: tuple(set(attrgetter("coords")(x)))))
-
-        # Extract all crn vertex coordinates.
-        crn_flag = self.crn["segment_id"].map(len) == 32 & (self.crn["segment_type"] == 1)
-
-        crn_nodes = set(self.crn.loc[crn_flag, "geometry"].map(
-            lambda x: tuple(set(attrgetter("coords")(x)))))
-        # ORIGINAL - end
-
-        # NEW - start
         # Compile all nrn and crn road points as sets.
         nrn_nodes = set(self.nrn["geometry"].map(lambda g: attrgetter("coords")(g)).explode())
         crn_nodes = set(self.crn.loc[self.crn["segment_type" == 1], "geometry"].map(
             lambda g: attrgetter("coords")(g)).explode())
-        # NEW - end
 
         # Configure deltas.
         additions = nrn_nodes - crn_nodes
         deletions = crn_nodes - nrn_nodes
-<<<<<<< HEAD
+
         del_gdf = gpd.GeoDataFrame(geometry=list(map(Point, deletions)), crs=self.crn.crs)
         add_gdf = gpd.GeoDataFrame(geometry=list(map(Point, additions)), crs=self.crn.crs)
 
@@ -188,11 +167,8 @@ class CRNDeltas:
         # Export delta GeoDataFrames to GeoPackages.
         helpers.export(deltas_nrn, dst=self.src, name=f"{self.source}_nrn_deltas_T")
         # helpers.export(add_gdf, dst=self.src, name=f"{self.source}_additions")
-=======
 
-        # TODO: Create and export GeoDataFrames from delta pt tuples.
->>>>>>> 3c5d0d92d4d8c04014f32dde0fd346671b75b7cb
-
+        # TODO: [1] revisit fetch_nrn_deltas() and fetch_ngd_deltas; [2] create error logger.
 
 
 @click.command()
