@@ -19,11 +19,20 @@ sources:
   - ab_wood_buffalo
   - ab_yellowhead
 #  - bc
-  - bc_c
-  - bc_n
-  - bc_se
-  - bc_sw
-  - bc_v
+  - bc_burnaby
+  - bc_coast_mountains
+  - bc_fort_st_john
+  - bc_fraser_valley
+  - bc_kamloops
+  - bc_kelowna
+  - bc_kootenays
+  - bc_nanaimo
+  - bc_okanagan
+  - bc_prince_george
+  - bc_sea-to-sky
+  - bc_surrey
+  - bc_vancouver
+  - bc_victoria
 #  - mb
   - mb_brandon
   - mb_portage_la_prairie
