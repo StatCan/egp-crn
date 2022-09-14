@@ -74,7 +74,8 @@ sources:
   - on_niagara
   - on_nipissing
   - on_oshawa
-  - on_ottawa
+  - on_ottawa_east
+  - on_ottawa_west
   - on_peterborough
   - on_sarnia
   - on_scarborough
