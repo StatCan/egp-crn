@@ -6,6 +6,9 @@ Environment
    :depth: 4
 
 
+.. |download_pdf| image:: /source/_static/environment/icon_download_pdf.png
+.. _download_pdf: /source/_static/environment/vm_access.pdf
+
 .. |icon_editing_enable| image:: /source/_static/environment/icon_editing_enable.svg
 .. |icon_editing_save| image:: /source/_static/environment/icon_editing_save.svg
 .. |icon_select| image:: /source/_static/environment/icon_select.svg
@@ -47,12 +50,18 @@ Follow these steps to access your VM:
     Ensure you are signed in to ``@cloud.statcan.ca`` and not ``@statcan.gc.ca`` by checking the upper-right corner in
     the Azure portal, otherwise you will not be able to find your VM.
 
-.. figure:: /source/_static/environment/vm_access.pdf
-    :alt: Instructions for VM access.
+Include test
+
+.. include:: /source/_static/environment/vm_access.pdf
 
     Figure: Instructions for VM access.
 
-Second test for downloading = :download:`Instructions for VM access </source/_static/environment/vm_access.pdf>`
+Raw test
+
+.. raw:: pdf
+   :file: /source/_static/environment/vm_access.pdf
+
+Instructions for VM access: |download_pdf|_
 
 Software
 ========
