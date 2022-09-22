@@ -6,9 +6,6 @@ Environment
    :depth: 4
 
 
-.. |download_pdf| image:: /source/_static/environment/icon_download_pdf.png
-.. _download_pdf: /source/_static/environment/vm_access.pdf
-
 .. |icon_editing_enable| image:: /source/_static/environment/icon_editing_enable.svg
 .. |icon_editing_save| image:: /source/_static/environment/icon_editing_save.svg
 .. |icon_select| image:: /source/_static/environment/icon_select.svg
@@ -22,46 +19,8 @@ Virtual Machine (VM) Access
 ===========================
 
 All work is done on a personalized VM on the StatCan cloud environment. Your VM is named according to the format:
-``egp-<username>``.
-
-Follow these steps to access your VM:
-
-1. Login in Microsoft Azure:
-
-  i. Access the `Azure portal <https://portal.azure.com>`_ via Net B.
-
-  ii. Sign in using your cloud account credentials (``@cloud.statcan.ca``).
-
-  iii. Approve sign in request.
-
-2. Connect to your VM:
-
-  i. Find your VM under ``Recent resources`` or manually search via the ``Virtual Machines`` service.
-
-  ii. ``Start`` the VM, if not already started.
-
-  iii. Connect to the VM via ``Bastion`` using the following credentials:
-
-       :Username: nrnadm
-       :Password: Ask me for password.
-
-.. admonition:: Note
-
-    Ensure you are signed in to ``@cloud.statcan.ca`` and not ``@statcan.gc.ca`` by checking the upper-right corner in
-    the Azure portal, otherwise you will not be able to find your VM.
-
-Include test
-
-.. include:: /source/_static/environment/vm_access.pdf
-
-    Figure: Instructions for VM access.
-
-Raw test
-
-.. raw:: pdf
-   :file: /source/_static/environment/vm_access.pdf
-
-Instructions for VM access: |download_pdf|_
+``egp-<username>``. See the following instructions for accessing your VM:
+:download:`Download PDF </source/_static/environment/vm_access.pdf>`
 
 Software
 ========
