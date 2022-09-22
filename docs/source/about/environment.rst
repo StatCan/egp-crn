@@ -47,10 +47,12 @@ Follow these steps to access your VM:
     Ensure you are signed in to ``@cloud.statcan.ca`` and not ``@statcan.gc.ca`` by checking the upper-right corner in
     the Azure portal, otherwise you will not be able to find your VM.
 
-.. figure:: /source/_static/environment/vm_access.gif
-    :alt: VM access.
+.. figure:: /source/_static/environment/vm_access.pdf
+    :alt: Instructions for VM access.
 
-    Figure: VM access.
+    Figure: Instructions for VM access.
+
+Second test for downloading = :download:`Instructions for VM access </source/_static/environment/vm_access.pdf>`
 
 Software
 ========
@@ -60,7 +62,6 @@ All software dependencies are pre-installed. All you need is the following:
 Data Editing
 ------------
 
-- `Notepad++ <https://notepad-plus-plus.org/downloads/>`_: Base Notepad with added editing capabilities.
 - `QGIS <https://www.qgis.org/en/site/forusers/download.html>`_: Open source GIS application.
 
 Repository Management and Script Usage
