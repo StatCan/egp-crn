@@ -169,12 +169,12 @@ Scenario: Structural Differences
     alignment issues).
 
 Scenario: Structural Differences (1)
-------------------------------------
+""""""""""""""""""""""""""""""""""""
 
 .. include:: /source/_static/meshblock_conflation/scenario_structural_differences_1.rst
 
 Scenario: Structural Differences (2)
-------------------------------------
+""""""""""""""""""""""""""""""""""""
 
 .. include:: /source/_static/meshblock_conflation/scenario_structural_differences_2.rst
 
