@@ -215,12 +215,17 @@ Scenario: Ferries
 
 **Actions:**
 
-1. If required, use the other BO integration scenarios to connect the BO to the CRN.
+1. Treat the ferry segment as if it does not exist. If required, use the other BO integration scenarios to connect the
+   BO to the CRN.
 
 .. admonition:: Note
 
-    Ferries are excluded from meshblock creation and, therefore, segmentation is not required when BOs and ferries
-    intersect. However, all other :doc:`topology rules <topology_validation>` should still be respected.
+    Ferries exist as part of the CRN but are excluded from meshblock creation since their positions are unreliable as
+    they frequently change with each new data vintage from NRN providers. Moreover, ferry segments are already
+    non-exact and simply approximations of the general route taken by the ferry.
+
+    While ferry segments must still respect some of the :doc:`topology rules <topology_validation>`, they do not need
+    to be segmented and are allowed to overlap and even duplicate BOs.
 
 Scenario: NatProvTer
 """"""""""""""""""""

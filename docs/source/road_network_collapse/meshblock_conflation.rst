@@ -99,10 +99,7 @@ Explanation of Layers
 Example Output
 ^^^^^^^^^^^^^^
 
-.. figure:: /source/_static/meshblock_conflation/qgis_example_output.png
-    :alt: QGIS example output.
-
-    Figure: QGIS example output.
+.. include:: /source/_static/meshblock_conflation/qgis_example_output.rst
 
 Conflation Scenarios
 ====================
@@ -163,6 +160,24 @@ Scenario: Misaligned Networks - Additional Examples
 
 .. include:: /source/_static/meshblock_conflation/scenario_misaligned_networks_additional_examples.rst
 
+Scenario: Structural Differences
+--------------------------------
+
+.. admonition:: Note
+
+    A structural difference is where the CRN and NGD have different network representations (not the same as offsets /
+    alignment issues).
+
+Scenario: Structural Differences (1)
+------------------------------------
+
+.. include:: /source/_static/meshblock_conflation/scenario_structural_differences_1.rst
+
+Scenario: Structural Differences (2)
+------------------------------------
+
+.. include:: /source/_static/meshblock_conflation/scenario_structural_differences_2.rst
+
 Scenario: Isolated Blocks
 -------------------------
 
@@ -170,6 +185,12 @@ Scenario: Isolated Blocks
 
 Scenario: Correction of NGD Road
 --------------------------------
+
+.. admonition:: Note
+
+    Inaccurate / low resolution roads can be corrected based on the imagery layer, if desired, so long as the
+    conflation threshold remains satisfied. However, this is not always possible (as shown below) and is not the
+    objective of this task.
 
 .. include:: /source/_static/meshblock_conflation/scenario_correction_of_ngd_road.rst
 
