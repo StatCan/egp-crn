@@ -34,10 +34,10 @@ class CRNCrossings:
         """
 
         self.source = source
-        self.layer = f"nrn_bo_{source}"
+        self.layer = f"crn_{source}"
         self.layer_crossings = f"{source}_crossings"
         self.layer_deltas = f"{source}_crossings_deltas"
-        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
+        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
         self.crossings = None
         self.crossings_old = None
         self.crossings_deltas = None

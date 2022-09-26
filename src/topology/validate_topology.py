@@ -51,9 +51,9 @@ class CRNTopologyValidation:
         """
 
         self.source = source
-        self.layer = f"nrn_bo_{source}"
+        self.layer = f"crn_{source}"
         self.id = "segment_id"
-        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
+        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
         self.errors = dict()
         self.export = {
             f"{self.source}_cluster_tolerance": None

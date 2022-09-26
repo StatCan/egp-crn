@@ -34,8 +34,8 @@ class CRNArcConflation:
 
         self.source = source
 
-        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
-        self.layer_arc = f"nrn_bo_{self.source}"
+        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.layer_arc = f"crn_{self.source}"
         self.layer_meshblock = f"meshblock_{self.source}"
 
         self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")

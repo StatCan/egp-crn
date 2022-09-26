@@ -26,7 +26,7 @@ Resources
 ---------
 
 :CLI Tool: ``src/routability/gen_crossings.py``
-:Output (see data/egp_data.gpkg):
+:Output (see data/crn.gpkg):
     - Basic metrics output to console.
     - Crossings point layer:
         - If already exists, only delta crossings: ``<source>_crossings_deltas``

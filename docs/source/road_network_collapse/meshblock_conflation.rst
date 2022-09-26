@@ -33,9 +33,9 @@ Resources
 ---------
 
 :CLI Tool: ``src/conflation/conflate_meshblock.py``
-:Output (see data/egp_data.gpkg):
+:Output (see data/crn.gpkg):
     - Basic metrics output to console.
-    - Updated source layer: ``nrn_bo_<source>``
+    - Updated source layer: ``crn_<source>``
     - New (EGP) BB layer: ``<source>_meshblock``
     - Current (NGD) BB layer: ``<source>_meshblock_ngd``
 :Editing Environment: ``data/egp_editing_meshblock_conflation.qgz``
@@ -89,11 +89,11 @@ Explanation of Layers
 
 **Layers:**
 
-:``nrn_bo``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``crn``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
 :``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for conflation.
 :``meshblock_ngd``: Current NGD BB layer, classified by conflation validity status and labelled with a conflation
                     percentage.
-:``meshblock``: New EGP BB layer generated from ``nrn_bo``, classified according to NGD BB linkage status.
+:``meshblock``: New EGP BB layer generated from ``crn``, classified according to NGD BB linkage status.
 :``Esri Satellite``: Reference WMS for recent imagery context.
 
 Example Output

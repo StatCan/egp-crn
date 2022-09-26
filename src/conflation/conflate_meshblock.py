@@ -37,8 +37,8 @@ class CRNMeshblockConflation:
         self.source = source
         self.threshold = threshold / 100
 
-        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
-        self.layer_arc = f"nrn_bo_{self.source}"
+        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.layer_arc = f"crn_{self.source}"
 
         self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
         self.layer_meshblock_ngd = f"ngd_a_{self.source}"

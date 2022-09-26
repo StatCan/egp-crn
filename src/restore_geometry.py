@@ -37,12 +37,12 @@ class CRNRestoreGeometry:
 
         self.source = source
         self.distance = distance
-        self.layer = f"nrn_bo_{source}"
+        self.layer = f"crn_{source}"
         self.export_layer = f"{source}_restore"
         self.nrn_id = "segment_id_orig"
         self.bo_id = "ngd_uid"
-        self.src = Path(filepath.parents[1] / "data/egp_data.gpkg")
-        self.src_restore = Path(filepath.parents[1] / "data/nrn_bo_restore.gpkg")
+        self.src = Path(filepath.parents[1] / "data/crn.gpkg")
+        self.src_restore = Path(filepath.parents[1] / "data/crn_restore.gpkg")
         self.modified_nrn = set()
         self.modified_bo = set()
 

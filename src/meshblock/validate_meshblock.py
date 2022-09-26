@@ -36,12 +36,12 @@ class CRNMeshblockCreation:
         """
 
         self.source = source
-        self.layer = f"nrn_bo_{source}"
+        self.layer = f"crn_{source}"
         self.id = "segment_id"
         self.nrn_id = "segment_id_orig"
         self.bo_id = "ngd_uid"
-        self.src = Path(filepath.parents[2] / "data/egp_data.gpkg")
-        self.src_restore = Path(filepath.parents[2] / "data/nrn_bo_restore.gpkg")
+        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.src_restore = Path(filepath.parents[2] / "data/crn_restore.gpkg")
         self.errors = dict()
         self.export = {
             f"{self.source}_deadends": None,

@@ -16,9 +16,9 @@ Resources
 ---------
 
 :CLI Tool: ``src/meshblock/validate_meshblock.py``
-:Output (see data/egp_data.gpkg):
+:Output (see data/crn.gpkg):
     - Basic metrics output to console.
-    - Updated source layer: ``nrn_bo_<source>``
+    - Updated source layer: ``crn_<source>``
     - Reference layers (availability conditional on validation results):
         - Missing BOs layer: ``<source>_missing_bo``
         - Missing NRN layer: ``<source>_missing_nrn``
@@ -34,9 +34,9 @@ Editing Process
 
     Figure: Editing process overview.
 
-The source layer ``egp_data.gpkg|layer=nrn_bo_<source>`` will contain new attributes for each validation executed by
-the script (v101, v102, v301, etc.), if that validation actually returned results. The values of these attributes will
-be 1 or 0, indicating whether or not that record was flagged by that validation. Use this data to edit the records.
+The source layer ``crn.gpkg|layer=crn_<source>`` will contain new attributes for each validation executed by the script
+(v101, v102, v301, etc.), if that validation actually returned results. The values of these attributes will be 1 or 0,
+indicating whether or not that record was flagged by that validation. Use this data to edit the records.
 
 QGIS Project
 ------------
@@ -51,11 +51,11 @@ Explanation of Layers
 
 **Layers:**
 
-:``nrn_bo``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``crn``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
 :``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for BO integration.
-:``nrn_bo``: Copy of ``nrn_bo`` with highly visible symbology for quickly identifying erroneous features to edit
-             without having to individually query each one. Intended to have a definition query applied using one of
-             the validation attributes (i.e. ``"v101" = 1``).
+:``crn``: Copy of ``crn`` with highly visible symbology for quickly identifying erroneous features to edit without
+          having to individually query each one. Intended to have a definition query applied using one of the
+          validation attributes (i.e. ``"v101" = 1``).
 :``CanVec Hydro``: Reference WMS to help identify features which may be aligned to CanVec Hydro.
 :``Esri Satellite``: Reference WMS for recent imagery context.
 
