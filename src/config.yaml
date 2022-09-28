@@ -89,14 +89,33 @@ sources:
   - on_york
   - pe
 #  - qc
-  - qc_c
-  - qc_e
-  - qc_m
-  - qc_n
-  - qc_q
-  - qc_s
-  - qc_se
-  - qc_w
+  - qc_bas_saint_laurent
+  - qc_beauharnois-salaberry
+  - qc_blainville-terrebonne
+  - qc_capitale-nationale_nord
+  - qc_capitale-nationale_sud
+  - qc_chaudiere-appalaches
+  - qc_drummondville
+  - qc_gaspesie
+  - qc_gatineau
+  - qc_joliette
+  - qc_laurentides_nord
+  - qc_laurentides_sud
+  - qc_laval
+  - qc_levis
+  - qc_longueuil
+  - qc_montreal_central
+  - qc_montreal_north
+  - qc_montreal_south
+  - qc_nord-du-quebec
+  - qc_outaouais
+  - qc_rouyn-noranda
+  - qc_saguenay
+  - qc_saint-jean-sur-richelieu
+  - qc_saint-jerome
+  - qc_sherbrooke
+  - qc_trois_rivieres
+  - qc_victoriaville
 #  - sk
   - sk_estevan
   - sk_humboldt
