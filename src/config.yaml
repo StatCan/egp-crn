@@ -89,7 +89,7 @@ sources:
   - on_york
   - pe
 #  - qc
-  - qc_bas_saint_laurent
+  - qc_bas-saint-laurent
   - qc_beauharnois-salaberry
   - qc_blainville-terrebonne
   - qc_capitale-nationale_nord
@@ -114,7 +114,7 @@ sources:
   - qc_saint-jean-sur-richelieu
   - qc_saint-jerome
   - qc_sherbrooke
-  - qc_trois_rivieres
+  - qc_trois-rivieres
   - qc_victoriaville
 #  - sk
   - sk_estevan
