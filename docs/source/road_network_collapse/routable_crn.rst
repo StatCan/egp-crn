@@ -86,12 +86,7 @@ Progress
 
     This section is temporary and will be removed once this task is completed.
 
-.. figure:: /source/_static/progress/routable_crn_progress_chart.svg
-    :alt: Routable CRN progress chart.
-
-    Figure: Routable CRN progress chart as of June 27, 2022.
-
-.. figure:: /source/_static/progress/routable_crn_progress_map.svg
+.. figure:: /source/_static/progress/routable_crn_progress_map.png
     :alt: Routable CRN progress map.
 
-    Figure: Routable CRN progress map as of June 27, 2022.
+    Figure: Routable CRN progress map as of October 4, 2022.

@@ -201,12 +201,7 @@ Progress
 
     This section is temporary and will be removed once this task is completed.
 
-.. figure:: /source/_static/progress/meshblock_conflation_progress_chart.svg
-    :alt: Meshblock conflation progress chart.
-
-    Figure: Meshblock conflation progress chart as of July 25, 2022.
-
-.. figure:: /source/_static/progress/meshblock_conflation_progress_map.svg
+.. figure:: /source/_static/progress/meshblock_conflation_progress_map.png
     :alt: Meshblock conflation progress map.
 
-    Figure: Meshblock conflation progress map as of July 25, 2022.
+    Figure: Meshblock conflation progress map as of October 4, 2022.
