@@ -159,7 +159,7 @@ Scenario: Obsolete BO
     If the BO only covers a small portion of an NRN arc, you may wish to split the associated arc to avoid over
     representing the ``ngd_uid`` by a much larger feature.
 
-Scenario: Bo-to-BO Connection
+Scenario: BO-to-BO Connection
 """""""""""""""""""""""""""""
 
 .. figure:: /source/_static/meshblock_creation/validation_100_bo-to-bo.png
