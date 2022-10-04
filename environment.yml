@@ -1,4 +1,4 @@
-name: egp
+name: egp-crn
 channels:
   - conda-forge
   - defaults

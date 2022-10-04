@@ -15,11 +15,6 @@ Repository for the CRN project, part of the Enterprise Geospatial Platform (EGP)
 comprised of the collapse of the National Road Network (NRN) and National Geographic Database (NGD) Road Network File
 (RNF), using the NRN as the new base geometry.
 
-.. admonition:: Note
-
-    The CRN is the only EGP project currently on GitHub and, therefore occupies the ``egp`` repository name. Once more
-    EGP projects become active on GitHub, this repository's name may change to the more specific name of ``egp-crn``.
-
 Setup / Installation
 --------------------
 
