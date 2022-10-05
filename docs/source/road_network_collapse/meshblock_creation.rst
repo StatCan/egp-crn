@@ -23,8 +23,8 @@ Resources
         - Missing BOs layer: ``<source>_missing_bo``
         - Missing NRN layer: ``<source>_missing_nrn``
         - Deadend points layer: ``<source>_deadends``
-        - New (EGP) BB layer: ``<source>_meshblock``
-:Editing Environment: ``data/egp_editing_meshblock.qgz``
+        - New (CRN) BB layer: ``<source>_meshblock``
+:Editing Environment: ``data/editing_meshblock.qgz``
 
 Editing Process
 ---------------
@@ -342,7 +342,7 @@ Validation 102
 
 .. admonition:: Definition
 
-    Untouchable BOs: A subset of BOs which must exist in the dataset for other EGP projects. These BO geometries can be
+    Untouchable BOs: A subset of BOs which must exist in the dataset for other CRN projects. These BO geometries can be
     modified and even deleted (if replaced by an NRN road), but the identifier (``ngd_uid``) must still exist in the
     dataset.
 

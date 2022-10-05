@@ -149,9 +149,17 @@ records:
   - delay: 50
     content: "g"
   - delay: 50
-    content: "p\r\n\e[?25h"
+    content: "p"
+  - delay: 50
+    content: "-"
+  - delay: 50
+    content: "c"
+  - delay: 50
+    content: "r"
+  - delay: 50
+    content: "n\r\n\e[?25h"
   - delay: 500
-    content: "\r\n(egp) C:\\>"
+    content: "\r\n(egp-crn) C:\\>"
   - delay: 1000
     content: "c"
   - delay: 50
@@ -176,6 +184,14 @@ records:
     content: "g"
   - delay: 50
     content: "p"
+  - delay: 50
+    content: "-"
+  - delay: 50
+    content: "c"
+  - delay: 50
+    content: "r"
+  - delay: 50
+    content: "n"
   - delay: 50
     content: "/"
   - delay: 50
@@ -203,7 +219,7 @@ records:
   - delay: 50
     content: "y\r\n\e[?25h"
   - delay: 500
-    content: "\r\n(egp) C:\\egp\\src\\topology>"
+    content: "\r\n(egp-crn) C:\\egp-crn\\src\\topology>"
   - delay: 1000
     content: "p"
   - delay: 50
@@ -273,9 +289,9 @@ records:
   - delay: 50
     content: "p\r\n\e[?25h"
   - delay: 500
-    content: "\r\nUsage: validate_topology.py [OPTIONS] [ab|bc|mb|nb|nl|ns|nt|nu|on|pe|qc|sk|yt]\r\n\r\n  Instantiates and executes the EGP class.\r\n\r\n  :param str source: abbreviation for the source province / territory.\r\n\r\n  --help                      Show this message and exit.\r\n\r\n\e[?25h"
+    content: "\r\nUsage: validate_topology.py [OPTIONS] [ab|bc|mb|nb|nl|ns|nt|nu|on|pe|qc|sk|yt]\r\n\r\n  Instantiates and executes the EGP-CRN class.\r\n\r\n  :param str source: code for the source region (working area).\r\n\r\n  --help                      Show this message and exit.\r\n\r\n\e[?25h"
   - delay: 50
-    content: "(egp) C:\\egp\\src\\topology>"
+    content: "(egp-crn) C:\\egp-crn\\src\\topology>"
   - delay: 1000
     content: "p"
   - delay: 50

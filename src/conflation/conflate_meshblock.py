@@ -30,7 +30,7 @@ class CRNMeshblockConflation:
         """
         Initializes the CRN class.
 
-        :param str source: abbreviation for the source province / territory.
+        :param str source: code for the source region (working area).
         :param int threshold: the percentage of area intersection which constitutes a match, default=80.
         """
 
@@ -152,10 +152,10 @@ class CRNMeshblockConflation:
                        name=f"{self.source}_meshblock_ngd")
 
         # Log conflation progress.
-        count_ngd = sum(~self.meshblock_ngd['valid'])
-        count_egp = sum(self.meshblock[self.id_meshblock_ngd] == -1)
-        count_total = count_ngd + count_egp
-        table = tabulate([["NGD", f"{count_ngd:,}"], ["EGP", f"{count_egp:,}"], ["Total", f"{count_total:,}"]],
+        count_ngd = sum(~self.meshblock_ngd["valid"])
+        count_crn = sum(self.meshblock[self.id_meshblock_ngd] == -1)
+        count_total = count_ngd + count_crn
+        table = tabulate([["NGD", f"{count_ngd:,}"], ["CRN", f"{count_crn:,}"], ["Total", f"{count_total:,}"]],
                          headers=["Invalid Blocks", "Count"], tablefmt="rst", colalign=("left", "right"))
         logger.info("\n" + table)
 
@@ -169,7 +169,7 @@ def main(source: str, threshold: int = 80) -> None:
     Instantiates and executes the CRN class.
 
     \b
-    :param str source: abbreviation for the source province / territory.
+    :param str source: code for the source region (working area).
     :param int threshold: the percentage of area intersection which constitutes a match, default=80.
     """
 

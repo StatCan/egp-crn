@@ -58,7 +58,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/StatCan/egp",
+            "url": "https://github.com/StatCan/egp-crn",
             "icon": "fab fa-github",
             "type": "fontawesome"
         }

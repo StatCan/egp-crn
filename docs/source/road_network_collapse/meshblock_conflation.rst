@@ -17,13 +17,13 @@ individual meshblock polygons (BBs) as ``conflated`` or ``unconflated``.
 
 .. admonition:: Definition
 
-    ``conflated``: An NGD BB which has >= 80% of its area contained within a single EGP BB.
+    ``conflated``: An NGD BB which has >= 80% of its area contained within a single CRN BB.
 
 .. admonition:: Threshold Strictness
 
     It will not always be possible to achieve the conflation threshold without introducing needless complexity to the
     CRN. Therefore, the threshold should be treated as a soft restriction and lower values are acceptable so long as
-    the NGD BB can be guaranteed to link to a single EGP BB based on majority area occupation, as defined above for
+    the NGD BB can be guaranteed to link to a single CRN BB based on majority area occupation, as defined above for
     ``conflation``.
 
 The required actions to resolve ``unconflated`` BBs should follow those outlined in the various validations in
@@ -36,9 +36,9 @@ Resources
 :Output (see data/crn.gpkg):
     - Basic metrics output to console.
     - Updated source layer: ``crn_<source>``
-    - New (EGP) BB layer: ``<source>_meshblock``
+    - New (CRN) BB layer: ``<source>_meshblock``
     - Current (NGD) BB layer: ``<source>_meshblock_ngd``
-:Editing Environment: ``data/egp_editing_meshblock_conflation.qgz``
+:Editing Environment: ``data/editing_meshblock_conflation.qgz``
 
 Editing Process
 ---------------
@@ -59,7 +59,7 @@ Cardinalities
 .. figure:: /source/_static/meshblock_conflation/cardinalities_overview.png
     :alt: Cardinalities overview.
 
-    Figure: Cardinalities overview. Direction: EGP (blue) - to - NGD (pink).
+    Figure: Cardinalities overview. Direction: CRN (blue) - to - NGD (pink).
 
 **Cardinalities Explained:**
 
@@ -93,7 +93,7 @@ Explanation of Layers
 :``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for conflation.
 :``meshblock_ngd``: Current NGD BB layer, classified by conflation validity status and labelled with a conflation
                     percentage.
-:``meshblock``: New EGP BB layer generated from ``crn``, classified according to NGD BB linkage status.
+:``meshblock``: New CRN BB layer generated from ``crn``, classified according to NGD BB linkage status.
 :``Esri Satellite``: Reference WMS for recent imagery context.
 
 Example Output
@@ -111,7 +111,7 @@ Conflation Scenarios
 
 .. admonition:: Adding new BOs (completely new arcs)
 
-    If a network difference prevents an EGP BB from being properly conflated, you may need to add a new arc to the CRN
+    If a network difference prevents an CRN BB from being properly conflated, you may need to add a new arc to the CRN
     data. After creating the arc, either set ``bo_new=1``, ``segment_type=3``, or both. The script will automatically
     resolve the other attribute if only one of them is set.
 
@@ -135,7 +135,7 @@ Scenario: Misaligned Networks
 
 .. admonition:: Note
 
-    Misaligned networks are difficult to resolve since there is no clear nor obvious solution. If the EGP and NGD BBs
+    Misaligned networks are difficult to resolve since there is no clear nor obvious solution. If the CRN and NGD BBs
     are not too different in shape, try modifying the BO shape slightly or rerunning the script with a slightly lower
     threshold value. Larger differences may require adding NGD roads as BOs and / or adding completely new BOs, thereby
     segmenting the data until the conflation threshold is satisfied.

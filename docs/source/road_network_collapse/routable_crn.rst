@@ -31,7 +31,7 @@ Resources
     - Crossings point layer:
         - If already exists, only delta crossings: ``<source>_crossings_deltas``
         - Otherwise, all crossings: ``<source>_crossings``
-:Editing Environment: ``data/egp_editing_routable_crossings.qgz``
+:Editing Environment: ``data/editing_routable_crossings.qgz``
 
 Editing Process
 ---------------

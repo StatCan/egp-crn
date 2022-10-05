@@ -25,7 +25,7 @@ Resources
     - Updated source layer: ``crn_<source>``
     - Reference layers (availability conditional on validation results):
         - Cluster tolerance point layer: ``<source>_cluster_tolerance``
-:Editing Environment: ``data/egp_editing_topology.qgz``
+:Editing Environment: ``data/editing_topology.qgz``
 
 Editing Process
 ---------------

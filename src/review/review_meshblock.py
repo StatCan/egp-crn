@@ -28,7 +28,7 @@ class CRNMeshblockReview:
         """
         Initializes the CRN class.
 
-        :param str source: abbreviation for the source province / territory.
+        :param str source: code for the source region (working area).
         """
 
         self.source = source
@@ -70,12 +70,12 @@ class CRNMeshblockReview:
     def compare_neighbours(self) -> None:
         """
         Compiles and identifies any difference in the set of neighbouring bb identifiers for each linked bb between the
-        egp and ngd meshblock networks.
+        CRN and NGD meshblock networks.
         """
 
         logger.info("Performing neighbour comparison.")
 
-        # Dissolve egp meshblock based on identifer.
+        # Dissolve crn meshblock based on identifer.
         meshblock = self.meshblock.dissolve(by=self.id, as_index=False)
 
         # Create neighbour index-identifier lookup dicts.
@@ -95,10 +95,10 @@ class CRNMeshblockReview:
         # Create ngd identifier-neighbours lookup dict.
         meshblock_ngd_id_nbrs_lookup = dict(zip(self.meshblock_ngd[self.id], self.meshblock_ngd["nbrs"]))
 
-        # Compile ngd neighbours for each egp bb.
+        # Compile ngd neighbours for each crn bb.
         meshblock["nbrs_ngd"] = meshblock[self.id].map(lambda val: itemgetter(val)(meshblock_ngd_id_nbrs_lookup))
 
-        # Flag egp bbs with different neighbours than their linked ngd bbs.
+        # Flag crn bbs with different neighbours than their linked ngd bbs.
         self.meshblock_invalid = meshblock.loc[meshblock["nbrs"] != meshblock["nbrs_ngd"]].copy(deep=True)
 
     def output_results(self) -> None:
@@ -136,7 +136,7 @@ def main(source: str) -> None:
     Instantiates and executes the CRN class.
 
     \b
-    :param str source: abbreviation for the source province / territory.
+    :param str source: code for the source region (working area).
     """
 
     try:

@@ -43,7 +43,7 @@ Repository
 ==========
 
 The repository is the root directory containing all files and code for a project. This project's repository is named
-``egp`` and is already installed on your VM at ``C:/egp``.
+``egp-crn`` and is already installed on your VM at ``C:/egp-crn``.
 
 ``Git`` is used for repository management. ``Git`` allows you to fetch content from a remote repository (GitHub in this
 case) and integrate the differences into your local repository.
@@ -57,14 +57,14 @@ Installation
 
 2. Install the repository::
 
-    git clone https://github.com/StatCan/egp.git
+    git clone https://github.com/StatCan/egp-crn.git
 
 Updates
 -------
 
 1. Change directory to the repository root::
 
-    cd /d C:/egp
+    cd /d C:/egp-crn
 
 2. Fetch and integrate updates::
 
@@ -73,50 +73,50 @@ Updates
 Virtual Environment
 ===================
 
-All scripts within the ``egp`` repository are intended to be executed within a ``conda`` virtual environment. The
-``conda`` environment is defined within an ``environment.yml`` file within the ``egp`` repository and is already
+All scripts within the ``egp-crn`` repository are intended to be executed within a ``conda`` virtual environment. The
+``conda`` environment is defined within an ``environment.yml`` file within the ``egp-crn`` repository and is already
 installed on your VM.
 
-``conda`` is an environment and package manager and is used by the ``egp`` repository to provide an isolated processing
-environment and effective dependency management. The ``conda`` environment must be activated before executing any
-scripts in order to make use of the contained dependencies.
+``conda`` is an environment and package manager and is used by the ``egp-crn`` repository to provide an isolated
+processing environment and effective dependency management. The ``conda`` environment must be activated before
+executing any scripts in order to make use of the contained dependencies.
 
 Installation
 ------------
 
 Install the ``conda`` environment via::
 
-    conda env create -f C:/egp/environment.yml
+    conda env create -f C:/egp-crn/environment.yml
 
 Activation
 ----------
 
 Activate the ``conda`` environment via::
 
-    conda activate egp
+    conda activate egp-crn
 
 Updates
 -------
 
 Update the ``conda`` environment via (only required if dependencies change)::
 
-    conda env update -f C:/egp/environment.yml --prune
+    conda env update -f C:/egp-crn/environment.yml --prune
 
 Scripts
 =======
 
-All scripts within the ``egp`` repository are implemented as CLI tools and can be called from any shell. The specific
-parameters and details of each CLI tool can be viewed by passing the keyword ``--help``.
+All scripts within the ``egp-crn`` repository are implemented as CLI tools and can be called from any shell. The
+specific parameters and details of each CLI tool can be viewed by passing the keyword ``--help``.
 
 Script usage:
 
 1. Activate the ``conda`` environment::
 
-    conda activate egp
+    conda activate egp-crn
 
 2. Change directory to the script location::
 
-    cd /d C:/egp/src/topology
+    cd /d C:/egp-crn/src/topology
 
 3. Execute the script CLI:
 

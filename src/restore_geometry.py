@@ -31,7 +31,7 @@ class CRNRestoreGeometry:
         """
         Initializes the CRN class.
 
-        :param str source: abbreviation for the source province / territory.
+        :param str source: code for the source region (working area).
         :param int distance: the radius of the buffer, default = 2.
         """
 
@@ -138,7 +138,7 @@ def main(source: str, distance: int = 2) -> None:
     Instantiates and executes the CRN class.
 
     \b
-    :param str source: abbreviation for the source province / territory.
+    :param str source: code for the source region (working area).
     :param int distance: the radius of the buffer, default = 2.
     """
 

@@ -47,7 +47,7 @@ class CRNTopologyValidation:
         """
         Initializes the CRN class.
 
-        :param str source: abbreviation for the source province / territory.
+        :param str source: code for the source region (working area).
         """
 
         self.source = source
@@ -447,7 +447,7 @@ def main(source: str) -> None:
     Instantiates and executes the CRN class.
 
     \b
-    :param str source: abbreviation for the source province / territory.
+    :param str source: code for the source region (working area).
     """
 
     try:
