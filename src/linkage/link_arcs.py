@@ -22,8 +22,8 @@ handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s
 logger.addHandler(handler)
 
 
-class CRNArcConflation:
-    """Defines the CRN arc conflation class."""
+class CRNArcLinkage:
+    """Defines the CRN arc linkage class."""
 
     def __init__(self, source: str) -> None:
         """
@@ -76,13 +76,13 @@ class CRNArcConflation:
     def __call__(self) -> None:
         """Executes the CRN class."""
 
-        self.conflation()
+        self.linkage()
         self.output_results()
 
-    def conflation(self) -> None:
-        """Performs the arc conflation."""
+    def linkage(self) -> None:
+        """Performs the arc linkage."""
 
-        logger.info(f"Performing arc conflation.")
+        logger.info(f"Performing arc linkage.")
 
         # Define linkage attribution.
         for new_col in ("meshblock_idx", f"{self.id_meshblock_ngd}_linked", f"{self.id_arc_ngd}_linked"):
@@ -125,7 +125,7 @@ class CRNArcConflation:
         self.arcs.loc[arcs.index] = arcs.copy(deep=True)
 
     def output_results(self) -> None:
-        """Outputs conflation results."""
+        """Outputs linkage results."""
 
         logger.info(f"Outputting results.")
 
@@ -153,7 +153,7 @@ def main(source: str) -> None:
     try:
 
         with helpers.Timer():
-            crn = CRNArcConflation(source)
+            crn = CRNArcLinkage(source)
             crn()
 
     except KeyboardInterrupt:

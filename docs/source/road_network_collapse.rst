@@ -9,20 +9,22 @@ Road Network Collapse
    road_network_collapse/overview
    road_network_collapse/topology_validation
    road_network_collapse/meshblock_creation
-   road_network_collapse/network_conflation
+   road_network_collapse/meshblock_conflation
+   road_network_collapse/arc_linkage
    road_network_collapse/review_process
    road_network_collapse/deltas
    road_network_collapse/routable_crn
 
 .. container:: button
 
-    :doc:`Overview <road_network_collapse/overview>` :doc:`Topology Validation <road_network_collapse/topology_validation>`
-    :doc:`Meshblock Creation <road_network_collapse/meshblock_creation>` :doc:`Network Conflation <road_network_collapse/network_conflation>`
-    :doc:`Review Process <road_network_collapse/review_process>`
+    :doc:`Overview <road_network_collapse/overview>` :doc:`1. Topology Validation <road_network_collapse/topology_validation>`
+    :doc:`2. Meshblock Creation <road_network_collapse/meshblock_creation>` :doc:`3. Meshblock Conflation <road_network_collapse/meshblock_conflation>`
+    :doc:`4. Arc Linkage <road_network_collapse/arc_linkage>`
 
-Linked Projects
-===============
+Associated Tasks and Projects
+=============================
 
 .. container:: button
 
-    :doc:`Deltas <road_network_collapse/deltas>` :doc:`Routable CRN <road_network_collapse/routable_crn>`
+    :doc:`Review Process <road_network_collapse/review_process>` :doc:`Deltas <road_network_collapse/deltas>`
+    :doc:`Routable CRN <road_network_collapse/routable_crn>`
