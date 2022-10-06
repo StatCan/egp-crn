@@ -8,10 +8,7 @@ Overview
 Process Overview
 ================
 
-.. figure:: /source/_static/overview/crn_process_overview.png
-    :alt: CRN process overview.
-
-    Figure: CRN process overview.
+.. include:: /source/_static/overview/crn_process_overview.rst
 
 Process Example
 ===============
