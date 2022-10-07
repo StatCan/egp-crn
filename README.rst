@@ -1,7 +1,7 @@
 Canadian Road Network (CRN)
 ===========================
 
-.. image:: https://img.shields.io/badge/Repository-egp-crn-brightgreen.svg?style=flat-square&logo=github
+.. image:: https://img.shields.io/badge/Repository-egp--crn-brightgreen.svg?style=flat-square&logo=github
    :target: https://github.com/StatCan/egp-crn
 .. image:: https://img.shields.io/badge/License-BSD%203--Clause-blue.svg?style=flat-square
    :target: https://opensource.org/licenses/BSD-3-Clause
