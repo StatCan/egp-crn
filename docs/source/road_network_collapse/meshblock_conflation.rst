@@ -93,7 +93,8 @@ Explanation of Layers
 :``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for conflation.
 :``meshblock_ngd``: Current NGD BB layer, classified by conflation validity status and labelled with a conflation
                     percentage.
-:``meshblock``: New CRN BB layer generated from ``crn``, classified according to NGD BB linkage status.
+:``meshblock``: New CRN BB layer generated from ``crn``, classified by conflation validity status and labelled with a
+                conflation percentage.
 :``Esri Satellite``: Reference WMS for recent imagery context.
 
 Example Output

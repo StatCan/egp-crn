@@ -113,31 +113,46 @@ class CRNMeshblockConflation:
         meshblock["ngd_poly"] = meshblock["ngd_id"].map(ngd_id_poly_lookup)
 
         # Validate cardinality (valid: one-to-one and many-to-one based on crn-to-ngd direction).
-        occupation_area = meshblock["geometry"].intersection(
+        meshblock["occupation_area"] = meshblock["geometry"].intersection(
             gpd.GeoSeries(meshblock["ngd_poly"], crs=self.meshblock_ngd.crs)
         ).area / meshblock.area
 
-        # Compile valid ngd identifiers based on cardinality.
-        flag_valid = occupation_area >= self.threshold
+        # Compile valid identifiers based on cardinality.
+        flag_valid = meshblock["occupation_area"] >= self.threshold
         valid_meshblock_idx_ngd_id_lookup = dict(zip(meshblock.loc[flag_valid].index,
                                                      meshblock.loc[flag_valid, "ngd_id"]))
         valid_ngd_ids = set(valid_meshblock_idx_ngd_id_lookup.values())
+        valid_meshblock_idxs = set(valid_meshblock_idx_ngd_id_lookup)
 
         # Compile maximum occupation percentage for each invalid ngd meshblock as a lookup dictionary.
         flag_invalid = ~meshblock["ngd_id"].isin(valid_ngd_ids)
-        occupation_pct = pd.DataFrame({
+        occupation_pct_ngd = pd.DataFrame({
             "ngd_id": meshblock.loc[flag_invalid, "ngd_id"].values,
-            "occupation_pct": (occupation_area.loc[flag_invalid] * 100).fillna(0).map(int).values})\
+            "occupation_pct": (meshblock.loc[flag_invalid, "occupation_area"] * 100).fillna(0).map(int).values})\
             .sort_values(by=["ngd_id", "occupation_pct"])\
             .drop_duplicates(subset="ngd_id", keep="last")
-        occupation_pct = dict(zip(occupation_pct["ngd_id"], occupation_pct["occupation_pct"]))
+        occupation_pct_ngd = dict(zip(occupation_pct_ngd["ngd_id"], occupation_pct_ngd["occupation_pct"]))
+
+        # Compile maximum occupation percentage for each invalid meshblock as a lookup dictionary.
+        flag_invalid = ~meshblock.index.isin(valid_meshblock_idxs)
+        occupation_pct_meshblock = pd.DataFrame({
+            "idx": meshblock.loc[flag_invalid].index.values,
+            "occupation_pct": (meshblock.loc[flag_invalid, "occupation_area"] * 100).fillna(0).map(int).values})\
+            .sort_values(by=["idx", "occupation_pct"])\
+            .drop_duplicates(subset="idx", keep="last")
+        occupation_pct_meshblock = dict(zip(occupation_pct_meshblock["idx"],
+                                            occupation_pct_meshblock["occupation_pct"]))
 
         # Assign validity status and occupation percentage as attributes to ngd meshblock.
         self.meshblock_ngd["valid"] = self.meshblock_ngd[self.id_meshblock_ngd].isin(valid_ngd_ids)
-        self.meshblock_ngd["occupation_pct"] = self.meshblock_ngd[self.id_meshblock_ngd].map(occupation_pct).fillna(-1)
+        self.meshblock_ngd["occupation_pct"] = self.meshblock_ngd[self.id_meshblock_ngd]\
+            .map(occupation_pct_ngd).fillna(-1)
 
-        # Assign ngd bb identifier to meshblock.
-        self.meshblock[self.id_meshblock_ngd] = pd.Series(self.meshblock.index, index=self.meshblock.index)\
+        # Assign ngd bb identifier, validity status, and occupation percentage as attributes to meshblock.
+        meshblock_index = pd.Series(self.meshblock.index, index=self.meshblock.index)
+        self.meshblock["valid"] = meshblock_index.isin(valid_meshblock_idxs)
+        self.meshblock["occupation_pct"] = meshblock_index.map(occupation_pct_meshblock).fillna(-1)
+        self.meshblock[self.id_meshblock_ngd] = meshblock_index\
             .map(valid_meshblock_idx_ngd_id_lookup).fillna(-1).map(int)
 
     def output_results(self) -> None:
@@ -145,15 +160,14 @@ class CRNMeshblockConflation:
 
         logger.info(f"Outputting results.")
 
-        # Export ngd meshblock with conflation indicator.
-        helpers.export(self.meshblock[[self.id_meshblock_ngd, "geometry"]], dst=self.src,
-                       name=f"{self.source}_meshblock")
-        helpers.export(self.meshblock_ngd[[self.id_meshblock_ngd, "valid", "occupation_pct", "geometry"]], dst=self.src,
-                       name=f"{self.source}_meshblock_ngd")
+        # Export meshblock layers with conflation indicator.
+        for layer, df in {"meshblock": self.meshblock, "meshblock_ngd": self.meshblock_ngd}.items():
+            helpers.export(df[[self.id_meshblock_ngd, "valid", "occupation_pct", "geometry"]], dst=self.src,
+                           name=f"{self.source}_{layer}")
 
         # Log conflation progress.
         count_ngd = sum(~self.meshblock_ngd["valid"])
-        count_crn = sum(self.meshblock[self.id_meshblock_ngd] == -1)
+        count_crn = sum(~self.meshblock["valid"])
         count_total = count_ngd + count_crn
         table = tabulate([["NGD", f"{count_ngd:,}"], ["CRN", f"{count_crn:,}"], ["Total", f"{count_total:,}"]],
                          headers=["Invalid Blocks", "Count"], tablefmt="rst", colalign=("left", "right"))
