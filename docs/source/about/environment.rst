@@ -39,6 +39,14 @@ Repository Management and Script Usage
   development.
 - `conda <https://docs.anaconda.com/anaconda/install/>`_: Virtual environment and package manager.
 
+.. admonition:: conda setup
+
+    conda installation may require the following additions to the ``Path`` environment variable in order for ``conda``
+    to be recognized as a valid command:
+    - C:\ProgramData\Anaconda3
+    - C:\ProgramData\Anaconda3\Library\bin
+    - C:\ProgramData\Anaconda3\Scripts
+
 Repository
 ==========
 
