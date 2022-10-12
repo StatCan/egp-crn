@@ -41,8 +41,8 @@ Repository Management and Script Usage
 
 .. admonition:: conda setup
 
-    conda installation may require the following additions to the ``Path`` environment variable in order for ``conda``
-    to be recognized as a valid command:
+    ``conda`` installation may require the following additions to the ``Path`` environment variable in order for
+    ``conda`` to be recognized as a valid command:
 
     - C:\\ProgramData\\Anaconda3
     - C:\\ProgramData\\Anaconda3\\Library\\bin
