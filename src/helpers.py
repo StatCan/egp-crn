@@ -9,7 +9,7 @@ import sys
 import time
 import uuid
 import yaml
-from itertools import chain
+from itertools import chain, groupby
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from pathlib import Path
@@ -211,6 +211,7 @@ def round_coordinates(df: gpd.GeoDataFrame, precision: int = 5) -> gpd.GeoDataFr
     """
     Rounds the LineString coordinates to a specified decimal precision.
     Only the first 2 values (x, y) are kept for each coordinate, effectively flattening the geometry to 2-dimensions.
+    Duplicated adjacent vertices are removed.
 
     :param gpd.GeoDataFrame df: GeoDataFrame of LineStrings.
     :param int precision: decimal precision to round coordinates to.
@@ -226,9 +227,15 @@ def round_coordinates(df: gpd.GeoDataFrame, precision: int = 5) -> gpd.GeoDataFr
             raise TypeError("Non-LineString geometries detected for GeoDataFrame.")
 
         # Round coordinates.
-        df["geometry"] = df["geometry"].map(lambda g: LineString(map(
-            lambda pt: [round(itemgetter(0)(pt), precision), round(itemgetter(1)(pt), precision)],
-            attrgetter("coords")(g))))
+        coords = df["geometry"].map(lambda g: map(
+            lambda pt: (round(itemgetter(0)(pt), precision), round(itemgetter(1)(pt), precision)),
+            attrgetter("coords")(g))).map(tuple)
+
+        # Remove duplicated adjacent vertices.
+        flag = coords.map(set).map(len) >= 2
+        coords.loc[flag] = coords.loc[flag].map(lambda g: tuple(map(itemgetter(0), groupby(g))))
+
+        df["geometry"] = coords.map(LineString)
 
         return df.copy(deep=True)
 
