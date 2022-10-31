@@ -4,3 +4,4 @@ channels:
   - defaults
 dependencies:
   - pydata-sphinx-theme=0.7.2
+  - sphinx=4.0.0
