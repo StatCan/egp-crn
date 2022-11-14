@@ -393,12 +393,12 @@ Progress
 
     This section is temporary and will be removed once this task is completed.
 
-.. figure:: /source/_static/progress/meshblock_creation_progress_chart.svg
-    :alt: Meshblock creation progress chart.
+.. figure:: /source/_static/progress/meshblock_creation_workload_map.svg
+    :alt: Meshblock creation workload.
 
-    Figure: Meshblock creation progress chart as of July 25, 2022.
+    Figure: Meshblock creation workload (error counts).
 
 .. figure:: /source/_static/progress/meshblock_creation_progress_map.png
     :alt: Meshblock creation progress map.
 
-    Figure: Meshblock creation progress map as of October 4, 2022.
+    Figure: Meshblock creation progress map as of November 14, 2022.
