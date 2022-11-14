@@ -393,7 +393,7 @@ Progress
 
     This section is temporary and will be removed once this task is completed.
 
-.. figure:: /source/_static/progress/meshblock_creation_workload_map.svg
+.. figure:: /source/_static/progress/meshblock_creation_workload_map.png
     :alt: Meshblock creation workload.
 
     Figure: Meshblock creation workload (error counts).
