@@ -38,20 +38,18 @@ class CRNMeshblockCreation:
         self.source = source
         self.layer = f"crn_{source}"
         self.id = "segment_id"
-        self.nrn_id = "segment_id_orig"
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[2] / "data/crn.gpkg")
         self.src_restore = Path(filepath.parents[2] / "data/crn_restore.gpkg")
         self.errors = dict()
         self.export = {
             f"{self.source}_deadends": None,
-            f"{self.source}_missing_bo": None,
-            f"{self.source}_missing_nrn": None
+            f"{self.source}_missing_bo": None
         }
 
         self.meshblock_ = None
         self._meshblock_input = None
-        self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Missing", "Excluded")}
+        self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Invalid (Missing BO)", "Excluded")}
         self._crn_bos_nodes = None
         self._crn_roads_nodes_lookup = dict()
         self._crn_bos_nodes_lookup = dict()
@@ -95,7 +93,7 @@ class CRNMeshblockCreation:
         self.validations = {
             100: self.connectivity,
             101: self.connectivity_crn_proximity,
-            102: self.connectivity_missing,
+            102: self.connectivity_missing_bo,
             200: self.meshblock,
             201: self.meshblock_representation_deadend,
             202: self.meshblock_representation_non_deadend
@@ -200,33 +198,29 @@ class CRNMeshblockCreation:
 
         return errors
 
-    def connectivity_missing(self) -> set:
+    def connectivity_missing_bo(self) -> set:
         """
-        Validates: NRN or BO identifier is missing.
+        Validates: BO identifier is missing.
 
         :return set: placeholder set based on standard validations. For this method, it will be empty.
         """
 
         errors = set()
 
-        # Separate NRN data and BOs and compile identifiers.
-        ids_nrn = set(self.crn_restore.loc[self.crn_restore["segment_type"].isin({1, 2}), self.nrn_id])
-        ids_bo = set(self.crn_restore.loc[self.crn_restore["segment_type"] == 3, self.bo_id])
+        # Compile current and original BO identifier sets.
+        ids_current = set(self.crn[self.bo_id])
+        ids_original = set(self.crn_restore.loc[self.crn_restore["segment_type"] == 3, self.bo_id])
 
-        # Compile and log missing identifiers.
-        for name, params in {"nrn": {"col": self.nrn_id, "ids": ids_nrn},
-                             "bo": {"col": self.bo_id, "ids": ids_bo}}.items():
+        # Compile missing identifiers.
+        missing_ids = ids_original - ids_current
+        if len(missing_ids):
 
-            # Compile missing identifiers.
-            missing_ids = params["ids"] - set(self.crn[params["col"]])
-            if len(missing_ids):
+            # Export missing records.
+            df = self.crn_restore.loc[self.crn_restore[self.bo_id].isin(missing_ids)]
+            self.export[f"{self.source}_missing_bo"] = df.copy(deep=True)
 
-                # Export missing records for reference.
-                df = self.crn_restore.loc[self.crn_restore[params["col"]].isin(missing_ids)]
-                self.export[f"{self.source}_missing_{name}"] = df.copy(deep=True)
-
-                # Update invalid count for progress tracker.
-                self.meshblock_progress["Missing"] += len(missing_ids)
+            # Update invalid count for progress tracker.
+            self.meshblock_progress["Invalid (Missing BO)"] += len(missing_ids)
 
         return errors
 

@@ -21,7 +21,6 @@ Resources
     - Updated source layer: ``crn_<source>``
     - Reference layers (availability conditional on validation results):
         - Missing BOs layer: ``<source>_missing_bo``
-        - Missing NRN layer: ``<source>_missing_nrn``
         - Deadend points layer: ``<source>_deadends``
         - New (CRN) BB layer: ``<source>_meshblock``
 :Editing Environment: ``data/editing_meshblock.qgz``
@@ -335,16 +334,16 @@ Validation 101
 Validation 102
 ^^^^^^^^^^^^^^
 
-| **Description:** Untouchable BO identifier is missing.
+| **Description:** BO identifier is missing.
 | **Actions:**
 
-1. Assign the missing BO identifier (``ngd_uid``) to the appropriate arc(s).
+1. Assign the missing BO identifier (``ngd_uid``) to the appropriate arc(s) or restore the missing arc completely from
+   the ``<source>_missing_bo`` layer.
 
-.. admonition:: Definition
+.. admonition:: Note
 
-    Untouchable BOs: A subset of BOs which must exist in the dataset for other CRN projects. These BO geometries can be
-    modified and even deleted (if replaced by an NRN road), but the identifier (``ngd_uid``) must still exist in the
-    dataset.
+    Missing BOs: BO geometries can be modified and even deleted (if replaced by an NRN road), but the identifier
+    (``ngd_uid``) must still exist in the dataset.
 
 2. Meshblock
 ------------
