@@ -30,6 +30,7 @@ class CRNMeshblockConflation:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: code for the source region (working area).
         :param int threshold: the percentage of area intersection which constitutes a match, default=80.
         """
@@ -38,24 +39,22 @@ class CRNMeshblockConflation:
         self.threshold = threshold / 100
 
         self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.layer_arc = f"crn_{self.source}"
 
-        self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
+        self.src_ngd = helpers.load_yaml("../config.yaml")["filepaths"]["ngd"]
         self.layer_meshblock_ngd = f"ngd_a_{self.source}"
 
         self.id_arc_ngd = "ngd_uid"
         self.id_meshblock_ngd = "bb_uid"
 
-        # Configure source path and layer name.
-        for src in (self.src, self.src_ngd):
-            if src.exists():
-                layer = {self.src: self.layer_arc, self.src_ngd: self.layer_meshblock_ngd}[src]
-                if layer not in set(fiona.listlayers(src)):
-                    logger.exception(f"Layer \"{layer}\" not found within source: \"{src}\".")
-                    sys.exit(1)
-            else:
-                logger.exception(f"Source not found: \"{src}\".")
-                sys.exit(1)
+        # Configure src / dst paths and layer name.
+        if self.dst.exists():
+            if self.layer_arc not in set(fiona.listlayers(self.dst)):
+                self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+        else:
+            helpers.create_gpkg(self.dst)
+            self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer_arc}.")
@@ -82,7 +81,7 @@ class CRNMeshblockConflation:
         logger.info("Successfully loaded ngd meshblock data.")
 
         # Export data.
-        helpers.export(df, dst=self.src, name=self.layer_arc)
+        helpers.export(df, dst=self.dst, name=self.layer_arc)
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -162,7 +161,7 @@ class CRNMeshblockConflation:
 
         # Export meshblock layers with conflation indicator.
         for layer, df in {"meshblock": self.meshblock, "meshblock_ngd": self.meshblock_ngd}.items():
-            helpers.export(df[[self.id_meshblock_ngd, "valid", "occupation_pct", "geometry"]], dst=self.src,
+            helpers.export(df[[self.id_meshblock_ngd, "valid", "occupation_pct", "geometry"]], dst=self.dst,
                            name=f"{self.source}_{layer}")
 
         # Log conflation progress.

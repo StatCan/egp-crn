@@ -30,6 +30,7 @@ def ordered_pairs(coords: Tuple[tuple, ...]) -> List[Tuple[tuple, tuple]]:
     """
     Creates an ordered sequence of adjacent coordinate pairs, sorted.
 
+    \b
     :param Tuple[tuple, ...] coords: tuple of coordinate tuples.
     :return List[Tuple[tuple, tuple]]: ordered sequence of coordinate pair tuples.
     """
@@ -47,6 +48,7 @@ class CRNTopologyValidation:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: code for the source region (working area).
         """
 
@@ -54,19 +56,19 @@ class CRNTopologyValidation:
         self.layer = f"crn_{source}"
         self.id = "segment_id"
         self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.errors = dict()
         self.export = {
             f"{self.source}_cluster_tolerance": None
         }
 
-        # Configure source path and layer name.
-        if self.src.exists():
-            if self.layer not in set(fiona.listlayers(self.src)):
-                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
-                sys.exit(1)
+        # Configure src / dst paths and layer name.
+        if self.dst.exists():
+            if self.layer not in set(fiona.listlayers(self.dst)):
+                self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
         else:
-            logger.exception(f"Source not found: \"{self.src}\".")
-            sys.exit(1)
+            helpers.create_gpkg(self.dst)
+            self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
@@ -110,10 +112,10 @@ class CRNTopologyValidation:
         self._write_errors()
 
         # Export required datasets.
-        helpers.delete_layers(dst=self.src, layers=self.export.keys())
+        helpers.delete_layers(dst=self.dst, layers=self.export.keys())
         for layer, df in {self.layer: self.crn, **self.export}.items():
             if isinstance(df, pd.DataFrame):
-                helpers.export(df, dst=self.src, name=layer)
+                helpers.export(df, dst=self.dst, name=layer)
 
     def _gen_reusable_variables(self) -> None:
         """Generates computationally intensive, reusable geometry attributes."""
@@ -173,6 +175,7 @@ class CRNTopologyValidation:
         """
         Validation: Arcs must be >= 5 meters from each other, excluding connected arcs (i.e. no dangles).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -233,6 +236,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must only connect at endpoints (nodes).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -271,6 +275,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must not cross (i.e. must be segmented at each intersection).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -292,6 +297,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must have >= 1x10-2 (0.01) meters distance between adjacent vertices (cluster tolerance).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -323,6 +329,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -359,6 +366,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -377,6 +385,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must be single part (i.e. 'LineString').
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -395,6 +404,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must not be duplicated.
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -422,6 +432,7 @@ class CRNTopologyValidation:
         """
         Validates: Arcs must not overlap (i.e. contain duplicated adjacent vertices).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 

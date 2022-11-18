@@ -29,18 +29,19 @@ class CRNArcLinkage:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: code for the source region (working area).
         """
 
         self.source = source
 
         self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.layer_arc = f"crn_{self.source}"
         self.layer_meshblock = f"meshblock_{self.source}"
 
-        self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
+        self.src_ngd = helpers.load_yaml("../config.yaml")["filepaths"]["ngd"]
         self.layer_arc_ngd = f"ngd_al_{self.source.split('_')[0]}"
-        self.layer_meshblock_ngd = f"ngd_a_{self.source.split('_')[0]}"
 
         self.id_arc = "segment_id"
         self.id_arc_ngd = "ngd_uid"
@@ -48,18 +49,18 @@ class CRNArcLinkage:
         self.id_meshblock_l_ngd = "bb_uid_l"
         self.id_meshblock_r_ngd = "bb_uid_r"
 
-        # Configure source path and layer name.
-        for src in (self.src, self.src_ngd):
-            if src.exists():
-                layers = set(fiona.listlayers(src))
-                for layer in {self.src: (self.layer_arc, self.layer_meshblock),
-                              self.src_ngd: (self.layer_arc_ngd, self.layer_meshblock_ngd)}[src]:
-                    if layer not in layers:
-                        logger.exception(f"Layer \"{layer}\" not found within source: \"{src}\".")
-                        sys.exit(1)
-            else:
-                logger.exception(f"Source not found: \"{src}\".")
-                sys.exit(1)
+        # Configure src / dst paths and layer names.
+        if self.src.exists():
+            for layer in (self.layer_arc, self.layer_meshblock):
+                if layer not in set(fiona.listlayers(self.src)):
+                    logger.exception(f"Layer \"{layer}\" not found within source: \"{self.src}\".")
+                    sys.exit(1)
+        else:
+            logger.exception(f"Source not found: \"{self.src}\".")
+            sys.exit(1)
+
+        if not self.dst.exists():
+            helpers.create_gpkg(self.dst)
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layers={self.layer_arc},{self.layer_meshblock}.")
@@ -68,9 +69,8 @@ class CRNArcLinkage:
         logger.info("Successfully loaded source data.")
 
         # Load ngd data.
-        logger.info(f"Loading ngd data: {self.src_ngd}|layers={self.layer_arc_ngd},{self.layer_meshblock_ngd}.")
+        logger.info(f"Loading ngd data: {self.src_ngd}|layers={self.layer_arc_ngd}.")
         self.arcs_ngd = gpd.read_file(self.src_ngd, layer=self.layer_arc_ngd)
-        self.meshblock_ngd = gpd.read_file(self.src_ngd, layer=self.layer_meshblock_ngd)
         logger.info("Successfully loaded ngd data.")
 
     def __call__(self) -> None:
@@ -137,7 +137,7 @@ class CRNArcLinkage:
             self.arcs[col] = self.arcs[col].map(lambda vals: ",".join(map(str, vals)))
 
         # Export arcs with linked ngd meshblock and arc identifiers.
-        helpers.export(self.arcs, dst=self.src, name=self.layer_arc)
+        helpers.export(self.arcs, dst=self.dst, name=self.layer_arc)
 
 
 @click.command()

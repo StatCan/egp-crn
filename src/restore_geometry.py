@@ -31,6 +31,7 @@ class CRNRestoreGeometry:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: code for the source region (working area).
         :param int distance: the radius of the buffer, default = 2.
         """
@@ -38,23 +39,26 @@ class CRNRestoreGeometry:
         self.source = source
         self.distance = distance
         self.layer = f"crn_{source}"
-        self.export_layer = f"{source}_restore"
+        self.layer_export = f"crn_{source}_restore"
         self.nrn_id = "segment_id_orig"
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[1] / "data/crn.gpkg")
-        self.src_restore = Path(filepath.parents[1] / "data/crn_restore.gpkg")
+        self.dst = Path(filepath.parents[1] / "data/crn.gpkg")
+        self.src_restore = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
         self.modified_nrn = set()
         self.modified_bo = set()
 
-        # Configure source path and layer name.
-        for src in (self.src, self.src_restore):
-            if src.exists():
-                if self.layer not in set(fiona.listlayers(src)):
-                    logger.exception(f"Layer \"{self.layer}\" not found within source: \"{src}\".")
-                    sys.exit(1)
-            else:
-                logger.exception(f"Source not found: \"{src}\".")
+        # Configure src / dst paths and layer names.
+        if self.src.exists():
+            if self.layer not in set(fiona.listlayers(self.src)):
+                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
                 sys.exit(1)
+        else:
+            logger.exception(f"Source not found: \"{self.src}\".")
+            sys.exit(1)
+
+        if not self.dst.exists():
+            helpers.create_gpkg(self.dst)
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
@@ -121,7 +125,7 @@ class CRNRestoreGeometry:
         export_df = self.crn_restore.loc[(self.crn_restore[self.nrn_id].isin(self.modified_nrn)) |
                                          (self.crn_restore[self.bo_id].isin(self.modified_bo))].copy(deep=True)
         export_df.drop(columns=set(self.crn_restore.columns)-self.crn_restore_cols, inplace=True)
-        helpers.export(export_df, dst=self.src, name=self.export_layer)
+        helpers.export(export_df, dst=self.dst, name=self.layer_export)
 
         # Log modification summary.
         table = tabulate([["NRN", len(self.modified_nrn)], ["BO", len(self.modified_bo)]],

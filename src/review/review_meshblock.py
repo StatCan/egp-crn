@@ -28,28 +28,32 @@ class CRNMeshblockReview:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: code for the source region (working area).
         """
 
         self.source = source
-        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
-        self.layer = f"meshblock_{self.source}"
-        self.src_ngd = Path(filepath.parents[2] / "data/ngd.gpkg")
-        self.layer_ngd = f"ngd_a_{self.source.split('_')[0]}"
         self.id = "bb_uid"
         self.meshblock_invalid = None
 
-        # Configure source path and layer name.
-        for src in (self.src, self.src_ngd):
-            if src.exists():
-                layers = set(fiona.listlayers(src))
-                layer = {self.src: self.layer, self.src_ngd: self.layer_ngd}[src]
-                if layer not in layers:
-                    logger.exception(f"Layer \"{layer}\" not found within source: \"{src}\".")
-                    sys.exit(1)
-            else:
-                logger.exception(f"Source not found: \"{src}\".")
+        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.layer = f"meshblock_{self.source}"
+
+        self.src_ngd = helpers.load_yaml("../config.yaml")["filepaths"]["ngd"]
+        self.layer_ngd = f"ngd_a_{self.source}"
+
+        # Configure src / dst paths and layer names.
+        if self.src.exists():
+            if self.layer not in set(fiona.listlayers(self.src)):
+                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
                 sys.exit(1)
+        else:
+            logger.exception(f"Source not found: \"{self.src}\".")
+            sys.exit(1)
+
+        if not self.dst.exists():
+            helpers.create_gpkg(self.dst)
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
@@ -119,7 +123,7 @@ class CRNMeshblockReview:
         self.meshblock_invalid = self.meshblock_invalid.explode().reset_index(drop=True)
 
         # Export data.
-        helpers.export(self.meshblock_invalid, dst=self.src, name=f"{self.source}_review_meshblock")
+        helpers.export(self.meshblock_invalid, dst=self.dst, name=f"{self.source}_review_meshblock")
 
         # Log results.
         invalid = set(self.meshblock_invalid[self.id])

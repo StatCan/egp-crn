@@ -49,6 +49,7 @@ class Timer:
         """
         Computes and returns the elapsed time.
 
+        \b
         :param Any exc_type: required parameter for __exit__.
         :param Any exc_val: required parameter for __exit__.
         :param Any exc_tb: required parameter for __exit__.
@@ -59,10 +60,31 @@ class Timer:
         logger.info(f"Finished. Time elapsed: {delta}.")
 
 
+def create_gpkg(path: Union[Path, str]) -> None:
+    """
+    Creates a GeoPackage.
+
+    \b
+    :param Union[Path, str] path: A valid path with .gpkg extension.
+    """
+
+    # Resolve inputs.
+    path = str(path)
+
+    logger.info(f"Creating GeoPackage: {path}.")
+
+    # Create GeoPackage.
+    driver = ogr.GetDriverByName("GPKG")
+    driver.CreateDataSource(path)
+
+    del driver
+
+
 def delete_layers(dst: Union[Path, str], layers: Union[list[str, ...], str]) -> None:
     """
     Deletes one or more layers from a GeoPackage.
 
+    \b
     :param Union[Path, str] dst: An existing GeoPackage.
     :param Union[list[str, ...], str] layers: layer(s) to be deleted.
     """
@@ -89,6 +111,7 @@ def explode_geometry(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Explodes MultiLineStrings to LineStrings.
 
+    \b
     :param gpd.GeoDataFrame df: GeoDataFrame.
     :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
@@ -118,6 +141,7 @@ def export(df: gpd.GeoDataFrame, dst: Path, name: str) -> None:
     """
     Exports a GeoDataFrame to a GeoPackage.
 
+    \b
     :param gpd.GeoDataFrame df: GeoDataFrame.
     :param Path dst: output GeoPackage path.
     :param str name: output GeoPackage layer name.
@@ -191,6 +215,7 @@ def load_yaml(path: Union[Path, str]) -> Any:
     """
     Loads the content of a YAML file as a Python object.
 
+    \b
     :param Union[Path, str] path: path to the YAML file.
     :return Any: Python object consisting of the YAML content.
     """
@@ -213,6 +238,7 @@ def round_coordinates(df: gpd.GeoDataFrame, precision: int = 5) -> gpd.GeoDataFr
     Only the first 2 values (x, y) are kept for each coordinate, effectively flattening the geometry to 2-dimensions.
     Duplicated adjacent vertices are removed.
 
+    \b
     :param gpd.GeoDataFrame df: GeoDataFrame of LineStrings.
     :param int precision: decimal precision to round coordinates to.
     :return gpd.GeoDataFrame: GeoDataFrame with modified decimal precision.
@@ -249,6 +275,7 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
     """
     Snaps NGD arcs to NRN arcs (node-to-node) if they are <= the snapping proximity threshold.
 
+    \b
     :param gpd.GeoDataFrame df: GeoDataFrame containing both NRN and NGD arcs.
     :param float prox: max snapping distance (same unit as GeoDataFrame CRS), default=0.1.
     :param float prox_boundary: max snapping distance (same unit as GeoDataFrame CRS) for boundary arcs, default=0.01.
@@ -322,6 +349,7 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
     6) drops any existing validation attributes (v#+).
     7) assign identifier attribute (segment_id) as index.
 
+    \b
     :param gpd.GeoDataFrame df: GeoDataFrame.
     :param bool round_coords: indicates if coordinates are to be rounded.
     :return gpd.GeoDataFrame: updated GeoDataFrame.
@@ -495,6 +523,7 @@ def update_nodes(g: LineString, node_map: Dict[tuple, tuple]) -> LineString:
     """
     Updates one or both nodes in the LineString.
 
+    \b
     :param LineString g: LineString to be updated.
     :param Dict[tuple, tuple] node_map: mapping of from and to nodes.
     :return LineString: updated LineString.

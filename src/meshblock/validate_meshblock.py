@@ -32,6 +32,7 @@ class CRNMeshblockCreation:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: code for the source region (working area).
         """
 
@@ -41,6 +42,7 @@ class CRNMeshblockCreation:
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[2] / "data/crn.gpkg")
         self.src_restore = Path(filepath.parents[2] / "data/crn_restore.gpkg")
+        self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.errors = dict()
         self.export = {
             f"{self.source}_deadends": None,
@@ -58,15 +60,13 @@ class CRNMeshblockCreation:
         # BO integration flag.
         self._integrated = None
 
-        # Configure source path and layer name.
-        for src in (self.src, self.src_restore):
-            if src.exists():
-                if self.layer not in set(fiona.listlayers(src)):
-                    logger.exception(f"Layer \"{self.layer}\" not found within source: \"{src}\".")
-                    sys.exit(1)
-            else:
-                logger.exception(f"Source not found: \"{src}\".")
-                sys.exit(1)
+        # Configure src / dst paths and layer name.
+        if self.dst.exists():
+            if self.layer not in set(fiona.listlayers(self.dst)):
+                self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+        else:
+            helpers.create_gpkg(self.dst)
+            self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
@@ -109,10 +109,10 @@ class CRNMeshblockCreation:
         self._write_errors()
 
         # Export required datasets.
-        helpers.delete_layers(dst=self.src, layers=self.export.keys())
+        helpers.delete_layers(dst=self.dst, layers=self.export.keys())
         for layer, df in {self.layer: self.crn, **self.export}.items():
             if isinstance(df, pd.DataFrame):
-                helpers.export(df, dst=self.src, name=layer)
+                helpers.export(df, dst=self.dst, name=layer)
 
     def _validate(self) -> None:
         """Executes validations against the CRN dataset."""
@@ -168,6 +168,7 @@ class CRNMeshblockCreation:
         Note: This method exists to generate the dependant variables for various connectivity validations and is not
         intended to produce error logs itself.
 
+        \b
         :return set: placeholder set based on standard validations. For this method, it will be empty.
         """
 
@@ -202,6 +203,7 @@ class CRNMeshblockCreation:
         """
         Validates: BO identifier is missing.
 
+        \b
         :return set: placeholder set based on standard validations. For this method, it will be empty.
         """
 
@@ -228,6 +230,7 @@ class CRNMeshblockCreation:
         """
         Validates: Unintegrated BO node is <= 5 meters from a CRN road (entire arc).
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -261,6 +264,7 @@ class CRNMeshblockCreation:
         Note: This method exists to generate the dependant variables for various meshblock validations and is not
         intended to produce error logs itself.
 
+        \b
         :return set: placeholder set based on standard validations. For this method, it will be empty.
         """
 
@@ -293,6 +297,7 @@ class CRNMeshblockCreation:
         """
         All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon.
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 
@@ -318,6 +323,7 @@ class CRNMeshblockCreation:
         """
         Validates: All non-deadend arcs (excluding ferries) must form a meshblock polygon.
 
+        \b
         :return set: set containing identifiers of erroneous records.
         """
 

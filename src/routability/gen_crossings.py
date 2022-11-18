@@ -30,6 +30,7 @@ class CRNCrossings:
         """
         Initializes the CRN class.
 
+        \b
         :param str source: code for the source region (working area).
         """
 
@@ -37,20 +38,20 @@ class CRNCrossings:
         self.layer = f"crn_{source}"
         self.layer_crossings = f"{source}_crossings"
         self.layer_deltas = f"{source}_crossings_deltas"
-        self.src = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn_finished"]
+        self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.crossings = None
         self.crossings_old = None
         self.crossings_deltas = None
         self.min_count = 4
 
-        # Configure source path and layer name.
-        if self.src.exists():
-            if self.layer not in set(fiona.listlayers(self.src)):
-                logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
-                sys.exit(1)
-        else:
-            logger.exception(f"Source not found: \"{self.src}\".")
+        # Configure src / dst paths and layer names.
+        if self.layer not in set(fiona.listlayers(self.src)):
+            logger.exception(f"Layer \"{self.layer}\" not found within source: \"{self.src}\".")
             sys.exit(1)
+
+        if not self.dst.exists():
+            helpers.create_gpkg(self.dst)
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
@@ -62,9 +63,9 @@ class CRNCrossings:
         self.crn = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
 
         # Load existing crossings data, if possible.
-        if self.layer_crossings in set(fiona.listlayers(self.src)):
+        if self.layer_crossings in set(fiona.listlayers(self.dst)):
             logger.info("Loading existing crossings data.")
-            self.crossings_old = gpd.read_file(self.src, layer=self.layer_crossings)
+            self.crossings_old = gpd.read_file(self.dst, layer=self.layer_crossings)
             logger.info("Successfully loaded existing crossings data.")
 
     def __call__(self) -> None:
@@ -76,7 +77,7 @@ class CRNCrossings:
 
             # Export required dataset.
             if isinstance(self.crossings_deltas, pd.DataFrame):
-                helpers.export(self.crossings_deltas, dst=self.src, name=self.layer_deltas)
+                helpers.export(self.crossings_deltas, dst=self.dst, name=self.layer_deltas)
 
                 logger.info("Results: Exported crossings deltas dataset.")
 
@@ -86,7 +87,7 @@ class CRNCrossings:
         else:
 
             # Export required dataset.
-            helpers.export(self.crossings, dst=self.src, name=self.layer_crossings)
+            helpers.export(self.crossings, dst=self.dst, name=self.layer_crossings)
             logger.info("Results: Exported crossings dataset.")
 
     def fetch_deltas(self) -> None:
