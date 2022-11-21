@@ -43,6 +43,7 @@ class CRNMeshblockCreation:
         self.src = Path(filepath.parents[2] / "data/crn.gpkg")
         self.src_restore = Path(filepath.parents[2] / "data/crn_restore.gpkg")
         self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
+        self.flag_new_gpkg = False
         self.errors = dict()
         self.export = {
             f"{self.source}_deadends": None,
@@ -66,6 +67,7 @@ class CRNMeshblockCreation:
                 self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
         else:
             helpers.create_gpkg(self.dst)
+            self.flag_new_gpkg = True
             self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
 
         # Load source data.
@@ -109,7 +111,8 @@ class CRNMeshblockCreation:
         self._write_errors()
 
         # Export required datasets.
-        helpers.delete_layers(dst=self.dst, layers=self.export.keys())
+        if not self.flag_new_gpkg:
+            helpers.delete_layers(dst=self.dst, layers=self.export.keys())
         for layer, df in {self.layer: self.crn, **self.export}.items():
             if isinstance(df, pd.DataFrame):
                 helpers.export(df, dst=self.dst, name=layer)

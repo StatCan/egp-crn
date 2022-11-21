@@ -1,7 +1,7 @@
 filepaths:
-  crn: r"X:\crn_restore.gpkg"
-  crn_finished: r"X:\crn_finished.gpkg"
-  ngd: r"X:\ngd.gpkg"
+  crn: 'X:\crn_restore.gpkg'
+  crn_finished: 'X:\crn_finished.gpkg'
+  ngd: 'X:\ngd.gpkg'
 
 sources:
 #  - ab
