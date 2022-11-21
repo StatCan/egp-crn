@@ -61,7 +61,7 @@ class CRNCrossings:
 
         # Standardize data and filter to roads.
         self.crn = helpers.standardize(self.crn)
-        self.crn = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
+        self.crn_roads = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
 
         # Load existing crossings data, if possible.
         if self.layer_crossings in set(fiona.listlayers(self.src_old)):
@@ -90,6 +90,10 @@ class CRNCrossings:
             # Export required dataset.
             helpers.export(self.crossings, dst=self.dst, name=self.layer_crossings)
             logger.info("Results: Exported crossings dataset.")
+
+        # Export crn layer, if required.
+        if self.layer not in fiona.listlayers(self.dst):
+            helpers.export(self.crn, dst=self.dst, name=self.layer)
 
     def fetch_deltas(self) -> None:
         """Fetches crossings deltas (additions, deletions, modifications)."""
@@ -131,7 +135,7 @@ class CRNCrossings:
         logger.info("Compiling crossing points.")
 
         # Extract duplicated nodes.
-        nodes = self.crn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
+        nodes = self.crn_roads["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
         nodes = nodes.loc[nodes.duplicated(keep=False)].copy(deep=True)
 
         # Compile counts, filter to threshold.
