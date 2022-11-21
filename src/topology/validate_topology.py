@@ -66,11 +66,11 @@ class CRNTopologyValidation:
         # Configure src / dst paths and layer name.
         if self.dst.exists():
             if self.layer not in set(fiona.listlayers(self.dst)):
-                self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+                self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn"])
         else:
             helpers.create_gpkg(self.dst)
             self.flag_new_gpkg = True
-            self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+            self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn"])
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
@@ -185,7 +185,7 @@ class CRNTopologyValidation:
         errors = set()
 
         # Compile all non-duplicated nodes (dead ends) as a DataFrame.
-        pts = self.crn_roads["pt_start"].append(self.crn_roads["pt_end"])
+        pts = pd.concat([self.crn_roads["pt_start"], self.crn_roads["pt_end"]])
         deadends = pts.loc[~pts.duplicated(keep=False)]
         deadends = pd.DataFrame({"pt": deadends.values, self.id: deadends.index})
 
@@ -246,7 +246,7 @@ class CRNTopologyValidation:
         errors = set()
 
         # Compile nodes.
-        nodes = set(self.crn_roads["pt_start"].append(self.crn_roads["pt_end"]))
+        nodes = set(pd.concat([self.crn_roads["pt_start"], self.crn_roads["pt_end"]]))
 
         # Compile interior vertices (non-nodes).
         # Note: only arcs with > 2 vertices are used.
@@ -348,7 +348,7 @@ class CRNTopologyValidation:
             structures = self.crn_roads.loc[~self.crn_roads["structure_type"].isin({"Unknown", "None"})]
             
             # Compile duplicated structure nodes.
-            structure_nodes = pd.Series(structures["pt_start"].append(structures["pt_end"]))
+            structure_nodes = pd.concat([structures["pt_start"], structures["pt_end"]])
             structure_nodes_dups = set(structure_nodes.loc[structure_nodes.duplicated(keep=False)])
             
             # Flag isolated structures.

@@ -41,7 +41,7 @@ class CRNMeshblockCreation:
         self.id = "segment_id"
         self.bo_id = "ngd_uid"
         self.src = Path(filepath.parents[2] / "data/crn.gpkg")
-        self.src_restore = Path(filepath.parents[2] / "data/crn_restore.gpkg")
+        self.src_restore = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn"])
         self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.flag_new_gpkg = False
         self.errors = dict()
@@ -64,11 +64,11 @@ class CRNMeshblockCreation:
         # Configure src / dst paths and layer name.
         if self.dst.exists():
             if self.layer not in set(fiona.listlayers(self.dst)):
-                self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+                self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn"])
         else:
             helpers.create_gpkg(self.dst)
             self.flag_new_gpkg = True
-            self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+            self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn"])
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer}.")

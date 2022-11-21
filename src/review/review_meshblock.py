@@ -40,7 +40,7 @@ class CRNMeshblockReview:
         self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.layer = f"meshblock_{self.source}"
 
-        self.src_ngd = helpers.load_yaml("../config.yaml")["filepaths"]["ngd"]
+        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["ngd"])
         self.layer_ngd = f"ngd_a_{self.source}"
 
         # Configure src / dst paths and layer names.

@@ -42,7 +42,7 @@ class CRNMeshblockConflation:
         self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.layer_arc = f"crn_{self.source}"
 
-        self.src_ngd = helpers.load_yaml("../config.yaml")["filepaths"]["ngd"]
+        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["ngd"])
         self.layer_meshblock_ngd = f"ngd_a_{self.source}"
 
         self.id_arc_ngd = "ngd_uid"
@@ -51,10 +51,10 @@ class CRNMeshblockConflation:
         # Configure src / dst paths and layer name.
         if self.dst.exists():
             if self.layer_arc not in set(fiona.listlayers(self.dst)):
-                self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+                self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn"])
         else:
             helpers.create_gpkg(self.dst)
-            self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn"]
+            self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn"])
 
         # Load source data.
         logger.info(f"Loading source data: {self.src}|layer={self.layer_arc}.")

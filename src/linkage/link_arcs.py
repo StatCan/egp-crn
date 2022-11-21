@@ -40,7 +40,7 @@ class CRNArcLinkage:
         self.layer_arc = f"crn_{self.source}"
         self.layer_meshblock = f"meshblock_{self.source}"
 
-        self.src_ngd = helpers.load_yaml("../config.yaml")["filepaths"]["ngd"]
+        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["ngd"])
         self.layer_arc_ngd = f"ngd_al_{self.source.split('_')[0]}"
 
         self.id_arc = "segment_id"

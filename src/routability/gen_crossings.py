@@ -38,7 +38,8 @@ class CRNCrossings:
         self.layer = f"crn_{source}"
         self.layer_crossings = f"{source}_crossings"
         self.layer_deltas = f"{source}_crossings_deltas"
-        self.src = helpers.load_yaml("../config.yaml")["filepaths"]["crn_finished"]
+        self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn_finished"])
+        self.src_old = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crossings_finished"])
         self.dst = Path(filepath.parents[2] / "data/crn.gpkg")
         self.crossings = None
         self.crossings_old = None
@@ -63,9 +64,9 @@ class CRNCrossings:
         self.crn = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
 
         # Load existing crossings data, if possible.
-        if self.layer_crossings in set(fiona.listlayers(self.dst)):
+        if self.layer_crossings in set(fiona.listlayers(self.src_old)):
             logger.info("Loading existing crossings data.")
-            self.crossings_old = gpd.read_file(self.dst, layer=self.layer_crossings)
+            self.crossings_old = gpd.read_file(self.src_old, layer=self.layer_crossings)
             logger.info("Successfully loaded existing crossings data.")
 
     def __call__(self) -> None:

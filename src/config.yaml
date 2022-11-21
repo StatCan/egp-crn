@@ -2,6 +2,7 @@ filepaths:
   crn: 'X:\crn_restore.gpkg'
   crn_finished: 'X:\crn_finished.gpkg'
   ngd: 'X:\ngd.gpkg'
+  crossings_finished: 'X:\crn_crossings_finished.gpkg'
 
 sources:
 #  - ab
