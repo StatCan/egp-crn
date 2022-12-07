@@ -1,3 +1,12 @@
+# TODO: make the following mods:
+# 1) use regions instead of provinces (change click argument and also change difference detection to reference the concatenated regions dataframe)
+# 2) src must reference a gpkg other than crn_restore.gpkg and ngd.gpkg (perhaps crn_date.gpkg and ngd_date.gpkg)
+# 3) dst can still work like the rest to create a new crn.gpkg in the data directory and use the same layer names with validations as attributes.
+# 4) add parameter to CRN scripts to tell it to use delta as src data (see point #2) instead of crn_restore.gpkg and ngd.gpkg.
+# NGD adds/removes: set intersection
+# NGD mods: get mods by attribute query, verify fixes via crn meshblock_conflation against new ngd_a
+# NRN deltas (adds/removes/mods): network buffer (similar to restore_geometry.py) since this accounts for minor differences.
+
 import click
 import fiona
 import geopandas as gpd
