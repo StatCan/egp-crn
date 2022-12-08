@@ -3,6 +3,8 @@ filepaths:
   crn_finished: 'Z:\crn_finished.gpkg'
   ngd: 'Z:\ngd.gpkg'
   crossings_finished: 'Z:\crn_crossings_finished.gpkg'
+  deltas_ngd: 'Z:\ngd_<vintage>.gpkg'
+  deltas_nrn: 'Z:\nrn_<vintage>.gpkg'
 
 sources:
 #  - ab
