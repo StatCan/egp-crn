@@ -1,5 +1,5 @@
 # TODO: make the following mods:
-# 1) use regions instead of provinces (change click argument and also change difference detection to reference the concatenated regions dataframe) - CANCEL - use provs
+# 1) use regions instead of provinces (change click argument and also change difference detection to reference the concatenated regions dataframe) - CANCEL - use provs and concat split crn data
 # 2) src must reference a gpkg other than crn_restore.gpkg (also included _restore for comparison) and ngd.gpkg (perhaps crn_date.gpkg and ngd_date.gpkg)
 # 3) dst can still work like the rest to create a new crn.gpkg in the data directory and use the same layer names with validations as attributes.
 # 4) add parameter to CRN scripts to tell it to use delta as src data (see point #2) instead of crn_restore.gpkg and ngd.gpkg.
@@ -37,10 +37,30 @@ handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s
 logger.addHandler(handler)
 
 
+def get_finished_provs() -> list:
+    """
+    Returns all provincial / territorial abbreviations where all constituent regions have been finished.
+
+    \b
+    :return list: a list of provincial / territorial abbreviations.
+    """
+
+    # Compile original and finished sources.
+    sources_orig = set(helpers.load_yaml("../config.yaml")["sources"])
+    sources_finished = set(map(lambda source: source.split("crn_")[1],
+                               fiona.listlayers(helpers.load_yaml("../config.yaml")["filepaths"]["crn_finished"])))
+
+    # Configure finished provinces / territories.
+    provs = set(map(lambda s: s.split("_")[0], sources_orig)) - \
+            set(map(lambda s: s.split("_")[0], sources_orig.difference(sources_finished)))
+
+    return sorted(provs)
+
+
 class CRNDeltas:
     """Defines the CRN deltas class."""
 
-    def __init__(self, source: str, vintage: int, mode: str, base_vintage: int = 20210601) -> None:
+    def __init__(self, source: str, vintage: int, mode: str, base_vintage: int = 20210601, radius: int = 5) -> None:
         """
         Initializes the CRN class.
 
@@ -51,16 +71,18 @@ class CRNDeltas:
                          ngd: NGD only
                          nrn: NRN only
         :param int base_vintage: inclusive date from which NGD deltas will be detected, default=20210601.
+        :param int radius: CRN buffer radius used for NRN delta detection, default=5.
         """
 
         self.source = source
         self.vintage = vintage
         self.mode = mode
         self.base_vintage = base_vintage
+        self.radius = radius
 
         self.dst = Path(filepath.parents[2] / f"data/crn_deltas_{self.vintage}.gpkg")
         self.flag_new_gpkg = False
-        self._nrn_buffer = 5
+        self.delta_ids = {delta_type: set() for delta_type in ("ngd_additions", "ngd_deletions", "nrn_modifications")}
         self.export = {
             f"{self.source}_ngd_additions": None,
             f"{self.source}_ngd_deletions": None,
@@ -77,20 +99,14 @@ class CRNDeltas:
         self.nrn = None
         self.layer_nrn = f"nrn_{self.source}"
         self.id_nrn = "uuid"
-        self.src_nrn = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_nrn"]
-                            .replace("<vintage>", vintage))
+        self.src_nrn = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_nrn"].replace("vintage", vintage))
 
         # NGD
         self.ngd_al = None
-        self.ngd_prov_code = {"ab": 48, "bc": 59, "mb": 46, "nb": 13, "nl": 10, "ns": 12, "nt": 61, "nu": 62, "on": 35,
-                              "pe": 11, "qc": 24, "sk": 47, "yt": 60}[self.source]
+        self.ngd_prov_code = helpers.load_yaml("../config.yaml")["ngd_prov_codes"][self.source]
         self.layer_ngd_al = f"ngd_al_{self.source}"
         self.id_ngd = "ngd_uid"
-        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_ngd"]
-                            .replace("<vintage>", vintage))
-
-        # Delta identifiers.
-        self.delta_ids = {delta_type: set() for delta_type in ("ngd_additions", "ngd_deletions", "nrn_modifications")}
+        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_ngd"].replace("vintage", vintage))
 
         # Configure dst path and layer name.
         if self.dst.exists():
@@ -124,7 +140,7 @@ class CRNDeltas:
             logger.info(f"Loading CRN source layer: {layer}.")
             crn.append(gpd.read_file(self.src_crn, layer=layer).copy(deep=True))
 
-        self.crn = pd.concat(crn).copy(deep=True)
+        self.crn = pd.concat(crn, ignore_index=True).copy(deep=True)
 
         logger.info(f"Successfully loaded CRN source data.")
 
@@ -152,11 +168,16 @@ class CRNDeltas:
         self.crn = helpers.standardize(self.crn)
         self.crn = helpers.snap_nodes(self.crn)
 
+        # Standardize data - NGD.
+        if self.mode == "ngd":
+            self.ngd_al.index = self.ngd_al[self.id_ngd]
+
         # Standardize data - NRN.
         if self.mode == "nrn":
             self.nrn = self.nrn.to_crs(self.crn.crs)
             self.nrn = helpers.round_coordinates(self.nrn)
             self.nrn[self.id_nrn] = [uuid.uuid4().hex for _ in range(len(self.nrn))]
+            self.nrn.index = self.nrn[self.id_nrn]
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -165,6 +186,13 @@ class CRNDeltas:
             self.fetch_ngd_deltas()
         if self.mode == "nrn":
             self.fetch_nrn_deltas()
+
+        self._write_deltas()
+
+    def _write_deltas(self) -> None:
+        """Write output datasets and logs."""
+
+        # TODO: write output data, del if already exists, print tabulate to console.
 
     def fetch_ngd_deltas(self) -> None:
         """Identifies and retrieves NGD deltas."""
@@ -183,48 +211,28 @@ class CRNDeltas:
 
         logger.info("Fetching NRN deltas.")
 
-        # TODO: replace this function with logic from restore_geometry.
+        # Filter CRN to exclusively roads and ferries.
+        crn = self.crn.loc[self.crn["segment_type"].isin({1, 2})]
 
-        # Compile CRN road and BO and NRN vertices as sets.
-        nrn_nodes = set(self.nrn["geometry"].map(lambda g: attrgetter("coords")(g)).explode())
-        crn_nodes = set(self.crn_rd["geometry"].map(lambda g: attrgetter("coords")(g)).explode())
-        crn_added_nodes = set(self.crn_added["geometry"].map(lambda g: attrgetter("coords")(g)).explode())
+        # Generate CRN buffers.
+        crn_buffers = crn.buffer(self.radius, resolution=5)
 
-        # Configure NRN deltas.
-        additions = nrn_nodes - crn_nodes
-        deletions = crn_nodes - nrn_nodes
-        deletions_fltr = deletions - crn_added_nodes
+        # Query CRN buffers which contain each NRN arc.
+        within = self.nrn["geometry"].map(lambda g: set(crn_buffers.sindex.query(g, predicate="within")))
 
-        # Create NRN deltas GeoDataFrames.
-        self.del_nrn = gpd.GeoDataFrame(geometry=list(map(Point, deletions_fltr)), crs=self.crn.crs)
-        self.del_nrn["status"] = "delete"
-        self.add_nrn = gpd.GeoDataFrame(geometry=list(map(Point, additions)), crs=self.crn.crs)
-        self.add_nrn["status"] = "add"
-
-        # Merge NRN deltas GeoDataframes.
-        nrn_deltas = self.del_nrn.merge(self.add_nrn, on="geometry", how="outer", suffixes=("_del", "_add"))
-
-        # Compile NRN delta classifications.
-        nrn_deltas["status"] = -1
-        nrn_deltas.loc[nrn_deltas["status_del"].isna(), "status"] = "addition"
-        nrn_deltas.loc[nrn_deltas["status_add"].isna(), "status"] = "deletion"
-        nrn_deltas = nrn_deltas.loc[nrn_deltas["status"] != -1].fillna(0).copy(deep=True)
-
-        # Export NRN deltas GeoDataFrame to GeoPackage.
-        if len(nrn_deltas):
-            helpers.export(nrn_deltas, dst=self.src, name=f"{self.source}_nrn_deltas")
-
-    # TODO: create progress logger.
+        # Compile identifiers of NRN arcs not contained within any CRN buffers.
+        self.delta_ids["nrn_modifications"] = set(within.loc[within.map(len) == 0].index)
 
 
 @click.command()
-@click.argument("source", type=click.Choice(["ab", "bc", "mb", "nb", "nl", "nt", "ns",
-                                             "nu", "on", "pe", "qc", "sk", "yt"], False))
+@click.argument("source", type=click.Choice(get_finished_provs(), False))
 @click.argument("vintage", type=click.INT)
 @click.argument("mode", type=click.Choice(["ngd", "nrn"], False))
 @click.option("--base_vintage", "-bv", type=click.INT, default=20210601, show_default=True,
               help="Inclusive date from which NGD deltas will be detected.")
-def main(source: str, vintage: int, mode: str, base_vintage: int = 20210601) -> None:
+@click.option("--radius", "-r", type=click.INT, default=5, show_default=True,
+              help="CRN buffer radius used for NRN delta detection.")
+def main(source: str, vintage: int, mode: str, base_vintage: int = 20210601, radius: int = 5) -> None:
     """
     Instantiates and executes the CRN class.
 
@@ -235,12 +243,13 @@ def main(source: str, vintage: int, mode: str, base_vintage: int = 20210601) -> 
                      ngd: NGD only
                      nrn: NRN only
     :param int base_vintage: inclusive date from which NGD deltas will be detected, default=20210601.
+    :param int radius: CRN buffer radius used for NRN delta detection, default=5.
     """
 
     try:
 
         with helpers.Timer():
-            deltas = CRNDeltas(source, vintage, mode, base_vintage)
+            deltas = CRNDeltas(source, vintage, mode, base_vintage, radius)
             deltas()
 
     except KeyboardInterrupt:
