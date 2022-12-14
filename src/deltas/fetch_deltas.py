@@ -1,12 +1,3 @@
-# TODO: make the following mods:
-# 1) use regions instead of provinces (change click argument and also change difference detection to reference the concatenated regions dataframe) - CANCEL - use provs and concat split crn data
-# 2) src must reference a gpkg other than crn_restore.gpkg (also included _restore for comparison) and ngd.gpkg (perhaps crn_date.gpkg and ngd_date.gpkg)
-# 3) dst can still work like the rest to create a new crn.gpkg in the data directory and use the same layer names with validations as attributes.
-# 4) add parameter to CRN scripts to tell it to use delta as src data (see point #2) instead of crn_restore.gpkg and ngd.gpkg.
-# NGD adds/removes: set intersection
-# NGD mods: get mods by attribute query, verify fixes via crn meshblock_conflation against new ngd_a
-# NRN deltas (adds/removes/mods): network buffer (similar to restore_geometry.py) since this accounts for minor differences.
-
 import click
 import fiona
 import geopandas as gpd
@@ -31,39 +22,57 @@ handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s
 logger.addHandler(handler)
 
 
+def get_finished_sources() -> list:
+    """
+    Returns source codes where all constituent regions have been finished.
+    \b
+    :return list: a list of valid source codes.
+    """
+
+    # Compile original and finished regions.
+    regions_orig = set(helpers.load_yaml("../config.yaml")["sources"])
+    regions_finished = set(map(lambda r: r.split("crn_")[1],
+                               fiona.listlayers(helpers.load_yaml("../config.yaml")["filepaths"]["crn_finished"])))
+
+    # Configure valid sources from regions.
+    sources = set(map(lambda r: r.split("_")[0], regions_orig)) - \
+              set(map(lambda r: r.split("_")[0], regions_orig.difference(regions_finished)))
+
+    return sorted(sources)
+
+
 class CRNDeltas:
     """Defines the CRN deltas class."""
 
-    def __init__(self, source: str, vintage: int, mode: str, base_vintage: int = 20210601, radius: int = 5) -> None:
+    def __init__(self, source: str, mode: str, vintage: int, radius: int = 5) -> None:
         """
         Initializes the CRN class.
 
         \b
         :param str source: code for the source province / territory.
+        :param str mode: the type of deltas to be returned: {'ngd', 'nrn'}.
         :param int vintage: deltas date, expected to be suffixed to the source file name.
-        :param str mode: the type of deltas to be returned:
-                         ngd: NGD only
-                         nrn: NRN only
-        :param int base_vintage: inclusive date from which NGD deltas will be detected, default=20210601.
         :param int radius: CRN buffer radius used for NRN delta detection, default=5.
         """
 
         self.source = source
-        self.vintage = vintage
         self.mode = mode
-        self.base_vintage = base_vintage
+        self.vintage = vintage
         self.radius = radius
 
-        self.dst = Path(filepath.parents[2] / f"data/crn_deltas_{self.vintage}.gpkg")
+        self.dst = Path(filepath.parents[2] / f"data/crn_deltas_{self.mode}_{self.source}_{self.vintage}.gpkg")
         self.flag_new_gpkg = False
         self.delta_ids = {delta_type: set() for delta_type in ("ngd_add", "ngd_del", "nrn_mod")}
         self.export = {
-            f"{self.source}_nrn_mod": None
+            f"{self.source}_nrn_mod": None,
+            f"{self.source}_crn_buffers": None
         }
 
         # CRN
         self.crn = None
-        self.layer_crn = f"crn_{source}"
+        self.crn_regions = dict.fromkeys(map(lambda r: f"crn_{r}",
+                                             filter(lambda r: r.startswith(self.source),
+                                                    helpers.load_yaml("../config.yaml")["sources"])))
         self.id_crn = "segment_id"
         self.src_crn = self.dst
 
@@ -71,7 +80,8 @@ class CRNDeltas:
         self.nrn = None
         self.layer_nrn = f"nrn_{self.source}"
         self.id_nrn = "uuid"
-        self.src_nrn = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_nrn"].replace("vintage", vintage))
+        self.src_nrn = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_nrn"]
+                            .replace("vintage", str(self.vintage)))
 
         # NGD
         self.con = None
@@ -79,30 +89,29 @@ class CRNDeltas:
         self.ngd_prov_code = helpers.load_yaml("../config.yaml")["ngd_prov_codes"][self.source]
         self.layer_ngd_al = f"ngd_al"
         self.id_ngd = "ngd_uid"
-        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_ngd"].replace("vintage", vintage))
+        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_ngd"]
+                            .replace("vintage", str(self.vintage)))
 
-        # Configure dst path and layer name.
+        # Configure src paths and layer names.
+        src, layer = {"ngd": (self.src_ngd, self.layer_ngd_al), "nrn": (self.src_nrn, self.layer_nrn)}[self.mode]
+        if src.exists():
+            if layer not in set(fiona.listlayers(src)):
+                logger.exception(f"Layer {layer} does not exist in source {src}.")
+                sys.exit(1)
+        else:
+            logger.exception(f"Source does not exist: {src}.")
+            sys.exit(1)
+
+        # Configure dst.
         if self.dst.exists():
-            if self.layer_crn not in set(fiona.listlayers(self.dst)):
-                self.src_crn = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn_finished"])
+            missing = set(self.crn_regions) - set(fiona.listlayers(self.dst))
+            if len(missing):
+                logger.exception(f"Finished CRN regions are missing from dst {self.dst}: {*missing,}.")
+                sys.exit(1)
         else:
             helpers.create_gpkg(self.dst)
             self.flag_new_gpkg = True
             self.src_crn = Path(helpers.load_yaml("../config.yaml")["filepaths"]["crn_finished"])
-
-        # Configure src paths and layer names.
-        for src, layer in {self.src_crn: self.layer_crn,
-                           **{"ngd": {self.src_ngd: self.layer_ngd_al},
-                              "nrn": {self.src_nrn: self.layer_nrn}}[self.mode]
-                           }.items():
-
-            if src.exists():
-                if layer not in set(fiona.listlayers(src)):
-                    logger.exception(f"Layer {layer} does not exist in source {src}.")
-                    sys.exit(1)
-            else:
-                logger.exception(f"Source does not exist: {src}.")
-                sys.exit(1)
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -120,16 +129,9 @@ class CRNDeltas:
         """Loads and standardizes CRN, NGD, and NRN data."""
 
         # Load source data - CRN.
-        logger.info(f"Loading CRN source data: {self.src_crn}.")
-
-        # Compile individual regions.
-        crn = list()
-        for layer in sorted(filter(lambda l: l.startswith(f"crn_{self.source}"), fiona.listlayers(self.src_crn))):
-            logger.info(f"Loading CRN source layer: {layer}.")
-            crn.append(gpd.read_file(self.src_crn, layer=layer).copy(deep=True))
-
-        # Concatenate regions.
-        self.crn = pd.concat(crn, ignore_index=True).copy(deep=True)
+        for layer in self.crn_regions:
+            logger.info(f"Loading CRN source data: {self.src_crn}|layer={layer}.")
+            self.crn_regions[layer] = gpd.read_file(self.src_crn, layer=layer).copy(deep=True)
 
         logger.info(f"Successfully loaded CRN source data.")
 
@@ -139,7 +141,7 @@ class CRNDeltas:
 
             self.con = sqlite3.connect(self.src_ngd)
             self.ngd_al = pd.read_sql_query(
-                f"SELECT {self.id_ngd.upper()}, SGMNT_TYP_CDE FROM {self.layer_ngd_al} WHERE "
+                f"SELECT {self.id_ngd.upper()} FROM {self.layer_ngd_al} WHERE "
                 f"SUBSTR(CSD_UID_L, 1, 2) == '{self.ngd_prov_code}' OR "
                 f"SUBSTR(CSD_UID_R, 1, 2) == '{self.ngd_prov_code}'", con=self.con)
 
@@ -154,19 +156,25 @@ class CRNDeltas:
             logger.info("Successfully loaded NRN source data.")
 
         # Standardize data - CRN.
-        self.crn = helpers.standardize(self.crn)
-        self.crn = helpers.snap_nodes(self.crn)
+        for layer, df in self.crn_regions.items():
+            logger.info(f"Standardizing CRN data, layer={layer}.")
+            df = helpers.standardize(df, round_coords=False)
+            df = helpers.snap_nodes(df)
+            self.crn_regions[layer] = df.copy(deep=True)
+        self.crn = pd.concat(self.crn_regions.values(), ignore_index=True).copy(deep=True)
 
         # Standardize data - NGD.
         if self.mode == "ngd":
+            logger.info(f"Standardizing NGD data.")
             self.ngd_al.columns = map(str.lower, self.ngd_al.columns)
             self.ngd_al.index = self.ngd_al[self.id_ngd]
 
         # Standardize data - NRN.
         if self.mode == "nrn":
+            logger.info(f"Standardizing NRN data.")
             self.nrn.columns = map(str.lower, self.nrn.columns)
-            self.nrn = self.nrn.to_crs(self.crn.crs)
-            self.nrn = helpers.round_coordinates(self.nrn)
+            if self.nrn.crs.to_epsg() != self.crn.crs.to_epsg():
+                self.nrn = self.nrn.to_crs(self.crn.crs)
             self.nrn[self.id_nrn] = [uuid.uuid4().hex for _ in range(len(self.nrn))]
             self.nrn.index = self.nrn[self.id_nrn]
 
@@ -178,7 +186,7 @@ class CRNDeltas:
         # Export required datasets.
         if not self.flag_new_gpkg:
             helpers.delete_layers(dst=self.dst, layers=self.export.keys())
-        for layer, df in {self.layer_crn: self.crn, **self.export}.items():
+        for layer, df in {**self.crn_regions, **self.export}.items():
             if isinstance(df, pd.DataFrame):
                 helpers.export(df, dst=self.dst, name=layer)
 
@@ -194,9 +202,9 @@ class CRNDeltas:
                                  f"{*self.delta_ids['ngd_add'],}".replace(",)", ")"))
 
         # Log results summary.
-        summary = tabulate([["NGD Additions", len(self.delta_ids["ngd_add"])],
-                            ["NGD Deletions", len(self.delta_ids["ngd_del"])],
-                            ["NRN Modifications", len(self.delta_ids["nrn_mod"])]],
+        summary = tabulate([["NGD Additions", len(self.delta_ids["ngd_add"]) if self.mode == "ngd" else "N/A"],
+                            ["NGD Deletions", len(self.delta_ids["ngd_del"]) if self.mode == "ngd" else "N/A"],
+                            ["NRN Modifications", len(self.delta_ids["nrn_mod"]) if self.mode == "nrn" else "N/A"]],
                            headers=["Delta Type", "Count"], tablefmt="rst", colalign=("left", "right"))
 
         logger.info("Deltas results:\n" + summary)
@@ -215,7 +223,8 @@ class CRNDeltas:
 
         # Add flags to CRN dataset.
         if len(self.delta_ids["ngd_del"]):
-            self.crn["ngd_del"] = self.crn[self.id_ngd].isin(self.delta_ids["ngd_del"]).map(int)
+            for layer, df in self.crn_regions.items():
+                self.crn_regions[layer]["ngd_del"] = df[self.id_ngd].isin(self.delta_ids["ngd_del"]).map(int)
 
     def fetch_nrn_deltas(self) -> None:
         """Identifies and retrieves NRN deltas."""
@@ -234,38 +243,40 @@ class CRNDeltas:
         # Compile identifiers of NRN arcs not contained within any CRN buffers.
         self.delta_ids["nrn_mod"] = set(within.loc[within.map(len) == 0].index)
 
-        # Construct export dataset.
+        # Construct export datasets.
         if len(self.delta_ids["nrn_mod"]):
+
+            # Export dataset - NRN modifications.
             self.export[f"{self.source}_nrn_mod"] = \
                 self.nrn.loc[self.nrn.index.isin(self.delta_ids["nrn_mod"])].copy(deep=True)
 
+            # Export dataset - CRN buffers.
+            # TODO - remove export once finished fixing buffer network
+            self.export[f"{self.source}_crn_buffers"] = gpd.GeoDataFrame({self.id_crn: crn[self.id_crn]},
+                                                                         geometry=list(crn_buffers), crs=self.crn.crs)
+
 
 @click.command()
-@click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
-@click.argument("vintage", type=click.INT)
+@click.argument("source", type=click.Choice(get_finished_sources(), False))
 @click.argument("mode", type=click.Choice(["ngd", "nrn"], False))
-@click.option("--base_vintage", "-bv", type=click.INT, default=20210601, show_default=True,
-              help="Inclusive date from which NGD deltas will be detected.")
+@click.argument("vintage", type=click.INT)
 @click.option("--radius", "-r", type=click.INT, default=5, show_default=True,
               help="CRN buffer radius used for NRN delta detection.")
-def main(source: str, vintage: int, mode: str, base_vintage: int = 20210601, radius: int = 5) -> None:
+def main(source: str, mode: str, vintage: int, radius: int = 5) -> None:
     """
     Instantiates and executes the CRN class.
 
     \b
     :param str source: code for the source province / territory.
+    :param str mode: the type of deltas to be returned: {'ngd', 'nrn'}.
     :param int vintage: deltas date, expected to be suffixed to the source file name.
-    :param str mode: the type of deltas to be returned:
-                     ngd: NGD only
-                     nrn: NRN only
-    :param int base_vintage: inclusive date from which NGD deltas will be detected, default=20210601.
     :param int radius: CRN buffer radius used for NRN delta detection, default=5.
     """
 
     try:
 
         with helpers.Timer():
-            deltas = CRNDeltas(source, vintage, mode, base_vintage, radius)
+            deltas = CRNDeltas(source, mode, vintage, radius)
             deltas()
 
     except KeyboardInterrupt:
