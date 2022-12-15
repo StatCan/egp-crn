@@ -4,9 +4,12 @@ import geopandas as gpd
 import logging
 import pandas as pd
 import sqlite3
+import subprocess
 import sys
 import uuid
+from operator import itemgetter
 from pathlib import Path
+from shapely.ops import unary_union
 from tabulate import tabulate
 
 filepath = Path(__file__).resolve()
@@ -63,10 +66,7 @@ class CRNDeltas:
         self.dst = Path(filepath.parents[2] / f"data/crn_deltas_{self.mode}_{self.source}_{self.vintage}.gpkg")
         self.flag_new_gpkg = False
         self.delta_ids = {delta_type: set() for delta_type in ("ngd_add", "ngd_del", "nrn_mod")}
-        self.export = {
-            f"{self.source}_nrn_mod": None,
-            f"{self.source}_crn_buffers": None
-        }
+        self.export = dict.fromkeys(map(lambda name: f"{self.source}_{name}", ("ngd_add", "nrn_mod")))
 
         # CRN
         self.crn = None
@@ -141,7 +141,7 @@ class CRNDeltas:
 
             self.con = sqlite3.connect(self.src_ngd)
             self.ngd_al = pd.read_sql_query(
-                f"SELECT {self.id_ngd.upper()} FROM {self.layer_ngd_al} WHERE "
+                f"SELECT {self.id_ngd.upper()}, SGMNT_TYP_CDE FROM {self.layer_ngd_al} WHERE "
                 f"SUBSTR(CSD_UID_L, 1, 2) == '{self.ngd_prov_code}' OR "
                 f"SUBSTR(CSD_UID_R, 1, 2) == '{self.ngd_prov_code}'", con=self.con)
 
@@ -159,7 +159,6 @@ class CRNDeltas:
         for layer, df in self.crn_regions.items():
             logger.info(f"Standardizing CRN data, layer={layer}.")
             df = helpers.standardize(df, round_coords=False)
-            df = helpers.snap_nodes(df)
             self.crn_regions[layer] = df.copy(deep=True)
         self.crn = pd.concat(self.crn_regions.values(), ignore_index=True).copy(deep=True)
 
@@ -168,6 +167,7 @@ class CRNDeltas:
             logger.info(f"Standardizing NGD data.")
             self.ngd_al.columns = map(str.lower, self.ngd_al.columns)
             self.ngd_al.index = self.ngd_al[self.id_ngd]
+            self.ngd_al["segment_type"] = self.ngd_al["sgmnt_typ_cde"].map({1: 3, 2: 1})
 
         # Standardize data - NRN.
         if self.mode == "nrn":
@@ -183,23 +183,15 @@ class CRNDeltas:
 
         logger.info(f"Writing delta outputs.")
 
-        # Export required datasets.
+        # Export required datasets / execute required subprocesses.
         if not self.flag_new_gpkg:
             helpers.delete_layers(dst=self.dst, layers=self.export.keys())
-        for layer, df in {**self.crn_regions, **self.export}.items():
-            if isinstance(df, pd.DataFrame):
-                helpers.export(df, dst=self.dst, name=layer)
-
-        # Update existing dataset - NGD.
-        if len(self.delta_ids["ngd_add"]):
-
-            # Conditionally add flag column.
-            if "ngd_add" not in pd.read_sql_query(f"SELECT * FROM {self.layer_ngd_al} LIMIT 0", con=self.con).columns:
-                _ = self.con.execute(f"ALTER {self.layer_ngd_al} ADD COLUMN ngd_add INT DEFAULT 0")
-
-            # Populate flag column.
-            _ = self.con.execute(f"UPDATE {self.layer_ngd_al} SET ngd_add = 1 WHERE {self.id_ngd} IN "
-                                 f"{*self.delta_ids['ngd_add'],}".replace(",)", ")"))
+        for layer, output in {**self.crn_regions, **self.export}.items():
+            if isinstance(output, pd.DataFrame):
+                helpers.export(output, dst=self.dst, name=layer)
+            elif isinstance(output, str):
+                logger.info(f"Running ogr2ogr subprocess for {layer} output.")
+                _ = subprocess.run(output)
 
         # Log results summary.
         summary = tabulate([["NGD Additions", len(self.delta_ids["ngd_add"]) if self.mode == "ngd" else "N/A"],
@@ -215,11 +207,18 @@ class CRNDeltas:
         logger.info("Fetching NGD deltas.")
 
         # Additions.
-        self.delta_ids["ngd_add"] = set(self.ngd_al.loc[self.ngd_al["segment_type"] == 3, self.id_ngd]) - \
-                                    set(self.crn[self.id_ngd])
+        self.delta_ids["ngd_add"].update(set(self.ngd_al.loc[self.ngd_al["segment_type"] == 3, self.id_ngd]) -
+                                         set(self.crn[self.id_ngd]))
 
         # Deletions.
-        self.delta_ids["ngd_del"] = set(self.crn[self.id_ngd]) - set(self.ngd_al[self.id_ngd]) - {-1}
+        self.delta_ids["ngd_del"].update(set(self.crn[self.id_ngd]) - set(self.ngd_al[self.id_ngd]) - {-1})
+
+        # Export dataset - NGD additions (create subprocess command).
+        if len(self.delta_ids["ngd_add"]):
+            self.export[f"{self.source}_ngd_add"] = \
+                f"ogr2ogr -overwrite -sql \"SELECT {self.id_ngd}, geom FROM {self.layer_ngd_al} WHERE {self.id_ngd} " \
+                f"IN {*self.delta_ids['ngd_add'],}\" {self.dst} {self.src_ngd} -nln {self.source}_ngd_add"\
+                    .replace(",)", ")")
 
         # Add flags to CRN dataset.
         if len(self.delta_ids["ngd_del"]):
@@ -234,14 +233,39 @@ class CRNDeltas:
         # Filter CRN to exclusively roads and ferries.
         crn = self.crn.loc[self.crn["segment_type"].isin({1, 2})]
 
-        # Generate CRN buffers.
+        # Generate CRN buffers and index-geometry lookup.
         crn_buffers = crn.buffer(self.radius, resolution=5)
+        crn_idx_buffer_lookup = dict(zip(range(len(crn_buffers)), crn_buffers))
 
         # Query CRN buffers which contain each NRN arc.
         within = self.nrn["geometry"].map(lambda g: set(crn_buffers.sindex.query(g, predicate="within")))
 
-        # Compile identifiers of NRN arcs not contained within any CRN buffers.
-        self.delta_ids["nrn_mod"] = set(within.loc[within.map(len) == 0].index)
+        # Filter to NRN arcs which are not within any CRN buffers.
+        nrn_ = self.nrn.loc[within.map(len) == 0].copy(deep=True)
+        if len(nrn_):
+
+            # Query CRN buffers which intersect each remaining NRN arc.
+            intersects = nrn_["geometry"].map(lambda g: set(crn_buffers.sindex.query(g, predicate="intersects")))
+
+            # Compile identifiers of NRN arcs not intersecting any CRN buffers.
+            self.delta_ids["nrn_mod"].update(set(intersects.loc[intersects.map(len) == 0].index))
+
+            # Filter to NRN arcs which intersect CRN buffers.
+            nrn_ = nrn_.loc[intersects.map(len) > 0].copy(deep=True)
+            intersects = intersects.loc[intersects.map(len) > 0].copy(deep=True)
+            if len(nrn_):
+
+                # Compile and dissolve all intersecting buffers.
+                dissolved_buffers = gpd.GeoSeries(
+                    intersects.map(lambda idxs: itemgetter(*idxs)(crn_idx_buffer_lookup))
+                    .map(lambda val: unary_union(val) if isinstance(val, tuple) else val),
+                    crs=self.crn.crs)
+
+                # Test within predicate between NRN and dissolved buffers.
+                within = nrn_.within(dissolved_buffers)
+
+                # Compile identifiers of NRN arcs not contained within any dissolved CRN buffers.
+                self.delta_ids["nrn_mod"].update(set(within.loc[~within].index))
 
         # Construct export datasets.
         if len(self.delta_ids["nrn_mod"]):
@@ -249,11 +273,6 @@ class CRNDeltas:
             # Export dataset - NRN modifications.
             self.export[f"{self.source}_nrn_mod"] = \
                 self.nrn.loc[self.nrn.index.isin(self.delta_ids["nrn_mod"])].copy(deep=True)
-
-            # Export dataset - CRN buffers.
-            # TODO - remove export once finished fixing buffer network
-            self.export[f"{self.source}_crn_buffers"] = gpd.GeoDataFrame({self.id_crn: crn[self.id_crn]},
-                                                                         geometry=list(crn_buffers), crs=self.crn.crs)
 
 
 @click.command()
