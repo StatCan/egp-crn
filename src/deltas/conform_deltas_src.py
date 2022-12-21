@@ -100,7 +100,7 @@ class CRNDeltas:
         # Load data - subset NGD_A via ogr2ogr using interim layers.
         logger.info(f"Running ogr2ogr subprocess for output: {self.dst}|layer={self.dst_layer}.")
         _ = subprocess.run(
-            f"ogr2ogr -overwrite -sql \"SELECT BB_UID FROM interim_ngd_a WHERE CB_UID IN (SELECT CB_UID FROM "
+            f"ogr2ogr -overwrite -sql \"SELECT BB_UID, Shape FROM interim_ngd_a WHERE CB_UID IN (SELECT CB_UID FROM "
             f"interim_cb)\" {self.dst} {self.dst} -nln {self.dst_layer}")
 
         # Delete interim layers.
@@ -132,7 +132,7 @@ class CRNDeltas:
         logger.info(f"Running ogr2ogr subprocess for output: {self.dst}|layer={self.dst_layer}.")
         _ = subprocess.run(
             f"ogr2ogr -overwrite -sql \"SELECT NGD_UID, SGMNT_TYP_CDE, BB_UID_L, BB_UID_R, CSD_UID_L, CSD_UID_R, Shape "
-            f"FROM NGD_AL WHERE SUBSTR(CSD_UID_L, 1, 2) == '{self.ngd_prov_code}' OR SUBSTR(CSD_UID_R, 1, 2) == "
+            f"FROM NGD_AL WHERE SUBSTR(CSD_UID_L, 1, 2) = '{self.ngd_prov_code}' OR SUBSTR(CSD_UID_R, 1, 2) = "
             f"'{self.ngd_prov_code}'\" {self.dst} {self.src} -nln {self.dst_layer} -nlt LINESTRING")
 
         # Load data as GeoDataFrame.
@@ -193,7 +193,7 @@ class CRNDeltas:
 
 
 @click.command()
-@click.argument("src", type=click.Path(exists=True, dir_okay=False, resolve_path=True, path_type=Path))
+@click.argument("src", type=click.Path(exists=True, dir_okay=True, resolve_path=True, path_type=Path))
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.argument("mode", type=click.Choice(["ngd_a", "ngd_al", "nrn"], False))
 @click.argument("vintage", type=click.INT)

@@ -3,10 +3,7 @@ import fiona
 import geopandas as gpd
 import logging
 import pandas as pd
-import sqlite3
-import subprocess
 import sys
-import uuid
 from operator import itemgetter
 from pathlib import Path
 from shapely.ops import unary_union
@@ -28,6 +25,7 @@ logger.addHandler(handler)
 def get_finished_sources() -> list:
     """
     Returns source codes where all constituent regions have been finished.
+
     \b
     :return list: a list of valid source codes.
     """
@@ -70,36 +68,33 @@ class CRNDeltas:
 
         # CRN
         self.crn = None
+        self.src_crn = self.dst
         self.crn_regions = dict.fromkeys(map(lambda r: f"crn_{r}",
                                              filter(lambda r: r.startswith(self.source),
                                                     helpers.load_yaml("../config.yaml")["sources"])))
-        self.id_crn = "segment_id"
-        self.src_crn = self.dst
 
-        # NRN
-        self.nrn = None
-        self.layer_nrn = f"nrn_{self.source}"
-        self.id_nrn = "uuid"
-        self.src_nrn = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_nrn"]
+        # NRN / NGD
+        self.df = None
+
+        if self.mode == "ngd":
+            self.layer = f"ngd_al_{self.source}"
+            self.id = "ngd_uid"
+            self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_ngd"]
                             .replace("vintage", str(self.vintage)))
 
-        # NGD
-        self.con = None
-        self.ngd_al = None
-        self.ngd_prov_code = helpers.load_yaml("../config.yaml")["ngd_prov_codes"][self.source]
-        self.layer_ngd_al = f"ngd_al"
-        self.id_ngd = "ngd_uid"
-        self.src_ngd = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_ngd"]
+        elif self.mode == "nrn":
+            self.layer = f"nrn_{self.source}"
+            self.id = "segment_id"
+            self.src = Path(helpers.load_yaml("../config.yaml")["filepaths"]["deltas_nrn"]
                             .replace("vintage", str(self.vintage)))
 
-        # Configure src paths and layer names.
-        src, layer = {"ngd": (self.src_ngd, self.layer_ngd_al), "nrn": (self.src_nrn, self.layer_nrn)}[self.mode]
-        if src.exists():
-            if layer not in set(fiona.listlayers(src)):
-                logger.exception(f"Layer {layer} does not exist in source {src}.")
+        # Configure src and layer.
+        if self.src.exists():
+            if self.layer not in set(fiona.listlayers(self.src)):
+                logger.exception(f"Layer {self.layer} does not exist in source {self.src}.")
                 sys.exit(1)
         else:
-            logger.exception(f"Source does not exist: {src}.")
+            logger.exception(f"Source does not exist: {self.src}.")
             sys.exit(1)
 
         # Configure dst.
@@ -120,13 +115,13 @@ class CRNDeltas:
 
         if self.mode == "ngd":
             self.fetch_ngd_deltas()
-        if self.mode == "nrn":
+        elif self.mode == "nrn":
             self.fetch_nrn_deltas()
 
         self._write_deltas()
 
     def _load_data(self) -> None:
-        """Loads and standardizes CRN, NGD, and NRN data."""
+        """Loads and standardizes CRN and NGD / NRN data."""
 
         # Load source data - CRN.
         for layer in self.crn_regions:
@@ -135,26 +130,6 @@ class CRNDeltas:
 
         logger.info(f"Successfully loaded CRN source data.")
 
-        # Load source data - NGD.
-        if self.mode == "ngd":
-            logger.info(f"Loading NGD source data: {self.src_ngd}|layer={self.layer_ngd_al}.")
-
-            self.con = sqlite3.connect(self.src_ngd)
-            self.ngd_al = pd.read_sql_query(
-                f"SELECT {self.id_ngd.upper()}, SGMNT_TYP_CDE FROM {self.layer_ngd_al} WHERE "
-                f"SUBSTR(CSD_UID_L, 1, 2) == '{self.ngd_prov_code}' OR "
-                f"SUBSTR(CSD_UID_R, 1, 2) == '{self.ngd_prov_code}'", con=self.con)
-
-            logger.info("Successfully loaded NGD source data.")
-
-        # Load source data - NRN.
-        if self.mode == "nrn":
-            logger.info(f"Loading NRN source data: {self.src_nrn}|layer={self.layer_nrn}.")
-
-            self.nrn = gpd.read_file(self.src_nrn, layer=self.layer_nrn)
-
-            logger.info("Successfully loaded NRN source data.")
-
         # Standardize data - CRN.
         for layer, df in self.crn_regions.items():
             logger.info(f"Standardizing CRN data, layer={layer}.")
@@ -162,21 +137,11 @@ class CRNDeltas:
             self.crn_regions[layer] = df.copy(deep=True)
         self.crn = pd.concat(self.crn_regions.values(), ignore_index=True).copy(deep=True)
 
-        # Standardize data - NGD.
-        if self.mode == "ngd":
-            logger.info(f"Standardizing NGD data.")
-            self.ngd_al.columns = map(str.lower, self.ngd_al.columns)
-            self.ngd_al.index = self.ngd_al[self.id_ngd]
-            self.ngd_al["segment_type"] = self.ngd_al["sgmnt_typ_cde"].map({1: 3, 2: 1})
-
-        # Standardize data - NRN.
-        if self.mode == "nrn":
-            logger.info(f"Standardizing NRN data.")
-            self.nrn.columns = map(str.lower, self.nrn.columns)
-            if self.nrn.crs.to_epsg() != self.crn.crs.to_epsg():
-                self.nrn = self.nrn.to_crs(self.crn.crs)
-            self.nrn[self.id_nrn] = [uuid.uuid4().hex for _ in range(len(self.nrn))]
-            self.nrn.index = self.nrn[self.id_nrn]
+        # Load source data - NGD / NRN.
+        logger.info(f"Loading source data: {self.src}|layer={self.layer}.")
+        self.df = gpd.read_file(self.src, layer=self.layer)
+        self.df.index = self.df[self.id]
+        logger.info(f"Successfully loaded {self.mode.upper()} source data.")
 
     def _write_deltas(self) -> None:
         """Write output datasets and logs."""
@@ -186,12 +151,9 @@ class CRNDeltas:
         # Export required datasets / execute required subprocesses.
         if not self.flag_new_gpkg:
             helpers.delete_layers(dst=self.dst, layers=self.export.keys())
-        for layer, output in {**self.crn_regions, **self.export}.items():
-            if isinstance(output, pd.DataFrame):
-                helpers.export(output, dst=self.dst, name=layer)
-            elif isinstance(output, str):
-                logger.info(f"Running ogr2ogr subprocess for {layer} output.")
-                _ = subprocess.run(output)
+        for layer, df in {**self.crn_regions, **self.export}.items():
+            if isinstance(df, pd.DataFrame):
+                helpers.export(df, dst=self.dst, name=layer)
 
         # Log results summary.
         summary = tabulate([["NGD Additions", len(self.delta_ids["ngd_add"]) if self.mode == "ngd" else "N/A"],
@@ -207,23 +169,21 @@ class CRNDeltas:
         logger.info("Fetching NGD deltas.")
 
         # Additions.
-        self.delta_ids["ngd_add"].update(set(self.ngd_al.loc[self.ngd_al["segment_type"] == 3, self.id_ngd]) -
-                                         set(self.crn[self.id_ngd]))
+        self.delta_ids["ngd_add"].update(set(self.df.loc[self.df["segment_type"] == 3, self.id]) -
+                                         set(self.crn[self.id]))
 
         # Deletions.
-        self.delta_ids["ngd_del"].update(set(self.crn[self.id_ngd]) - set(self.ngd_al[self.id_ngd]) - {-1})
+        self.delta_ids["ngd_del"].update(set(self.crn[self.id]) - set(self.df[self.id]) - {-1})
 
-        # Export dataset - NGD additions (create subprocess command).
+        # Construct export dataset - NGD Additions.
         if len(self.delta_ids["ngd_add"]):
             self.export[f"{self.source}_ngd_add"] = \
-                f"ogr2ogr -overwrite -sql \"SELECT {self.id_ngd}, geom FROM {self.layer_ngd_al} WHERE {self.id_ngd} " \
-                f"IN {*self.delta_ids['ngd_add'],}\" {self.dst} {self.src_ngd} -nln {self.source}_ngd_add"\
-                    .replace(",)", ")")
+                self.df.loc[self.df.index.isin(self.delta_ids["ngd_add"])].copy(deep=True)
 
-        # Add flags to CRN dataset.
+        # Add flags to CRN dataset - NGD Deletions.
         if len(self.delta_ids["ngd_del"]):
             for layer, df in self.crn_regions.items():
-                self.crn_regions[layer]["ngd_del"] = df[self.id_ngd].isin(self.delta_ids["ngd_del"]).map(int)
+                self.crn_regions[layer]["ngd_del"] = df[self.id].isin(self.delta_ids["ngd_del"]).map(int)
 
     def fetch_nrn_deltas(self) -> None:
         """Identifies and retrieves NRN deltas."""
@@ -231,17 +191,17 @@ class CRNDeltas:
         logger.info("Fetching NRN deltas.")
 
         # Filter CRN to exclusively roads and ferries.
-        crn = self.crn.loc[self.crn["segment_type"].isin({1, 2})]
+        crn = self.crn.loc[self.crn["segment_type"].isin({1, 2})].copy(deep=True)
 
         # Generate CRN buffers and index-geometry lookup.
         crn_buffers = crn.buffer(self.radius, resolution=5)
         crn_idx_buffer_lookup = dict(zip(range(len(crn_buffers)), crn_buffers))
 
         # Query CRN buffers which contain each NRN arc.
-        within = self.nrn["geometry"].map(lambda g: set(crn_buffers.sindex.query(g, predicate="within")))
+        within = self.df["geometry"].map(lambda g: set(crn_buffers.sindex.query(g, predicate="within")))
 
         # Filter to NRN arcs which are not within any CRN buffers.
-        nrn_ = self.nrn.loc[within.map(len) == 0].copy(deep=True)
+        nrn_ = self.df.loc[within.map(len) == 0].copy(deep=True)
         if len(nrn_):
 
             # Query CRN buffers which intersect each remaining NRN arc.
@@ -267,12 +227,10 @@ class CRNDeltas:
                 # Compile identifiers of NRN arcs not contained within any dissolved CRN buffers.
                 self.delta_ids["nrn_mod"].update(set(within.loc[~within].index))
 
-        # Construct export datasets.
+        # Construct export dataset.
         if len(self.delta_ids["nrn_mod"]):
-
-            # Export dataset - NRN modifications.
             self.export[f"{self.source}_nrn_mod"] = \
-                self.nrn.loc[self.nrn.index.isin(self.delta_ids["nrn_mod"])].copy(deep=True)
+                self.df.loc[self.df.index.isin(self.delta_ids["nrn_mod"])].copy(deep=True)
 
 
 @click.command()
