@@ -1,6 +1,6 @@
-**************
-Arc Conflation
-**************
+***********
+Arc Linkage
+***********
 
 .. contents:: Contents:
    :depth: 1
