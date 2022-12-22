@@ -24,6 +24,11 @@ Road Network Collapse
 Associated Tasks and Projects
 =============================
 
+.. figure:: /source/_static/homepage/crn_dependencies.svg
+    :alt: CRN Dependencies.
+
+    Figure: CRN Dependencies.
+
 .. container:: button
 
     :doc:`Review Process <road_network_collapse/review_process>` :doc:`Deltas <road_network_collapse/deltas>`
