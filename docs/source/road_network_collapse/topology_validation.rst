@@ -73,19 +73,6 @@ Validation 101
 
     Figure: Validation 101 example.
 
-| **Description:** Arcs must be single part (i.e. "LineString").
-| **Actions:**
-
-1. Do nothing. This is resolved automatically by the script.
-
-Validation 102
-^^^^^^^^^^^^^^
-
-.. figure:: /source/_static/topology_validation/validation_102.png
-    :alt: Validation 102 example.
-
-    Figure: Validation 102 example.
-
 | **Description:** Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
 | **Actions:**
 
@@ -106,13 +93,13 @@ C. Touch interior: ensure vertex is duplicated.
 
 **Demos:** :doc:`View video demos <demos/topology_validation_demos>`.
 
-Validation 103
+Validation 102
 ^^^^^^^^^^^^^^
 
-.. figure:: /source/_static/topology_validation/validation_103.png
-    :alt: Validation 103 example.
+.. figure:: /source/_static/topology_validation/validation_102.png
+    :alt: Validation 102 example.
 
-    Figure: Validation 103 example.
+    Figure: Validation 102 example.
 
 | **Description:** Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance).
 | **Actions:**

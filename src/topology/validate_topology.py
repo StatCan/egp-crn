@@ -92,9 +92,8 @@ class CRNTopologyValidation:
         # Note: List validations in order if execution order matters.
         self.validations = {
             303: self.connectivity_segmentation,
-            101: self.construction_singlepart,
-            102: self.construction_simple,
-            103: self.construction_cluster_tolerance,
+            101: self.construction_simple,
+            102: self.construction_cluster_tolerance,
             201: self.duplication_duplicated,
             202: self.duplication_overlap,
             301: self.connectivity_node_intersection,
@@ -338,25 +337,6 @@ class CRNTopologyValidation:
 
         # Flag complex (non-simple) geometries.
         flag = ~self.crn_roads.is_simple
-        if sum(flag):
-
-            # Compile errors.
-            errors.update(set(self.crn_roads.loc[flag].index))
-
-        return errors
-
-    def construction_singlepart(self) -> set:
-        """
-        Validates: Arcs must be single part (i.e. 'LineString').
-
-        \b
-        :return set: set containing identifiers of erroneous records.
-        """
-
-        errors = set()
-
-        # Flag non-LineStrings.
-        flag = self.crn_roads.geom_type != "LineString"
         if sum(flag):
 
             # Compile errors.
