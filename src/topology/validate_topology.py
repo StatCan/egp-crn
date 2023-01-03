@@ -93,9 +93,8 @@ class CRNTopologyValidation:
         self.validations = {
             303: self.connectivity_segmentation,
             101: self.construction_singlepart,
-            102: self.construction_min_length,
-            103: self.construction_simple,
-            104: self.construction_cluster_tolerance,
+            102: self.construction_simple,
+            103: self.construction_cluster_tolerance,
             201: self.duplication_duplicated,
             202: self.duplication_overlap,
             301: self.connectivity_node_intersection,
@@ -103,7 +102,6 @@ class CRNTopologyValidation:
         }
 
         # Define validation thresholds.
-        self._min_len = 3
         self._min_dist = 5
         self._min_cluster_dist = 0.01
 
@@ -325,43 +323,6 @@ class CRNTopologyValidation:
 
                 # Compile errors.
                 errors.update(set(coord_pairs.loc[flag].index))
-
-        return errors
-
-    def construction_min_length(self) -> set:
-        """
-        Validates: Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
-
-        \b
-        :return set: set containing identifiers of erroneous records.
-        """
-
-        errors = set()
-
-        # Flag arcs which are too short.
-        flag = self.crn_roads.length < self._min_len
-        if sum(flag):
-            
-            # Flag isolated structures (structures not connected to another structure).
-            
-            # Compile structures.
-            structures = self.crn_roads.loc[~self.crn_roads["structure_type"].isin({"Unknown", "None"})]
-            
-            # Compile duplicated structure nodes.
-            structure_nodes = pd.concat([structures["pt_start"], structures["pt_end"]])
-            structure_nodes_dups = set(structure_nodes.loc[structure_nodes.duplicated(keep=False)])
-            
-            # Flag isolated structures.
-            isolated_structure_index = set(structures.loc[~((structures["pt_start"].isin(structure_nodes_dups)) |
-                                                            (structures["pt_end"].isin(structure_nodes_dups)))].index)
-            isolated_structure_flag = self.crn_roads.index.isin(isolated_structure_index)
-            
-            # Modify flag to exclude isolated structures.
-            flag = (flag & (~isolated_structure_flag))
-            if sum(flag):
-
-                # Compile errors.
-                errors.update(set(self.crn_roads.loc[flag].index))
 
         return errors
 

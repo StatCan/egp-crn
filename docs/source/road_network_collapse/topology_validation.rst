@@ -86,33 +86,6 @@ Validation 102
 
     Figure: Validation 102 example.
 
-| **Description:** Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
-| **Actions:**
-
-A. If feature is bounded by 2 intersections: do nothing.
-B. If feature is a dead end and is connected to 1 intersection: do nothing.
-C. If feature is not connected to any other feature: delete feature.
-
-    1. |icon_select| Select feature.
-    2. |icon_delete_selected| Delete selected feature.
-
-D. Else: merge feature with 1 of its neighbours.
-
-    1. |icon_select| Select feature and one of its neighbours.
-    2. |icon_merge_features| Merge features: Edit → Edit Geometry → Merge Selected Features → Ok.
-
-.. admonition:: Definition
-
-    Intersection: merging point of 3 or more arcs.
-
-Validation 103
-^^^^^^^^^^^^^^
-
-.. figure:: /source/_static/topology_validation/validation_103.png
-    :alt: Validation 103 example.
-
-    Figure: Validation 103 example.
-
 | **Description:** Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).
 | **Actions:**
 
@@ -133,13 +106,13 @@ C. Touch interior: ensure vertex is duplicated.
 
 **Demos:** :doc:`View video demos <demos/topology_validation_demos>`.
 
-Validation 104
+Validation 103
 ^^^^^^^^^^^^^^
 
-.. figure:: /source/_static/topology_validation/validation_104.png
-    :alt: Validation 104 example.
+.. figure:: /source/_static/topology_validation/validation_103.png
+    :alt: Validation 103 example.
 
-    Figure: Validation 104 example.
+    Figure: Validation 103 example.
 
 | **Description:** Arcs must have >= 0.01 meters distance between adjacent vertices (cluster tolerance).
 | **Actions:**
