@@ -50,7 +50,7 @@ Explanation of Layers
 
 **Layers:**
 
-:``crn``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``crn``: Primary layer representing NRN roads, NGD BOs, and added NGD roads.
 :``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for BO integration.
 :``crn``: Copy of ``crn`` with highly visible symbology for quickly identifying erroneous features to edit without
           having to individually query each one. Intended to have a definition query applied using one of the
@@ -202,29 +202,7 @@ Scenario: Missing NGD Road
 .. admonition:: Converting NGD roads to BOs
 
     If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the CRN data and set
-    ``bo_new=1``. The script will automatically set ``segment_type=3`` for these features, or you can do it yourself.
-
-Scenario: Ferries
-"""""""""""""""""
-
-.. figure:: /source/_static/meshblock_creation/validation_100_ferries.png
-    :alt: Validation 100 example - ferries.
-
-    Figure: Validation 100 example - ferries.
-
-**Actions:**
-
-1. Treat the ferry segment as if it does not exist. If required, use the other BO integration scenarios to connect the
-   BO to the CRN.
-
-.. admonition:: Note
-
-    Ferries exist as part of the CRN but are excluded from meshblock creation since their positions are unreliable as
-    they frequently change with each new data vintage from NRN providers. Moreover, ferry segments are already
-    non-exact and simply approximations of the general route taken by the ferry.
-
-    While ferry segments must still respect some of the :doc:`topology rules <topology_validation>`, they do not need
-    to be segmented and are allowed to overlap and even duplicate BOs.
+    ``bo_new=1``. The script will then automatically set the correct ``segment_type`` for these features.
 
 Scenario: NatProvTer
 """"""""""""""""""""
@@ -356,7 +334,7 @@ Validation 201
 
     Figure: Validation 201 example.
 
-| **Description:** All non-deadend arcs (excluding ferries) must form a meshblock polygon.
+| **Description:** All non-deadend arcs must form a meshblock polygon.
 | **Actions:**
 
 1. Use the integration scenarios defined in :ref:`Meshblock Creation Validation 100` to correctly connect the arc to
@@ -374,7 +352,7 @@ Validation 202
 
     Figure: Validation 202 example.
 
-| **Description:** All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon.
+| **Description:** All deadend arcs must be completely within 1 meshblock polygon.
 | **Actions:**
 
 1. Use the integration scenarios defined in :ref:`Meshblock Creation Validation 100` to correctly connect the arc and

@@ -52,7 +52,7 @@ Explanation of Layers
 
 **Layers:**
 
-:``crn``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``crn``: Primary layer representing NRN roads, NGD BOs, and added NGD roads.
 :``crn``: Copy of ``crn`` with highly visible symbology for quickly identifying erroneous features to edit without
           having to individually query each one. Intended to have a definition query applied using one of the
           validation attributes (i.e. ``"v101" = 1``).

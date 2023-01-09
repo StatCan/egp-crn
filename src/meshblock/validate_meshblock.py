@@ -86,7 +86,7 @@ class CRNMeshblockCreation:
 
         # Separate crn bos and roads.
         self.crn_roads = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
-        self.crn_bos = self.crn.loc[self.crn["segment_type"] == 3].copy(deep=True)
+        self.crn_bos = self.crn.loc[self.crn["segment_type"] == 2].copy(deep=True)
 
         logger.info("Configuring validations.")
 
@@ -214,7 +214,7 @@ class CRNMeshblockCreation:
 
         # Compile current and original BO identifier sets.
         ids_current = set(self.crn[self.bo_id])
-        ids_original = set(self.crn_restore.loc[self.crn_restore["segment_type"] == 3, self.bo_id])
+        ids_original = set(self.crn_restore.loc[self.crn_restore["segment_type"] == 2, self.bo_id])
 
         # Compile missing identifiers.
         missing_ids = ids_original - ids_current
@@ -284,9 +284,8 @@ class CRNMeshblockCreation:
             pts_df = gpd.GeoDataFrame(geometry=list(map(Point, set(_deadends))), crs=self.crn.crs)
             self.export[f"{self.source}_deadends"] = pts_df.copy(deep=True)
 
-        # Configure meshblock input (all non-deadend and non-ferry arcs).
-        self._meshblock_input = self.crn.loc[(~self.crn.index.isin(self._deadends)) &
-                                             (self.crn["segment_type"] != 2)].copy(deep=True)
+        # Configure meshblock input (all non-deadend arcs).
+        self._meshblock_input = self.crn.loc[~self.crn.index.isin(self._deadends)].copy(deep=True)
 
         # Generate meshblock.
         self.meshblock_ = gpd.GeoDataFrame(
@@ -298,7 +297,7 @@ class CRNMeshblockCreation:
 
     def meshblock_representation_deadend(self) -> set:
         """
-        All deadend arcs (excluding ferries) must be completely within 1 meshblock polygon.
+        All deadend arcs must be completely within 1 meshblock polygon.
 
         \b
         :return set: set containing identifiers of erroneous records.
@@ -307,7 +306,7 @@ class CRNMeshblockCreation:
         errors = set()
 
         # Query meshblock polygons which contain each deadend arc.
-        within = self.crn.loc[(self.crn.index.isin(self._deadends)) & (self.crn["segment_type"] != 2), "geometry"]\
+        within = self.crn.loc[self.crn.index.isin(self._deadends), "geometry"]\
             .map(lambda g: set(self.meshblock_.sindex.query(g, predicate="within")))
 
         # Flag arcs which are not completely within one polygon.
@@ -324,7 +323,7 @@ class CRNMeshblockCreation:
 
     def meshblock_representation_non_deadend(self) -> set:
         """
-        Validates: All non-deadend arcs (excluding ferries) must form a meshblock polygon.
+        Validates: All non-deadend arcs must form a meshblock polygon.
 
         \b
         :return set: set containing identifiers of erroneous records.

@@ -89,7 +89,7 @@ Explanation of Layers
 
 **Layers:**
 
-:``crn``: Primary layer representing NRN roads and ferries, NGD BOs, and added NGD roads.
+:``crn``: Primary layer representing NRN roads, NGD BOs, and added NGD roads.
 :``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for conflation.
 :``meshblock_ngd``: Current NGD BB layer, classified by conflation validity status and labelled with a conflation
                     percentage.
@@ -108,13 +108,13 @@ Conflation Scenarios
 .. admonition:: Converting NGD roads to BOs
 
     If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the CRN data and set
-    ``bo_new=1``. The script will automatically set ``segment_type=3`` for these features, or you can do it yourself.
+    ``bo_new=1``. The script will then automatically set the correct ``segment_type`` for these features.
 
 .. admonition:: Adding new BOs (completely new arcs)
 
     If a network difference prevents an CRN BB from being properly conflated, you may need to add a new arc to the CRN
-    data. After creating the arc, either set ``bo_new=1``, ``segment_type=3``, or both. The script will automatically
-    resolve the other attribute if only one of them is set.
+    data. After creating the arc, either set ``bo_new=1``. The script will then automatically set to remaining
+    attributes.
 
 Scenario: Missing NGD Roads
 ---------------------------

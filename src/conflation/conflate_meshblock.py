@@ -64,12 +64,12 @@ class CRNMeshblockConflation:
         df = helpers.standardize(df)
         df = helpers.snap_nodes(df)
 
-        # Generate meshblock (all non-deadend and non-ferry arcs).
+        # Generate meshblock (all non-deadend arcs).
         logger.info(f"Generating meshblock from source data.")
 
         nodes = df["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
         deadends = set(nodes.loc[~nodes.duplicated(keep=False)].index)
-        meshblock_input = df.loc[(~df.index.isin(deadends)) & (df["segment_type"] != 2)].copy(deep=True)
+        meshblock_input = df.loc[~df.index.isin(deadends)].copy(deep=True)
         self.meshblock = gpd.GeoDataFrame(geometry=list(polygonize(unary_union(meshblock_input["geometry"].to_list()))),
                                           crs=meshblock_input.crs)
 

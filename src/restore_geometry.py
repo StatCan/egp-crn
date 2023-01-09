@@ -86,8 +86,8 @@ class CRNRestoreGeometry:
         logger.info("Identifying modified data.")
 
         # Define flags to classify arcs.
-        flag_nrn_restore = self.crn_restore["segment_type"].isin({1, 2})
-        flag_bo_restore = self.crn_restore["segment_type"] == 3
+        flag_nrn_restore = self.crn_restore["segment_type"] == 1
+        flag_bo_restore = self.crn_restore["segment_type"] == 2
 
         # Flag missing arcs based on identifiers and store results.
         self.modified_nrn.update(set(self.crn_restore.loc[flag_nrn_restore, self.nrn_id]) - set(self.crn[self.nrn_id]))

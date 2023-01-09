@@ -80,8 +80,8 @@ class CRNTopologyValidation:
         # Standardize data.
         self.crn = helpers.standardize(self.crn)
 
-        # Create subset dataframe which excludes ferries.
-        self.crn_ = self.crn.loc[self.crn["segment_type"] != 2].copy(deep=True)
+        # Create dataframe copy to hold interim attribution.
+        self.crn_ = self.crn.copy(deep=True)
 
         # Generate reusable geometry variables.
         self._gen_reusable_variables()

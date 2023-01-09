@@ -169,7 +169,7 @@ class CRNDeltas:
         logger.info("Fetching NGD deltas.")
 
         # Additions.
-        self.delta_ids["ngd_add"].update(set(self.df.loc[self.df["segment_type"] == 3, self.id]) -
+        self.delta_ids["ngd_add"].update(set(self.df.loc[self.df["segment_type"] == 2, self.id]) -
                                          set(self.crn[self.id]))
 
         # Deletions.
@@ -190,8 +190,8 @@ class CRNDeltas:
 
         logger.info("Fetching NRN deltas.")
 
-        # Filter CRN to exclusively roads and ferries.
-        crn = self.crn.loc[self.crn["segment_type"].isin({1, 2})].copy(deep=True)
+        # Filter CRN to exclusively roads.
+        crn = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
 
         # Generate CRN buffers and index-geometry lookup.
         crn_buffers = crn.buffer(self.radius, resolution=5)
