@@ -55,7 +55,6 @@ Explanation of Layers
 :``crn``: Copy of ``crn`` with highly visible symbology for quickly identifying erroneous features to edit without
           having to individually query each one. Intended to have a definition query applied using one of the
           validation attributes (i.e. ``"v101" = 1``).
-:``CanVec Hydro``: Reference WMS to help identify features which may be aligned to CanVec Hydro.
 :``Esri Satellite``: Reference WMS for recent imagery context.
 
 Validations
@@ -238,21 +237,6 @@ Scenario: CSD Boundary
 
     CSD boundaries are important but not as strict as NatProvTer boundaries. They can be moved, just with caution and
     may need to be reviewed later on. Segmentation is completely fine and doesn't count as a modification.
-
-Scenario: CanVec Alignment
-""""""""""""""""""""""""""
-
-.. include:: /source/_static/meshblock_creation/validation_100_canvec_alignment.rst
-
-**Actions:**
-
-1. Avoid moving the CanVec-aligned BO. Instead, segment the BO and NRN arc(s) involved in the scenario at the point of
-   intersection.
-
-.. admonition:: Note
-
-    BOs are aligned to CanVec 50k hydrology data. If possible, avoid moving these BOs (segmenting is acceptable). Arcs
-    are allowed to cross into water.
 
 Scenario: Unclear Connections
 """""""""""""""""""""""""""""

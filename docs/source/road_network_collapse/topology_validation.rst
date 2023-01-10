@@ -56,7 +56,6 @@ Explanation of Layers
 :``crn``: Copy of ``crn`` with highly visible symbology for quickly identifying erroneous features to edit without
           having to individually query each one. Intended to have a definition query applied using one of the
           validation attributes (i.e. ``"v101" = 1``).
-:``CanVec Hydro``: Reference WMS to help identify features which may be aligned to CanVec Hydro.
 :``Esri Satellite``: Reference WMS for recent imagery context.
 
 Validations
