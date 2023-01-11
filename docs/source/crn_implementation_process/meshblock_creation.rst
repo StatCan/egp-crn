@@ -75,8 +75,7 @@ BO Integration Overview
 """""""""""""""""""""""
 
 Every BO (boundary-only) arc must be integrated into the CRN, whether it be the actual arc itself or just the
-assignment of the identifier to a corresponding NRN arc. Some exceptions exist such as when the BO is truly not
-required and is not ``untouchable`` (see :ref:`Meshblock Creation Validation 102`).
+assignment of the identifier to a corresponding NRN arc.
 
 The NRN is considered the ``base`` geometry for the CRN. Therefore, when deciding which arc to modify (NGD or NRN),
 modify the NGD data.
@@ -202,41 +201,6 @@ Scenario: Missing NGD Road
 
     If an NGD road needs to be converted to a BO, copy and paste the NGD feature(s) into the CRN data and set
     ``bo_new=1``. The script will then automatically set the correct ``segment_type`` for these features.
-
-Scenario: NatProvTer
-""""""""""""""""""""
-
-.. figure:: /source/_static/meshblock_creation/validation_100_natprovter.png
-    :alt: Validation 100 example - NatProvTer.
-
-    Figure: Validation 100 example - NatProvTer.
-
-**Actions:**
-
-1. If required, use the other BO integration scenarios to connect the BO to the CRN.
-
-.. admonition:: Note
-
-    NatProvTer BOs are those forming any National, Provincial, and / or Territorial boundary. Avoid moving these BOs.
-    Instead, try adapting the NRN geometries to these BOs. Segmentation is completely fine and doesn't count as a
-    modification.
-
-Scenario: CSD Boundary
-""""""""""""""""""""""
-
-.. figure:: /source/_static/meshblock_creation/validation_100_csd.png
-    :alt: Validation 100 example - CSD boundary.
-
-    Figure: Validation 100 example - CSD boundary.
-
-**Actions:**
-
-1. If required, use the other BO integration scenarios to connect the BO to the CRN.
-
-.. admonition:: Note
-
-    CSD boundaries are important but not as strict as NatProvTer boundaries. They can be moved, just with caution and
-    may need to be reviewed later on. Segmentation is completely fine and doesn't count as a modification.
 
 Scenario: Unclear Connections
 """""""""""""""""""""""""""""

@@ -202,6 +202,11 @@ Progress
 
     This section is temporary and will be removed once this task is completed.
 
+.. figure:: /source/_static/progress/meshblock_conflation_workload_map.png
+    :alt: Meshblock conflation workload.
+
+    Figure: Meshblock conflation workload (error counts).
+
 .. figure:: /source/_static/progress/meshblock_conflation_progress_map.png
     :alt: Meshblock conflation progress map.
 

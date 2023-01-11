@@ -5,8 +5,8 @@ Canadian Road Network
    :hidden:
 
    About <source/about>
-   Road Network Collapse <source/road_network_collapse>
+   CRN Implementation Process <source/crn_implementation_process>
 
 .. container:: button
 
-    :doc:`About <source/about>` :doc:`Road Network Collapse <source/road_network_collapse>`
+    :doc:`About <source/about>` :doc:`CRN Implementation Process <source/crn_implementation_process>`
