@@ -339,14 +339,15 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
     Applies a series of geometry and attribute standardizations and rules:
     1) ensures geometries are LineString;
     2) drops zero-length geometries;
-    3) rounds coordinates;
-    4) enforces domain restrictions and dtypes;
-    5) enforces attribute-specific rules:
+    3) removes null coordinates;
+    4) rounds coordinates;
+    5) enforces domain restrictions and dtypes;
+    6) enforces attribute-specific rules:
         i) bo_new = 1 must result in segment_type = 2.
         ii) completely new bos must have both bo_new = 1 and segment_type = 2.
         iii) NRN records must not have modified values for bo_new, boundary, and segment_type.
-    6) drops any existing validation attributes (v#+).
-    7) assign identifier attribute (segment_id) as index.
+    7) drops any existing validation attributes (v#+).
+    8) assign identifier attribute (segment_id) as index.
 
     \b
     :param gpd.GeoDataFrame df: GeoDataFrame.
@@ -380,11 +381,33 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
             logger.warning(f"Dropped {sum(flag_zero_len)} zero-length geometries.")
 
-        # 3) Round coordinates.
+        # 3) Remove null coordinates.
+        flag_null_len = df.length.isna()
+        if sum(flag_null_len):
+
+            # Compile valid coordinates for flagged geometries.
+            df_ = df.loc[flag_null_len].copy(deep=True)
+            df_["valid_coords"] = df_["geometry"].map(
+                lambda g: tuple(filter(lambda pt: not (pd.isna(pt[0]) or pd.isna(pt[1])), attrgetter("coords")(g))))
+
+            # Flag geometries with valid (non-null) coordinates.
+            flag_has_valid_coords = df_["valid_coords"].map(len) >= 2
+
+            # Update geometries - Has valid coordinates: Replace geometry.
+            df.loc[df_.loc[flag_has_valid_coords].index, "geometry"] = \
+                df_.loc[flag_has_valid_coords, "valid_coords"].map(LineString)
+
+            # Update geometries - No valid coordinates: Drop geometry.
+            df = df.loc[~df.index.isin(df_.loc[~flag_has_valid_coords].index)].copy(deep=True)
+
+            logger.warning(f"Removed null coordinates from {sum(flag_null_len)} geometries: geometries updated = "
+                           f"{sum(flag_has_valid_coords)}, geometries dropped = {sum(~flag_has_valid_coords)}.")
+
+        # 4) Round coordinates.
         if round_coords:
             df = round_coordinates(df)
 
-        # 4) Enforce domains and dtypes.
+        # 5) Enforce domains and dtypes.
 
         # Define attribute specifications.
         specs = {
@@ -457,7 +480,7 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
             logger.warning(f"Resolved {sum(flag_invalid)} invalid identifiers for \"segment_id\".")
 
-        # 5) Enforce attribute-specific rules.
+        # 6) Enforce attribute-specific rules.
 
         # i) New BOs (converted ngd road; must be done prior to validating NRN record integrity).
         flag_invalid = (df["bo_new"] == 1) & (df["segment_type"] != 2)
@@ -490,14 +513,14 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
                 logger.warning(f"Reverted {sum(flag_invalid)} NRN record values for \"{col}\".")
 
-        # 6) Drop existing validation attributes.
+        # 7) Drop existing validation attributes.
         cols = set(df.filter(regex="v[0-9]+$").columns)
         if cols:
             df.drop(columns=cols, inplace=True)
 
             logger.warning(f"Dropped {len(cols)} existing validation attributes: {', '.join(cols)}.")
 
-        # 7) Assign identifier attribute as index.
+        # 8) Assign identifier attribute as index.
         df.index = df[identifier]
 
         logger.info("Finished standardizing data.")
