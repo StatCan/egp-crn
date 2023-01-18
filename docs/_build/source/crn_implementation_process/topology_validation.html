@@ -1,0 +1,630 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Topology Validation &#8212; CRN Home  documentation</title>
+    
+  <link href="../../_static/css/theme.css" rel="stylesheet">
+  <link href="../../_static/css/index.ff1ffe594081f20da1ef19478df9384b.css" rel="stylesheet">
+
+    
+  <link rel="stylesheet"
+    href="../../_static/vendor/fontawesome/5.13.0/css/all.min.css">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-solid-900.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="../../_static/vendor/fontawesome/5.13.0/webfonts/fa-brands-400.woff2">
+
+    
+      
+
+    
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/blank.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css" />
+    
+  <link rel="preload" as="script" href="../../_static/js/index.be7d3bbb2ef33a8344ce.js">
+
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Meshblock Creation" href="meshblock_creation.html" />
+    <link rel="prev" title="Overview" href="overview.html" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="docsearch:language" content="en">
+    
+
+    <!-- Google Analytics -->
+    
+  </head>
+  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="80">
+    
+    <div class="container-fluid" id="banner"></div>
+
+    
+    <nav class="navbar navbar-light navbar-expand-lg bg-light fixed-top bd-navbar" id="navbar-main"><div class="container-xl">
+
+  <div id="navbar-start">
+    
+    
+<a class="navbar-brand" href="../../index.html">
+<p class="title">CRN Home</p>
+</a>
+
+    
+  </div>
+
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-collapsible" aria-controls="navbar-collapsible" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <div id="navbar-collapsible" class="col-lg-9 collapse navbar-collapse">
+    <div id="navbar-center" class="mr-auto">
+      
+      <div class="navbar-center-item">
+        <ul id="navbar-main-elements" class="navbar-nav">
+    <li class="toctree-l1 nav-item">
+ <a class="reference internal nav-link" href="../about.html">
+  About
+ </a>
+</li>
+
+<li class="toctree-l1 current active nav-item">
+ <a class="reference internal nav-link" href="../crn_implementation_process.html">
+  CRN Implementation Process
+ </a>
+</li>
+
+    
+</ul>
+      </div>
+      
+    </div>
+
+    <div id="navbar-end">
+      
+      <div class="navbar-end-item">
+        <ul id="navbar-icon-links" class="navbar-nav" aria-label="Icon Links">
+        <li class="nav-item">
+          <a class="nav-link" href="https://github.com/StatCan/egp-crn" rel="noopener" target="_blank" title="GitHub">
+            <span><i class="fab fa-github"></i></span>
+            <label class="sr-only">GitHub</label>
+          </a>
+        </li>
+      </ul>
+      </div>
+      
+    </div>
+  </div>
+</div>
+    </nav>
+    
+
+    <div class="container-xl">
+      <div class="row">
+          
+            
+            <!-- Only show if we have sidebars configured, else just a small margin  -->
+            <div class="col-12 col-md-3 bd-sidebar"><form class="bd-search d-flex align-items-center" action="../../search.html" method="get">
+  <i class="icon fas fa-search"></i>
+  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" >
+</form><nav class="bd-links" id="bd-docs-nav" aria-label="Main navigation">
+  <div class="bd-toc-item active">
+    <ul class="current nav bd-sidenav">
+ <li class="toctree-l1">
+  <a class="reference internal" href="overview.html">
+   Overview
+  </a>
+ </li>
+ <li class="toctree-l1 current active">
+  <a class="current reference internal" href="#">
+   Topology Validation
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="meshblock_creation.html">
+   Meshblock Creation
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="meshblock_conflation.html">
+   Meshblock Conflation
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="arc_linkage.html">
+   Arc Linkage
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="review_process.html">
+   Review Process
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="deltas.html">
+   Deltas
+  </a>
+ </li>
+ <li class="toctree-l1">
+  <a class="reference internal" href="routable_crn.html">
+   Routable CRN
+  </a>
+ </li>
+</ul>
+
+  </div>
+</nav>
+            </div>
+            
+          
+
+          
+          <div class="d-none d-xl-block col-xl-2 bd-toc">
+            
+              
+              <div class="toc-item">
+                
+<div class="tocsection onthispage pt-5 pb-3">
+    <i class="fas fa-list"></i> On this page
+</div>
+
+<nav id="bd-toc-nav">
+    <ul class="visible nav section-nav flex-column">
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#overview">
+   Overview
+  </a>
+  <ul class="nav section-nav flex-column">
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#resources">
+     Resources
+    </a>
+   </li>
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#editing-process">
+     Editing Process
+    </a>
+   </li>
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#qgis-project">
+     QGIS Project
+    </a>
+    <ul class="nav section-nav flex-column">
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#explanation-of-layers">
+       Explanation of Layers
+      </a>
+     </li>
+    </ul>
+   </li>
+  </ul>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#validations">
+   Validations
+  </a>
+  <ul class="nav section-nav flex-column">
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#construction">
+     1. Construction
+    </a>
+    <ul class="nav section-nav flex-column">
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#validation-101">
+       Validation 101
+      </a>
+     </li>
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#validation-102">
+       Validation 102
+      </a>
+     </li>
+    </ul>
+   </li>
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#duplication">
+     2. Duplication
+    </a>
+    <ul class="nav section-nav flex-column">
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#validation-201">
+       Validation 201
+      </a>
+     </li>
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#validation-202">
+       Validation 202
+      </a>
+     </li>
+    </ul>
+   </li>
+   <li class="toc-h3 nav-item toc-entry">
+    <a class="reference internal nav-link" href="#connectivity">
+     3. Connectivity
+    </a>
+    <ul class="nav section-nav flex-column">
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#validation-301">
+       Validation 301
+      </a>
+     </li>
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#validation-302">
+       Validation 302
+      </a>
+     </li>
+     <li class="toc-h4 nav-item toc-entry">
+      <a class="reference internal nav-link" href="#validation-303">
+       Validation 303
+      </a>
+     </li>
+    </ul>
+   </li>
+  </ul>
+ </li>
+</ul>
+
+</nav>
+              </div>
+              
+              <div class="toc-item">
+                
+              </div>
+              
+            
+          </div>
+          
+
+          
+          
+            
+          
+          <main class="col-12 col-md-9 col-xl-7 py-md-5 pl-md-5 pr-md-4 bd-content" role="main">
+              
+              <div>
+                
+  <section id="topology-validation">
+<h1><a class="toc-backref" href="#id10" role="doc-backlink">Topology Validation</a><a class="headerlink" href="#topology-validation" title="Permalink to this heading">¶</a></h1>
+<nav class="contents" id="contents">
+<p class="topic-title">Contents:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#topology-validation" id="id10">Topology Validation</a></p>
+<ul>
+<li><p><a class="reference internal" href="#overview" id="id11">Overview</a></p>
+<ul>
+<li><p><a class="reference internal" href="#resources" id="id12">Resources</a></p></li>
+<li><p><a class="reference internal" href="#editing-process" id="id13">Editing Process</a></p></li>
+<li><p><a class="reference internal" href="#qgis-project" id="id14">QGIS Project</a></p>
+<ul>
+<li><p><a class="reference internal" href="#explanation-of-layers" id="id15">Explanation of Layers</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#validations" id="id16">Validations</a></p>
+<ul>
+<li><p><a class="reference internal" href="#construction" id="id17">1. Construction</a></p>
+<ul>
+<li><p><a class="reference internal" href="#validation-101" id="id18">Validation 101</a></p></li>
+<li><p><a class="reference internal" href="#validation-102" id="id19">Validation 102</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#duplication" id="id20">2. Duplication</a></p>
+<ul>
+<li><p><a class="reference internal" href="#validation-201" id="id21">Validation 201</a></p></li>
+<li><p><a class="reference internal" href="#validation-202" id="id22">Validation 202</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#connectivity" id="id23">3. Connectivity</a></p>
+<ul>
+<li><p><a class="reference internal" href="#validation-301" id="id24">Validation 301</a></p></li>
+<li><p><a class="reference internal" href="#validation-302" id="id25">Validation 302</a></p></li>
+<li><p><a class="reference internal" href="#validation-303" id="id26">Validation 303</a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+<section id="overview">
+<h2><a class="toc-backref" href="#id11" role="doc-backlink">Overview</a><a class="headerlink" href="#overview" title="Permalink to this heading">¶</a></h2>
+<p>The CRN must be topologically correct to facilitate its usage in downstream CRN tasks in addition to satisfying NRN and
+NGD specific network requirements such as routability.</p>
+<section id="resources">
+<h3><a class="toc-backref" href="#id12" role="doc-backlink">Resources</a><a class="headerlink" href="#resources" title="Permalink to this heading">¶</a></h3>
+<dl class="field-list simple">
+<dt class="field-odd">CLI Tool<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">src/topology/validate_topology.py</span></code></p>
+</dd>
+<dt class="field-even">Output (see data/crn.gpkg)<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p>Updated source layer: <code class="docutils literal notranslate"><span class="pre">crn_&lt;source&gt;</span></code></p></li>
+<li><dl class="simple">
+<dt>Reference layers (availability conditional on validation results):</dt><dd><ul>
+<li><p>Cluster tolerance point layer: <code class="docutils literal notranslate"><span class="pre">&lt;source&gt;_cluster_tolerance</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+<dt class="field-odd">Editing Environment<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">data/editing_topology.qgz</span></code></p>
+</dd>
+</dl>
+</section>
+<section id="editing-process">
+<h3><a class="toc-backref" href="#id13" role="doc-backlink">Editing Process</a><a class="headerlink" href="#editing-process" title="Permalink to this heading">¶</a></h3>
+<figure class="align-default" id="id1">
+<img alt="Editing process overview." src="../../_images/editing_process_topology_validation.svg" /><figcaption>
+<p><span class="caption-text">Figure: Editing process overview.</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<p>The source layer <code class="docutils literal notranslate"><span class="pre">crn.gpkg|layer=crn_&lt;source&gt;</span></code> will contain new attributes for each validation executed by the script
+(v101, v102, v301, etc.), if that validation actually returned results. The values of these attributes will be 1 or 0,
+indicating whether or not that record was flagged by that validation. Use this data to edit the records.</p>
+</section>
+<section id="qgis-project">
+<h3><a class="toc-backref" href="#id14" role="doc-backlink">QGIS Project</a><a class="headerlink" href="#qgis-project" title="Permalink to this heading">¶</a></h3>
+<section id="explanation-of-layers">
+<h4><a class="toc-backref" href="#id15" role="doc-backlink">Explanation of Layers</a><a class="headerlink" href="#explanation-of-layers" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id2">
+<img alt="QGIS table of contents." src="../../_images/qgis_project_layers3.png" />
+<figcaption>
+<p><span class="caption-text">Figure: QGIS table of contents.</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<p><strong>Layers:</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">crn</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Primary layer representing NRN roads, NGD BOs, and added NGD roads.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">crn</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Copy of <code class="docutils literal notranslate"><span class="pre">crn</span></code> with highly visible symbology for quickly identifying erroneous features to edit without
+having to individually query each one. Intended to have a definition query applied using one of the
+validation attributes (i.e. <code class="docutils literal notranslate"><span class="pre">&quot;v101&quot;</span> <span class="pre">=</span> <span class="pre">1</span></code>).</p>
+</dd>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">Esri</span> <span class="pre">Satellite</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Reference WMS for recent imagery context.</p>
+</dd>
+</dl>
+</section>
+</section>
+</section>
+<section id="validations">
+<h2><a class="toc-backref" href="#id16" role="doc-backlink">Validations</a><a class="headerlink" href="#validations" title="Permalink to this heading">¶</a></h2>
+<section id="construction">
+<h3><a class="toc-backref" href="#id17" role="doc-backlink">1. Construction</a><a class="headerlink" href="#construction" title="Permalink to this heading">¶</a></h3>
+<section id="validation-101">
+<h4><a class="toc-backref" href="#id18" role="doc-backlink">Validation 101</a><a class="headerlink" href="#validation-101" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id3">
+<img alt="Validation 101 example." src="../../_images/validation_1011.png" />
+<figcaption>
+<p><span class="caption-text">Figure: Validation 101 example.</span><a class="headerlink" href="#id3" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<div class="line-block">
+<div class="line"><strong>Description:</strong> Arcs must be simple (i.e. must not self-overlap, self-cross, nor touch their interior).</div>
+<div class="line"><strong>Actions:</strong></div>
+</div>
+<ol class="upperalpha">
+<li><p>Self-cross: delete / edit crossed segment.</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>Add vertex to the cross point, unless vertex already exists.</p></li>
+<li><p>For 1 of the 2 crossed segments, delete all vertices beyond the cross point.</p></li>
+<li><p>For the now-disconnected neighbouring feature, add vertices to the end of the feature to recreate the deleted
+vertices.</p></li>
+</ol>
+</div></blockquote>
+</li>
+<li><p>Self-overlap: delete overlap.</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>Delete duplicated vertices until segments no longer overlap.</p></li>
+</ol>
+</div></blockquote>
+</li>
+<li><p>Touch interior: ensure vertex is duplicated.</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>Add vertex to segment being touched, at touch point.</p></li>
+</ol>
+</div></blockquote>
+</li>
+</ol>
+<p><strong>Demos:</strong> <a class="reference internal" href="demos/topology_validation_demos.html"><span class="doc">View video demos</span></a>.</p>
+</section>
+<section id="validation-102">
+<h4><a class="toc-backref" href="#id19" role="doc-backlink">Validation 102</a><a class="headerlink" href="#validation-102" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id4">
+<img alt="Validation 102 example." src="../../_images/validation_102.png" />
+<figcaption>
+<p><span class="caption-text">Figure: Validation 102 example.</span><a class="headerlink" href="#id4" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<div class="line-block">
+<div class="line"><strong>Description:</strong> Arcs must have &gt;= 0.01 meters distance between adjacent vertices (cluster tolerance).</div>
+<div class="line"><strong>Actions:</strong></div>
+</div>
+<ol class="arabic simple">
+<li><p>Delete as many vertices as required, until no 2 adjacent vertices are within the cluster tolerance.</p></li>
+</ol>
+</section>
+</section>
+<section id="duplication">
+<h3><a class="toc-backref" href="#id20" role="doc-backlink">2. Duplication</a><a class="headerlink" href="#duplication" title="Permalink to this heading">¶</a></h3>
+<section id="validation-201">
+<h4><a class="toc-backref" href="#id21" role="doc-backlink">Validation 201</a><a class="headerlink" href="#validation-201" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id5">
+<img alt="Validation 201 example." src="../../_images/validation_2011.png" />
+<figcaption>
+<p><span class="caption-text">Figure: Validation 201 example.</span><a class="headerlink" href="#id5" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<div class="line-block">
+<div class="line"><strong>Description:</strong> Arcs must not be duplicated.</div>
+<div class="line"><strong>Actions:</strong></div>
+</div>
+<ol class="arabic simple">
+<li><p>Delete all but 1 of the duplicated features.</p></li>
+</ol>
+</section>
+<section id="validation-202">
+<h4><a class="toc-backref" href="#id22" role="doc-backlink">Validation 202</a><a class="headerlink" href="#validation-202" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id6">
+<img alt="Validation 202 example." src="../../_images/validation_2021.png" />
+<figcaption>
+<p><span class="caption-text">Figure: Validation 202 example.</span><a class="headerlink" href="#id6" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<div class="line-block">
+<div class="line"><strong>Description:</strong> Arcs must not overlap (i.e. contain duplicated adjacent vertices).</div>
+<div class="line"><strong>Actions:</strong></div>
+</div>
+<ol class="arabic">
+<li><p>For any overlapping features that continue beyond both ends of the overlap: split feature into 3.</p>
+<blockquote>
+<div><ol class="lowerroman simple">
+<li><p><img alt="icon_split_features" src="../../_images/icon_split_features.svg" /> Select Split Features tool: Edit → Edit Geometry → Split Features.</p></li>
+<li><p>Split features at beginning of overlap: draw a line across feature to split into 2 (split at the vertex to
+avoid creating new vertices).</p></li>
+<li><p>Split feature again at end of overlap.</p></li>
+</ol>
+</div></blockquote>
+</li>
+<li><p>For any overlapping features that continue beyond just 1 end of the overlap: split feature into 2.</p></li>
+<li><p>Now delete all but 1 of the overlapping features.</p></li>
+</ol>
+<p><strong>Demos:</strong> <a class="reference internal" href="demos/topology_validation_demos.html"><span class="doc">View video demos</span></a>.</p>
+</section>
+</section>
+<section id="connectivity">
+<h3><a class="toc-backref" href="#id23" role="doc-backlink">3. Connectivity</a><a class="headerlink" href="#connectivity" title="Permalink to this heading">¶</a></h3>
+<section id="validation-301">
+<h4><a class="toc-backref" href="#id24" role="doc-backlink">Validation 301</a><a class="headerlink" href="#validation-301" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id7">
+<img alt="Validation 301 example." src="../../_images/validation_301.png" />
+<figcaption>
+<p><span class="caption-text">Figure: Validation 301 example.</span><a class="headerlink" href="#id7" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<div class="line-block">
+<div class="line"><strong>Description:</strong> Arcs must only connect at endpoints (nodes).</div>
+<div class="line"><strong>Actions:</strong></div>
+</div>
+<ol class="arabic simple">
+<li><p>Split feature which is being intersected at a non-node into 2 features (split at the vertex to avoid creating new
+vertices).</p></li>
+</ol>
+</section>
+<section id="validation-302">
+<h4><a class="toc-backref" href="#id25" role="doc-backlink">Validation 302</a><a class="headerlink" href="#validation-302" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id8">
+<img alt="Validation 302 example." src="../../_images/validation_302.png" />
+<figcaption>
+<p><span class="caption-text">Figure: Validation 302 example.</span><a class="headerlink" href="#id8" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<div class="line-block">
+<div class="line"><strong>Description:</strong> Arcs must be &gt;= 5 meters from each other, excluding connected arcs (i.e. no dangles).</div>
+<div class="line"><strong>Actions:</strong></div>
+</div>
+<ol class="upperalpha">
+<li><p>If features can be confirmed as being actually connected: connect features.</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>Add 1 or more vertices to extend and connect one of the disconnected features to the other feature.</p></li>
+</ol>
+</div></blockquote>
+</li>
+<li><p>Else: do nothing.</p></li>
+</ol>
+<div class="admonition-note admonition">
+<p class="admonition-title">Note</p>
+<p>Enable imagery WMS layer in QGIS table of contents to assist in determining feature connectivity.</p>
+</div>
+</section>
+<section id="validation-303">
+<h4><a class="toc-backref" href="#id26" role="doc-backlink">Validation 303</a><a class="headerlink" href="#validation-303" title="Permalink to this heading">¶</a></h4>
+<figure class="align-default" id="id9">
+<img alt="Validation 303 example." src="../../_images/validation_303.png" />
+<figcaption>
+<p><span class="caption-text">Figure: Validation 303 example.</span><a class="headerlink" href="#id9" title="Permalink to this image">¶</a></p>
+</figcaption>
+</figure>
+<div class="line-block">
+<div class="line"><strong>Description:</strong> Arcs must not cross (i.e. must be segmented at each intersection).</div>
+<div class="line"><strong>Actions:</strong></div>
+</div>
+<ol class="arabic simple">
+<li><p>Split feature at every point where it crosses another feature.</p></li>
+</ol>
+<p><strong>Demos:</strong> <a class="reference internal" href="demos/topology_validation_demos.html"><span class="doc">View video demos</span></a>.</p>
+<div class="admonition-note admonition">
+<p class="admonition-title">Note</p>
+<p>If the feature being split has no vertex at the crossing point, click again when drawing the Split Features line.</p>
+</div>
+</section>
+</section>
+</section>
+</section>
+
+
+              </div>
+              
+              
+              <!-- Previous / next buttons -->
+<div class='prev-next-area'> 
+    <a class='left-prev' id="prev-link" href="overview.html" title="previous page">
+        <i class="fas fa-angle-left"></i>
+        <div class="prev-next-info">
+            <p class="prev-next-subtitle">previous</p>
+            <p class="prev-next-title">Overview</p>
+        </div>
+    </a>
+    <a class='right-next' id="next-link" href="meshblock_creation.html" title="next page">
+    <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Meshblock Creation</p>
+    </div>
+    <i class="fas fa-angle-right"></i>
+    </a>
+</div>
+              
+          </main>
+          
+
+      </div>
+    </div>
+  
+  <script src="../../_static/js/index.be7d3bbb2ef33a8344ce.js"></script>
+<footer class="footer mt-5 mt-md-0">
+  <div class="container">
+    
+    <div class="footer-item">
+      <p class="copyright">
+    &copy; Copyright 2023, Statistics Canada.<br>
+</p>
+    </div>
+    
+    <div class="footer-item">
+      <p class="sphinx-version">
+Created using <a href="http://sphinx-doc.org/">Sphinx</a> 6.1.2.<br>
+</p>
+    </div>
+    
+  </div>
+</footer>
+  </body>
+</html>
