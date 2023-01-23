@@ -80,8 +80,8 @@ class CRNTopologyValidation:
         # Standardize data.
         self.crn = helpers.standardize(self.crn)
 
-        # Create subset dataframe of exclusively roads.
-        self.crn_roads = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)
+        # Create dataframe copy to hold interim attribution.
+        self.crn_ = self.crn.copy(deep=True)
 
         # Generate reusable geometry variables.
         self._gen_reusable_variables()
@@ -92,10 +92,8 @@ class CRNTopologyValidation:
         # Note: List validations in order if execution order matters.
         self.validations = {
             303: self.connectivity_segmentation,
-            101: self.construction_singlepart,
-            102: self.construction_min_length,
-            103: self.construction_simple,
-            104: self.construction_cluster_tolerance,
+            101: self.construction_simple,
+            102: self.construction_cluster_tolerance,
             201: self.duplication_duplicated,
             202: self.duplication_overlap,
             301: self.connectivity_node_intersection,
@@ -103,7 +101,6 @@ class CRNTopologyValidation:
         }
 
         # Define validation thresholds.
-        self._min_len = 3
         self._min_dist = 5
         self._min_cluster_dist = 0.01
 
@@ -126,16 +123,16 @@ class CRNTopologyValidation:
         logger.info("Generating reusable geometry attributes.")
 
         # Generate computationally intensive geometry attributes as new columns.
-        self.crn_roads["pts_tuple"] = self.crn_roads["geometry"].map(attrgetter("coords")).map(tuple)
-        self.crn_roads["pt_start"] = self.crn_roads["pts_tuple"].map(itemgetter(0))
-        self.crn_roads["pt_end"] = self.crn_roads["pts_tuple"].map(itemgetter(-1))
-        self.crn_roads["pts_ordered_pairs"] = self.crn_roads["pts_tuple"].map(ordered_pairs)
+        self.crn_["pts_tuple"] = self.crn_["geometry"].map(attrgetter("coords")).map(tuple)
+        self.crn_["pt_start"] = self.crn_["pts_tuple"].map(itemgetter(0))
+        self.crn_["pt_end"] = self.crn_["pts_tuple"].map(itemgetter(-1))
+        self.crn_["pts_ordered_pairs"] = self.crn_["pts_tuple"].map(ordered_pairs)
 
         # Generate computationally intensive lookups.
-        pts = self.crn_roads["pts_tuple"].explode()
+        pts = self.crn_["pts_tuple"].explode()
         pts_df = pd.DataFrame({"pt": pts.values, self.id: pts.index})
         self.pts_id_lookup = pts_df.groupby(by="pt", axis=0, as_index=True)[self.id].agg(set).to_dict()
-        self.idx_id_lookup = dict(zip(range(len(self.crn_roads)), self.crn_roads.index))
+        self.idx_id_lookup = dict(zip(range(len(self.crn_)), self.crn_.index))
 
     def _validate(self) -> None:
         """Executes validations against the CRN dataset."""
@@ -185,7 +182,7 @@ class CRNTopologyValidation:
         errors = set()
 
         # Compile all non-duplicated nodes (dead ends) as a DataFrame.
-        pts = pd.concat([self.crn_roads["pt_start"], self.crn_roads["pt_end"]])
+        pts = pd.concat([self.crn_["pt_start"], self.crn_["pt_end"]])
         deadends = pts.loc[~pts.duplicated(keep=False)]
         deadends = pd.DataFrame({"pt": deadends.values, self.id: deadends.index})
 
@@ -194,7 +191,7 @@ class CRNTopologyValidation:
 
         # Query arcs which intersect each dead end buffer.
         deadends["intersects"] = deadends["buffer"].map(
-            lambda buffer: set(self.crn_roads.sindex.query(buffer, predicate="intersects")))
+            lambda buffer: set(self.crn_.sindex.query(buffer, predicate="intersects")))
 
         # Flag dead ends which have buffers with one or more intersecting arcs.
         deadends = deadends.loc[deadends["intersects"].map(len) > 1]
@@ -214,7 +211,7 @@ class CRNTopologyValidation:
             deadends["connected"] = deadends[self.id].map(
                 lambda identifier: set(chain.from_iterable(
                     itemgetter(node)(self.pts_id_lookup) for node in itemgetter(0, -1)(
-                        itemgetter(identifier)(self.crn_roads["pts_tuple"]))
+                        itemgetter(identifier)(self.crn_["pts_tuple"]))
                 )))
 
             # Subtract identifiers of connected features from buffer-intersecting features.
@@ -246,11 +243,11 @@ class CRNTopologyValidation:
         errors = set()
 
         # Compile nodes.
-        nodes = set(pd.concat([self.crn_roads["pt_start"], self.crn_roads["pt_end"]]))
+        nodes = set(pd.concat([self.crn_["pt_start"], self.crn_["pt_end"]]))
 
         # Compile interior vertices (non-nodes).
         # Note: only arcs with > 2 vertices are used.
-        non_nodes = set(self.crn_roads.loc[self.crn_roads["pts_tuple"].map(len) > 2, "pts_tuple"]
+        non_nodes = set(self.crn_.loc[self.crn_["pts_tuple"].map(len) > 2, "pts_tuple"]
                         .map(lambda pts: set(pts[1:-1])).explode())
 
         # Compile invalid vertices.
@@ -263,14 +260,14 @@ class CRNTopologyValidation:
 
             # Filter arcs to those with an invalid vertex.
             invalid_ids = set(chain.from_iterable(map(lambda pt: itemgetter(pt)(self.pts_id_lookup), invalid_pts)))
-            crn_roads = self.crn_roads.loc[self.crn_roads.index.isin(invalid_ids)]
+            crn_ = self.crn_.loc[self.crn_.index.isin(invalid_ids)]
 
             # Flag invalid arcs where the invalid vertex is a non-node.
-            flag = crn_roads["pts_tuple"].map(lambda pts: len(set(pts[1:-1]).intersection(invalid_pts))) > 0
+            flag = crn_["pts_tuple"].map(lambda pts: len(set(pts[1:-1]).intersection(invalid_pts))) > 0
             if sum(flag):
 
                 # Compile errors.
-                errors.update(set(crn_roads.loc[flag].index))
+                errors.update(set(crn_.loc[flag].index))
 
         return errors
 
@@ -285,14 +282,14 @@ class CRNTopologyValidation:
         errors = set()
 
         # Query arcs which cross each arc.
-        crosses = self.crn_roads["geometry"].map(lambda g: set(self.crn_roads.sindex.query(g, predicate="crosses")))
+        crosses = self.crn_["geometry"].map(lambda g: set(self.crn_.sindex.query(g, predicate="crosses")))
 
         # Flag arcs which have one or more crossing arcs.
         flag = crosses.map(len) > 0
         if sum(flag):
 
             # Compile errors.
-            errors.update(set(self.crn_roads.loc[flag].index))
+            errors.update(set(self.crn_.loc[flag].index))
 
         return errors
 
@@ -307,11 +304,11 @@ class CRNTopologyValidation:
         errors = set()
 
         # Filter arcs to those with > 2 vertices.
-        crn_roads = self.crn_roads.loc[self.crn_roads["pts_tuple"].map(len) > 2]
-        if len(crn_roads):
+        crn_ = self.crn_.loc[self.crn_["pts_tuple"].map(len) > 2]
+        if len(crn_):
 
             # Explode arc coordinate pairs and calculate distances.
-            coord_pairs = crn_roads["pts_ordered_pairs"].explode()
+            coord_pairs = crn_["pts_ordered_pairs"].explode()
             coord_dist = coord_pairs.map(lambda pair: math.dist(*pair))
 
             # Flag pairs with distances that are too small.
@@ -320,48 +317,11 @@ class CRNTopologyValidation:
 
                 # Export invalid pairs as MultiPoint geometries.
                 pts = coord_pairs.loc[flag].map(MultiPoint)
-                pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs=self.crn_roads.crs)
+                pts_df = gpd.GeoDataFrame({self.id: pts.index.values}, geometry=[*pts], crs=self.crn_.crs)
                 self.export[f"{self.source}_cluster_tolerance"] = pts_df.copy(deep=True)
 
                 # Compile errors.
                 errors.update(set(coord_pairs.loc[flag].index))
-
-        return errors
-
-    def construction_min_length(self) -> set:
-        """
-        Validates: Arcs must be >= 3 meters in length, except structures (e.g. Bridges).
-
-        \b
-        :return set: set containing identifiers of erroneous records.
-        """
-
-        errors = set()
-
-        # Flag arcs which are too short.
-        flag = self.crn_roads.length < self._min_len
-        if sum(flag):
-            
-            # Flag isolated structures (structures not connected to another structure).
-            
-            # Compile structures.
-            structures = self.crn_roads.loc[~self.crn_roads["structure_type"].isin({"Unknown", "None"})]
-            
-            # Compile duplicated structure nodes.
-            structure_nodes = pd.concat([structures["pt_start"], structures["pt_end"]])
-            structure_nodes_dups = set(structure_nodes.loc[structure_nodes.duplicated(keep=False)])
-            
-            # Flag isolated structures.
-            isolated_structure_index = set(structures.loc[~((structures["pt_start"].isin(structure_nodes_dups)) |
-                                                            (structures["pt_end"].isin(structure_nodes_dups)))].index)
-            isolated_structure_flag = self.crn_roads.index.isin(isolated_structure_index)
-            
-            # Modify flag to exclude isolated structures.
-            flag = (flag & (~isolated_structure_flag))
-            if sum(flag):
-
-                # Compile errors.
-                errors.update(set(self.crn_roads.loc[flag].index))
 
         return errors
 
@@ -376,30 +336,11 @@ class CRNTopologyValidation:
         errors = set()
 
         # Flag complex (non-simple) geometries.
-        flag = ~self.crn_roads.is_simple
+        flag = ~self.crn_.is_simple
         if sum(flag):
 
             # Compile errors.
-            errors.update(set(self.crn_roads.loc[flag].index))
-
-        return errors
-
-    def construction_singlepart(self) -> set:
-        """
-        Validates: Arcs must be single part (i.e. 'LineString').
-
-        \b
-        :return set: set containing identifiers of erroneous records.
-        """
-
-        errors = set()
-
-        # Flag non-LineStrings.
-        flag = self.crn_roads.geom_type != "LineString"
-        if sum(flag):
-
-            # Compile errors.
-            errors.update(set(self.crn_roads.loc[flag].index))
+            errors.update(set(self.crn_.loc[flag].index))
 
         return errors
 
@@ -414,16 +355,14 @@ class CRNTopologyValidation:
         errors = set()
 
         # Filter arcs to those with duplicated lengths.
-        crn_roads = self.crn_roads.loc[self.crn_roads.length.duplicated(keep=False)]
-        if len(crn_roads):
+        crn_ = self.crn_.loc[self.crn_.length.duplicated(keep=False)]
+        if len(crn_):
 
             # Filter arcs to those with duplicated nodes.
-            crn_roads = crn_roads.loc[
-                crn_roads[["pt_start", "pt_end"]].agg(set, axis=1).map(tuple).duplicated(keep=False)]
+            crn_ = crn_.loc[crn_[["pt_start", "pt_end"]].agg(set, axis=1).map(tuple).duplicated(keep=False)]
 
             # Flag duplicated geometries.
-            dups = crn_roads.loc[crn_roads["geometry"].map(
-                lambda g1: crn_roads["geometry"].map(lambda g2: g1.equals(g2)).sum() > 1)]
+            dups = crn_.loc[crn_["geometry"].map(lambda g1: crn_["geometry"].map(lambda g2: g1.equals(g2)).sum() > 1)]
             if len(dups):
 
                 # Compile errors.
@@ -442,7 +381,7 @@ class CRNTopologyValidation:
         errors = set()
 
         # Query arcs which overlap each arc.
-        overlaps = self.crn_roads["geometry"].map(lambda g: set(self.crn_roads.sindex.query(g, predicate="overlaps")))
+        overlaps = self.crn_["geometry"].map(lambda g: set(self.crn_.sindex.query(g, predicate="overlaps")))
 
         # Flag arcs which have one or more overlapping arcs.
         flag = overlaps.map(len) > 0

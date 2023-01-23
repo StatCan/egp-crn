@@ -288,9 +288,9 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
     nrn_flag = (df["segment_id_orig"].map(len) == 32) & (df["segment_type"] == 1)
     nrn_nodes = set(df.loc[nrn_flag, "geometry"].map(
         lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g)))).explode())
-    ngd_nodes = df.loc[(~nrn_flag) & (df["segment_type"] != 2), "geometry"].map(
+    ngd_nodes = df.loc[~nrn_flag, "geometry"].map(
         lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g)))).explode()
-    ngd_boundary_nodes = set(df.loc[(~nrn_flag) & (df["segment_type"] != 2) & (df["boundary"] == 1), "geometry"].map(
+    ngd_boundary_nodes = set(df.loc[(~nrn_flag) & (df["boundary"] == 1), "geometry"].map(
         lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g)))).explode())
 
     # Compile snappable ngd nodes (ngd nodes not connected to an nrn node).
@@ -339,15 +339,15 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
     Applies a series of geometry and attribute standardizations and rules:
     1) ensures geometries are LineString;
     2) drops zero-length geometries;
-    3) rounds coordinates;
-    4) enforces domain restrictions and dtypes;
-    5) enforces attribute-specific rules:
-        i) bo_new = 1 must result in segment_type = 3.
-        ii) completely new bos must have both bo_new = 1 and segment_type = 3.
+    3) removes null coordinates;
+    4) rounds coordinates;
+    5) enforces domain restrictions and dtypes;
+    6) enforces attribute-specific rules:
+        i) bo_new = 1 must result in segment_type = 2.
+        ii) completely new bos must have both bo_new = 1 and segment_type = 2.
         iii) NRN records must not have modified values for bo_new, boundary, and segment_type.
-        iv) Ferries must not be assigned an ngd_uid.
-    6) drops any existing validation attributes (v#+).
-    7) assign identifier attribute (segment_id) as index.
+    7) drops any existing validation attributes (v#+).
+    8) assign identifier attribute (segment_id) as index.
 
     \b
     :param gpd.GeoDataFrame df: GeoDataFrame.
@@ -381,11 +381,33 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
             logger.warning(f"Dropped {sum(flag_zero_len)} zero-length geometries.")
 
-        # 3) Round coordinates.
+        # 3) Remove null coordinates.
+        flag_null_len = df.length.isna()
+        if sum(flag_null_len):
+
+            # Compile valid coordinates for flagged geometries.
+            df_ = df.loc[flag_null_len].copy(deep=True)
+            df_["valid_coords"] = df_["geometry"].map(
+                lambda g: tuple(filter(lambda pt: not (pd.isna(pt[0]) or pd.isna(pt[1])), attrgetter("coords")(g))))
+
+            # Flag geometries with valid (non-null) coordinates.
+            flag_has_valid_coords = df_["valid_coords"].map(len) >= 2
+
+            # Update geometries - Has valid coordinates: Replace geometry.
+            df.loc[df_.loc[flag_has_valid_coords].index, "geometry"] = \
+                df_.loc[flag_has_valid_coords, "valid_coords"].map(LineString)
+
+            # Update geometries - No valid coordinates: Drop geometry.
+            df = df.loc[~df.index.isin(df_.loc[~flag_has_valid_coords].index)].copy(deep=True)
+
+            logger.warning(f"Removed null coordinates from {sum(flag_null_len)} geometries: geometries updated = "
+                           f"{sum(flag_has_valid_coords)}, geometries dropped = {sum(~flag_has_valid_coords)}.")
+
+        # 4) Round coordinates.
         if round_coords:
             df = round_coordinates(df)
 
-        # 4) Enforce domains and dtypes.
+        # 5) Enforce domains and dtypes.
 
         # Define attribute specifications.
         specs = {
@@ -394,8 +416,7 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
             "ngd_uid": {"domain": None, "default": -1, "dtype": int},
             "segment_id": {"domain": None, "default": "-1", "dtype": str},
             "segment_id_orig": {"domain": None, "default": "-1", "dtype": str},
-            "segment_type": {"domain": {"1": 1, "1.0": 1, "2": 2, "2.0": 2, "3": 3, "3.0": 3},
-                             "default": 1, "dtype": int},
+            "segment_type": {"domain": {"1": 1, "1.0": 1, "2": 2, "2.0": 2}, "default": 1, "dtype": int},
             "structure_type": {"domain": {
                 "-1": "Unknown", "-1.0": "Unknown", "Unknown": "Unknown",
                 "0": "None", "0.0": "None", "None": "None",
@@ -459,17 +480,17 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
 
             logger.warning(f"Resolved {sum(flag_invalid)} invalid identifiers for \"segment_id\".")
 
-        # 5) Enforce attribute-specific rules.
+        # 6) Enforce attribute-specific rules.
 
         # i) New BOs (converted ngd road; must be done prior to validating NRN record integrity).
-        flag_invalid = (df["bo_new"] == 1) & (df["segment_type"] != 3)
+        flag_invalid = (df["bo_new"] == 1) & (df["segment_type"] != 2)
         if sum(flag_invalid):
-            df.loc[flag_invalid, "segment_type"] = 3
+            df.loc[flag_invalid, "segment_type"] = 2
 
-            logger.warning(f"Set \"segment_type\" = 3 for {sum(flag_invalid)} NGD roads converted to BOs.")
+            logger.warning(f"Set \"segment_type\" = 2 for {sum(flag_invalid)} NGD roads converted to BOs.")
 
         # ii) New BOs (completely new feature; must be done prior to validating NRN record integrity).
-        flag_invalid = (df["ngd_uid"] == -1) & (df["bo_new"] != 1) & (df["segment_type"] == 3)
+        flag_invalid = (df["ngd_uid"] == -1) & (df["bo_new"] != 1) & (df["segment_type"] == 2)
         if sum(flag_invalid):
             df.loc[flag_invalid, "bo_new"] = 1
 
@@ -485,28 +506,21 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
             logger.warning(f"Resolved {sum(flag_invalid)} invalid NRN identifiers for \"segment_id_orig\".")
 
         # Revert modified attributes.
-        for col, domain in {"bo_new": {0}, "boundary": {0}, "segment_type": {1, 2}}.items():
+        for col, domain in {"bo_new": {0}, "boundary": {0}, "segment_type": {1}}.items():
             flag_invalid = (df[nrn_identifier].map(len) == 32) & (~df[col].isin(domain))
             if sum(flag_invalid):
                 df.loc[flag_invalid, col] = specs[col]["default"]
 
                 logger.warning(f"Reverted {sum(flag_invalid)} NRN record values for \"{col}\".")
 
-        # iv) Ferries must not be assigned an ngd_uid.
-        flag_invalid = (df["segment_type"] == 2) & (df["ngd_uid"] != specs["ngd_uid"]["default"])
-        if sum(flag_invalid):
-            df.loc[flag_invalid, "ngd_uid"] = specs["ngd_uid"]["default"]
-
-            logger.warning(f"Reverted {sum(flag_invalid)} NRN ferry record values for \"ngd_uid\".")
-
-        # 6) Drop existing validation attributes.
+        # 7) Drop existing validation attributes.
         cols = set(df.filter(regex="v[0-9]+$").columns)
         if cols:
             df.drop(columns=cols, inplace=True)
 
             logger.warning(f"Dropped {len(cols)} existing validation attributes: {', '.join(cols)}.")
 
-        # 7) Assign identifier attribute as index.
+        # 8) Assign identifier attribute as index.
         df.index = df[identifier]
 
         logger.info("Finished standardizing data.")

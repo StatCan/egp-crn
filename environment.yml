@@ -8,9 +8,11 @@ dependencies:
   - geopandas=0.11.0
   - matplotlib=3.5.2
   - pandas=1.4.3
+  - pydata-sphinx-theme=0.7.2
   - pygeos=0.12.0
   - python=3.9.13
   - pyyaml=6.0
   - shapely=1.8.2
+  - sphinx=6.1.2
   - tabulate=0.8.10
   - tqdm=4.64.0

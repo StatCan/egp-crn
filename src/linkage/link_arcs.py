@@ -88,20 +88,17 @@ class CRNArcLinkage:
         for new_col in ("meshblock_idx", f"{self.id_meshblock_ngd}_linked", f"{self.id_arc_ngd}_linked"):
             self.arcs[new_col] = ((-1,),) * len(self.arcs)
 
-        # Filter source data to non-ferry arcs.
-        arcs = self.arcs.loc[self.arcs["segment_type"] != 2].copy(deep=True)
-
         # Compile the meshblock index associated with each arc - an arc will be covered by or contained by a polygon.
         meshblock_boundaries = self.meshblock.boundary
-        arcs["meshblock_idx"] = arcs["geometry"].map(
+        self.arcs["meshblock_idx"] = self.arcs["geometry"].map(
             lambda g: set(meshblock_boundaries.sindex.query(g, predicate="covered_by")))
-        arcs.loc[arcs["meshblock_idx"].map(len) == 0, "meshblock_idx"] = \
-            arcs.loc[arcs["meshblock_idx"].map(len) == 0, "geometry"].map(
+        self.arcs.loc[self.arcs["meshblock_idx"].map(len) == 0, "meshblock_idx"] = \
+            self.arcs.loc[self.arcs["meshblock_idx"].map(len) == 0, "geometry"].map(
                 lambda g: set(self.meshblock.sindex.query(g, predicate="within")))
 
         # Retrieve the ngd meshblock identifier linking to each new meshblock.
         meshblock_idx_ngd_id = dict(zip(self.meshblock.index, self.meshblock[self.id_meshblock_ngd]))
-        arcs[f"{self.id_meshblock_ngd}_linked"] = arcs["meshblock_idx"]\
+        self.arcs[f"{self.id_meshblock_ngd}_linked"] = self.arcs["meshblock_idx"]\
             .map(lambda idxs: itemgetter(*idxs)(meshblock_idx_ngd_id))\
             .map(lambda vals: vals if isinstance(vals, tuple) else (vals,)).map(set).map(tuple)
 
@@ -117,12 +114,9 @@ class CRNArcLinkage:
         ngd_meshblock_id_to_arc_ids[-1] = (-1,)
 
         # Compile ngd arc identifiers associated with each linked ngd meshblock.
-        arcs[f"{self.id_arc_ngd}_linked"] = arcs[f"{self.id_meshblock_ngd}_linked"]\
+        self.arcs[f"{self.id_arc_ngd}_linked"] = self.arcs[f"{self.id_meshblock_ngd}_linked"]\
             .map(lambda ids: itemgetter(*ids)(ngd_meshblock_id_to_arc_ids))\
             .map(lambda vals: tuple(chain.from_iterable(vals) if isinstance(vals[0], tuple) else vals))
-
-        # Update original dataset with linkage attribution.
-        self.arcs.loc[arcs.index] = arcs.copy(deep=True)
 
     def output_results(self) -> None:
         """Outputs linkage results."""

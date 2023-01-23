@@ -100,7 +100,7 @@ class CRNDeltas:
         # Load data - subset NGD_A via ogr2ogr using interim layers.
         logger.info(f"Running ogr2ogr subprocess for output: {self.dst}|layer={self.dst_layer}.")
         _ = subprocess.run(
-            f"ogr2ogr -overwrite -sql \"SELECT BB_UID FROM interim_ngd_a WHERE CB_UID IN (SELECT CB_UID FROM "
+            f"ogr2ogr -overwrite -sql \"SELECT BB_UID, Shape FROM interim_ngd_a WHERE CB_UID IN (SELECT CB_UID FROM "
             f"interim_cb)\" {self.dst} {self.dst} -nln {self.dst_layer}")
 
         # Delete interim layers.
@@ -132,7 +132,7 @@ class CRNDeltas:
         logger.info(f"Running ogr2ogr subprocess for output: {self.dst}|layer={self.dst_layer}.")
         _ = subprocess.run(
             f"ogr2ogr -overwrite -sql \"SELECT NGD_UID, SGMNT_TYP_CDE, BB_UID_L, BB_UID_R, CSD_UID_L, CSD_UID_R, Shape "
-            f"FROM NGD_AL WHERE SUBSTR(CSD_UID_L, 1, 2) == '{self.ngd_prov_code}' OR SUBSTR(CSD_UID_R, 1, 2) == "
+            f"FROM NGD_AL WHERE SUBSTR(CSD_UID_L, 1, 2) = '{self.ngd_prov_code}' OR SUBSTR(CSD_UID_R, 1, 2) = "
             f"'{self.ngd_prov_code}'\" {self.dst} {self.src} -nln {self.dst_layer} -nlt LINESTRING")
 
         # Load data as GeoDataFrame.
@@ -145,7 +145,7 @@ class CRNDeltas:
         self.df.columns = map(str.lower, self.df.columns)
 
         # Standardize data - add / modify attribution.
-        self.df["segment_type"] = self.df["sgmnt_typ_cde"].map({1: 3, 2: 1})
+        self.df["segment_type"] = self.df["sgmnt_typ_cde"].map({1: 2, 2: 1})
         self.df["boundary"] = pd.Series(self.df["csd_uid_l"] != self.df["csd_uid_r"]).astype(int)
 
         # Subset data.
@@ -156,21 +156,17 @@ class CRNDeltas:
 
         logger.info("Conforming data.")
 
-        # Configure source layer names.
-        layer_ferryseg = [layer for layer in fiona.listlayers(self.src) if layer.lower().find("ferryseg") >= 0]
-        layer_roadseg = [layer for layer in fiona.listlayers(self.src) if layer.lower().find("roadseg") >= 0]
+        # Configure source layer name.
+        layer = [layer for layer in fiona.listlayers(self.src) if layer.lower().find("roadseg") >= 0][0]
 
         # Validate layer.
-        if not len(layer_roadseg):
+        if not len(layer):
             logger.exception(f"Cannot find layer roadseg (or any layer containing this word) in source {self.src}.")
             sys.exit(1)
 
         # Load data.
-        logger.info(f"Loading data as GeoDataFrame(s).")
-        self.df = gpd.read_file(self.src, layer=layer_roadseg[0])
-        if len(layer_ferryseg):
-            ferryseg = gpd.read_file(self.src, layer=layer_ferryseg[0])
-            self.df = pd.concat([self.df, ferryseg]).copy(deep=True)
+        logger.info(f"Loading data as GeoDataFrame.")
+        self.df = gpd.read_file(self.src, layer=layer)
 
         logger.info(f"Standardizing data.")
 
@@ -182,7 +178,7 @@ class CRNDeltas:
         self.df["segment_id"] = [uuid.uuid4().hex for _ in range(len(self.df))]
         self.df["segment_id_orig"] = self.df["segment_id"]
         self.df["structure_type"] = self.df["structtype"].fillna("Unknown")
-        self.df["segment_type"] = self.df["roadsegid"].isna().map({True: 2, False: 1})
+        self.df["segment_type"] = 1
         self.df["ngd_uid"] = -1
         self.df["boundary"] = 0
         self.df["bo_new"] = 0
@@ -193,7 +189,7 @@ class CRNDeltas:
 
 
 @click.command()
-@click.argument("src", type=click.Path(exists=True, dir_okay=False, resolve_path=True, path_type=Path))
+@click.argument("src", type=click.Path(exists=True, dir_okay=True, resolve_path=True, path_type=Path))
 @click.argument("source", type=click.Choice("ab bc mb nb nl ns nt nu on pe qc sk yt".split(), False))
 @click.argument("mode", type=click.Choice(["ngd_a", "ngd_al", "nrn"], False))
 @click.argument("vintage", type=click.INT)
