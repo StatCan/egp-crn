@@ -220,6 +220,11 @@
   </a>
  </li>
  <li class="toc-h2 nav-item toc-entry">
+  <a class="reference internal nav-link" href="#documentation">
+   Documentation
+  </a>
+ </li>
+ <li class="toc-h2 nav-item toc-entry">
   <a class="reference internal nav-link" href="#id3">
    QGIS
   </a>
@@ -312,18 +317,19 @@
 </ul>
 </li>
 <li><p><a class="reference internal" href="#scripts" id="id19">Scripts</a></p></li>
-<li><p><a class="reference internal" href="#id3" id="id20">QGIS</a></p>
+<li><p><a class="reference internal" href="#documentation" id="id20">Documentation</a></p></li>
+<li><p><a class="reference internal" href="#id3" id="id21">QGIS</a></p>
 <ul>
-<li><p><a class="reference internal" href="#basic-editing-actions" id="id21">Basic Editing Actions</a></p>
+<li><p><a class="reference internal" href="#basic-editing-actions" id="id22">Basic Editing Actions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#enable-disable-editing" id="id22">Enable / Disable Editing</a></p></li>
-<li><p><a class="reference internal" href="#enable-snapping" id="id23">Enable Snapping</a></p></li>
-<li><p><a class="reference internal" href="#add-move-delete-vertex" id="id24">Add / Move / Delete Vertex</a></p></li>
-<li><p><a class="reference internal" href="#qgis-editing-demo" id="id25">QGIS Editing Demo</a></p></li>
+<li><p><a class="reference internal" href="#enable-disable-editing" id="id23">Enable / Disable Editing</a></p></li>
+<li><p><a class="reference internal" href="#enable-snapping" id="id24">Enable Snapping</a></p></li>
+<li><p><a class="reference internal" href="#add-move-delete-vertex" id="id25">Add / Move / Delete Vertex</a></p></li>
+<li><p><a class="reference internal" href="#qgis-editing-demo" id="id26">QGIS Editing Demo</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#updating-layer-sources" id="id26">Updating Layer Sources</a></p></li>
-<li><p><a class="reference internal" href="#keyboard-shortcuts-hotkeys" id="id27">Keyboard Shortcuts (Hotkeys)</a></p></li>
+<li><p><a class="reference internal" href="#updating-layer-sources" id="id27">Updating Layer Sources</a></p></li>
+<li><p><a class="reference internal" href="#keyboard-shortcuts-hotkeys" id="id28">Keyboard Shortcuts (Hotkeys)</a></p></li>
 </ul>
 </li>
 </ul>
@@ -470,12 +476,26 @@ specific parameters and details of each CLI tool can be viewed by passing the ke
 </figcaption>
 </figure>
 </section>
+<section id="documentation">
+<h2><a class="toc-backref" href="#id20" role="doc-backlink">Documentation</a><a class="headerlink" href="#documentation" title="Permalink to this heading">¶</a></h2>
+<p>Documentation is written in reStructuredText (RST), a markup language developed for technical documentation
+(specifically Python projects), and rendered as HTML via <code class="docutils literal notranslate"><span class="pre">sphinx</span></code>. Updates to documentation requires a rebuild with
+the <code class="docutils literal notranslate"><span class="pre">sphinx-build</span></code> command-line tool using the following parameters:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sphinx</span><span class="o">-</span><span class="n">build</span> <span class="o">-</span><span class="n">b</span> <span class="n">html</span> <span class="n">docs</span> <span class="n">docs</span><span class="o">/</span><span class="n">_build</span>
+</pre></div>
+</div>
+<div class="admonition-note admonition">
+<p class="admonition-title">Note</p>
+<p>Various warnings and errors may be logged during the documentation build. These are not always an indication of
+true errors and can largely be ignored so long as the resulting documentation actually gets built correctly.</p>
+</div>
+</section>
 <section id="id3">
-<h2><a class="toc-backref" href="#id20" role="doc-backlink">QGIS</a><a class="headerlink" href="#id3" title="Permalink to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id21" role="doc-backlink">QGIS</a><a class="headerlink" href="#id3" title="Permalink to this heading">¶</a></h2>
 <section id="basic-editing-actions">
-<h3><a class="toc-backref" href="#id21" role="doc-backlink">Basic Editing Actions</a><a class="headerlink" href="#basic-editing-actions" title="Permalink to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id22" role="doc-backlink">Basic Editing Actions</a><a class="headerlink" href="#basic-editing-actions" title="Permalink to this heading">¶</a></h3>
 <section id="enable-disable-editing">
-<h4><a class="toc-backref" href="#id22" role="doc-backlink">Enable / Disable Editing</a><a class="headerlink" href="#enable-disable-editing" title="Permalink to this heading">¶</a></h4>
+<h4><a class="toc-backref" href="#id23" role="doc-backlink">Enable / Disable Editing</a><a class="headerlink" href="#enable-disable-editing" title="Permalink to this heading">¶</a></h4>
 <ol class="arabic simple">
 <li><p><img alt="icon_editing_enable" src="../../_images/icon_editing_enable.svg" /> Enable editing.</p></li>
 <li><p><img alt="icon_select" src="../../_images/icon_select.svg" /> Select arc(s) and perform edits.</p></li>
@@ -484,7 +504,7 @@ specific parameters and details of each CLI tool can be viewed by passing the ke
 </ol>
 </section>
 <section id="enable-snapping">
-<h4><a class="toc-backref" href="#id23" role="doc-backlink">Enable Snapping</a><a class="headerlink" href="#enable-snapping" title="Permalink to this heading">¶</a></h4>
+<h4><a class="toc-backref" href="#id24" role="doc-backlink">Enable Snapping</a><a class="headerlink" href="#enable-snapping" title="Permalink to this heading">¶</a></h4>
 <ol class="arabic simple">
 <li><p><img alt="icon_snapping_enable" src="../../_images/icon_snapping_enable.svg" /> Enable snapping.</p></li>
 <li><p><img alt="icon_snapping_advanced" src="../../_images/icon_snapping_advanced.svg" /> Open snapping options → Advanced Configuration.</p></li>
@@ -494,7 +514,7 @@ specific parameters and details of each CLI tool can be viewed by passing the ke
 </ol>
 </section>
 <section id="add-move-delete-vertex">
-<h4><a class="toc-backref" href="#id24" role="doc-backlink">Add / Move / Delete Vertex</a><a class="headerlink" href="#add-move-delete-vertex" title="Permalink to this heading">¶</a></h4>
+<h4><a class="toc-backref" href="#id25" role="doc-backlink">Add / Move / Delete Vertex</a><a class="headerlink" href="#add-move-delete-vertex" title="Permalink to this heading">¶</a></h4>
 <ol class="arabic simple">
 <li><p><img alt="icon_vertex_enable_editing" src="../../_images/icon_vertex_enable_editing.svg" /> With editing enabled, open vertex editor.</p></li>
 <li><p>Right-click arc to display vertices in vertex editor.</p></li>
@@ -509,11 +529,11 @@ specific parameters and details of each CLI tool can be viewed by passing the ke
 </div></blockquote>
 </section>
 <section id="qgis-editing-demo">
-<h4><a class="toc-backref" href="#id25" role="doc-backlink">QGIS Editing Demo</a><a class="headerlink" href="#qgis-editing-demo" title="Permalink to this heading">¶</a></h4>
+<h4><a class="toc-backref" href="#id26" role="doc-backlink">QGIS Editing Demo</a><a class="headerlink" href="#qgis-editing-demo" title="Permalink to this heading">¶</a></h4>
 <video controls src="../../_static/environment/qgis_basic_editing_actions.mp4" type="video/mp4" width=100%></video></section>
 </section>
 <section id="updating-layer-sources">
-<h3><a class="toc-backref" href="#id26" role="doc-backlink">Updating Layer Sources</a><a class="headerlink" href="#updating-layer-sources" title="Permalink to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id27" role="doc-backlink">Updating Layer Sources</a><a class="headerlink" href="#updating-layer-sources" title="Permalink to this heading">¶</a></h3>
 <p>QGIS project files (<code class="docutils literal notranslate"><span class="pre">.qgz</span></code>) are part of the repository and, therefore, modifications will be included with any
 <code class="code docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span></code> that you perform.</p>
 <dl class="field-list simple">
@@ -532,7 +552,7 @@ specific parameters and details of each CLI tool can be viewed by passing the ke
 </figure>
 </section>
 <section id="keyboard-shortcuts-hotkeys">
-<h3><a class="toc-backref" href="#id27" role="doc-backlink">Keyboard Shortcuts (Hotkeys)</a><a class="headerlink" href="#keyboard-shortcuts-hotkeys" title="Permalink to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id28" role="doc-backlink">Keyboard Shortcuts (Hotkeys)</a><a class="headerlink" href="#keyboard-shortcuts-hotkeys" title="Permalink to this heading">¶</a></h3>
 <p>Hotkeys are recommended to make editing activities less tedious and can be assigned to individual QGIS actions via:
 Settings → Keyboard Shortcuts… → Search / select action → Change → Press desired keyboard key.</p>
 <figure class="align-default" id="id6">
