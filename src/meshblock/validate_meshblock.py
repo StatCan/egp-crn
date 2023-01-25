@@ -197,7 +197,7 @@ class CRNMeshblockCreation:
         # Explode BO node collections to allow for individual node validation.
         self._crn_bos_nodes = self.crn_bos["nodes"].explode().copy(deep=True)
 
-        # Flag BO nodes connected to an crn road node.
+        # Flag BO nodes connected to a crn road node.
         self._integrated = self._crn_bos_nodes.map(lambda node: node in self._crn_roads_nodes_lookup)
 
         return errors
