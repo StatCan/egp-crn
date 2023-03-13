@@ -89,4 +89,4 @@ Progress
 .. figure:: /source/_static/progress/routable_crn_progress_map.png
     :alt: Routable CRN progress map.
 
-    Figure: Routable CRN progress map as of February 7, 2023.
+    Figure: Routable CRN progress map as of March 13, 2023.
