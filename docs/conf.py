@@ -29,7 +29,7 @@ author = 'Statistics Canada'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autosectionlabel",
+    "sphinx.ext.autosectionlabel"
 ]
 
 # The master toctree document.

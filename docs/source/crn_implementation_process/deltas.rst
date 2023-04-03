@@ -53,7 +53,7 @@ Province / Territory       NRN Vintage (YYYY)  NGD Vintage (YYYYMMDD)
 Alberta                    2022                20220210
 British Columbia           2017                20210601
 Manitoba                   2012                20210601
-New Brunswick              2021                20210601
+New Brunswick              2022                20220805
 Newfoundland and Labrador  2012                20210601
 Northwest Territories      2021                20210601
 Nova Scotia                2021                20210601
@@ -95,6 +95,32 @@ Progress
     This section is temporary, it will be updated with each delta phase and will eventually be removed once this task
     is completed.
 
+Error Counts
+------------
+Deltas phase (1) table of error counts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+=========================  ==================  ======================
+Province / Territory       NRN                  NGD
+=========================  ==================  ======================
+Alberta                    N/A                  N/A
+British Columbia           N/A                  N/A
+Manitoba                   40                   443
+New Brunswick              345                  114
+Newfoundland and Labrador  25                   154
+Northwest Territories      153                  22
+Nova Scotia                3756                 111
+Nunavut                    7                    0
+Ontario                    N/A                  N/A
+Prince Edward Island       8                    58
+Quebec                     N/A                  N/A
+Saskatchewan               1800                 1003
+Yukon                      N/A                  N/A
+=========================  ==================  ======================
+
+
+Progress Maps
+--------------
 .. figure:: /source/_static/deltas/Workload_Deltas_Phase_01.png
     :alt: Deltas Phase 1 workload.
 
