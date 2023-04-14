@@ -326,4 +326,4 @@ Progress
 .. figure:: /source/_static/progress/meshblock_creation_progress_map.png
     :alt: Meshblock creation progress map.
 
-    Figure: Meshblock creation progress map as of January 23, 2023.
+    Figure: Meshblock creation progress map as of March 13, 2023.

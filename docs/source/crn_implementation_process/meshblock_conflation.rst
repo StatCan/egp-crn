@@ -210,4 +210,4 @@ Progress
 .. figure:: /source/_static/progress/meshblock_conflation_progress_map.png
     :alt: Meshblock conflation progress map.
 
-    Figure: Meshblock conflation progress map as of March 13, 2023.
+    Figure: Meshblock conflation progress map as of April 14, 2023.
