@@ -294,42 +294,42 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
         lambda g: set(itemgetter(0, -1)(attrgetter("coords")(g)))).explode())
 
     # Compile snappable ngd nodes (ngd nodes not connected to an nrn node).
-    snap_nodes = ngd_nodes.loc[~ngd_nodes.isin(nrn_nodes)].copy(deep=True)
-    if len(snap_nodes):
+    snap_nodes_ = ngd_nodes.loc[~ngd_nodes.isin(nrn_nodes)].copy(deep=True)
+    if len(snap_nodes_):
 
         # Compile nrn nodes as Points.
         nrn_nodes = gpd.GeoSeries(map(Point, set(nrn_nodes)), crs=df.crs)
 
         # Generate simplified ngd node buffers using distance tolerance.
-        snap_node_buffers = snap_nodes.map(
+        snap_node_buffers = snap_nodes_.map(
             lambda pt: Point(pt).buffer({True: prox_boundary, False: prox}[pt in ngd_boundary_nodes], resolution=5))
 
         # Query nrn node which intersect each ngd node buffer.
         # Construct DataFrame containing results.
         snap_features = pd.DataFrame({
-            "from_node": snap_nodes,
+            "from_node": snap_nodes_,
             "to_node": snap_node_buffers.map(lambda buffer: set(nrn_nodes.sindex.query(buffer, predicate="intersects")))
         })
 
         # Filter snappable nodes to those intersecting >= 1 nrn node.
-        snap_nodes = snap_features.loc[snap_features["to_node"].map(len) >= 1].copy(deep=True)
-        if len(snap_nodes):
+        snap_nodes_ = snap_features.loc[snap_features["to_node"].map(len) >= 1].copy(deep=True)
+        if len(snap_nodes_):
 
             # Create idx-node lookup for target nodes.
-            to_node_idxs = set(chain.from_iterable(snap_nodes["to_node"]))
+            to_node_idxs = set(chain.from_iterable(snap_nodes_["to_node"]))
             to_nodes = nrn_nodes.loc[nrn_nodes.index.isin(to_node_idxs)]
             to_node_lookup = dict(zip(to_nodes.index, to_nodes.map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)))))
 
             # Replace target node indexes with actual nodes tuple of first result in each instance.
-            snap_nodes["to_node"] = snap_nodes["to_node"].map(lambda idxs: itemgetter(tuple(idxs)[0])(to_node_lookup))
+            snap_nodes_["to_node"] = snap_nodes_["to_node"].map(lambda idxs: itemgetter(tuple(idxs)[0])(to_node_lookup))
 
             # Create node snapping lookup dictionary and update required arcs.
-            snap_nodes_lookup = dict(zip(snap_nodes["from_node"], snap_nodes["to_node"]))
-            snap_arc_ids = set(snap_nodes.index)
+            snap_nodes_lookup = dict(zip(snap_nodes_["from_node"], snap_nodes_["to_node"]))
+            snap_arc_ids = set(snap_nodes_.index)
             df.loc[df.index.isin(snap_arc_ids), "geometry"] = df.loc[df.index.isin(snap_arc_ids), "geometry"].map(
                 lambda g: update_nodes(g, node_map=snap_nodes_lookup))
 
-            logger.info(f"Snapped {len(snap_nodes)} non-NRN nodes to NRN nodes based on proximity={prox}.")
+            logger.info(f"Snapped {len(snap_nodes_)} non-NRN nodes to NRN nodes based on proximity={prox}.")
 
     return df.copy(deep=True)
 
