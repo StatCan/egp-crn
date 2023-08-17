@@ -355,6 +355,8 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
     :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
 
+    # TODO - apply node and edge snapping from the results of the "suggested_snapping" dataset (needs flag attribute added to it).
+
     logger.info("Standardizing data.")
 
     identifier = "segment_id"

@@ -8,7 +8,7 @@ from copy import deepcopy
 from itertools import chain
 from operator import attrgetter, itemgetter
 from pathlib import Path
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 from shapely.ops import polygonize, unary_union
 from tabulate import tabulate
 
@@ -47,6 +47,7 @@ class CRNMeshblockCreation:
         self.errors = dict()
         self.export = {
             f"{self.source}_deadends": None,
+            f"{self.source}_suggested_snapping": None,
             f"{self.source}_missing_bo": None
         }
 
@@ -103,6 +104,8 @@ class CRNMeshblockCreation:
 
         # Define thresholds.
         self._bo_road_prox = 5
+        self.suggested_snapping_incl = 5
+        self.suggested_snapping_excl = 20
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -195,6 +198,7 @@ class CRNMeshblockCreation:
                                           .groupby(by="node", axis=0, as_index=True)[self.id].agg(tuple))
 
         # Explode BO node collections to allow for individual node validation.
+        self._crn_roads_nodes = self.crn_roads["nodes"].explode().copy(deep=True)
         self._crn_bos_nodes = self.crn_bos["nodes"].explode().copy(deep=True)
 
         # Flag BO nodes connected to a crn road node.
@@ -250,14 +254,85 @@ class CRNMeshblockCreation:
             lambda buffer: set(self.crn_roads.sindex.query(buffer, predicate="intersects")))
 
         # Filter unintegrated bo nodes to those with buffers with one or more intersecting crn roads.
-        unintegrated_bo_nodes = unintegrated_bo_nodes.loc[node_intersects.map(len) >= 1]
-        if len(unintegrated_bo_nodes):
+        unintegrated_bo_nodes_ = unintegrated_bo_nodes.loc[node_intersects.map(len) >= 1]
+        if len(unintegrated_bo_nodes_):
 
             # Compile identifiers of arcs for resulting BO nodes.
-            vals = set(chain.from_iterable(unintegrated_bo_nodes.map(self._crn_bos_nodes_lookup).values))
+            vals = set(chain.from_iterable(unintegrated_bo_nodes_.map(self._crn_bos_nodes_lookup).values))
 
             # Compile error logs.
             errors.update(vals)
+
+        # TODO - suggested snapping lines.
+
+        # Suggested snapping: nodes.
+        bo_nodes_start = set(self.crn_bos["geometry"].map(lambda g: itemgetter(0)(attrgetter("coords")(g))))
+        bo_nodes_end = set(self.crn_bos["geometry"].map(lambda g: itemgetter(-1)(attrgetter("coords")(g))))
+        roads_nodes = pd.Series(tuple(set(self._crn_roads_nodes)))
+        roads_nodes_g = gpd.GeoSeries(roads_nodes.map(Point), crs=self.crn.crs)
+        roads_idx_node_lookup = dict(zip(range(len(roads_nodes)), roads_nodes))
+
+        # Develop inclusive and exclusive bo node buffers.
+        node_buffers_incl = unintegrated_bo_nodes.map(
+            lambda node: Point(node).buffer(self.suggested_snapping_incl, resolution=5))
+        node_buffers_excl = unintegrated_bo_nodes.map(
+            lambda node: Point(node).buffer(self.suggested_snapping_excl, resolution=5))
+
+        # Query crn nodes which intersect each bo node buffer.
+        node_intersects_incl = node_buffers_incl.map(
+            lambda buffer: set(roads_nodes_g.sindex.query(buffer, predicate="intersects")))
+        node_intersects_excl = node_buffers_excl.map(
+            lambda buffer: set(roads_nodes_g.sindex.query(buffer, predicate="intersects")))
+
+        # Filter node intersections to those with identical inclusive and exclusive results and only 1 value.
+        node_intersects = pd.Series(zip(unintegrated_bo_nodes, node_intersects_incl, node_intersects_excl))
+        node_intersects.drop_duplicates(keep="first", inplace=True)
+        node_intersects = node_intersects.loc[node_intersects.map(
+            lambda vals: (vals[1] == vals[2]) and (len(vals[1]) == 1))]
+
+        # Construct suggested snapping LineStrings.
+        if len(node_intersects):
+
+            snapping_lines = node_intersects.map(
+                lambda vals: LineString([Point(vals[0]), Point(roads_idx_node_lookup[tuple(vals[1])[0]])]))
+
+            # Export snapping LineStrings for reference.
+            self.export[f"{self.source}_suggested_snapping"] = gpd.GeoDataFrame(
+                {"snapping_type": ["node"] * len(snapping_lines)},
+                geometry=list(snapping_lines), crs=self.crn.crs).copy(deep=True)
+
+        # Suggested snapping: edges.
+        roads_idx_geoms_lookup = dict(zip(range(len(self.crn_roads)), self.crn_roads["geometry"]))
+
+        # Query crn roads (inclusive) and crn nodes (exclusive) which intersect each bo node buffer.
+        node_intersects_incl = node_buffers_incl.map(
+            lambda buffer: set(self.crn_roads.sindex.query(buffer, predicate="intersects")))
+        node_intersects_excl = node_buffers_excl.map(
+            lambda buffer: set(roads_nodes_g.sindex.query(buffer, predicate="intersects")))
+
+        # Filter intersections to those with only 1 inclusive result and 0 exclusive results.
+        node_intersects = pd.Series(zip(unintegrated_bo_nodes, node_intersects_incl, node_intersects_excl))
+        node_intersects.drop_duplicates(keep="first", inplace=True)
+        node_intersects = node_intersects.loc[node_intersects.map(
+            lambda vals: (len(vals[1]) == 1) and (len(vals[2]) == 0))]
+
+        # Construct suggested snapping LineStrings.
+        if len(node_intersects):
+
+            node_intersects = node_intersects.map(
+                lambda vals: (Point(vals[0]), roads_idx_geoms_lookup[tuple(vals[1])[0]]))
+            snapping_lines = node_intersects.map(
+                lambda vals: LineString([vals[0], vals[1].interpolate(vals[1].project(vals[0]))]))
+
+            # Export snapping LineStrings for reference.
+            df = gpd.GeoDataFrame({"snapping_type": ["edge"] * len(snapping_lines)},
+                                  geometry=list(snapping_lines), crs=self.crn.crs)
+            df_target = self.export[f"{self.source}_suggested_snapping"]
+
+            if isinstance(df_target, pd.DataFrame):
+                self.export[f"{self.source}_suggested_snapping"] = pd.concat([df_target, df]).copy(deep=True)
+            else:
+                self.export[f"{self.source}_suggested_snapping"] = df.copy(deep=True)
 
         return errors
 
