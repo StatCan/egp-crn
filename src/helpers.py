@@ -9,13 +9,13 @@ import sys
 import time
 import uuid
 import yaml
-from itertools import chain, groupby
+from itertools import chain, compress, groupby
 from operator import attrgetter, itemgetter
 from osgeo import ogr, osr
 from pathlib import Path
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString, MultiLineString, Point
 from tqdm import tqdm
-from typing import Any, Dict, Union
+from typing import Any, Dict, Tuple, Union
 
 
 # Set logger.
@@ -105,6 +105,84 @@ def delete_layers(dst: Union[Path, str], layers: Union[list[str, ...], str]) -> 
         gpkg.DeleteLayer(layer)
 
     del driver, gpkg
+
+
+def enforce_suggested_snapping(df: gpd.GeoDataFrame, src: Path, layer: str) -> gpd.GeoDataFrame:
+    """
+    Enforces the suggested snapping of NGD BOs to CRN roads as per the reference dataset.
+    Node snapping: the relevant BO node is replaced with the suggested CRN road node.
+    Edge snapping: the relevant BO node is replaced with the suggested closest point (not necessarily an actual vertex)
+                   along the CRN road, then the relevant CRN road is split at that point.
+
+    \b
+    :param gpd.GeoDataFrame df: GeoDataFrame containing both NRN and NGD arcs.
+    :param Path src: source GeoPackage path of the suggested snapping dataset.
+    :param str layer: layer name of the suggested snapping dataset.
+    :return gpd.GeoDataFrame: updated GeoDataFrame.
+    """
+
+    # Load suggested snapping dataset and filter to valid results.
+    df_snapping = gpd.read_file(src, layer=layer)
+    df_snapping = df_snapping.loc[df_snapping["valid"] == 1].copy(deep=True)
+    if not len(df_snapping):
+        return df.copy(deep=True)
+
+    logger.info("Enforcing suggested snapping for unintegrated BOs.")
+
+    # Snap bos to crn roads.
+
+    # Create lookup dict of source and target snapping points.
+    snapping_pts_lookup = dict(zip(df_snapping["geometry"].map(lambda g: itemgetter(0)(attrgetter("coords")(g))),
+                                   df_snapping["geometry"].map(lambda g: itemgetter(-1)(attrgetter("coords")(g)))))
+
+    # Compile bo geometries.
+    bos = df.loc[df["segment_type"] == 2, "geometry"].map(lambda g: tuple(attrgetter("coords")(g))).copy(deep=True)
+
+    # Replace bo nodes with snapping points.
+    flag_start = bos.map(lambda pts: pts[0] in snapping_pts_lookup)
+    flag_end = bos.map(lambda pts: pts[-1] in snapping_pts_lookup)
+    bos.loc[flag_start] = bos.loc[flag_start].map(lambda pts: (itemgetter(pts[0])(snapping_pts_lookup), *pts[1:]))
+    bos.loc[flag_end] = bos.loc[flag_end].map(lambda pts: (*pts[:-1], itemgetter(pts[-1])(snapping_pts_lookup)))
+
+    # Update bo geometries in GeoDataFrame.
+    df.loc[bos.loc[flag_start | flag_end].index, "geometry"] = bos.loc[flag_start | flag_end].map(LineString)
+
+    logger.info(f"Snapped {sum(flag_start | flag_end)} BOs to CRN roads "
+                f"(node={sum(df_snapping['snapping_type'] == 'node')}, "
+                f"edge={sum(df_snapping['snapping_type'] == 'edge')}).")
+
+    # Split crn roads.
+
+    # Compile target snapping points of type "edge".
+    snapping_pts = df_snapping.loc[df_snapping["snapping_type"] == "edge", "geometry"].map(
+        lambda g: itemgetter(-1)(attrgetter("coords")(g)))
+    snapping_pts = gpd.GeoDataFrame(geometry=list(snapping_pts.map(Point)), crs=df.crs)
+
+    # Compile crn road geometries and idx - index lookup.
+    roads = df.loc[df["segment_type"] == 1, "geometry"].copy(deep=True)
+    roads_idx_index_lookup = dict(zip(range(len(roads)), roads.index))
+
+    # Configure snapping point - road linkages.
+    snapping_pts["road_index"] = (pd.Series(roads.sindex.nearest(snapping_pts["geometry"], max_distance=0.01,
+                                                                return_all=False, return_distance=False)[1])
+                                  .map(roads_idx_index_lookup))
+    roads_index_pts_lookup = dict(snapping_pts.groupby(by="road_index", axis=0, as_index=True)["geometry"].agg(tuple))
+
+    # Filter roads to those involved in snapping.
+    roads = roads.loc[roads.index.isin(roads_index_pts_lookup)].copy(deep=True)
+
+    # Compile inputs geometries and split roads by snapping points.
+    roads_ = pd.Series(tuple(roads.reset_index(drop=False)[["geometry", roads.index.name]].apply(
+        lambda row: (row[0], itemgetter(row[1])(roads_index_pts_lookup)), axis=1)),
+        index=roads.index)
+    roads_ = roads_.map(lambda vals: split_lines(vals[0], vals[1]))
+
+    # Update road geometries in GeoDataFrame.
+    df.loc[roads_.index, "geometry"] = roads_
+
+    logger.info(f"Split {len(roads)} CRN roads due to BO edge snapping.")
+
+    return df.copy(deep=True)
 
 
 def explode_geometry(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -334,6 +412,41 @@ def snap_nodes(df: gpd.GeoDataFrame, prox: float = 0.1, prox_boundary: float = 0
     return df.copy(deep=True)
 
 
+def split_lines(line: LineString, pts: Tuple[Point, ...]) -> MultiLineString:
+    """
+    Splits a LineString on one or more Points.
+
+    :param LineString line: LineString to be split.
+    :param Tuple[Point, ...] pts: Point(s) to be used for splitting.
+    :return MultiLineString: split LineString.
+    """
+
+    # Compile LineString coordinates and calculate distances along LineString.
+    vertices = tuple(attrgetter("coords")(line))
+    dist = tuple(map(lambda pt: line.project(Point(pt)), vertices))
+    dist_vertices = tuple(zip(dist, vertices))
+
+    # Compile split point coordinates and calculate distances along LineString.
+    pts_ = tuple(map(lambda pt: itemgetter(0)(attrgetter("coords")(pt)), pts))
+    dist = tuple(map(lambda pt: line.project(pt), pts))
+    dist_pts = tuple(zip(dist, pts_))
+
+    # Combine all coordinates and distances then sort by distance, discarding the distances afterwards.
+    sorted_pts = sorted((*dist_vertices, *dist_pts), key=itemgetter(0))
+    sorted_pts = [vals[1] for vals in sorted_pts]
+
+    # Configure split indexes and pairs.
+    pts_ = set(pts_)
+    split_idxs = tuple(compress(range(len(sorted_pts)), map(lambda pt: pt in pts_, sorted_pts)))
+    split_idx_pairs = tuple(zip(chain([0], split_idxs), chain([i + 1 for i in split_idxs], [None])))
+
+    # Construct LineStrings using points and indexes.
+    pt_groups = (sorted_pts[start_idx: end_idx] for start_idx, end_idx in split_idx_pairs)
+    lines = MultiLineString(tuple(map(lambda pt_group: LineString(map(Point, pt_group)), pt_groups)))
+
+    return lines
+
+
 def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataFrame:
     """
     Applies a series of geometry and attribute standardizations and rules:
@@ -354,8 +467,6 @@ def standardize(df: gpd.GeoDataFrame, round_coords: bool = True) -> gpd.GeoDataF
     :param bool round_coords: indicates if coordinates are to be rounded.
     :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
-
-    # TODO - apply node and edge snapping from the results of the "suggested_snapping" dataset (needs flag attribute added to it).
 
     logger.info("Standardizing data.")
 
