@@ -113,8 +113,9 @@ class CRNMeshblockCreation:
 
         # Define thresholds.
         self._bo_road_prox = 5
-        self.suggested_snapping_incl = self._bo_road_prox
-        self.suggested_snapping_excl = 20
+        self.suggested_snapping_incl = 10
+        self.suggested_snapping_excl_node = 10
+        self.suggested_snapping_excl_edge = 20
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -149,7 +150,7 @@ class CRNMeshblockCreation:
         node_buffers_incl = unintegrated_bo_nodes.map(
             lambda node: Point(node).buffer(self.suggested_snapping_incl, resolution=5))
         node_buffers_excl = unintegrated_bo_nodes.map(
-            lambda node: Point(node).buffer(self.suggested_snapping_excl, resolution=5))
+            lambda node: Point(node).buffer(self.suggested_snapping_excl_node, resolution=5))
 
         # Query crn nodes which intersect each bo node buffer.
         node_intersects_incl = node_buffers_incl.map(
@@ -176,6 +177,10 @@ class CRNMeshblockCreation:
 
         # Suggested snapping type: edges.
         roads_idx_geoms_lookup = dict(zip(range(len(self.crn_roads)), self.crn_roads["geometry"]))
+
+        # Develop inclusive and exclusive bo node buffers.
+        node_buffers_excl = unintegrated_bo_nodes.map(
+            lambda node: Point(node).buffer(self.suggested_snapping_excl_edge, resolution=5))
 
         # Query crn roads (inclusive) and crn nodes (exclusive) which intersect each bo node buffer.
         node_intersects_incl = node_buffers_incl.map(
@@ -291,6 +296,9 @@ class CRNMeshblockCreation:
         # Flag BO nodes connected to a crn road node.
         self._integrated = self._crn_bos_nodes.map(lambda node: node in self._crn_roads_nodes_lookup)
 
+        # Reference dataset: suggested snapping LineStrings.
+        self._gen_suggested_snapping(pd.Series(tuple(set(self._crn_bos_nodes.loc[~self._integrated]))))
+
         return errors
 
     def connectivity_missing_bo(self) -> set:
@@ -349,9 +357,6 @@ class CRNMeshblockCreation:
 
             # Compile error logs.
             errors.update(vals)
-
-        # Reference dataset: suggested snapping LineStrings.
-        self._gen_suggested_snapping(unintegrated_bo_nodes)
 
         return errors
 
