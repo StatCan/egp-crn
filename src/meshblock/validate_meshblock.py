@@ -85,12 +85,14 @@ class CRNMeshblockCreation:
         self.crn = helpers.standardize(self.crn)
         self.crn = helpers.snap_nodes(self.crn)
 
-        # Enforce suggested snapping, rerun standardizations.
+        # Enforce suggested snapping.
         if f"{self.source}_suggested_snapping" in fiona.listlayers(self.dst):
-            self.crn = helpers.enforce_suggested_snapping(self.crn, src=self.dst,
-                                                          layer=f"{self.source}_suggested_snapping")
-            self.crn = helpers.standardize(self.crn)
-            self.crn = helpers.snap_nodes(self.crn)
+            df_snapping = gpd.read_file(self.dst, layer=f"{self.source}_suggested_snapping")
+            df_snapping = df_snapping.loc[df_snapping["valid"] == 1].copy(deep=True)
+            if len(df_snapping):
+                self.crn = helpers.enforce_suggested_snapping(self.crn, df_snapping=df_snapping)
+                self.crn = helpers.standardize(self.crn)
+                self.crn = helpers.snap_nodes(self.crn)
 
         # Separate crn bos and roads.
         self.crn_roads = self.crn.loc[self.crn["segment_type"] == 1].copy(deep=True)

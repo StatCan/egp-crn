@@ -107,7 +107,7 @@ def delete_layers(dst: Union[Path, str], layers: Union[list[str, ...], str]) -> 
     del driver, gpkg
 
 
-def enforce_suggested_snapping(df: gpd.GeoDataFrame, src: Path, layer: str) -> gpd.GeoDataFrame:
+def enforce_suggested_snapping(df: gpd.GeoDataFrame, df_snapping) -> gpd.GeoDataFrame:
     """
     Enforces the suggested snapping of NGD BOs to CRN roads as per the reference dataset.
     Node snapping: the relevant BO node is replaced with the suggested CRN road node.
@@ -116,16 +116,9 @@ def enforce_suggested_snapping(df: gpd.GeoDataFrame, src: Path, layer: str) -> g
 
     \b
     :param gpd.GeoDataFrame df: GeoDataFrame containing both NRN and NGD arcs.
-    :param Path src: source GeoPackage path of the suggested snapping dataset.
-    :param str layer: layer name of the suggested snapping dataset.
+    :param gpd.GeoDataFrame df_snapping: GeoDataFrame containing suggested snapping LineStrings.
     :return gpd.GeoDataFrame: updated GeoDataFrame.
     """
-
-    # Load suggested snapping dataset and filter to valid results.
-    df_snapping = gpd.read_file(src, layer=layer)
-    df_snapping = df_snapping.loc[df_snapping["valid"] == 1].copy(deep=True)
-    if not len(df_snapping):
-        return df.copy(deep=True)
 
     logger.info("Enforcing suggested snapping for unintegrated BOs.")
 
