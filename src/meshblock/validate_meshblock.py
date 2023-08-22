@@ -110,9 +110,8 @@ class CRNMeshblockCreation:
         }
 
         # Define thresholds.
-        self.suggested_snapping_incl = 10
-        self.suggested_snapping_excl_node = 10
-        self.suggested_snapping_excl_edge = 20
+        self.suggested_snapping_incl = 20
+        self.suggested_snapping_excl = 20
 
     def __call__(self) -> None:
         """Executes the CRN class."""
@@ -144,7 +143,7 @@ class CRNMeshblockCreation:
         node_buffers_incl = self._crn_bos_nodes_unintegrated.map(
             lambda node: Point(node).buffer(self.suggested_snapping_incl, resolution=5))
         node_buffers_excl = self._crn_bos_nodes_unintegrated.map(
-            lambda node: Point(node).buffer(self.suggested_snapping_excl_node, resolution=5))
+            lambda node: Point(node).buffer(self.suggested_snapping_excl, resolution=5))
 
         # Query crn nodes which intersect each bo node buffer.
         node_intersects_incl = node_buffers_incl.map(
@@ -174,7 +173,7 @@ class CRNMeshblockCreation:
 
         # Develop inclusive and exclusive bo node buffers.
         node_buffers_excl = self._crn_bos_nodes_unintegrated.map(
-            lambda node: Point(node).buffer(self.suggested_snapping_excl_edge, resolution=5))
+            lambda node: Point(node).buffer(self.suggested_snapping_excl, resolution=5))
 
         # Query crn roads (inclusive) and crn nodes (exclusive) which intersect each bo node buffer.
         node_intersects_incl = node_buffers_incl.map(
