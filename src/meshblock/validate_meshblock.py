@@ -54,11 +54,11 @@ class CRNMeshblockCreation:
         self.meshblock_ = None
         self._meshblock_input = None
         self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Invalid (Missing BO)", "Excluded")}
-        self._crn_roads_nodes = pd.Series()
-        self._crn_bos_nodes = pd.Series()
+        self._crn_roads_nodes = pd.Series(dtype=object)
+        self._crn_bos_nodes = pd.Series(dtype=object)
         self._crn_bos_nodes_lookup = dict()
-        self._crn_bos_nodes_unintegrated = pd.Series()
-        self._deadends = pd.Series()
+        self._crn_bos_nodes_unintegrated = pd.Series(dtype=object)
+        self._deadends = pd.Series(dtype=object)
 
         # Configure src / dst paths and layer name.
         if self.dst.exists():

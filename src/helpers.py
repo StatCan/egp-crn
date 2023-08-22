@@ -107,7 +107,7 @@ def delete_layers(dst: Union[Path, str], layers: Union[list[str, ...], str]) -> 
     del driver, gpkg
 
 
-def enforce_suggested_snapping(df: gpd.GeoDataFrame, df_snapping) -> gpd.GeoDataFrame:
+def enforce_suggested_snapping(df: gpd.GeoDataFrame, df_snapping: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Enforces the suggested snapping of NGD BOs to CRN roads as per the reference dataset.
     Node snapping: the relevant BO node is replaced with the suggested CRN road node.
@@ -150,30 +150,30 @@ def enforce_suggested_snapping(df: gpd.GeoDataFrame, df_snapping) -> gpd.GeoData
     snapping_pts = df_snapping.loc[df_snapping["snapping_type"] == "edge", "geometry"].map(
         lambda g: itemgetter(-1)(attrgetter("coords")(g)))
     snapping_pts = gpd.GeoDataFrame(geometry=list(snapping_pts.map(Point)), crs=df.crs)
+    if len(snapping_pts):
 
-    # Compile crn road geometries and idx - index lookup.
-    roads = df.loc[df["segment_type"] == 1, "geometry"].copy(deep=True)
-    roads_idx_index_lookup = dict(zip(range(len(roads)), roads.index))
+        # Compile crn road geometries and idx - index lookup.
+        roads = df.loc[df["segment_type"] == 1, "geometry"].copy(deep=True)
+        roads_idx_index_lookup = dict(zip(range(len(roads)), roads.index))
 
-    # Configure snapping point - road linkages.
-    snapping_pts["road_index"] = (pd.Series(roads.sindex.nearest(snapping_pts["geometry"], max_distance=0.01,
-                                                                return_all=False, return_distance=False)[1])
-                                  .map(roads_idx_index_lookup))
-    roads_index_pts_lookup = dict(snapping_pts.groupby(by="road_index", axis=0, as_index=True)["geometry"].agg(tuple))
+        # Configure snapping point - road linkages.
+        snapping_pts["road_idx"] = (pd.Series(roads.sindex.nearest(snapping_pts["geometry"], max_distance=0.01,
+                                                                   return_all=False, return_distance=False)[1])
+                                    .map(roads_idx_index_lookup))
+        roads_index_pts_lookup = dict(snapping_pts.groupby(by="road_idx", axis=0, as_index=True)["geometry"].agg(tuple))
 
-    # Filter roads to those involved in snapping.
-    roads = roads.loc[roads.index.isin(roads_index_pts_lookup)].copy(deep=True)
+        # Filter roads to those involved in snapping.
+        roads = roads.loc[roads.index.isin(roads_index_pts_lookup)].copy(deep=True)
 
-    # Compile inputs geometries and split roads by snapping points.
-    roads_ = pd.Series(tuple(roads.reset_index(drop=False)[["geometry", roads.index.name]].apply(
-        lambda row: (row[0], itemgetter(row[1])(roads_index_pts_lookup)), axis=1)),
-        index=roads.index)
-    roads_ = roads_.map(lambda vals: split_lines(vals[0], vals[1]))
+        # Compile inputs geometries and split roads by snapping points.
+        roads_ = pd.Series(tuple(roads.reset_index(drop=False)[["geometry", roads.index.name]].apply(
+            lambda row: (row[0], itemgetter(row[1])(roads_index_pts_lookup)), axis=1)), index=roads.index)
+        roads_ = roads_.map(lambda vals: split_lines(vals[0], vals[1]))
 
-    # Update road geometries in GeoDataFrame.
-    df.loc[roads_.index, "geometry"] = roads_
+        # Update road geometries in GeoDataFrame.
+        df.loc[roads_.index, "geometry"] = roads_
 
-    logger.info(f"Split {len(roads)} CRN roads due to BO edge snapping.")
+        logger.info(f"Split {len(roads)} CRN roads due to BO edge snapping.")
 
     return df.copy(deep=True)
 
