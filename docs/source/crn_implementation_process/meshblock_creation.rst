@@ -22,6 +22,7 @@ Resources
     - Reference layers (availability conditional on validation results):
         - Missing BOs layer: ``<source>_missing_bo``
         - Deadend points layer: ``<source>_deadends``
+        - Suggested snapping lines layer: ``<source>_suggested_snapping``
         - New (CRN) BB layer: ``<source>_meshblock``
 :Editing Environment: ``data/editing_meshblock.qgz``
 
@@ -52,6 +53,9 @@ Explanation of Layers
 
 :``crn``: Primary layer representing NRN roads, NGD BOs, and added NGD roads.
 :``ngd_road``: NGD roads for reference and identifying roads missing from the CRN which are required for BO integration.
+:``suggested_snapping``: Suggested connections between unintegrated BOs and NRN road nodes or edges. Intended for rapid
+                         tagging of features to be automatically snapped for quicker editing. Not all suggestions will
+                         be appropriate and each instance should be reviewed manually.
 :``crn``: Copy of ``crn`` with highly visible symbology for quickly identifying erroneous features to edit without
           having to individually query each one. Intended to have a definition query applied using one of the
           validation attributes (i.e. ``"v101" = 1``).
@@ -240,16 +244,10 @@ Validation 101
 
     Figure: Validation 101 example.
 
-| **Description:** Unintegrated BO node is <= 5 meters from an NRN road (entire arc).
+| **Description:** All BOs must have nodal connections to other arcs.
 | **Actions:**
 
 1. Extend / modify the BO to connect with the appropriate NRN arc(s).
-
-.. admonition:: Warning
-
-    Some instances of this validation may be represented by truly disconnected BOs and roads, such as BOs which
-    traverse rivers or shorelines. However, those instances should be easily identifiable since the BO would not be a
-    dangling arc.
 
 .. admonition:: Note
 

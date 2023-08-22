@@ -54,13 +54,11 @@ class CRNMeshblockCreation:
         self.meshblock_ = None
         self._meshblock_input = None
         self.meshblock_progress = {k: 0 for k in ("Valid", "Invalid", "Invalid (Missing BO)", "Excluded")}
-        self._crn_bos_nodes = None
-        self._crn_roads_nodes_lookup = dict()
+        self._crn_roads_nodes = pd.Series()
+        self._crn_bos_nodes = pd.Series()
         self._crn_bos_nodes_lookup = dict()
-        self._deadends = set()
-
-        # BO integration flag.
-        self._integrated = None
+        self._crn_bos_nodes_unintegrated = pd.Series()
+        self._deadends = pd.Series()
 
         # Configure src / dst paths and layer name.
         if self.dst.exists():
@@ -104,7 +102,7 @@ class CRNMeshblockCreation:
         # Note: List validations in order if execution order matters.
         self.validations = {
             100: self.connectivity,
-            101: self.connectivity_crn_proximity,
+            101: self.connectivity_deadend_bo,
             102: self.connectivity_missing_bo,
             200: self.meshblock,
             201: self.meshblock_representation_deadend,
@@ -112,7 +110,6 @@ class CRNMeshblockCreation:
         }
 
         # Define thresholds.
-        self._bo_road_prox = 5
         self.suggested_snapping_incl = 10
         self.suggested_snapping_excl_node = 10
         self.suggested_snapping_excl_edge = 20
@@ -130,13 +127,10 @@ class CRNMeshblockCreation:
             if isinstance(df, pd.DataFrame):
                 helpers.export(df, dst=self.dst, name=layer)
 
-    def _gen_suggested_snapping(self, unintegrated_bo_nodes: pd.Series):
+    def _gen_suggested_snapping(self):
         """
         Generates reference LineString dataset containing suggested snapping from unintegrated bo nodes to closest
         crn node or edge.
-
-        \b
-        :param pd.Series unintegrated_bo_nodes: Series of node coordinate pairs which are not connected to a crn node.
         """
 
         logger.info(f"Generating suggested snapping dataset for unintegrated BO nodes.")
@@ -147,9 +141,9 @@ class CRNMeshblockCreation:
         roads_idx_node_lookup = dict(zip(range(len(roads_nodes)), roads_nodes))
 
         # Develop inclusive and exclusive bo node buffers.
-        node_buffers_incl = unintegrated_bo_nodes.map(
+        node_buffers_incl = self._crn_bos_nodes_unintegrated.map(
             lambda node: Point(node).buffer(self.suggested_snapping_incl, resolution=5))
-        node_buffers_excl = unintegrated_bo_nodes.map(
+        node_buffers_excl = self._crn_bos_nodes_unintegrated.map(
             lambda node: Point(node).buffer(self.suggested_snapping_excl_node, resolution=5))
 
         # Query crn nodes which intersect each bo node buffer.
@@ -159,7 +153,7 @@ class CRNMeshblockCreation:
             lambda buffer: set(roads_nodes_g.sindex.query(buffer, predicate="intersects")))
 
         # Filter node intersections to those with identical inclusive and exclusive results and only 1 value.
-        node_intersects = pd.Series(zip(unintegrated_bo_nodes, node_intersects_incl, node_intersects_excl))
+        node_intersects = pd.Series(zip(self._crn_bos_nodes_unintegrated, node_intersects_incl, node_intersects_excl))
         node_intersects.drop_duplicates(keep="first", inplace=True)
         node_intersects = node_intersects.loc[node_intersects.map(
             lambda vals: (vals[1] == vals[2]) and (len(vals[1]) == 1))].copy(deep=True)
@@ -179,7 +173,7 @@ class CRNMeshblockCreation:
         roads_idx_geoms_lookup = dict(zip(range(len(self.crn_roads)), self.crn_roads["geometry"]))
 
         # Develop inclusive and exclusive bo node buffers.
-        node_buffers_excl = unintegrated_bo_nodes.map(
+        node_buffers_excl = self._crn_bos_nodes_unintegrated.map(
             lambda node: Point(node).buffer(self.suggested_snapping_excl_edge, resolution=5))
 
         # Query crn roads (inclusive) and crn nodes (exclusive) which intersect each bo node buffer.
@@ -189,7 +183,7 @@ class CRNMeshblockCreation:
             lambda buffer: set(roads_nodes_g.sindex.query(buffer, predicate="intersects")))
 
         # Filter intersections to those with only 1 inclusive result and 0 exclusive results.
-        node_intersects = pd.Series(zip(unintegrated_bo_nodes, node_intersects_incl, node_intersects_excl))
+        node_intersects = pd.Series(zip(self._crn_bos_nodes_unintegrated, node_intersects_incl, node_intersects_excl))
         node_intersects.drop_duplicates(keep="first", inplace=True)
         node_intersects = node_intersects.loc[node_intersects.map(
             lambda vals: (len(vals[1]) == 1) and (len(vals[2]) == 0))].copy(deep=True)
@@ -272,32 +266,47 @@ class CRNMeshblockCreation:
 
         errors = set()
 
-        # Extract nodes.
-        self.crn_roads["nodes"] = self.crn_roads["geometry"].map(
-            lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
-        self.crn_bos["nodes"] = self.crn_bos["geometry"].map(
-            lambda g: tuple(set(itemgetter(0, -1)(attrgetter("coords")(g)))))
+        # Extract and explode node collections to allow for individual node validation.
+        self._crn_roads_nodes = self.crn_roads["geometry"].map(
+            lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode().copy(deep=True)
+        self._crn_bos_nodes = self.crn_bos["geometry"].map(
+            lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode().copy(deep=True)
 
-        # Explode nodes collections and group identifiers based on shared nodes.
-        crn_roads_nodes_exp = self.crn_roads["nodes"].explode()
-        self._crn_roads_nodes_lookup = dict(pd.DataFrame({"node": crn_roads_nodes_exp.values,
-                                                          self.id: crn_roads_nodes_exp.index})
-                                            .groupby(by="node", axis=0, as_index=True)[self.id].agg(tuple))
-
-        crn_bos_nodes_exp = self.crn_bos["nodes"].explode()
-        self._crn_bos_nodes_lookup = dict(pd.DataFrame({"node": crn_bos_nodes_exp.values,
-                                                        self.id: crn_bos_nodes_exp.index})
+        # Create bo node - identifier lookup.
+        self._crn_bos_nodes_lookup = dict(pd.DataFrame({"node": self._crn_bos_nodes.values,
+                                                        self.id: self._crn_bos_nodes.index})
                                           .groupby(by="node", axis=0, as_index=True)[self.id].agg(tuple))
 
-        # Explode BO node collections to allow for individual node validation.
-        self._crn_roads_nodes = self.crn_roads["nodes"].explode().copy(deep=True)
-        self._crn_bos_nodes = self.crn_bos["nodes"].explode().copy(deep=True)
+        # Compile deadend nodes.
+        nodes = pd.concat([self._crn_roads_nodes, self._crn_bos_nodes])
+        self._deadends = nodes.loc[~nodes.duplicated(keep=False)].copy(deep=True)
 
-        # Flag BO nodes connected to a crn road node.
-        self._integrated = self._crn_bos_nodes.map(lambda node: node in self._crn_roads_nodes_lookup)
+        # Compile dead end bo nodes as unintegrated.
+        self._crn_bos_nodes_unintegrated = pd.Series(tuple(set(self._crn_bos_nodes).intersection(set(self._deadends))))
 
         # Reference dataset: suggested snapping LineStrings.
-        self._gen_suggested_snapping(pd.Series(tuple(set(self._crn_bos_nodes.loc[~self._integrated]))))
+        self._gen_suggested_snapping()
+
+        return errors
+
+    def connectivity_deadend_bo(self) -> set:
+        """
+        Validates: All BOs must have nodal connections to other arcs.
+
+        \b
+        :return set: set containing identifiers of erroneous records.
+        """
+
+        errors = set()
+
+        # Compile unintegrated BO nodes.
+        if len(self._crn_bos_nodes_unintegrated):
+
+            # Compile identifiers of arcs for resulting BO nodes.
+            vals = set(chain.from_iterable(self._crn_bos_nodes_unintegrated.map(self._crn_bos_nodes_lookup).values))
+
+            # Compile error logs.
+            errors.update(vals)
 
         return errors
 
@@ -328,38 +337,6 @@ class CRNMeshblockCreation:
 
         return errors
 
-    def connectivity_crn_proximity(self) -> set:
-        """
-        Validates: Unintegrated BO node is <= 5 meters from a CRN road (entire arc).
-
-        \b
-        :return set: set containing identifiers of erroneous records.
-        """
-
-        errors = set()
-
-        # Compile unintegrated BO nodes.
-        unintegrated_bo_nodes = pd.Series(tuple(set(self._crn_bos_nodes.loc[~self._integrated])))
-
-        # Generate simplified node buffers with distance tolerance.
-        node_buffers = unintegrated_bo_nodes.map(lambda node: Point(node).buffer(self._bo_road_prox, resolution=5))
-
-        # Query crn roads which intersect each node buffer.
-        node_intersects = node_buffers.map(
-            lambda buffer: set(self.crn_roads.sindex.query(buffer, predicate="intersects")))
-
-        # Filter unintegrated bo nodes to those with buffers with one or more intersecting crn roads.
-        unintegrated_bo_nodes_ = unintegrated_bo_nodes.loc[node_intersects.map(len) >= 1]
-        if len(unintegrated_bo_nodes_):
-
-            # Compile identifiers of arcs for resulting BO nodes.
-            vals = set(chain.from_iterable(unintegrated_bo_nodes_.map(self._crn_bos_nodes_lookup).values))
-
-            # Compile error logs.
-            errors.update(vals)
-
-        return errors
-
     def meshblock(self) -> set:
         """
         Validates: Generate meshblock from LineStrings.
@@ -372,19 +349,14 @@ class CRNMeshblockCreation:
 
         errors = set()
 
-        # Compile indexes of deadend arcs.
-        nodes = self.crn["geometry"].map(lambda g: itemgetter(0, -1)(attrgetter("coords")(g))).explode()
-        _deadends = nodes.loc[~nodes.duplicated(keep=False)]
-        self._deadends = set(_deadends.index)
-
         # Export deadends for reference.
-        if len(_deadends):
+        if len(self._deadends):
 
-            pts_df = gpd.GeoDataFrame(geometry=list(map(Point, set(_deadends))), crs=self.crn.crs)
+            pts_df = gpd.GeoDataFrame(geometry=list(map(Point, self._deadends)), crs=self.crn.crs)
             self.export[f"{self.source}_deadends"] = pts_df.copy(deep=True)
 
         # Configure meshblock input (all non-deadend arcs).
-        self._meshblock_input = self.crn.loc[~self.crn.index.isin(self._deadends)].copy(deep=True)
+        self._meshblock_input = self.crn.loc[~self.crn.index.isin(self._deadends.index)].copy(deep=True)
 
         # Generate meshblock.
         self.meshblock_ = gpd.GeoDataFrame(
@@ -405,7 +377,7 @@ class CRNMeshblockCreation:
         errors = set()
 
         # Query meshblock polygons which contain each deadend arc.
-        within = self.crn.loc[self.crn.index.isin(self._deadends), "geometry"]\
+        within = self.crn.loc[self.crn.index.isin(self._deadends.index), "geometry"]\
             .map(lambda g: set(self.meshblock_.sindex.query(g, predicate="within")))
 
         # Flag arcs which are not completely within one polygon.

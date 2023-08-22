@@ -403,6 +403,7 @@ of the entire hierarchy of statistical geographic units and will replace NGD’s
 <dt>Reference layers (availability conditional on validation results):</dt><dd><ul>
 <li><p>Missing BOs layer: <code class="docutils literal notranslate"><span class="pre">&lt;source&gt;_missing_bo</span></code></p></li>
 <li><p>Deadend points layer: <code class="docutils literal notranslate"><span class="pre">&lt;source&gt;_deadends</span></code></p></li>
+<li><p>Suggested snapping lines layer: <code class="docutils literal notranslate"><span class="pre">&lt;source&gt;_suggested_snapping</span></code></p></li>
 <li><p>New (CRN) BB layer: <code class="docutils literal notranslate"><span class="pre">&lt;source&gt;_meshblock</span></code></p></li>
 </ul>
 </dd>
@@ -444,13 +445,18 @@ indicating whether or not that record was flagged by that validation. Use this d
 <dt class="field-even"><code class="docutils literal notranslate"><span class="pre">ngd_road</span></code><span class="colon">:</span></dt>
 <dd class="field-even"><p>NGD roads for reference and identifying roads missing from the CRN which are required for BO integration.</p>
 </dd>
-<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">crn</span></code><span class="colon">:</span></dt>
-<dd class="field-odd"><p>Copy of <code class="docutils literal notranslate"><span class="pre">crn</span></code> with highly visible symbology for quickly identifying erroneous features to edit without
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">suggested_snapping</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Suggested connections between unintegrated BOs and NRN road nodes or edges. Intended for rapid
+tagging of features to be automatically snapped for quicker editing. Not all suggestions will
+be appropriate and each instance should be reviewed manually.</p>
+</dd>
+<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">crn</span></code><span class="colon">:</span></dt>
+<dd class="field-even"><p>Copy of <code class="docutils literal notranslate"><span class="pre">crn</span></code> with highly visible symbology for quickly identifying erroneous features to edit without
 having to individually query each one. Intended to have a definition query applied using one of the
 validation attributes (i.e. <code class="docutils literal notranslate"><span class="pre">&quot;v101&quot;</span> <span class="pre">=</span> <span class="pre">1</span></code>).</p>
 </dd>
-<dt class="field-even"><code class="docutils literal notranslate"><span class="pre">Esri</span> <span class="pre">Satellite</span></code><span class="colon">:</span></dt>
-<dd class="field-even"><p>Reference WMS for recent imagery context.</p>
+<dt class="field-odd"><code class="docutils literal notranslate"><span class="pre">Esri</span> <span class="pre">Satellite</span></code><span class="colon">:</span></dt>
+<dd class="field-odd"><p>Reference WMS for recent imagery context.</p>
 </dd>
 </dl>
 </section>
@@ -658,18 +664,12 @@ adjustments possible, as shown above).</p>
 </figcaption>
 </figure>
 <div class="line-block">
-<div class="line"><strong>Description:</strong> Unintegrated BO node is &lt;= 5 meters from an NRN road (entire arc).</div>
+<div class="line"><strong>Description:</strong> All BOs must have nodal connections to other arcs.</div>
 <div class="line"><strong>Actions:</strong></div>
 </div>
 <ol class="arabic simple">
 <li><p>Extend / modify the BO to connect with the appropriate NRN arc(s).</p></li>
 </ol>
-<div class="admonition-warning admonition">
-<p class="admonition-title">Warning</p>
-<p>Some instances of this validation may be represented by truly disconnected BOs and roads, such as BOs which
-traverse rivers or shorelines. However, those instances should be easily identifiable since the BO would not be a
-dangling arc.</p>
-</div>
 <div class="admonition-note admonition">
 <p class="admonition-title">Note</p>
 <p>Enable imagery WMS layer in QGIS table of contents to assist in determining feature connectivity.</p>
@@ -754,7 +754,7 @@ BOs.</p></li>
 <figure class="align-default" id="id16">
 <img alt="Meshblock creation progress map." src="../../_images/meshblock_creation_progress_map.png" />
 <figcaption>
-<p><span class="caption-text">Figure: Meshblock creation progress map as of June 8, 2023.</span><a class="headerlink" href="#id16" title="Permalink to this image">¶</a></p>
+<p><span class="caption-text">Figure: Meshblock creation progress map as of August 8, 2023.</span><a class="headerlink" href="#id16" title="Permalink to this image">¶</a></p>
 </figcaption>
 </figure>
 </section>
