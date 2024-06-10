@@ -1,6 +1,4 @@
 name: egp-crn
-channels:
-  - https://jfrog.aaw.cloud.statcan.ca/artifactory/conda-forge-remote/
 dependencies:
   - click=8.1.3
   - fiona=1.8.21
